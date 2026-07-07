@@ -1,0 +1,6 @@
+{
+  "ApiBaseUrl": "http://192.168.1.14:8000",
+  "ApiKey": "CHANGE_ME_WITH_REAL_API_KEY",
+  "Mode": "Simulation",
+  "PollIntervalSeconds": 30
+}

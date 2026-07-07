@@ -1,0 +1,520 @@
+from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
+from pathlib import Path
+from datetime import datetime
+from uuid import uuid4
+import json
+import os
+import unicodedata
+
+
+app = FastAPI(
+    title="Enterprise IT Automation Suite",
+    description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
+    version="0.1.0",
+    docs_url=None,
+    redoc_url=None
+)
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+TEMPLATES_FILE = DATA_DIR / "templates.json"
+REQUESTS_FILE = DATA_DIR / "requests.json"
+AUDIT_FILE = DATA_DIR / "audit.jsonl"
+API_KEY = os.getenv("EITAS_API_KEY", "dev-local-key-change-me")
+
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+
+
+
+def require_api_key(x_api_key: str | None = Header(default=None)):
+    if x_api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="API key invalide ou manquante"
+        )
+
+
+class OnboardingRequest(BaseModel):
+    first_name: str
+    last_name: str
+    department: str
+    job_title: str
+    manager: str | None = None
+    start_date: str
+    manual_groups: list[str] = Field(default_factory=list)
+
+
+class AgentResult(BaseModel):
+    success: bool
+    message: str
+    details: dict = Field(default_factory=dict)
+
+
+class ResetRequestsPayload(BaseModel):
+    confirm: str
+
+
+class ClaimRequestPayload(BaseModel):
+    agent_name: str | None = None
+
+
+class ApprovalPayload(BaseModel):
+    approved_by: str
+    comment: str | None = None
+
+
+def load_json(path: Path, default):
+    if not path.exists():
+        return default
+
+    with path.open("r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def save_json(path: Path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2, ensure_ascii=False)
+
+
+def write_audit_log(action: str, request_id: str | None = None, actor: str = "system", message: str = "", details: dict | None = None):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    event = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "action": action,
+        "request_id": request_id,
+        "actor": actor,
+        "message": message,
+        "details": details or {}
+    }
+
+    with AUDIT_FILE.open("a", encoding="utf-8") as file:
+        file.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def normalize_text(value: str) -> str:
+    value = value.strip().lower()
+    value = unicodedata.normalize("NFKD", value)
+    value = "".join(char for char in value if not unicodedata.combining(char))
+    value = value.replace(" ", "-")
+    return value
+
+
+def generate_username(first_name: str, last_name: str) -> str:
+    first = normalize_text(first_name)
+    last = normalize_text(last_name)
+    return f"{first[0]}.{last}"
+
+
+def generate_email(first_name: str, last_name: str) -> str:
+    first = normalize_text(first_name).replace("-", ".")
+    last = normalize_text(last_name).replace("-", ".")
+    return f"{first}.{last}@lab.local"
+
+
+@app.get("/docs-local", include_in_schema=False)
+def docs_local():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Enterprise IT Automation Suite - Docs</title>
+        <link rel="stylesheet" type="text/css" href="/static/swagger/swagger-ui.css">
+        <style>
+            html, body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="swagger-ui"></div>
+        <script src="/static/swagger/swagger-ui-bundle.js"></script>
+        <script>
+            window.onload = function() {
+                SwaggerUIBundle({
+                    url: "/openapi.json",
+                    dom_id: "#swagger-ui",
+                    deepLinking: true,
+                    layout: "BaseLayout"
+                });
+            };
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+
+
+@app.get("/")
+def root():
+    return {
+        "name": "Enterprise IT Automation Suite",
+        "version": "0.1.0",
+        "status": "running"
+    }
+
+
+@app.get("/api/templates")
+def get_templates():
+    return load_json(TEMPLATES_FILE, {"departments": {}})
+
+
+@app.post("/api/onboarding/request")
+def create_onboarding_request(payload: OnboardingRequest, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.get("departments", {})
+
+    if payload.department not in departments:
+        raise HTTPException(status_code=400, detail="Département inconnu")
+
+    department_config = departments[payload.department]
+    roles = department_config.get("roles", {})
+
+    if payload.job_title not in roles:
+        raise HTTPException(status_code=400, detail="Poste inconnu pour ce département")
+
+    default_groups = department_config.get("default_groups", [])
+    role_groups = roles[payload.job_title].get("groups", [])
+    manual_groups = payload.manual_groups
+
+    all_groups = sorted(set(default_groups + role_groups + manual_groups))
+
+    request_id = str(uuid4())
+    username = generate_username(payload.first_name, payload.last_name)
+    email = generate_email(payload.first_name, payload.last_name)
+
+    request_data = {
+        "id": request_id,
+        "type": "onboarding",
+        "status": "waiting_approval",
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "input": payload.model_dump(),
+        "ad_payload": {
+            "first_name": payload.first_name,
+            "last_name": payload.last_name,
+            "display_name": f"{payload.first_name} {payload.last_name}",
+            "username": username,
+            "email": email,
+            "department": payload.department,
+            "job_title": payload.job_title,
+            "manager": payload.manager,
+            "start_date": payload.start_date,
+            "ou": department_config.get("default_ou"),
+            "groups": all_groups
+        },
+        "agent_result": None
+    }
+
+    requests = load_json(REQUESTS_FILE, [])
+    requests.append(request_data)
+    save_json(REQUESTS_FILE, requests)
+
+    write_audit_log(
+        action="request_created",
+        request_id=request_id,
+        actor="api",
+        message=f"Demande onboarding créée pour {payload.first_name} {payload.last_name}",
+        details={
+            "username": username,
+            "department": payload.department,
+            "job_title": payload.job_title
+        }
+    )
+
+    return {
+        "message": "Demande créée",
+        "request": request_data
+    }
+
+
+@app.get("/api/requests")
+def list_requests(api_key: None = Depends(require_api_key)):
+    return load_json(REQUESTS_FILE, [])
+
+
+@app.get("/api/requests/{request_id}")
+def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+
+    for request in requests:
+        if request.get("id") == request_id:
+            return request
+
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+@app.get("/api/agent/pending")
+def get_pending_requests(api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+
+    pending = [
+        request for request in requests
+        if request.get("status") == "pending"
+    ]
+
+    return {
+        "count": len(pending),
+        "requests": pending
+    }
+
+
+@app.post("/api/agent/claim/{request_id}")
+def claim_request(request_id: str, payload: ClaimRequestPayload, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+
+    for request in requests:
+        if request.get("id") == request_id:
+            current_status = request.get("status")
+
+            if current_status != "pending":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Demande non disponible. Statut actuel : {current_status}"
+                )
+
+            request["status"] = "processing"
+            request["processing_at"] = datetime.utcnow().isoformat() + "Z"
+            request["processing_by"] = payload.agent_name or "unknown-agent"
+
+            save_json(REQUESTS_FILE, requests)
+
+            write_audit_log(
+                action="request_claimed",
+                request_id=request_id,
+                actor=payload.agent_name or "unknown-agent",
+                message="Demande prise en charge par un agent",
+                details={
+                    "status": "processing"
+                }
+            )
+
+            return {
+                "message": "Demande prise en charge",
+                "request_id": request_id,
+                "status": "processing",
+                "request": request
+            }
+
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+@app.post("/api/agent/result/{request_id}")
+def submit_agent_result(request_id: str, result: AgentResult, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+    found = False
+
+    for request in requests:
+        if request.get("id") == request_id:
+            found = True
+            request["status"] = "completed" if result.success else "failed"
+            request["completed_at"] = datetime.utcnow().isoformat() + "Z"
+            request["agent_result"] = result.model_dump()
+            break
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+
+    save_json(REQUESTS_FILE, requests)
+
+    write_audit_log(
+        action="request_completed" if result.success else "request_failed",
+        request_id=request_id,
+        actor=result.details.get("server", "agent") if isinstance(result.details, dict) else "agent",
+        message=result.message,
+        details=result.details
+    )
+
+    return {
+        "message": "Résultat agent enregistré",
+        "request_id": request_id
+    }
+
+
+@app.post("/api/admin/requests/reset")
+def reset_requests(payload: ResetRequestsPayload, api_key: None = Depends(require_api_key)):
+    if payload.confirm != "RESET":
+        raise HTTPException(
+            status_code=400,
+            detail="Confirmation invalide. Utilise exactement RESET."
+        )
+
+    requests = load_json(REQUESTS_FILE, [])
+    deleted_count = len(requests)
+    backup_file = None
+
+    if deleted_count > 0:
+        backup_file = DATA_DIR / f"requests.backup.{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.json"
+        save_json(backup_file, requests)
+
+    save_json(REQUESTS_FILE, [])
+
+    write_audit_log(
+        action="requests_reset",
+        actor="admin",
+        message="Réinitialisation des demandes",
+        details={
+            "deleted_count": deleted_count,
+            "backup_file": backup_file.name if backup_file else None
+        }
+    )
+
+    return {
+        "message": "Demandes réinitialisées",
+        "deleted_count": deleted_count,
+        "backup_file": backup_file.name if backup_file else None
+    }
+
+
+@app.post("/api/admin/requests/{request_id}/retry")
+def retry_request(request_id: str, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+    found = False
+
+    for request in requests:
+        if request.get("id") == request_id:
+            found = True
+            request["status"] = "pending"
+            request["retried_at"] = datetime.utcnow().isoformat() + "Z"
+            request["completed_at"] = None
+            request["agent_result"] = None
+            break
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Demande introuvable")
+
+    save_json(REQUESTS_FILE, requests)
+
+    write_audit_log(
+        action="request_retried",
+        request_id=request_id,
+        actor="admin",
+        message="Demande remise en attente",
+        details={
+            "status": "pending"
+        }
+    )
+
+    return {
+        "message": "Demande remise en attente",
+        "request_id": request_id,
+        "status": "pending"
+    }
+
+
+@app.post("/api/admin/requests/{request_id}/approve")
+def approve_request(request_id: str, payload: ApprovalPayload, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+
+    for request in requests:
+        if request.get("id") == request_id:
+            current_status = request.get("status")
+
+            if current_status != "waiting_approval":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Demande non validable. Statut actuel : {current_status}"
+                )
+
+            request["status"] = "pending"
+            request["approved"] = True
+            request["approved_by"] = payload.approved_by
+            request["approved_at"] = datetime.utcnow().isoformat() + "Z"
+            request["approval_comment"] = payload.comment
+
+            save_json(REQUESTS_FILE, requests)
+
+            write_audit_log(
+                action="request_approved",
+                request_id=request_id,
+                actor=payload.approved_by,
+                message="Demande validée",
+                details={
+                    "comment": payload.comment,
+                    "status": "pending"
+                }
+            )
+
+            return {
+                "message": "Demande validée",
+                "request_id": request_id,
+                "status": "pending"
+            }
+
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+@app.post("/api/admin/requests/{request_id}/reject")
+def reject_request(request_id: str, payload: ApprovalPayload, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+
+    for request in requests:
+        if request.get("id") == request_id:
+            current_status = request.get("status")
+
+            if current_status not in ["waiting_approval", "pending"]:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Demande non rejetable. Statut actuel : {current_status}"
+                )
+
+            request["status"] = "rejected"
+            request["approved"] = False
+            request["rejected_by"] = payload.approved_by
+            request["rejected_at"] = datetime.utcnow().isoformat() + "Z"
+            request["rejection_comment"] = payload.comment
+
+            save_json(REQUESTS_FILE, requests)
+
+            write_audit_log(
+                action="request_rejected",
+                request_id=request_id,
+                actor=payload.approved_by,
+                message="Demande rejetée",
+                details={
+                    "comment": payload.comment,
+                    "status": "rejected"
+                }
+            )
+
+            return {
+                "message": "Demande rejetée",
+                "request_id": request_id,
+                "status": "rejected"
+            }
+
+    raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+@app.get("/api/audit-logs")
+def list_audit_logs(limit: int = 50, api_key: None = Depends(require_api_key)):
+    if not AUDIT_FILE.exists():
+        return {
+            "count": 0,
+            "logs": []
+        }
+
+    lines = AUDIT_FILE.read_text(encoding="utf-8").splitlines()
+    selected_lines = lines[-limit:]
+
+    logs = []
+    for line in selected_lines:
+        try:
+            logs.append(json.loads(line))
+        except json.JSONDecodeError:
+            logs.append({
+                "error": "invalid_log_line",
+                "raw": line
+            })
+
+    return {
+        "count": len(logs),
+        "logs": logs
+    }

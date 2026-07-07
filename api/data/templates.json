@@ -1,0 +1,64 @@
+{
+  "departments": {
+    "Comptabilite": {
+      "default_ou": "OU=Users,OU=Comptabilite,DC=lab,DC=local",
+      "default_groups": [
+        "GG_Compta_Read",
+        "GG_Printer_Compta"
+      ],
+      "roles": {
+        "Assistant comptable": {
+          "groups": [
+            "GG_Compta_RW",
+            "GG_M365_Standard"
+          ]
+        },
+        "Responsable comptable": {
+          "groups": [
+            "GG_Compta_RW",
+            "GG_Compta_Admin",
+            "GG_M365_Standard"
+          ]
+        }
+      }
+    },
+    "RH": {
+      "default_ou": "OU=Users,OU=RH,DC=lab,DC=local",
+      "default_groups": [
+        "GG_RH_Read",
+        "GG_Printer_RH"
+      ],
+      "roles": {
+        "Assistant RH": {
+          "groups": [
+            "GG_RH_RW",
+            "GG_M365_Standard"
+          ]
+        }
+      }
+    },
+    "IT": {
+      "default_ou": "OU=Users,OU=IT,DC=lab,DC=local",
+      "default_groups": [
+        "GG_IT_Read",
+        "GG_VPN_Users"
+      ],
+      "roles": {
+        "Technicien support": {
+          "groups": [
+            "GG_IT_Tech",
+            "GG_RemoteSupport",
+            "GG_M365_Standard"
+          ]
+        },
+        "Administrateur systeme": {
+          "groups": [
+            "GG_IT_Admin",
+            "GG_Server_Admins",
+            "GG_M365_Admin"
+          ]
+        }
+      }
+    }
+  }
+}
