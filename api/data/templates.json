@@ -28,14 +28,7 @@
         "GG_RH_Read",
         "GG_Printer_RH"
       ],
-      "roles": {
-        "Assistant RH": {
-          "groups": [
-            "GG_RH_RW",
-            "GG_M365_Standard"
-          ]
-        }
-      }
+      "roles": {}
     },
     "IT": {
       "default_ou": "OU=Users,OU=IT,DC=lab,DC=local",

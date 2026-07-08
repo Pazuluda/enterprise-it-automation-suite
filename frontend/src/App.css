@@ -2897,3 +2897,58 @@ td details pre {
   padding: 10px;
   font-size: 12px;
 }
+
+/* ========================================================= */
+/* === EITAS status badges fix after component extraction === */
+/* ========================================================= */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  border: 1px solid #d7deea;
+  background: #eef2f7;
+  color: var(--text);
+}
+
+.status-badge.waiting_approval {
+  background: #fff8df;
+  border-color: #e8d18b;
+  color: #9a6700;
+}
+
+.status-badge.pending {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+}
+
+.status-badge.processing {
+  background: #eaf1fb;
+  border-color: #b6ccec;
+  color: var(--blue);
+}
+
+.status-badge.completed {
+  background: #eaf8ef;
+  border-color: #bee7ca;
+  color: var(--green);
+}
+
+.status-badge.failed {
+  background: #fff1f0;
+  border-color: #efc4c4;
+  color: var(--red);
+}
+
+.status-badge.rejected {
+  background: #fff1f0;
+  border-color: #efc4c4;
+  color: var(--red);
+}
