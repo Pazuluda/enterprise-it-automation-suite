@@ -2444,3 +2444,135 @@ td details pre {
 .stats-grid .stat-card:nth-child(5) strong {
   color: #111827;
 }
+
+/* ========================================================= */
+/* === EITAS Detail drawer - lifecycle timeline ============ */
+/* ========================================================= */
+
+.lifecycle-section {
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+}
+
+.lifecycle-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lifecycle-step {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.lifecycle-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #eef2f7;
+  border: 1px solid #d7deea;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.lifecycle-step.done .lifecycle-dot {
+  background: #eaf8ef;
+  border-color: #bee7ca;
+  color: var(--green);
+}
+
+.lifecycle-step.bad .lifecycle-dot {
+  background: #fff1f0;
+  border-color: #efc4c4;
+  color: var(--red);
+}
+
+.lifecycle-step.waiting .lifecycle-dot {
+  background: #f8fafc;
+  border-color: #d7deea;
+  color: var(--muted);
+}
+
+.lifecycle-card {
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #ffffff;
+  padding: 12px;
+  min-height: 94px;
+  display: grid;
+  gap: 5px;
+}
+
+.lifecycle-card strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.lifecycle-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lifecycle-card p {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .lifecycle-timeline {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .lifecycle-timeline {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - copy button ================== */
+/* ========================================================= */
+
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.copy-button {
+  border: 1px solid #d7deea;
+  background: #f3f6fb;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.copy-button:hover {
+  background: #eaf1fb;
+  border-color: #b6ccec;
+}
+
+.copy-button.copied {
+  background: #eaf8ef;
+  border-color: #bee7ca;
+  color: var(--green);
+}
+
+@media (max-width: 650px) {
+  .drawer-header-actions {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}
