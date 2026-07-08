@@ -641,60 +641,97 @@ function App() {
   )
 }
 
-function OverviewPage({ stats, requests, setPage, setSelectedRequest }) {
-  const recent = requests.slice(-5).reverse()
+function OverviewPage({ requests, setPage }) {
+  const safeRequests = Array.isArray(requests) ? requests : []
+
+  const waitingApproval = safeRequests.filter(request => request.status === 'waiting_approval').length
+  const pendingAgent = safeRequests.filter(request => request.status === 'pending' || request.status === 'processing').length
+  const completed = safeRequests.filter(request => request.status === 'completed').length
+  const issues = safeRequests.filter(request => request.status === 'failed' || request.status === 'rejected').length
+
+  const recentRequests = [...safeRequests].slice(-5).reverse()
 
   return (
     <>
-      <section className="metrics">
-        <Metric title="Total demandes" value={stats.total} tone="dark" />
-        <Metric title="À valider" value={stats.waiting} tone="orange" />
-        <Metric title="En attente agent" value={stats.pending} tone="blue" />
-        <Metric title="Terminées" value={stats.completed} tone="green" />
-        <Metric title="Échecs / rejets" value={stats.failed} tone="red" />
-      </section>
+      <div className="stats-grid">
+        <div className="stat-card total">
+          <span>Total demandes</span>
+          <strong>{safeRequests.length}</strong>
+        </div>
 
-      <div className="dashboard-grid">
+        <div className="stat-card warning">
+          <span>À valider</span>
+          <strong>{waitingApproval}</strong>
+        </div>
+
+        <div className="stat-card pending">
+          <span>En attente agent</span>
+          <strong>{pendingAgent}</strong>
+        </div>
+
+        <div className="stat-card success">
+          <span>Terminées</span>
+          <strong>{completed}</strong>
+        </div>
+
+        <div className="stat-card danger">
+          <span>Échecs / rejets</span>
+          <strong>{issues}</strong>
+        </div>
+      </div>
+
+      <div className="content-grid">
         <section className="panel">
-          <PanelHeader
-            title="Demandes récentes"
-            subtitle="Dernières demandes enregistrées."
-            action={<button className="secondary" onClick={() => setPage('requests')}>Voir toutes</button>}
-          />
+          <div className="panel-header">
+            <div>
+              <h2>Demandes récentes</h2>
+              <p>Dernières demandes enregistrées.</p>
+            </div>
 
-          <div className="mini-list">
-            {recent.length === 0 && <div className="empty-mini">Aucune demande récente.</div>}
+            <button onClick={() => setPage('requests')}>Voir toutes</button>
+          </div>
 
-            {recent.map(request => {
-              const payload = request.ad_payload || {}
+          <div className="recent-list">
+            {recentRequests.length === 0 ? (
+              <p className="empty">Aucune demande récente.</p>
+            ) : (
+              recentRequests.map(request => {
+                const payload = request.ad_payload || request.payload || {}
+                const type = request.type || 'onboarding'
 
-              return (
-                <button className="mini-item" key={request.id} onClick={() => setSelectedRequest(request)}>
-                  <div>
-                    <strong>{payload.display_name || 'Utilisateur inconnu'}</strong>
-                    <span>{TYPE_LABELS[request.type] || request.type || 'Création'} · {payload.department || '-'} · {payload.job_title || '-'}</span>
+                return (
+                  <div className="recent-item" key={request.id}>
+                    <div>
+                      <strong>{payload.display_name || payload.username || 'Utilisateur inconnu'}</strong>
+                      <span>{TYPE_LABELS[type] || type} · {payload.department || '-'} · {payload.job_title || '-'}</span>
+                    </div>
+
+                    <StatusBadge status={request.status} />
                   </div>
-                  <StatusBadge status={request.status} />
-                </button>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </section>
 
-        <section className="panel">
-          <PanelHeader
-            title="Actions rapides"
-            subtitle="Raccourcis de gestion."
-          />
+        <section className="panel quick-actions">
+          <div className="panel-header">
+            <div>
+              <h2>Actions rapides</h2>
+              <p>Raccourcis de gestion.</p>
+            </div>
+          </div>
 
-          <div className="quick-actions">
+          <div className="quick-action-list">
             <button onClick={() => setPage('newRequest')}>Créer une demande</button>
-            <button className="secondary" onClick={() => setPage('requests')}>Gérer les validations</button>
-            <button className="secondary" onClick={() => setPage('templates')}>Consulter les templates</button>
-            <button className="secondary" onClick={() => setPage('settings')}>Configurer API</button>
+            <button onClick={() => setPage('requests')}>Gérer les validations</button>
+            <button onClick={() => setPage('templates')}>Consulter les templates</button>
+            <button onClick={() => setPage('settings')}>Configurer API</button>
           </div>
         </section>
       </div>
+
+      <DashboardInsights requests={safeRequests} setPage={setPage} />
     </>
   )
 }
@@ -1870,6 +1907,207 @@ function SmartDetailRow({ label, value, wide = false }) {
     <div className={wide ? 'detail-row wide' : 'detail-row'}>
       <span>{label}</span>
       <strong>{display(value)}</strong>
+    </div>
+  )
+}
+
+function DashboardInsights({ requests, setPage }) {
+  const safeRequests = Array.isArray(requests) ? requests : []
+
+  const byType = {
+    onboarding: safeRequests.filter(request => (request.type || 'onboarding') === 'onboarding').length,
+    offboarding: safeRequests.filter(request => request.type === 'offboarding').length,
+    modification: safeRequests.filter(request => request.type === 'modification').length
+  }
+
+  const byStatus = {
+    waiting_approval: safeRequests.filter(request => request.status === 'waiting_approval').length,
+    pending: safeRequests.filter(request => request.status === 'pending').length,
+    processing: safeRequests.filter(request => request.status === 'processing').length,
+    completed: safeRequests.filter(request => request.status === 'completed').length,
+    failed: safeRequests.filter(request => request.status === 'failed').length,
+    rejected: safeRequests.filter(request => request.status === 'rejected').length
+  }
+
+  const total = safeRequests.length || 1
+  const completedRate = Math.round((byStatus.completed / total) * 100)
+
+  const latestIssues = safeRequests
+    .filter(request => request.status === 'failed' || request.status === 'rejected')
+    .slice(-5)
+    .reverse()
+
+  const latestAgentActions = safeRequests
+    .filter(request => request.processing_by || request.agent_result)
+    .slice(-5)
+    .reverse()
+
+  const pendingWork = safeRequests.filter(request => {
+    return request.status === 'waiting_approval' || request.status === 'pending' || request.status === 'processing'
+  })
+
+  return (
+    <div className="dashboard-plus">
+      <section className="panel">
+        <PanelHeader
+          title="Répartition par type"
+          subtitle="Vue rapide des workflows utilisés."
+        />
+
+        <div className="dashboard-bars">
+          <DashboardBar label="Créations" value={byType.onboarding} total={total} type="onboarding" />
+          <DashboardBar label="Départs" value={byType.offboarding} total={total} type="offboarding" />
+          <DashboardBar label="Modifications" value={byType.modification} total={total} type="modification" />
+        </div>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Santé du traitement"
+          subtitle="État global des demandes."
+        />
+
+        <div className="health-card">
+          <div>
+            <strong>{completedRate}%</strong>
+            <span>Demandes terminées</span>
+          </div>
+
+          <div className="health-meter">
+            <span style={{ width: `${completedRate}%` }} />
+          </div>
+        </div>
+
+        <div className="mini-status-grid">
+          <MiniStatus label="À valider" value={byStatus.waiting_approval} />
+          <MiniStatus label="En attente agent" value={byStatus.pending} />
+          <MiniStatus label="En cours" value={byStatus.processing} />
+          <MiniStatus label="Terminées" value={byStatus.completed} />
+          <MiniStatus label="Échecs" value={byStatus.failed} />
+          <MiniStatus label="Rejets" value={byStatus.rejected} />
+        </div>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="File de travail"
+          subtitle="Ce qui demande encore une action."
+        />
+
+        {pendingWork.length === 0 ? (
+          <div className="empty-dashboard-state">
+            <strong>Aucune action en attente</strong>
+            <span>Tout est traité pour le moment.</span>
+          </div>
+        ) : (
+          <div className="compact-list">
+            {pendingWork.slice(0, 6).map(request => {
+              const payload = request.ad_payload || request.payload || {}
+
+              return (
+                <button key={request.id} className="compact-row" onClick={() => setPage('requests')}>
+                  <span>
+                    <strong>{payload.display_name || payload.username || 'Utilisateur'}</strong>
+                    <small>{TYPE_LABELS[request.type || 'onboarding'] || request.type || 'Création'}</small>
+                  </span>
+                  <StatusBadge status={request.status} />
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Derniers problèmes"
+          subtitle="Demandes rejetées ou en erreur."
+        />
+
+        {latestIssues.length === 0 ? (
+          <div className="empty-dashboard-state">
+            <strong>Aucun rejet ou échec récent</strong>
+            <span>Le flux est propre.</span>
+          </div>
+        ) : (
+          <div className="compact-list">
+            {latestIssues.map(request => {
+              const payload = request.ad_payload || request.payload || {}
+
+              return (
+                <button key={request.id} className="compact-row issue-row" onClick={() => setPage('requests')}>
+                  <span>
+                    <strong>{payload.display_name || payload.username || 'Utilisateur'}</strong>
+                    <small>{request.agent_result?.message || request.rejection_comment || 'À consulter'}</small>
+                  </span>
+                  <StatusBadge status={request.status} />
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="panel wide-panel">
+        <PanelHeader
+          title="Dernières actions agent"
+          subtitle="Traitements récents côté Windows Server."
+        />
+
+        {latestAgentActions.length === 0 ? (
+          <div className="empty-dashboard-state">
+            <strong>Aucune action agent</strong>
+            <span>L’agent n’a pas encore traité de demande récente.</span>
+          </div>
+        ) : (
+          <div className="agent-action-list">
+            {latestAgentActions.map(request => {
+              const payload = request.ad_payload || request.payload || {}
+              const result = request.agent_result || {}
+
+              return (
+                <div className="agent-action-row" key={request.id}>
+                  <div>
+                    <strong>{payload.display_name || payload.username || 'Utilisateur'}</strong>
+                    <span>{TYPE_LABELS[request.type || 'onboarding'] || request.type || 'Création'} · {request.processing_by || result.details?.agent || 'agent inconnu'}</span>
+                  </div>
+
+                  <div>
+                    <StatusBadge status={request.status} />
+                    <small>{result.message || 'Traitement enregistré'}</small>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function DashboardBar({ label, value, total, type }) {
+  const percent = total > 0 ? Math.round((value / total) * 100) : 0
+
+  return (
+    <div className="dashboard-bar">
+      <div className="dashboard-bar-head">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+
+      <div className={`dashboard-bar-track ${type}`}>
+        <span style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function MiniStatus({ label, value }) {
+  return (
+    <div className="mini-status">
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   )
 }
