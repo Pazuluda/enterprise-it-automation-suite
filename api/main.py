@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
 from pathlib import Path
 from datetime import datetime
 from uuid import uuid4
@@ -11,6 +10,7 @@ import unicodedata
 
 from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, AUDIT_FILE
 from app.core.security import require_api_key
+from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload
 
 
 app = FastAPI(
@@ -28,34 +28,6 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 
-
-class OnboardingRequest(BaseModel):
-    first_name: str
-    last_name: str
-    department: str
-    job_title: str
-    manager: str | None = None
-    start_date: str
-    manual_groups: list[str] = Field(default_factory=list)
-
-
-class AgentResult(BaseModel):
-    success: bool
-    message: str
-    details: dict = Field(default_factory=dict)
-
-
-class ResetRequestsPayload(BaseModel):
-    confirm: str
-
-
-class ClaimRequestPayload(BaseModel):
-    agent_name: str | None = None
-
-
-class ApprovalPayload(BaseModel):
-    approved_by: str
-    comment: str | None = None
 
 
 def load_json(path: Path, default):
