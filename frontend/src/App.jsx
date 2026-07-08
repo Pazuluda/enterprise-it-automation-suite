@@ -377,6 +377,8 @@ function App() {
               departments={departments}
               templates={templates}
               loadTemplates={loadTemplates}
+              apiFetch={apiFetch}
+              setMessage={setMessage}
             />
           )}
 
@@ -658,49 +660,253 @@ function NewRequestPage({ form, updateForm, departments, roles, preview, createR
   )
 }
 
-function TemplatesPage({ departments, templates, loadTemplates }) {
+function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMessage }) {
+  const [departmentName, setDepartmentName] = useState('Support')
+  const [departmentOu, setDepartmentOu] = useState('OU=Users,OU=Support,DC=lab,DC=local')
+  const [departmentGroups, setDepartmentGroups] = useState('GG_Support_Read\nGG_Printer_Support')
+
+  const [roleDepartment, setRoleDepartment] = useState('')
+  const [roleName, setRoleName] = useState('Technicien helpdesk')
+  const [roleGroups, setRoleGroups] = useState('GG_Support_RW\nGG_RemoteSupport\nGG_M365_Standard')
+
+  useEffect(() => {
+    if (!roleDepartment && departments.length > 0) {
+      setRoleDepartment(departments[0])
+    }
+
+    if (roleDepartment && departments.length > 0 && !departments.includes(roleDepartment)) {
+      setRoleDepartment(departments[0])
+    }
+  }, [departments, roleDepartment])
+
+  function linesToArray(value) {
+    return value
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+  }
+
+  async function saveDepartment(event) {
+    event.preventDefault()
+
+    try {
+      const payload = {
+        name: departmentName.trim(),
+        default_ou: departmentOu.trim(),
+        default_groups: linesToArray(departmentGroups)
+      }
+
+      await apiFetch('/api/admin/templates/departments', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+
+      setMessage(`Service ${payload.name} sauvegardé.`)
+      await loadTemplates()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  async function deleteDepartment() {
+    const name = departmentName.trim()
+
+    if (!name) {
+      setMessage('Nom du service vide.')
+      return
+    }
+
+    if (!confirm(`Supprimer le service ${name} et tous ses postes ?`)) {
+      return
+    }
+
+    try {
+      await apiFetch(`/api/admin/templates/departments/${encodeURIComponent(name)}`, {
+        method: 'DELETE'
+      })
+
+      setMessage(`Service ${name} supprimé.`)
+      await loadTemplates()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  async function saveRole(event) {
+    event.preventDefault()
+
+    if (!roleDepartment) {
+      setMessage('Aucun service sélectionné pour le poste.')
+      return
+    }
+
+    try {
+      const payload = {
+        name: roleName.trim(),
+        groups: linesToArray(roleGroups)
+      }
+
+      await apiFetch(`/api/admin/templates/departments/${encodeURIComponent(roleDepartment)}/roles`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+
+      setMessage(`Poste ${payload.name} sauvegardé dans ${roleDepartment}.`)
+      await loadTemplates()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  async function deleteRole() {
+    const role = roleName.trim()
+
+    if (!roleDepartment || !role) {
+      setMessage('Service ou poste vide.')
+      return
+    }
+
+    if (!confirm(`Supprimer le poste ${role} dans ${roleDepartment} ?`)) {
+      return
+    }
+
+    try {
+      await apiFetch(`/api/admin/templates/departments/${encodeURIComponent(roleDepartment)}/roles/${encodeURIComponent(role)}`, {
+        method: 'DELETE'
+      })
+
+      setMessage(`Poste ${role} supprimé.`)
+      await loadTemplates()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  function loadDepartmentIntoForm(department) {
+    const data = templates.departments[department]
+
+    setDepartmentName(department)
+    setDepartmentOu(data.default_ou || '')
+    setDepartmentGroups((data.default_groups || []).join('\n'))
+    setRoleDepartment(department)
+  }
+
+  function loadRoleIntoForm(department, role) {
+    const data = templates.departments[department]
+    const roleData = data.roles?.[role] || {}
+
+    setRoleDepartment(department)
+    setRoleName(role)
+    setRoleGroups((roleData.groups || []).join('\n'))
+  }
+
   return (
-    <section className="panel">
-      <PanelHeader
-        title="Templates services / postes"
-        subtitle="Services, OU, groupes par défaut et postes disponibles."
-        action={<button className="secondary" onClick={loadTemplates}>Recharger</button>}
-      />
+    <div className="templates-page">
+      <div className="template-admin-grid">
+        <section className="panel">
+          <PanelHeader
+            title="Créer / modifier un service"
+            subtitle="Définis l’OU et les groupes par défaut."
+          />
 
-      <div className="templates-grid">
-        {departments.length === 0 && <div className="empty-mini">Aucun template chargé.</div>}
+          <form className="form" onSubmit={saveDepartment}>
+            <Field label="Nom du service">
+              <input value={departmentName} onChange={e => setDepartmentName(e.target.value)} />
+            </Field>
 
-        {departments.map(department => {
-          const data = templates.departments[department]
-          const roles = Object.keys(data.roles || {})
+            <Field label="OU par défaut">
+              <input value={departmentOu} onChange={e => setDepartmentOu(e.target.value)} />
+            </Field>
 
-          return (
-            <div className="template-card" key={department}>
-              <div className="template-card-header">
-                <strong>{department}</strong>
-                <span>{roles.length} poste(s)</span>
-              </div>
+            <Field label="Groupes par défaut">
+              <textarea value={departmentGroups} onChange={e => setDepartmentGroups(e.target.value)} />
+            </Field>
 
-              <p>{data.default_ou}</p>
-
-              <div className="tag-list">
-                {(data.default_groups || []).map(group => (
-                  <span key={group}>{group}</span>
-                ))}
-              </div>
-
-              <div className="role-list">
-                {roles.map(role => (
-                  <small key={role}>{role}</small>
-                ))}
-              </div>
+            <div className="panel-footer split-footer">
+              <button type="button" className="danger" onClick={deleteDepartment}>Supprimer service</button>
+              <button type="submit">Sauvegarder service</button>
             </div>
-          )
-        })}
+          </form>
+        </section>
+
+        <section className="panel">
+          <PanelHeader
+            title="Créer / modifier un poste"
+            subtitle="Ajoute les groupes spécifiques au poste."
+          />
+
+          <form className="form" onSubmit={saveRole}>
+            <Field label="Service">
+              <select value={roleDepartment} onChange={e => setRoleDepartment(e.target.value)}>
+                {departments.map(department => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Nom du poste">
+              <input value={roleName} onChange={e => setRoleName(e.target.value)} />
+            </Field>
+
+            <Field label="Groupes du poste">
+              <textarea value={roleGroups} onChange={e => setRoleGroups(e.target.value)} />
+            </Field>
+
+            <div className="panel-footer split-footer">
+              <button type="button" className="danger" onClick={deleteRole}>Supprimer poste</button>
+              <button type="submit">Sauvegarder poste</button>
+            </div>
+          </form>
+        </section>
       </div>
-    </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Templates existants"
+          subtitle="Clique sur un service ou un poste pour le charger dans le formulaire."
+          action={<button className="secondary" onClick={loadTemplates}>Recharger</button>}
+        />
+
+        <div className="templates-grid">
+          {departments.length === 0 && <div className="empty-mini">Aucun template chargé.</div>}
+
+          {departments.map(department => {
+            const data = templates.departments[department]
+            const roles = Object.keys(data.roles || {})
+
+            return (
+              <div className="template-card" key={department}>
+                <div className="template-card-header">
+                  <button className="template-title-button" onClick={() => loadDepartmentIntoForm(department)}>
+                    {department}
+                  </button>
+                  <span>{roles.length} poste(s)</span>
+                </div>
+
+                <p>{data.default_ou}</p>
+
+                <div className="tag-list">
+                  {(data.default_groups || []).map(group => (
+                    <span key={group}>{group}</span>
+                  ))}
+                </div>
+
+                <div className="role-list">
+                  {roles.map(role => (
+                    <button key={role} onClick={() => loadRoleIntoForm(department, role)}>
+                      {role}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+    </div>
   )
 }
+
 
 function SettingsPage({ apiKey, setApiKey, apiStatus, saveConfig, testApi }) {
   return (
