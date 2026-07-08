@@ -11,7 +11,7 @@ from app.core.security import require_api_key
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
 from app.utils.naming import generate_username, generate_email
-from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload
+from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload
 
 
 app = FastAPI(
@@ -425,4 +425,140 @@ def list_audit_logs(limit: int = 50, api_key: None = Depends(require_api_key)):
     return {
         "count": len(logs),
         "logs": logs
+    }
+
+
+@app.get("/api/admin/templates")
+def admin_get_templates(api_key: None = Depends(require_api_key)):
+    return load_json(TEMPLATES_FILE, {"departments": {}})
+
+
+@app.post("/api/admin/templates/departments")
+def upsert_department_template(payload: DepartmentTemplatePayload, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    existing_department = departments.get(payload.name, {})
+    existing_roles = existing_department.get("roles", {})
+
+    departments[payload.name] = {
+        "default_ou": payload.default_ou,
+        "default_groups": sorted(set(payload.default_groups)),
+        "roles": existing_roles
+    }
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_department_upserted",
+        actor="admin",
+        message=f"Département template créé/modifié : {payload.name}",
+        details={
+            "department": payload.name,
+            "default_ou": payload.default_ou,
+            "default_groups": payload.default_groups
+        }
+    )
+
+    return {
+        "message": "Département template créé/modifié",
+        "department": departments[payload.name]
+    }
+
+
+@app.delete("/api/admin/templates/departments/{department_name}")
+def delete_department_template(department_name: str, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    if department_name not in departments:
+        raise HTTPException(status_code=404, detail="Département template introuvable")
+
+    deleted_department = departments.pop(department_name)
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_department_deleted",
+        actor="admin",
+        message=f"Département template supprimé : {department_name}",
+        details={
+            "department": department_name
+        }
+    )
+
+    return {
+        "message": "Département template supprimé",
+        "department_name": department_name,
+        "deleted": deleted_department
+    }
+
+
+@app.post("/api/admin/templates/departments/{department_name}/roles")
+def upsert_role_template(department_name: str, payload: RoleTemplatePayload, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    if department_name not in departments:
+        raise HTTPException(status_code=404, detail="Département template introuvable")
+
+    roles = departments[department_name].setdefault("roles", {})
+
+    roles[payload.name] = {
+        "groups": sorted(set(payload.groups))
+    }
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_role_upserted",
+        actor="admin",
+        message=f"Poste template créé/modifié : {payload.name}",
+        details={
+            "department": department_name,
+            "role": payload.name,
+            "groups": payload.groups
+        }
+    )
+
+    return {
+        "message": "Poste template créé/modifié",
+        "department": department_name,
+        "role": payload.name,
+        "data": roles[payload.name]
+    }
+
+
+@app.delete("/api/admin/templates/departments/{department_name}/roles/{role_name}")
+def delete_role_template(department_name: str, role_name: str, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    if department_name not in departments:
+        raise HTTPException(status_code=404, detail="Département template introuvable")
+
+    roles = departments[department_name].setdefault("roles", {})
+
+    if role_name not in roles:
+        raise HTTPException(status_code=404, detail="Poste template introuvable")
+
+    deleted_role = roles.pop(role_name)
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_role_deleted",
+        actor="admin",
+        message=f"Poste template supprimé : {role_name}",
+        details={
+            "department": department_name,
+            "role": role_name
+        }
+    )
+
+    return {
+        "message": "Poste template supprimé",
+        "department": department_name,
+        "role": role_name,
+        "deleted": deleted_role
     }

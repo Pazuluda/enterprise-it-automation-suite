@@ -28,3 +28,14 @@ class ClaimRequestPayload(BaseModel):
 class ApprovalPayload(BaseModel):
     approved_by: str
     comment: str | None = None
+
+
+class DepartmentTemplatePayload(BaseModel):
+    name: str
+    default_ou: str
+    default_groups: list[str] = Field(default_factory=list)
+
+
+class RoleTemplatePayload(BaseModel):
+    name: str
+    groups: list[str] = Field(default_factory=list)
