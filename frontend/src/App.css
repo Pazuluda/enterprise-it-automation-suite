@@ -1118,3 +1118,13 @@ td details pre {
     grid-template-columns: 1fr;
   }
 }
+
+/* === Modification page === */
+
+.modification-avatar {
+  background: var(--orange);
+}
+
+.modification-preview {
+  background: linear-gradient(180deg, #ffffff, #fff8ec);
+}

@@ -11,7 +11,7 @@ from app.core.security import require_api_key
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
 from app.utils.naming import generate_username, generate_email
-from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest
+from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest
 
 
 app = FastAPI(
@@ -639,5 +639,74 @@ def create_offboarding_request(payload: OffboardingRequest, api_key: None = Depe
 
     return {
         "message": "Demande offboarding créée",
+        "request": request
+    }
+
+
+@app.post("/api/modification/request")
+def create_modification_request(payload: ModificationRequest, api_key: None = Depends(require_api_key)):
+    requests = load_json(REQUESTS_FILE, [])
+
+    request_id = str(uuid4())
+    now = datetime.utcnow().isoformat() + "Z"
+
+    modification_payload = {
+        "username": payload.username,
+        "display_name": payload.display_name,
+        "department": payload.new_department or payload.current_department,
+        "job_title": payload.new_job_title or payload.current_job_title,
+        "current_department": payload.current_department,
+        "current_job_title": payload.current_job_title,
+        "new_department": payload.new_department,
+        "new_job_title": payload.new_job_title,
+        "manager": payload.manager,
+        "effective_date": payload.effective_date,
+        "add_groups": payload.add_groups,
+        "remove_groups": payload.remove_groups,
+        "move_to_ou": payload.move_to_ou,
+        "comment": payload.comment
+    }
+
+    request = {
+        "id": request_id,
+        "type": "modification",
+        "status": "waiting_approval",
+        "created_at": now,
+        "approved": False,
+        "approved_by": None,
+        "approved_at": None,
+        "rejected_by": None,
+        "rejected_at": None,
+        "processing_by": None,
+        "processing_at": None,
+        "completed_at": None,
+        "failed_at": None,
+        "payload": modification_payload,
+        "ad_payload": modification_payload,
+        "agent_result": None
+    }
+
+    requests.append(request)
+    save_json(REQUESTS_FILE, requests)
+
+    write_audit_log(
+        action="modification_request_created",
+        request_id=request_id,
+        actor="api",
+        message=f"Demande modification créée pour {payload.display_name}",
+        details={
+            "username": payload.username,
+            "display_name": payload.display_name,
+            "current_department": payload.current_department,
+            "current_job_title": payload.current_job_title,
+            "new_department": payload.new_department,
+            "new_job_title": payload.new_job_title,
+            "add_groups": payload.add_groups,
+            "remove_groups": payload.remove_groups
+        }
+    )
+
+    return {
+        "message": "Demande modification créée",
         "request": request
     }

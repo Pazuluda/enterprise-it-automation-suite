@@ -53,3 +53,19 @@ class OffboardingRequest(BaseModel):
     convert_mailbox: bool = False
     forward_to: str | None = None
     comment: str | None = None
+
+
+
+class ModificationRequest(BaseModel):
+    username: str
+    display_name: str
+    current_department: str | None = None
+    current_job_title: str | None = None
+    new_department: str | None = None
+    new_job_title: str | None = None
+    manager: str | None = None
+    effective_date: str
+    add_groups: list[str] = Field(default_factory=list)
+    remove_groups: list[str] = Field(default_factory=list)
+    move_to_ou: str | None = None
+    comment: str | None = None

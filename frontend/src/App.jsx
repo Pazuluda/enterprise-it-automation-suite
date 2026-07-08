@@ -40,6 +40,10 @@ const PAGES = {
     title: 'Offboarding',
     subtitle: 'Préparer le départ d’un collaborateur.'
   },
+  modification: {
+    title: 'Modification utilisateur',
+    subtitle: 'Changer le service, le poste ou les groupes d’un collaborateur.'
+  },
   templates: {
     title: 'Templates',
     subtitle: 'Services, OU, groupes et postes disponibles.'
@@ -61,6 +65,13 @@ function normalizeText(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, '-')
+}
+
+function splitListValue(value) {
+  return String(value || '')
+    .split(/[\n,;]/)
+    .map(item => item.trim())
+    .filter(Boolean)
 }
 
 function App() {
@@ -99,6 +110,21 @@ function App() {
     convert_mailbox: false,
     forward_to: '',
     comment: 'Fin de contrat'
+  })
+
+  const [modificationForm, setModificationForm] = useState({
+    username: '',
+    display_name: '',
+    current_department: '',
+    current_job_title: '',
+    new_department: '',
+    new_job_title: '',
+    manager: 'Admin Lab',
+    effective_date: '2026-08-01',
+    add_groups: 'GG_IT_Admin\nGG_Server_Admin',
+    remove_groups: '',
+    move_to_ou: '',
+    comment: 'Changement utilisateur'
   })
 
   const departments = useMemo(() => Object.keys(templates.departments || {}), [templates])
@@ -393,6 +419,64 @@ function App() {
     setMessage(`Utilisateur chargé pour offboarding : ${payload.display_name || payload.username}`)
   }
 
+  async function createModificationRequest(event) {
+    event.preventDefault()
+
+    try {
+      const payload = {
+        username: modificationForm.username.trim(),
+        display_name: modificationForm.display_name.trim(),
+        current_department: modificationForm.current_department.trim() || null,
+        current_job_title: modificationForm.current_job_title.trim() || null,
+        new_department: modificationForm.new_department.trim() || null,
+        new_job_title: modificationForm.new_job_title.trim() || null,
+        manager: modificationForm.manager.trim() || null,
+        effective_date: modificationForm.effective_date.trim(),
+        add_groups: splitListValue(modificationForm.add_groups),
+        remove_groups: splitListValue(modificationForm.remove_groups),
+        move_to_ou: modificationForm.move_to_ou.trim() || null,
+        comment: modificationForm.comment.trim() || null
+      }
+
+      const result = await apiFetch('/api/modification/request', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+
+      setMessage(`Demande modification créée : ${result.request.id}`)
+      setPage('requests')
+      await loadRequests()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  function updateModificationForm(field, value) {
+    setModificationForm(current => ({
+      ...current,
+      [field]: value
+    }))
+  }
+
+  function loadRequestIntoModification(request) {
+    const payload = request.ad_payload || {}
+
+    setModificationForm(current => ({
+      ...current,
+      username: payload.username || '',
+      display_name: payload.display_name || '',
+      current_department: payload.department || '',
+      current_job_title: payload.job_title || '',
+      new_department: payload.department || '',
+      new_job_title: payload.job_title || '',
+      manager: payload.manager || 'Admin Lab',
+      move_to_ou: payload.ou || ''
+    }))
+
+    setPage('modification')
+    setMessage(`Utilisateur chargé pour modification : ${payload.display_name || payload.username}`)
+  }
+
   function updateForm(field, value) {
     setForm(current => {
       const next = { ...current, [field]: value }
@@ -430,6 +514,7 @@ function App() {
           <button className={page === 'requests' ? 'active' : ''} onClick={() => setPage('requests')}>Demandes</button>
           <button className={page === 'newRequest' ? 'active' : ''} onClick={() => setPage('newRequest')}>Nouvelle demande</button>
           <button className={page === 'offboarding' ? 'active' : ''} onClick={() => setPage('offboarding')}>Offboarding</button>
+          <button className={page === 'modification' ? 'active' : ''} onClick={() => setPage('modification')}>Modification</button>
           <button className={page === 'templates' ? 'active' : ''} onClick={() => setPage('templates')}>Templates</button>
           <button className={page === 'audit' ? 'active' : ''} onClick={() => setPage('audit')}>Audit logs</button>
           <button className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}>Paramètres</button>
@@ -504,6 +589,16 @@ function App() {
               updateForm={updateOffboardingForm}
               createOffboardingRequest={createOffboardingRequest}
               loadRequestIntoOffboarding={loadRequestIntoOffboarding}
+            />
+          )}
+
+          {page === 'modification' && (
+            <ModificationPage
+              requests={requests}
+              form={modificationForm}
+              updateForm={updateModificationForm}
+              createModificationRequest={createModificationRequest}
+              loadRequestIntoModification={loadRequestIntoModification}
             />
           )}
 
@@ -811,6 +906,153 @@ function NewRequestPage({ form, updateForm, departments, roles, preview, createR
               {preview.groups.map(group => (
                 <li key={group}>{group}</li>
               ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+
+
+function ModificationPage({ requests, form, updateForm, createModificationRequest, loadRequestIntoModification }) {
+  const onboardingRequests = requests.filter(request => request.type === 'onboarding' && request.status === 'completed')
+  const addGroups = splitListValue(form.add_groups)
+  const removeGroups = splitListValue(form.remove_groups)
+
+  return (
+    <div className="content-grid">
+      <section className="panel">
+        <PanelHeader
+          title="Créer une demande modification"
+          subtitle="Changement de service, poste, OU ou groupes AD."
+        />
+
+        <form className="form" onSubmit={createModificationRequest}>
+          <Field label="Utilisateur existant">
+            <select
+              value=""
+              onChange={event => {
+                const selected = requests.find(request => request.id === event.target.value)
+                if (selected) {
+                  loadRequestIntoModification(selected)
+                }
+              }}
+            >
+              <option value="">Sélectionner depuis les onboardings terminés...</option>
+              {onboardingRequests.map(request => {
+                const payload = request.ad_payload || {}
+
+                return (
+                  <option key={request.id} value={request.id}>
+                    {payload.display_name} · {payload.username}
+                  </option>
+                )
+              })}
+            </select>
+          </Field>
+
+          <div className="form-grid">
+            <Field label="Login">
+              <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
+            </Field>
+
+            <Field label="Nom affiché">
+              <input value={form.display_name} onChange={e => updateForm('display_name', e.target.value)} />
+            </Field>
+
+            <Field label="Service actuel">
+              <input value={form.current_department} onChange={e => updateForm('current_department', e.target.value)} />
+            </Field>
+
+            <Field label="Poste actuel">
+              <input value={form.current_job_title} onChange={e => updateForm('current_job_title', e.target.value)} />
+            </Field>
+
+            <Field label="Nouveau service">
+              <input value={form.new_department} onChange={e => updateForm('new_department', e.target.value)} />
+            </Field>
+
+            <Field label="Nouveau poste">
+              <input value={form.new_job_title} onChange={e => updateForm('new_job_title', e.target.value)} />
+            </Field>
+
+            <Field label="Manager">
+              <input value={form.manager} onChange={e => updateForm('manager', e.target.value)} />
+            </Field>
+
+            <Field label="Date d’effet">
+              <input type="date" value={form.effective_date} onChange={e => updateForm('effective_date', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="OU cible">
+            <input value={form.move_to_ou} onChange={e => updateForm('move_to_ou', e.target.value)} placeholder="optionnel" />
+          </Field>
+
+          <div className="form-grid">
+            <Field label="Groupes à ajouter">
+              <textarea value={form.add_groups} onChange={e => updateForm('add_groups', e.target.value)} />
+            </Field>
+
+            <Field label="Groupes à retirer">
+              <textarea value={form.remove_groups} onChange={e => updateForm('remove_groups', e.target.value)} />
+            </Field>
+          </div>
+
+          <Field label="Commentaire">
+            <textarea value={form.comment} onChange={e => updateForm('comment', e.target.value)} />
+          </Field>
+
+          <div className="panel-footer">
+            <button type="submit">Créer demande modification</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel preview-panel">
+        <PanelHeader
+          title="Aperçu modification"
+          subtitle="Ce que l’agent Windows simulera après validation."
+        />
+
+        <div className="preview-card modification-preview">
+          <div className="avatar modification-avatar">M</div>
+
+          <div>
+            <strong>{form.display_name || 'Utilisateur'}</strong>
+            <span>{form.username || 'login non défini'}</span>
+          </div>
+        </div>
+
+        <div className="preview-list">
+          <PreviewRow label="Service actuel" value={form.current_department || '-'} />
+          <PreviewRow label="Nouveau service" value={form.new_department || '-'} />
+          <PreviewRow label="Poste actuel" value={form.current_job_title || '-'} />
+          <PreviewRow label="Nouveau poste" value={form.new_job_title || '-'} />
+          <PreviewRow label="Date effet" value={form.effective_date || '-'} />
+          <PreviewRow label="OU cible" value={form.move_to_ou || '-'} />
+        </div>
+
+        <div className="groups-box">
+          <strong>Groupes à ajouter</strong>
+          {addGroups.length === 0 ? (
+            <p>Aucun groupe à ajouter.</p>
+          ) : (
+            <ul>
+              {addGroups.map(group => <li key={group}>+ {group}</li>)}
+            </ul>
+          )}
+        </div>
+
+        <div className="groups-box">
+          <strong>Groupes à retirer</strong>
+          {removeGroups.length === 0 ? (
+            <p>Aucun groupe à retirer.</p>
+          ) : (
+            <ul>
+              {removeGroups.map(group => <li key={group}>- {group}</li>)}
             </ul>
           )}
         </div>
