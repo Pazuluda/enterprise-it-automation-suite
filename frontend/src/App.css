@@ -2576,3 +2576,251 @@ td details pre {
     align-items: flex-end;
   }
 }
+
+/* ========================================================= */
+/* === EITAS Detail drawer - audit shortcut =============== */
+/* ========================================================= */
+
+.audit-shortcut-button {
+  border: 1px solid #b6ccec;
+  background: #eaf1fb;
+  color: var(--blue);
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.audit-shortcut-button:hover {
+  background: #dceafe;
+  border-color: #93b2df;
+}
+
+/* ========================================================= */
+/* === EITAS drawer fix - no floating footer ============== */
+/* ========================================================= */
+
+.drawer-actions {
+  position: static !important;
+  bottom: auto !important;
+  background: transparent !important;
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding-top: 16px;
+  padding-bottom: 4px;
+}
+
+.request-drawer {
+  padding-bottom: 24px;
+}
+
+.audit-shortcut-button {
+  border: 1px solid #b6ccec;
+  background: #eaf1fb;
+  color: var(--blue);
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.audit-shortcut-button:hover {
+  background: #dceafe;
+  border-color: #93b2df;
+}
+
+.drawer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ========================================================= */
+/* === EITAS Audit logs - filter and highlight ============ */
+/* ========================================================= */
+
+.audit-toolbar {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.audit-toolbar input {
+  width: 100%;
+  border: 1px solid #d7deea;
+  border-radius: 11px;
+  padding: 11px 13px;
+  font-size: 14px;
+  color: var(--text);
+  background: #ffffff;
+}
+
+.audit-focus-banner {
+  margin: 14px 18px 0;
+  padding: 12px 14px;
+  border: 1px solid #b6ccec;
+  background: #eaf1fb;
+  color: var(--blue);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.audit-focus-banner span {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.audit-count-line {
+  padding: 10px 18px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.audit-table th {
+  text-align: left;
+  padding: 12px 18px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.audit-table td {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.audit-row-focused {
+  background: #fff8ec;
+  box-shadow: inset 5px 0 0 var(--orange);
+}
+
+.audit-action-badge {
+  display: inline-block;
+  background: #eef2f7;
+  border: 1px solid #d7deea;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.audit-table code {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.audit-table details summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.audit-table pre {
+  max-width: 520px;
+  max-height: 260px;
+  overflow: auto;
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 850px) {
+  .audit-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* === EITAS Audit filter final === */
+
+.audit-toolbar {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.audit-toolbar input {
+  width: 100%;
+  border: 1px solid #d7deea;
+  border-radius: 11px;
+  padding: 11px 13px;
+  font-size: 14px;
+  color: var(--text);
+  background: #ffffff;
+}
+
+.audit-focus-banner {
+  margin: 14px 18px 0;
+  padding: 12px 14px;
+  border: 1px solid #b6ccec;
+  background: #eaf1fb;
+  color: var(--blue);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.audit-focus-banner span {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.audit-count-line {
+  padding: 10px 18px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-row-focused {
+  background: #fff8ec;
+  box-shadow: inset 5px 0 0 var(--orange);
+}
+
+.audit-action-badge {
+  display: inline-block;
+  background: #eef2f7;
+  border: 1px solid #d7deea;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}

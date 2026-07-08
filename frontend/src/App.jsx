@@ -83,6 +83,7 @@ function App() {
   const [templates, setTemplates] = useState({ departments: {} })
   const [auditLogs, setAuditLogs] = useState([])
   const [selectedRequest, setSelectedRequest] = useState(null)
+  const [auditFocusId, setAuditFocusId] = useState('')
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -498,6 +499,22 @@ function App() {
     }
   }, [])
 
+  function openAuditFromRequest(requestId) {
+    const id = String(requestId || '').trim()
+
+    setAuditFocusId(id)
+
+    try {
+      window.sessionStorage.setItem('eitasAuditFocusId', id)
+    } catch {
+      // Non bloquant.
+    }
+
+    setSelectedRequest(null)
+    setPage('audit')
+    setMessage(`Audit logs filtrés pour la demande : ${id}`)
+  }
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -567,6 +584,7 @@ function App() {
               approveRequest={approveRequest}
               rejectRequest={rejectRequest}
               retryRequest={retryRequest}
+              setPage={setPage}
               setSelectedRequest={setSelectedRequest}
             />
           )}
@@ -616,6 +634,8 @@ function App() {
             <AuditPage
               auditLogs={auditLogs}
               loadAuditLogs={loadAuditLogs}
+              auditFocusId={auditFocusId}
+              setAuditFocusId={setAuditFocusId}
             />
           )}
 
@@ -633,6 +653,8 @@ function App() {
             <SmartRequestDrawer
               request={selectedRequest}
               onClose={() => setSelectedRequest(null)}
+              setPage={setPage}
+              openAuditFromRequest={openAuditFromRequest}
             />
           )}
         </main>
@@ -1506,19 +1528,137 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
 
 
 
-function AuditPage({ auditLogs, loadAuditLogs }) {
-  const sortedLogs = [...auditLogs].reverse()
+function AuditPage({ auditLogs, loadAuditLogs, auditFocusId = '', setAuditFocusId }) {
+  const [auditSearch, setAuditSearch] = useState('')
+
+  useEffect(() => {
+    if (auditFocusId) {
+      return
+    }
+
+    try {
+      const stored = window.sessionStorage.getItem('eitasAuditFocusId') || ''
+
+      if (stored && setAuditFocusId) {
+        setAuditFocusId(stored)
+      }
+    } catch {
+      // Non bloquant.
+    }
+  }, [auditFocusId, setAuditFocusId])
+
+  const safeLogs = Array.isArray(auditLogs) ? auditLogs : []
+  const activeFilter = String(auditFocusId || auditSearch || '').trim().toLowerCase()
+
+  const filteredLogs = activeFilter
+    ? safeLogs.filter(log => {
+        const detailsText = JSON.stringify(log.details || {})
+        const requestId = String(log.request_id || log.details?.request_id || '')
+
+        const haystack = [
+          log.created_at,
+          log.timestamp,
+          log.action,
+          log.actor,
+          requestId,
+          log.message,
+          detailsText
+        ].join(' ').toLowerCase()
+
+        return haystack.includes(activeFilter)
+      })
+    : safeLogs
+
+  function formatAuditDate(value) {
+    if (!value) return '-'
+
+    let normalized = String(value)
+
+    if (
+      normalized.includes('T') &&
+      !normalized.endsWith('Z') &&
+      !/[+-]\d{2}:\d{2}$/.test(normalized)
+    ) {
+      normalized = `${normalized}Z`
+    }
+
+    const date = new Date(normalized)
+
+    if (Number.isNaN(date.getTime())) {
+      return String(value)
+    }
+
+    return date.toLocaleString('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'medium',
+      timeZone: 'Europe/Paris'
+    })
+  }
+
+  function clearAuditFilter() {
+    setAuditSearch('')
+
+    if (setAuditFocusId) {
+      setAuditFocusId('')
+    }
+
+    try {
+      window.sessionStorage.removeItem('eitasAuditFocusId')
+    } catch {
+      // Non bloquant.
+    }
+  }
+
+  function updateAuditSearch(value) {
+    if (setAuditFocusId) {
+      setAuditFocusId('')
+    }
+
+    try {
+      window.sessionStorage.removeItem('eitasAuditFocusId')
+    } catch {
+      // Non bloquant.
+    }
+
+    setAuditSearch(value)
+  }
 
   return (
-    <section className="panel">
-      <PanelHeader
-        title="Journal d’audit"
-        subtitle="Dernières actions enregistrées par l’API."
-        action={<button className="secondary" onClick={loadAuditLogs}>Recharger</button>}
-      />
+    <section className="panel audit-panel">
+      <div className="panel-header">
+        <div>
+          <h2>Journal d’audit</h2>
+          <p>Dernières actions enregistrées par l’API.</p>
+        </div>
 
-      <div className="table-wrap">
-        <table>
+        <button onClick={loadAuditLogs}>Recharger</button>
+      </div>
+
+      <div className="audit-toolbar">
+        <input
+          value={auditFocusId || auditSearch}
+          onChange={event => updateAuditSearch(event.target.value)}
+          placeholder="Rechercher par ID demande, action, acteur, message..."
+        />
+
+        {(auditFocusId || auditSearch) && (
+          <button className="ghost-button" onClick={clearAuditFilter}>Effacer filtre</button>
+        )}
+      </div>
+
+      {auditFocusId && (
+        <div className="audit-focus-banner">
+          <strong>Filtre actif :</strong>
+          <span>{auditFocusId}</span>
+        </div>
+      )}
+
+      <div className="audit-count-line">
+        {filteredLogs.length} événement(s) affiché(s) sur {safeLogs.length}
+      </div>
+
+      <div className="audit-table-wrap">
+        <table className="audit-table">
           <thead>
             <tr>
               <th>Date</th>
@@ -1531,27 +1671,32 @@ function AuditPage({ auditLogs, loadAuditLogs }) {
           </thead>
 
           <tbody>
-            {sortedLogs.length === 0 && (
+            {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan="6" className="empty">Aucun audit log à afficher.</td>
+                <td colSpan="6" className="empty">Aucun log à afficher.</td>
               </tr>
-            )}
+            ) : (
+              filteredLogs.map((log, index) => {
+                const requestId = String(log.request_id || log.details?.request_id || '')
+                const isFocused = activeFilter && requestId.toLowerCase().includes(activeFilter)
 
-            {sortedLogs.map((log, index) => (
-              <tr key={`${log.timestamp}-${index}`}>
-                <td className="nowrap">{formatDate(log.timestamp)}</td>
-                <td><span className="audit-action">{log.action || '-'}</span></td>
-                <td>{log.actor || '-'}</td>
-                <td className="small-id">{log.request_id || '-'}</td>
-                <td>{log.message || '-'}</td>
-                <td>
-                  <details>
-                    <summary>JSON</summary>
-                    <pre>{JSON.stringify(log.details || log, null, 2)}</pre>
-                  </details>
-                </td>
-              </tr>
-            ))}
+                return (
+                  <tr key={`${log.created_at || log.timestamp || index}-${index}`} className={isFocused ? 'audit-row-focused' : ''}>
+                    <td>{formatAuditDate(log.created_at || log.timestamp)}</td>
+                    <td><span className="audit-action-badge">{log.action || '-'}</span></td>
+                    <td>{log.actor || '-'}</td>
+                    <td><code>{requestId || '-'}</code></td>
+                    <td>{log.message || '-'}</td>
+                    <td>
+                      <details>
+                        <summary>JSON</summary>
+                        <pre>{JSON.stringify(log.details || {}, null, 2)}</pre>
+                      </details>
+                    </td>
+                  </tr>
+                )
+              })
+            )}
           </tbody>
         </table>
       </div>
@@ -1679,7 +1824,7 @@ function PreviewRow({ label, value }) {
 
 export default App
 
-function SmartRequestDrawer({ request, onClose, approveRequest, rejectRequest, retryRequest }) {
+function SmartRequestDrawer({ request, onClose, approveRequest, rejectRequest, retryRequest, setPage, openAuditFromRequest}) {
   const payload = request.ad_payload || request.payload || {}
   const result = request.agent_result || {}
   const details = result.details || {}
@@ -1824,6 +1969,15 @@ function SmartRequestDrawer({ request, onClose, approveRequest, rejectRequest, r
     )
   }
 
+  function goToAuditLogs() {
+    if (typeof openAuditFromRequest === 'function') {
+      openAuditFromRequest(request.id)
+      return
+    }
+
+    onClose()
+  }
+
   function renderTypeContent() {
     if (type === 'offboarding') return renderOffboarding()
     if (type === 'modification') return renderModification()
@@ -1841,6 +1995,7 @@ function SmartRequestDrawer({ request, onClose, approveRequest, rejectRequest, r
 
           <div className="drawer-header-actions">
             <CopyTextButton text={request.id} label="Copier ID" copiedLabel="ID copié" />
+            <button type="button" className="audit-shortcut-button" onClick={goToAuditLogs}>Voir audit</button>
             <button className="ghost-button" onClick={onClose}>Fermer</button>
           </div>
         </div>
