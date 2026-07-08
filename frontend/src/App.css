@@ -999,3 +999,41 @@ td {
     grid-template-columns: 1fr;
   }
 }
+
+/* === Audit logs === */
+
+.audit-action {
+  display: inline-block;
+  background: #eef2f7;
+  color: #344054;
+  border: 1px solid #d9e0e7;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.small-id {
+  max-width: 180px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+td details summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+td details pre {
+  margin: 8px 0 0;
+  max-width: 420px;
+  max-height: 220px;
+}

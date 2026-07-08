@@ -27,6 +27,10 @@ const PAGES = {
     title: 'Templates',
     subtitle: 'Services, OU, groupes et postes disponibles.'
   },
+  audit: {
+    title: 'Audit logs',
+    subtitle: 'Historique des actions et traçabilité du portail.'
+  },
   settings: {
     title: 'Paramètres',
     subtitle: 'Connexion API et configuration locale.'
@@ -49,6 +53,7 @@ function App() {
   const [message, setMessage] = useState('')
   const [requests, setRequests] = useState([])
   const [templates, setTemplates] = useState({ departments: {} })
+  const [auditLogs, setAuditLogs] = useState([])
   const [selectedRequest, setSelectedRequest] = useState(null)
 
   const [search, setSearch] = useState('')
@@ -204,9 +209,24 @@ function App() {
     }
   }
 
+  async function loadAuditLogs() {
+    try {
+      const data = await apiFetch('/api/audit-logs?limit=100')
+      const logs = Array.isArray(data)
+        ? data
+        : data.logs || data.audit_logs || data.events || []
+
+      setAuditLogs(logs)
+      setMessage('Audit logs rechargés.')
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
   async function refreshAll() {
     await loadTemplates()
     await loadRequests()
+    await loadAuditLogs()
     await testApi()
   }
 
@@ -274,6 +294,19 @@ function App() {
     }
   }
 
+  async function retryRequest(id) {
+    try {
+      await apiFetch(`/api/admin/requests/${id}/retry`, {
+        method: 'POST'
+      })
+
+      setMessage('Demande relancée. Elle est repassée en attente agent.')
+      await loadRequests()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
   function updateForm(field, value) {
     setForm(current => {
       const next = { ...current, [field]: value }
@@ -291,6 +324,7 @@ function App() {
     if (apiKey) {
       loadTemplates()
       loadRequests()
+      loadAuditLogs()
     }
   }, [])
 
@@ -310,6 +344,7 @@ function App() {
           <button className={page === 'requests' ? 'active' : ''} onClick={() => setPage('requests')}>Demandes</button>
           <button className={page === 'newRequest' ? 'active' : ''} onClick={() => setPage('newRequest')}>Nouvelle demande</button>
           <button className={page === 'templates' ? 'active' : ''} onClick={() => setPage('templates')}>Templates</button>
+          <button className={page === 'audit' ? 'active' : ''} onClick={() => setPage('audit')}>Audit logs</button>
           <button className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}>Paramètres</button>
         </nav>
 
@@ -357,6 +392,7 @@ function App() {
               loadRequests={loadRequests}
               approveRequest={approveRequest}
               rejectRequest={rejectRequest}
+              retryRequest={retryRequest}
               setSelectedRequest={setSelectedRequest}
             />
           )}
@@ -379,6 +415,13 @@ function App() {
               loadTemplates={loadTemplates}
               apiFetch={apiFetch}
               setMessage={setMessage}
+            />
+          )}
+
+          {page === 'audit' && (
+            <AuditPage
+              auditLogs={auditLogs}
+              loadAuditLogs={loadAuditLogs}
             />
           )}
 
@@ -471,6 +514,7 @@ function RequestsPage({
   loadRequests,
   approveRequest,
   rejectRequest,
+  retryRequest,
   setSelectedRequest
 }) {
   return (
@@ -503,13 +547,14 @@ function RequestsPage({
         requests={requests}
         approveRequest={approveRequest}
         rejectRequest={rejectRequest}
+        retryRequest={retryRequest}
         setSelectedRequest={setSelectedRequest}
       />
     </section>
   )
 }
 
-function RequestsTable({ requests, approveRequest, rejectRequest, setSelectedRequest }) {
+function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, setSelectedRequest }) {
   return (
     <div className="table-wrap">
       <table>
@@ -552,6 +597,11 @@ function RequestsTable({ requests, approveRequest, rejectRequest, setSelectedReq
                     <div className="row-actions">
                       <button className="success" onClick={() => approveRequest(request.id)}>Approuver</button>
                       <button className="danger" onClick={() => rejectRequest(request.id)}>Rejeter</button>
+                    </div>
+                  ) : request.status === 'failed' || request.status === 'rejected' ? (
+                    <div className="row-actions">
+                      <button onClick={() => retryRequest(request.id)}>Relancer</button>
+                      <button className="secondary" onClick={() => setSelectedRequest(request)}>Détail</button>
                     </div>
                   ) : (
                     <button className="secondary" onClick={() => setSelectedRequest(request)}>Détail</button>
@@ -905,6 +955,71 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
       </section>
     </div>
   )
+}
+
+
+
+function AuditPage({ auditLogs, loadAuditLogs }) {
+  const sortedLogs = [...auditLogs].reverse()
+
+  return (
+    <section className="panel">
+      <PanelHeader
+        title="Journal d’audit"
+        subtitle="Dernières actions enregistrées par l’API."
+        action={<button className="secondary" onClick={loadAuditLogs}>Recharger</button>}
+      />
+
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Action</th>
+              <th>Acteur</th>
+              <th>Demande</th>
+              <th>Message</th>
+              <th>Détails</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {sortedLogs.length === 0 && (
+              <tr>
+                <td colSpan="6" className="empty">Aucun audit log à afficher.</td>
+              </tr>
+            )}
+
+            {sortedLogs.map((log, index) => (
+              <tr key={`${log.timestamp}-${index}`}>
+                <td className="nowrap">{formatDate(log.timestamp)}</td>
+                <td><span className="audit-action">{log.action || '-'}</span></td>
+                <td>{log.actor || '-'}</td>
+                <td className="small-id">{log.request_id || '-'}</td>
+                <td>{log.message || '-'}</td>
+                <td>
+                  <details>
+                    <summary>JSON</summary>
+                    <pre>{JSON.stringify(log.details || log, null, 2)}</pre>
+                  </details>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+
+  try {
+    return new Date(value).toLocaleString('fr-FR')
+  } catch {
+    return value
+  }
 }
 
 
