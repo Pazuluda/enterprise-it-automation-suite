@@ -1,15 +1,16 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from pathlib import Path
 from datetime import datetime
 from uuid import uuid4
 import json
 import os
-import unicodedata
 
 from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, AUDIT_FILE
 from app.core.security import require_api_key
+from app.core.storage import load_json, save_json
+from app.services.audit import write_audit_log
+from app.utils.naming import generate_username, generate_email
 from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload
 
 
@@ -23,62 +24,6 @@ app = FastAPI(
 
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-
-
-
-
-
-
-
-def load_json(path: Path, default):
-    if not path.exists():
-        return default
-
-    with path.open("r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def save_json(path: Path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
-
-
-def write_audit_log(action: str, request_id: str | None = None, actor: str = "system", message: str = "", details: dict | None = None):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    event = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "action": action,
-        "request_id": request_id,
-        "actor": actor,
-        "message": message,
-        "details": details or {}
-    }
-
-    with AUDIT_FILE.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(event, ensure_ascii=False) + "\n")
-
-
-def normalize_text(value: str) -> str:
-    value = value.strip().lower()
-    value = unicodedata.normalize("NFKD", value)
-    value = "".join(char for char in value if not unicodedata.combining(char))
-    value = value.replace(" ", "-")
-    return value
-
-
-def generate_username(first_name: str, last_name: str) -> str:
-    first = normalize_text(first_name)
-    last = normalize_text(last_name)
-    return f"{first[0]}.{last}"
-
-
-def generate_email(first_name: str, last_name: str) -> str:
-    first = normalize_text(first_name).replace("-", ".")
-    last = normalize_text(last_name).replace("-", ".")
-    return f"{first}.{last}@lab.local"
 
 
 @app.get("/docs-local", include_in_schema=False)
