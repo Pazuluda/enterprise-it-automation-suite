@@ -2824,3 +2824,76 @@ td details pre {
   font-weight: 900;
   white-space: nowrap;
 }
+
+/* ========================================================= */
+/* === EITAS Audit logs - readable details ================ */
+/* ========================================================= */
+
+.audit-details summary {
+  cursor: pointer;
+  color: var(--blue);
+  font-weight: 900;
+  list-style: none;
+}
+
+.audit-details summary::before {
+  content: "▸ ";
+}
+
+.audit-details[open] summary::before {
+  content: "▾ ";
+}
+
+.audit-details-grid {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+  min-width: 260px;
+  max-width: 520px;
+}
+
+.audit-details-row {
+  border: 1px solid #d7deea;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 9px 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.audit-details-row span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.audit-details-row strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.audit-details-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.audit-details-list li {
+  margin: 3px 0;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.audit-details-row pre {
+  max-width: 460px;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+}
