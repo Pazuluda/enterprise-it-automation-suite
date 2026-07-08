@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -9,6 +9,9 @@ import json
 import os
 import unicodedata
 
+from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, AUDIT_FILE
+from app.core.security import require_api_key
+
 
 app = FastAPI(
     title="Enterprise IT Automation Suite",
@@ -18,24 +21,12 @@ app = FastAPI(
     redoc_url=None
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-TEMPLATES_FILE = DATA_DIR / "templates.json"
-REQUESTS_FILE = DATA_DIR / "requests.json"
-AUDIT_FILE = DATA_DIR / "audit.jsonl"
-API_KEY = os.getenv("EITAS_API_KEY", "dev-local-key-change-me")
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 
 
-def require_api_key(x_api_key: str | None = Header(default=None)):
-    if x_api_key != API_KEY:
-        raise HTTPException(
-            status_code=401,
-            detail="API key invalide ou manquante"
-        )
 
 
 class OnboardingRequest(BaseModel):
