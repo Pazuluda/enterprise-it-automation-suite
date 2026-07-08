@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from datetime import datetime
 from uuid import uuid4
 import json
@@ -25,6 +25,23 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
+
+
+@app.get("/app", include_in_schema=False)
+@app.get("/app/{full_path:path}", include_in_schema=False)
+def serve_react_app(full_path: str = ""):
+    react_index = BASE_DIR / "static" / "app" / "index.html"
+
+    if not react_index.exists():
+        raise HTTPException(status_code=404, detail="React build introuvable")
+
+    return FileResponse(react_index)
+
+
+@app.get("/portal", include_in_schema=False)
+@app.get("/portal/{full_path:path}", include_in_schema=False)
+def serve_react_portal(full_path: str = ""):
+    return serve_react_app(full_path)
 
 @app.get("/docs-local", include_in_schema=False)
 def docs_local():
