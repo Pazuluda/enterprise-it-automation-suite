@@ -18,4 +18,4 @@ def generate_username(first_name: str, last_name: str) -> str:
 def generate_email(first_name: str, last_name: str) -> str:
     first = normalize_text(first_name).replace("-", ".")
     last = normalize_text(last_name).replace("-", ".")
-    return f"{first}.{last}@lab.local"
+    return f"{first}.{last}@api.local"

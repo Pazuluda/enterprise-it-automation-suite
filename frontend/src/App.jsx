@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import AuditDetails from './components/AuditDetails.jsx'
 import { TypeBadge, StatusBadge } from './components/Badges.jsx'
-import RequestLifecycleTimeline from './components/RequestLifecycleTimeline.jsx'
-import CopyTextButton from './components/CopyTextButton.jsx'
 import PanelHeader from './components/PanelHeader.jsx'
 import { Field, PreviewRow } from './components/FormHelpers.jsx'
+import SmartRequestDrawer from './components/SmartRequestDrawer.jsx'
+import AuditPage from './components/AuditPage.jsx'
+import SettingsPage from './components/SettingsPage.jsx'
+import NewRequestPage from './components/NewRequestPage.jsx'
+import OffboardingPage from './components/OffboardingPage.jsx'
 
 const STATUS_LABELS = {
   waiting_approval: 'À valider',
@@ -80,6 +82,48 @@ function splitListValue(value) {
     .filter(Boolean)
 }
 
+const EITAS_DOMAIN_DN = 'DC=API,DC=LOCAL'
+const EITAS_USERS_BASE_OU = `OU=Users,OU=EITAS,${EITAS_DOMAIN_DN}`
+
+function normalizeOuName(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[,\+=<>#;"\\]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+
+function normalizeGroupToken(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
+function buildServiceOu(serviceName) {
+  const cleanName = normalizeOuName(serviceName)
+
+  if (!cleanName) {
+    return ''
+  }
+
+  return `OU=${cleanName},${EITAS_USERS_BASE_OU}`
+}
+
+function isLegacyOu(value) {
+  const text = String(value || '').toLowerCase()
+
+  return (
+    text.includes('dc=lab,dc=local') ||
+    text.includes('ou=users,ou=') ||
+    !text.includes('ou=eitas')
+  )
+}
+
+
+
 function App() {
   const [page, setPage] = useState('overview')
   const [apiKey, setApiKey] = useState(localStorage.getItem('eitas_api_key') || '')
@@ -113,7 +157,7 @@ function App() {
     end_date: '2026-07-31',
     disable_account: true,
     remove_groups: true,
-    move_to_ou: 'OU=Disabled Users,DC=lab,DC=local',
+    move_to_ou: 'OU=Disabled Users,OU=EITAS,DC=API,DC=LOCAL',
     convert_mailbox: false,
     forward_to: '',
     comment: 'Fin de contrat'
@@ -174,7 +218,7 @@ function App() {
     const first = normalizeText(form.first_name || '')
     const last = normalizeText(form.last_name || '')
     const username = first && last ? `${first[0]}.${last}` : ''
-    const email = first && last ? `${first.replaceAll('-', '.')}.${last.replaceAll('-', '.')}@lab.local` : ''
+    const email = first && last ? `${first.replaceAll('-', '.')}.${last.replaceAll('-', '.')}@api.local` : ''
 
     const departmentData = templates.departments?.[form.department] || {}
     const roleData = departmentData.roles?.[form.job_title] || {}
@@ -441,6 +485,7 @@ function App() {
         effective_date: modificationForm.effective_date.trim(),
         add_groups: splitListValue(modificationForm.add_groups),
         remove_groups: splitListValue(modificationForm.remove_groups),
+        reactivate_account: Boolean(modificationForm.reactivate_account),
         move_to_ou: modificationForm.move_to_ou.trim() || null,
         comment: modificationForm.comment.trim() || null
       }
@@ -885,102 +930,6 @@ function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, 
   )
 }
 
-function NewRequestPage({ form, updateForm, departments, roles, preview, createRequest }) {
-  return (
-    <div className="content-grid">
-      <section className="panel">
-        <PanelHeader
-          title="Formulaire onboarding"
-          subtitle="Les données générées sont visibles dans l’aperçu."
-        />
-
-        <form className="form" onSubmit={createRequest}>
-          <div className="form-grid">
-            <Field label="Prénom">
-              <input value={form.first_name} onChange={e => updateForm('first_name', e.target.value)} />
-            </Field>
-
-            <Field label="Nom">
-              <input value={form.last_name} onChange={e => updateForm('last_name', e.target.value)} />
-            </Field>
-
-            <Field label="Service">
-              <select value={form.department} onChange={e => updateForm('department', e.target.value)}>
-                {departments.map(department => (
-                  <option key={department} value={department}>{department}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Poste">
-              <select value={form.job_title} onChange={e => updateForm('job_title', e.target.value)}>
-                {roles.map(role => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Manager">
-              <input value={form.manager} onChange={e => updateForm('manager', e.target.value)} />
-            </Field>
-
-            <Field label="Date d’arrivée">
-              <input type="date" value={form.start_date} onChange={e => updateForm('start_date', e.target.value)} />
-            </Field>
-          </div>
-
-          <Field label="Groupes manuels">
-            <textarea value={form.manual_groups} onChange={e => updateForm('manual_groups', e.target.value)} />
-          </Field>
-
-          <div className="panel-footer">
-            <button type="submit">Créer la demande</button>
-          </div>
-        </form>
-      </section>
-
-      <section className="panel preview-panel">
-        <PanelHeader
-          title="Aperçu du compte"
-          subtitle="Résumé avant envoi en validation."
-        />
-
-        <div className="preview-card">
-          <div className="avatar">{preview.displayName ? preview.displayName[0] : '?'}</div>
-
-          <div>
-            <strong>{preview.displayName || 'Utilisateur'}</strong>
-            <span>{preview.email || 'email non généré'}</span>
-          </div>
-        </div>
-
-        <div className="preview-list">
-          <PreviewRow label="Login" value={preview.username || '-'} />
-          <PreviewRow label="OU cible" value={preview.ou} />
-          <PreviewRow label="Service" value={form.department || '-'} />
-          <PreviewRow label="Poste" value={form.job_title || '-'} />
-        </div>
-
-        <div className="groups-box">
-          <strong>Groupes prévus</strong>
-
-          {preview.groups.length === 0 ? (
-            <p>Aucun groupe calculé.</p>
-          ) : (
-            <ul>
-              {preview.groups.map(group => (
-                <li key={group}>{group}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-    </div>
-  )
-}
-
-
-
 function ModificationPage({ requests, form, updateForm, createModificationRequest, loadRequestIntoModification }) {
   const onboardingRequests = requests.filter(request => request.type === 'onboarding' && request.status === 'completed')
   const addGroups = splitListValue(form.add_groups)
@@ -1057,6 +1006,17 @@ function ModificationPage({ requests, form, updateForm, createModificationReques
           </Field>
 
           <div className="form-grid">
+            <Field label="Compte AD">
+              <label className="checkbox-line">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.reactivate_account)}
+                  onChange={e => updateForm('reactivate_account', e.target.checked)}
+                />
+                <span>Réactiver le compte si l’utilisateur est désactivé</span>
+              </label>
+            </Field>
+
             <Field label="Groupes à ajouter">
               <textarea value={form.add_groups} onChange={e => updateForm('add_groups', e.target.value)} />
             </Field>
@@ -1098,6 +1058,7 @@ function ModificationPage({ requests, form, updateForm, createModificationReques
           <PreviewRow label="Nouveau poste" value={form.new_job_title || '-'} />
           <PreviewRow label="Date effet" value={form.effective_date || '-'} />
           <PreviewRow label="OU cible" value={form.move_to_ou || '-'} />
+          <PreviewRow label="Réactivation compte" value={form.reactivate_account ? 'Oui' : 'Non'} />
         </div>
 
         <div className="groups-box">
@@ -1127,167 +1088,9 @@ function ModificationPage({ requests, form, updateForm, createModificationReques
 }
 
 
-function OffboardingPage({ requests, form, updateForm, createOffboardingRequest, loadRequestIntoOffboarding }) {
-  const onboardingUsers = requests
-    .filter(request => request.type === 'onboarding' && request.status === 'completed')
-    .map(request => request.ad_payload || {})
-    .filter(payload => payload.username)
-
-  return (
-    <div className="content-grid">
-      <section className="panel">
-        <PanelHeader
-          title="Créer une demande offboarding"
-          subtitle="Prépare la désactivation et le nettoyage d’un compte utilisateur."
-        />
-
-        <form className="form" onSubmit={createOffboardingRequest}>
-          <Field label="Utilisateur existant">
-            <select
-              value=""
-              onChange={event => {
-                const selected = requests.find(request => request.id === event.target.value)
-                if (selected) {
-                  loadRequestIntoOffboarding(selected)
-                }
-              }}
-            >
-              <option value="">Sélectionner depuis les onboardings terminés...</option>
-              {requests
-                .filter(request => request.type === 'onboarding' && request.status === 'completed')
-                .map(request => {
-                  const payload = request.ad_payload || {}
-                  return (
-                    <option key={request.id} value={request.id}>
-                      {payload.display_name} · {payload.username}
-                    </option>
-                  )
-                })}
-            </select>
-          </Field>
-
-          <div className="form-grid">
-            <Field label="Login">
-              <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
-            </Field>
-
-            <Field label="Nom affiché">
-              <input value={form.display_name} onChange={e => updateForm('display_name', e.target.value)} />
-            </Field>
-
-            <Field label="Service">
-              <input value={form.department} onChange={e => updateForm('department', e.target.value)} />
-            </Field>
-
-            <Field label="Manager">
-              <input value={form.manager} onChange={e => updateForm('manager', e.target.value)} />
-            </Field>
-
-            <Field label="Date de départ">
-              <input type="date" value={form.end_date} onChange={e => updateForm('end_date', e.target.value)} />
-            </Field>
-
-            <Field label="OU cible">
-              <input value={form.move_to_ou} onChange={e => updateForm('move_to_ou', e.target.value)} />
-            </Field>
-          </div>
-
-          <div className="option-grid">
-            <label className="check-option">
-              <input
-                type="checkbox"
-                checked={form.disable_account}
-                onChange={e => updateForm('disable_account', e.target.checked)}
-              />
-              <span>Désactiver le compte</span>
-            </label>
-
-            <label className="check-option">
-              <input
-                type="checkbox"
-                checked={form.remove_groups}
-                onChange={e => updateForm('remove_groups', e.target.checked)}
-              />
-              <span>Retirer les groupes</span>
-            </label>
-
-            <label className="check-option">
-              <input
-                type="checkbox"
-                checked={form.convert_mailbox}
-                onChange={e => updateForm('convert_mailbox', e.target.checked)}
-              />
-              <span>Convertir la mailbox</span>
-            </label>
-          </div>
-
-          <Field label="Redirection mail vers">
-            <input value={form.forward_to} onChange={e => updateForm('forward_to', e.target.value)} placeholder="optionnel" />
-          </Field>
-
-          <Field label="Commentaire">
-            <textarea value={form.comment} onChange={e => updateForm('comment', e.target.value)} />
-          </Field>
-
-          <div className="panel-footer">
-            <button type="submit">Créer demande offboarding</button>
-          </div>
-        </form>
-      </section>
-
-      <section className="panel preview-panel">
-        <PanelHeader
-          title="Aperçu offboarding"
-          subtitle="Actions prévues pour l’agent Windows."
-        />
-
-        <div className="preview-card offboarding-preview">
-          <div className="avatar danger-avatar">D</div>
-
-          <div>
-            <strong>{form.display_name || 'Utilisateur'}</strong>
-            <span>{form.username || 'login non défini'}</span>
-          </div>
-        </div>
-
-        <div className="preview-list">
-          <PreviewRow label="Service" value={form.department || '-'} />
-          <PreviewRow label="Fin prévue" value={form.end_date || '-'} />
-          <PreviewRow label="OU cible" value={form.move_to_ou || '-'} />
-          <PreviewRow label="Manager" value={form.manager || '-'} />
-        </div>
-
-        <div className="groups-box">
-          <strong>Actions prévues</strong>
-          <ul>
-            <li>{form.disable_account ? 'Désactivation du compte' : 'Compte non désactivé'}</li>
-            <li>{form.remove_groups ? 'Retrait des groupes' : 'Groupes conservés'}</li>
-            <li>{form.convert_mailbox ? 'Conversion mailbox demandée' : 'Pas de conversion mailbox'}</li>
-            <li>{form.forward_to ? `Redirection vers ${form.forward_to}` : 'Pas de redirection mail'}</li>
-          </ul>
-        </div>
-
-        <div className="groups-box">
-          <strong>Utilisateurs disponibles</strong>
-          {onboardingUsers.length === 0 ? (
-            <p>Aucun onboarding terminé chargé.</p>
-          ) : (
-            <ul>
-              {onboardingUsers.slice(0, 8).map(user => (
-                <li key={user.username}>{user.display_name} · {user.username}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-    </div>
-  )
-}
-
-
 function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMessage }) {
   const [departmentName, setDepartmentName] = useState('Support')
-  const [departmentOu, setDepartmentOu] = useState('OU=Users,OU=Support,DC=lab,DC=local')
+  const [departmentOu, setDepartmentOu] = useState('OU=Support,OU=Users,OU=EITAS,DC=API,DC=LOCAL')
   const [departmentGroups, setDepartmentGroups] = useState('GG_Support_Read\nGG_Printer_Support')
 
   const [roleDepartment, setRoleDepartment] = useState('')
@@ -1317,7 +1120,7 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
     try {
       const payload = {
         name: departmentName.trim(),
-        default_ou: departmentOu.trim(),
+        default_ou: buildServiceOu(departmentName.trim()) || departmentOu.trim(),
         default_groups: linesToArray(departmentGroups)
       }
 
@@ -1425,7 +1228,80 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
     setRoleGroups((roleData.groups || []).join('\n'))
   }
 
-  return (
+  
+  function autoFillServiceOu() {
+    const generatedOu = buildServiceOu(departmentName)
+
+    if (!generatedOu) {
+      setMessage('Nom de service manquant pour générer l’OU.')
+      return
+    }
+
+    setDepartmentOu(generatedOu)
+    setMessage(`OU générée automatiquement : ${generatedOu}`)
+  }
+
+
+  function getRoleGroupSuggestions() {
+    const serviceToken = normalizeGroupToken(roleDepartment)
+    const departmentDefaults = templates?.departments?.[roleDepartment]?.default_groups || []
+
+    const generated = serviceToken
+      ? [
+          `GG_${serviceToken}_Read`,
+          `GG_${serviceToken}_RW`,
+          `GG_${serviceToken}_Admin`,
+          `GG_Printer_${serviceToken}`
+        ]
+      : []
+
+    const common = [
+      'GG_M365_Standard',
+      'GG_VPN_Users',
+      'GG_RemoteSupport',
+      'GG_IT_Admins',
+      'GG_Server_Admins'
+    ]
+
+    return Array.from(new Set([
+      ...departmentDefaults,
+      ...generated,
+      ...common
+    ].filter(Boolean)))
+  }
+
+  function addRoleGroup(group) {
+    const cleanGroup = String(group || '').trim()
+
+    if (!cleanGroup) {
+      return
+    }
+
+    const currentGroups = linesToArray(roleGroups)
+
+    if (currentGroups.includes(cleanGroup)) {
+      setMessage(`Le groupe ${cleanGroup} est déjà présent.`)
+      return
+    }
+
+    setRoleGroups([...currentGroups, cleanGroup].join('\n'))
+    setMessage(`Groupe ajouté : ${cleanGroup}`)
+  }
+
+  function removeRoleGroup(group) {
+    const cleanGroup = String(group || '').trim()
+    const nextGroups = linesToArray(roleGroups).filter(item => item !== cleanGroup)
+
+    setRoleGroups(nextGroups.join('\n'))
+    setMessage(`Groupe retiré : ${cleanGroup}`)
+  }
+
+  function clearRoleGroups() {
+    setRoleGroups('')
+    setMessage('Groupes du poste vidés.')
+  }
+
+return (
     <div className="templates-page">
       <div className="template-admin-grid">
         <section className="panel">
@@ -1442,6 +1318,19 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
             <Field label="OU par défaut">
               <input value={departmentOu} onChange={e => setDepartmentOu(e.target.value)} />
             </Field>
+
+              <div className="auto-ou-tools">
+                <button
+                  type="button"
+                  className="secondary-small-button"
+                  onClick={autoFillServiceOu}
+                >
+                  Regénérer l’OU
+                </button>
+                <span className="auto-ou-hint">
+                  Générée depuis le nom du service.
+                </span>
+              </div>
 
             <Field label="Groupes par défaut">
               <textarea value={departmentGroups} onChange={e => setDepartmentGroups(e.target.value)} />
@@ -1474,7 +1363,67 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
             </Field>
 
             <Field label="Groupes du poste">
-              <textarea value={roleGroups} onChange={e => setRoleGroups(e.target.value)} />
+              <div className="group-picker">
+                <div className="group-picker-header">
+                  <div>
+                    <strong>Groupes sélectionnés</strong>
+                    <span> Clique sur un groupe pour le retirer.</span>
+                  </div>
+
+                  <button type="button" className="secondary-small-button" onClick={clearRoleGroups}>
+                    Vider
+                  </button>
+                </div>
+
+                <div className="selected-group-list">
+                  {linesToArray(roleGroups).length === 0 && (
+                    <span className="empty-mini">Aucun groupe sélectionné.</span>
+                  )}
+
+                  {linesToArray(roleGroups).map(group => (
+                    <button
+                      key={group}
+                      type="button"
+                      className="selected-group-chip"
+                      onClick={() => removeRoleGroup(group)}
+                      title="Cliquer pour retirer"
+                    >
+                      {group}
+                      <span>×</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="group-picker-header">
+                  <div>
+                    <strong>Ajouter rapidement</strong>
+                    <span> Groupes proposés selon le service.</span>
+                  </div>
+                </div>
+
+                <div className="group-suggestion-grid">
+                  {getRoleGroupSuggestions().map(group => (
+                    <button
+                      key={group}
+                      type="button"
+                      className="group-suggestion-button"
+                      onClick={() => addRoleGroup(group)}
+                    >
+                      + {group}
+                    </button>
+                  ))}
+                </div>
+
+                <details className="advanced-groups-editor">
+                  <summary>Options avancées : édition texte / copier-coller</summary>
+
+                  <textarea
+                    value={roleGroups}
+                    onChange={e => setRoleGroups(e.target.value)}
+                    placeholder={'Un groupe par ligne, exemple :\nGG_Marchand_Read\nGG_Marchand_RW'}
+                  />
+                </details>
+              </div>
             </Field>
 
             <div className="panel-footer split-footer">
@@ -1534,179 +1483,6 @@ function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMes
 
 
 
-function AuditPage({ auditLogs, loadAuditLogs, auditFocusId = '', setAuditFocusId }) {
-  const [auditSearch, setAuditSearch] = useState('')
-
-  useEffect(() => {
-    if (auditFocusId) {
-      return
-    }
-
-    try {
-      const stored = window.sessionStorage.getItem('eitasAuditFocusId') || ''
-
-      if (stored && setAuditFocusId) {
-        setAuditFocusId(stored)
-      }
-    } catch {
-      // Non bloquant.
-    }
-  }, [auditFocusId, setAuditFocusId])
-
-  const safeLogs = Array.isArray(auditLogs) ? auditLogs : []
-  const activeFilter = String(auditFocusId || auditSearch || '').trim().toLowerCase()
-
-  const filteredLogs = activeFilter
-    ? safeLogs.filter(log => {
-        const detailsText = JSON.stringify(log.details || {})
-        const requestId = String(log.request_id || log.details?.request_id || '')
-
-        const haystack = [
-          log.created_at,
-          log.timestamp,
-          log.action,
-          log.actor,
-          requestId,
-          log.message,
-          detailsText
-        ].join(' ').toLowerCase()
-
-        return haystack.includes(activeFilter)
-      })
-    : safeLogs
-
-  function formatAuditDate(value) {
-    if (!value) return '-'
-
-    let normalized = String(value)
-
-    if (
-      normalized.includes('T') &&
-      !normalized.endsWith('Z') &&
-      !/[+-]\d{2}:\d{2}$/.test(normalized)
-    ) {
-      normalized = `${normalized}Z`
-    }
-
-    const date = new Date(normalized)
-
-    if (Number.isNaN(date.getTime())) {
-      return String(value)
-    }
-
-    return date.toLocaleString('fr-FR', {
-      dateStyle: 'short',
-      timeStyle: 'medium',
-      timeZone: 'Europe/Paris'
-    })
-  }
-
-  function clearAuditFilter() {
-    setAuditSearch('')
-
-    if (setAuditFocusId) {
-      setAuditFocusId('')
-    }
-
-    try {
-      window.sessionStorage.removeItem('eitasAuditFocusId')
-    } catch {
-      // Non bloquant.
-    }
-  }
-
-  function updateAuditSearch(value) {
-    if (setAuditFocusId) {
-      setAuditFocusId('')
-    }
-
-    try {
-      window.sessionStorage.removeItem('eitasAuditFocusId')
-    } catch {
-      // Non bloquant.
-    }
-
-    setAuditSearch(value)
-  }
-
-  return (
-    <section className="panel audit-panel">
-      <div className="panel-header">
-        <div>
-          <h2>Journal d’audit</h2>
-          <p>Dernières actions enregistrées par l’API.</p>
-        </div>
-
-        <button onClick={loadAuditLogs}>Recharger</button>
-      </div>
-
-      <div className="audit-toolbar">
-        <input
-          value={auditFocusId || auditSearch}
-          onChange={event => updateAuditSearch(event.target.value)}
-          placeholder="Rechercher par ID demande, action, acteur, message..."
-        />
-
-        {(auditFocusId || auditSearch) && (
-          <button className="ghost-button" onClick={clearAuditFilter}>Effacer filtre</button>
-        )}
-      </div>
-
-      {auditFocusId && (
-        <div className="audit-focus-banner">
-          <strong>Filtre actif :</strong>
-          <span>{auditFocusId}</span>
-        </div>
-      )}
-
-      <div className="audit-count-line">
-        {filteredLogs.length} événement(s) affiché(s) sur {safeLogs.length}
-      </div>
-
-      <div className="audit-table-wrap">
-        <table className="audit-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Action</th>
-              <th>Acteur</th>
-              <th>Demande</th>
-              <th>Message</th>
-              <th>Détails</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filteredLogs.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="empty">Aucun log à afficher.</td>
-              </tr>
-            ) : (
-              filteredLogs.map((log, index) => {
-                const requestId = String(log.request_id || log.details?.request_id || '')
-                const isFocused = activeFilter && requestId.toLowerCase().includes(activeFilter)
-
-                return (
-                  <tr key={`${log.created_at || log.timestamp || index}-${index}`} className={isFocused ? 'audit-row-focused' : ''}>
-                    <td>{formatAuditDate(log.created_at || log.timestamp)}</td>
-                    <td><span className="audit-action-badge">{log.action || '-'}</span></td>
-                    <td>{log.actor || '-'}</td>
-                    <td><code>{requestId || '-'}</code></td>
-                    <td>{log.message || '-'}</td>
-                    <td>
-                      <AuditDetails details={log.details} />
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  )
-}
-
 function formatDate(value) {
   if (!value) return '-'
 
@@ -1718,286 +1494,7 @@ function formatDate(value) {
 }
 
 
-function SettingsPage({ apiKey, setApiKey, apiStatus, saveConfig, testApi }) {
-  return (
-    <section className="panel settings-panel">
-      <PanelHeader
-        title="Connexion API"
-        subtitle="La clé API est sauvegardée uniquement dans le navigateur."
-      />
-
-      <div className="settings-content">
-        <Field label="Clé API">
-          <input
-            type="password"
-            value={apiKey}
-            onChange={event => setApiKey(event.target.value)}
-            placeholder="Colle la clé API ici"
-          />
-        </Field>
-
-        <div className="settings-actions">
-          <button onClick={saveConfig}>Enregistrer</button>
-          <button className="secondary" onClick={testApi}>Tester la connexion</button>
-        </div>
-
-        <div className="settings-state">
-          <span>État actuel</span>
-          <strong>{apiStatus}</strong>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 export default App
-
-function SmartRequestDrawer({ request, onClose, approveRequest, rejectRequest, retryRequest, setPage, openAuditFromRequest }) {
-  const payload = request.ad_payload || request.payload || {}
-  const result = request.agent_result || {}
-  const details = result.details || {}
-  const type = request.type || 'onboarding'
-
-  function display(value) {
-    if (value === true) return 'Oui'
-    if (value === false) return 'Non'
-    if (value === null || value === undefined || value === '') return '-'
-    return String(value)
-  }
-
-  function listValue(value) {
-    if (!value) return []
-
-    if (Array.isArray(value)) {
-      return value.filter(Boolean)
-    }
-
-    return String(value)
-      .split(/[\n,;]/)
-      .map(item => item.trim())
-      .filter(Boolean)
-  }
-
-  function titleForType() {
-    if (type === 'offboarding') return 'Détail départ utilisateur'
-    if (type === 'modification') return 'Détail modification utilisateur'
-    return 'Détail création utilisateur'
-  }
-
-  function renderGroups(title, groups, prefix = '') {
-    const items = listValue(groups)
-
-    return (
-      <div className="detail-section">
-        <h4>{title}</h4>
-
-        {items.length === 0 ? (
-          <p className="muted">Aucun groupe.</p>
-        ) : (
-          <ul className="detail-list">
-            {items.map(group => (
-              <li key={group}>{prefix}{group}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-    )
-  }
-
-  function renderIdentity() {
-    return (
-      <div className="detail-section">
-        <h4>Identité</h4>
-
-        <div className="detail-grid">
-          <SmartDetailRow label="Nom" value={payload.display_name} />
-          <SmartDetailRow label="Login" value={payload.username} />
-          <SmartDetailRow label="Email" value={payload.email} />
-          <SmartDetailRow label="Service" value={payload.department} />
-          <SmartDetailRow label="Poste" value={payload.job_title} />
-          <SmartDetailRow label="Manager" value={payload.manager} />
-        </div>
-      </div>
-    )
-  }
-
-  function renderOnboarding() {
-    return (
-      <>
-        {renderIdentity()}
-
-        <div className="detail-section">
-          <h4>Création compte</h4>
-
-          <div className="detail-grid">
-            <SmartDetailRow label="Prénom" value={payload.first_name} />
-            <SmartDetailRow label="Nom" value={payload.last_name} />
-            <SmartDetailRow label="Date arrivée" value={payload.start_date} />
-            <SmartDetailRow label="OU cible" value={payload.ou} />
-          </div>
-        </div>
-
-        {renderGroups('Groupes prévus', payload.groups)}
-      </>
-    )
-  }
-
-  function renderOffboarding() {
-    return (
-      <>
-        {renderIdentity()}
-
-        <div className="detail-section danger-section">
-          <h4>Actions départ</h4>
-
-          <div className="detail-grid">
-            <SmartDetailRow label="Date de départ" value={payload.end_date} />
-            <SmartDetailRow label="Désactiver compte" value={payload.disable_account} />
-            <SmartDetailRow label="Retirer groupes" value={payload.remove_groups} />
-            <SmartDetailRow label="OU cible" value={payload.move_to_ou} />
-            <SmartDetailRow label="Convertir mailbox" value={payload.convert_mailbox} />
-            <SmartDetailRow label="Redirection mail" value={payload.forward_to} />
-            <SmartDetailRow label="Commentaire" value={payload.comment} wide />
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  function renderModification() {
-    return (
-      <>
-        <div className="detail-section warning-section">
-          <h4>Utilisateur modifié</h4>
-
-          <div className="detail-grid">
-            <SmartDetailRow label="Nom" value={payload.display_name} />
-            <SmartDetailRow label="Login" value={payload.username} />
-            <SmartDetailRow label="Manager" value={payload.manager} />
-            <SmartDetailRow label="Date d’effet" value={payload.effective_date} />
-          </div>
-        </div>
-
-        <div className="detail-section">
-          <h4>Changements demandés</h4>
-
-          <div className="detail-grid">
-            <SmartDetailRow label="Service actuel" value={payload.current_department} />
-            <SmartDetailRow label="Nouveau service" value={payload.new_department} />
-            <SmartDetailRow label="Poste actuel" value={payload.current_job_title} />
-            <SmartDetailRow label="Nouveau poste" value={payload.new_job_title} />
-            <SmartDetailRow label="OU cible" value={payload.move_to_ou} />
-            <SmartDetailRow label="Commentaire" value={payload.comment} wide />
-          </div>
-        </div>
-
-        {renderGroups('Groupes à ajouter', payload.add_groups, '+ ')}
-        {renderGroups('Groupes à retirer', payload.remove_groups, '- ')}
-      </>
-    )
-  }
-
-  function goToAuditLogs() {
-    if (typeof openAuditFromRequest === 'function') {
-      openAuditFromRequest(request.id)
-      return
-    }
-
-    onClose()
-  }
-
-  function renderTypeContent() {
-    if (type === 'offboarding') return renderOffboarding()
-    if (type === 'modification') return renderModification()
-    return renderOnboarding()
-  }
-
-  return (
-    <div className="drawer-backdrop" onClick={onClose}>
-      <aside className="request-drawer" onClick={event => event.stopPropagation()}>
-        <div className="drawer-header">
-          <div>
-            <h3>{titleForType()}</h3>
-            <p>{payload.display_name || payload.username || request.id}</p>
-          </div>
-
-          <div className="drawer-header-actions">
-            <CopyTextButton text={request.id} label="Copier ID" copiedLabel="ID copié" />
-            <button type="button" className="audit-shortcut-button" onClick={goToAuditLogs}>Voir audit</button>
-            <button className="ghost-button" onClick={onClose}>Fermer</button>
-          </div>
-        </div>
-
-        <div className="drawer-badges">
-          <TypeBadge type={type} />
-          <StatusBadge status={request.status} />
-        </div>
-
-        {renderTypeContent()}
-
-        <RequestLifecycleTimeline request={request} details={details} />
-
-        <div className="detail-section">
-          <h4>Suivi de traitement</h4>
-
-          <div className="detail-grid">
-            <SmartDetailRow label="ID demande" value={request.id} wide />
-            <SmartDetailRow label="Créée le" value={request.created_at} />
-            <SmartDetailRow label="Approuvée par" value={request.approved_by} />
-            <SmartDetailRow label="Approuvée le" value={request.approved_at} />
-            <SmartDetailRow label="Rejetée par" value={request.rejected_by} />
-            <SmartDetailRow label="Rejetée le" value={request.rejected_at} />
-            <SmartDetailRow label="Agent" value={request.processing_by || details.agent} />
-            <SmartDetailRow label="Traitement le" value={request.processing_at} />
-            <SmartDetailRow label="Terminée le" value={request.completed_at} />
-            <SmartDetailRow label="Échec le" value={request.failed_at} />
-          </div>
-        </div>
-
-        <div className="detail-section">
-          <h4>Résultat agent</h4>
-
-          <div className="agent-result-box">
-            <strong>{display(result.message)}</strong>
-            <p>Mode : {display(details.mode)}</p>
-            <p>Type traité : {display(details.request_type)}</p>
-          </div>
-        </div>
-
-        <div className="drawer-actions">
-          {request.status === 'waiting_approval' && (
-            <>
-              <button onClick={() => approveRequest(request.id)}>Approuver</button>
-              <button className="danger-button" onClick={() => rejectRequest(request.id)}>Rejeter</button>
-            </>
-          )}
-
-          {(request.status === 'failed' || request.status === 'rejected') && (
-            <button onClick={() => retryRequest(request.id)}>Relancer</button>
-          )}
-
-          <button className="ghost-button" onClick={onClose}>Fermer</button>
-        </div>
-      </aside>
-    </div>
-  )
-}
-
-function SmartDetailRow({ label, value, wide = false }) {
-  function display(value) {
-    if (value === true) return 'Oui'
-    if (value === false) return 'Non'
-    if (value === null || value === undefined || value === '') return '-'
-    return String(value)
-  }
-
-  return (
-    <div className={wide ? 'detail-row wide' : 'detail-row'}>
-      <span>{label}</span>
-      <strong>{display(value)}</strong>
-    </div>
-  )
-}
 
 function DashboardInsights({ requests, setPage }) {
   const safeRequests = Array.isArray(requests) ? requests : []

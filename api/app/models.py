@@ -49,7 +49,7 @@ class OffboardingRequest(BaseModel):
     end_date: str
     disable_account: bool = True
     remove_groups: bool = True
-    move_to_ou: str | None = "OU=Disabled Users,DC=lab,DC=local"
+    move_to_ou: str | None = "OU=Disabled Users,DC=api,DC=local"
     convert_mailbox: bool = False
     forward_to: str | None = None
     comment: str | None = None

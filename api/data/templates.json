@@ -1,7 +1,7 @@
 {
   "departments": {
     "Comptabilite": {
-      "default_ou": "OU=Users,OU=Comptabilite,DC=lab,DC=local",
+      "default_ou": "OU=Comptabilite,OU=Users,OU=EITAS,DC=API,DC=LOCAL",
       "default_groups": [
         "GG_Compta_Read",
         "GG_Printer_Compta"
@@ -19,11 +19,18 @@
             "GG_Compta_Admin",
             "GG_M365_Standard"
           ]
+        },
+        "Technicien helpdesk": {
+          "groups": [
+            "GG_M365_Standard",
+            "GG_RemoteSupport",
+            "GG_Support_RW"
+          ]
         }
       }
     },
     "RH": {
-      "default_ou": "OU=Users,OU=RH,DC=lab,DC=local",
+      "default_ou": "OU=Users,OU=RH,DC=api,DC=local",
       "default_groups": [
         "GG_RH_Read",
         "GG_Printer_RH"
@@ -31,7 +38,7 @@
       "roles": {}
     },
     "IT": {
-      "default_ou": "OU=Users,OU=IT,DC=lab,DC=local",
+      "default_ou": "OU=IT,OU=Users,OU=EITAS,DC=API,DC=LOCAL",
       "default_groups": [
         "GG_IT_Read",
         "GG_VPN_Users"
@@ -54,7 +61,7 @@
       }
     },
     "Support": {
-      "default_ou": "OU=Users,OU=Support,DC=lab,DC=local",
+      "default_ou": "OU=Support,OU=Users,OU=EITAS,DC=API,DC=LOCAL",
       "default_groups": [
         "GG_Printer_Support",
         "GG_Support_Read"
@@ -62,9 +69,41 @@
       "roles": {
         "Technicien helpdesk": {
           "groups": [
+            "GG_Printer_Support",
+            "GG_Support_RW",
+            "GG_Support_Read"
+          ]
+        }
+      }
+    },
+    "Marchand": {
+      "default_ou": "OU=Users,OU=Marchand,DC=lab,DC=local",
+      "default_groups": [
+        "GG_Printer_Support",
+        "GG_Support_Read"
+      ],
+      "roles": {
+        "Marchand peak": {
+          "groups": [
             "GG_M365_Standard",
             "GG_RemoteSupport",
             "GG_Support_RW"
+          ]
+        }
+      }
+    },
+    "test": {
+      "default_ou": "OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL",
+      "default_groups": [
+        "GG_Printer_Support",
+        "GG_Support_Read"
+      ],
+      "roles": {
+        "Technicien helpdesk": {
+          "groups": [
+            "GG_IT_Admins",
+            "GG_Printer_test",
+            "GG_Server_Admins"
           ]
         }
       }
