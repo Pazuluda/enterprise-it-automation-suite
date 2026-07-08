@@ -39,3 +39,17 @@ class DepartmentTemplatePayload(BaseModel):
 class RoleTemplatePayload(BaseModel):
     name: str
     groups: list[str] = Field(default_factory=list)
+
+
+class OffboardingRequest(BaseModel):
+    username: str
+    display_name: str
+    department: str | None = None
+    manager: str | None = None
+    end_date: str
+    disable_account: bool = True
+    remove_groups: bool = True
+    move_to_ou: str | None = "OU=Disabled Users,DC=lab,DC=local"
+    convert_mailbox: bool = False
+    forward_to: str | None = None
+    comment: str | None = None

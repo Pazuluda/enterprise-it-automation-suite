@@ -10,6 +10,19 @@ const STATUS_LABELS = {
   rejected: 'Rejetée'
 }
 
+const TYPE_LABELS = {
+  onboarding: 'Création',
+  offboarding: 'Départ',
+  modification: 'Modification'
+}
+
+const TYPE_FILTERS = [
+  { value: 'all', label: 'Tous les types' },
+  { value: 'onboarding', label: 'Création' },
+  { value: 'offboarding', label: 'Départ / offboarding' },
+  { value: 'modification', label: 'Modification' }
+]
+
 const PAGES = {
   overview: {
     title: 'Vue générale',
@@ -22,6 +35,10 @@ const PAGES = {
   newRequest: {
     title: 'Nouvelle demande',
     subtitle: 'Créer une demande de compte avant validation.'
+  },
+  offboarding: {
+    title: 'Offboarding',
+    subtitle: 'Préparer le départ d’un collaborateur.'
   },
   templates: {
     title: 'Templates',
@@ -58,6 +75,7 @@ function App() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
 
   const [form, setForm] = useState({
     first_name: 'Emma',
@@ -67,6 +85,20 @@ function App() {
     manager: 'Admin Lab',
     start_date: '2026-07-20',
     manual_groups: 'GG_VPN_Users'
+  })
+
+  const [offboardingForm, setOffboardingForm] = useState({
+    username: '',
+    display_name: '',
+    department: '',
+    manager: 'Admin Lab',
+    end_date: '2026-07-31',
+    disable_account: true,
+    remove_groups: true,
+    move_to_ou: 'OU=Disabled Users,DC=lab,DC=local',
+    convert_mailbox: false,
+    forward_to: '',
+    comment: 'Fin de contrat'
   })
 
   const departments = useMemo(() => Object.keys(templates.departments || {}), [templates])
@@ -90,10 +122,11 @@ function App() {
 
       const matchSearch = text.includes(search.toLowerCase())
       const matchStatus = statusFilter === 'all' || request.status === statusFilter
+      const matchType = typeFilter === 'all' || request.type === typeFilter
 
-      return matchSearch && matchStatus
+      return matchSearch && matchStatus && matchType
     })
-  }, [requests, search, statusFilter])
+  }, [requests, search, statusFilter, typeFilter])
 
   const stats = {
     total: requests.length,
@@ -307,6 +340,59 @@ function App() {
     }
   }
 
+  async function createOffboardingRequest(event) {
+    event.preventDefault()
+
+    try {
+      const payload = {
+        username: offboardingForm.username.trim(),
+        display_name: offboardingForm.display_name.trim(),
+        department: offboardingForm.department.trim() || null,
+        manager: offboardingForm.manager.trim() || null,
+        end_date: offboardingForm.end_date.trim(),
+        disable_account: offboardingForm.disable_account,
+        remove_groups: offboardingForm.remove_groups,
+        move_to_ou: offboardingForm.move_to_ou.trim() || null,
+        convert_mailbox: offboardingForm.convert_mailbox,
+        forward_to: offboardingForm.forward_to.trim() || null,
+        comment: offboardingForm.comment.trim() || null
+      }
+
+      const result = await apiFetch('/api/offboarding/request', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+
+      setMessage(`Demande offboarding créée : ${result.request.id}`)
+      setPage('requests')
+      await loadRequests()
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+  function updateOffboardingForm(field, value) {
+    setOffboardingForm(current => ({
+      ...current,
+      [field]: value
+    }))
+  }
+
+  function loadRequestIntoOffboarding(request) {
+    const payload = request.ad_payload || {}
+
+    setOffboardingForm(current => ({
+      ...current,
+      username: payload.username || '',
+      display_name: payload.display_name || '',
+      department: payload.department || '',
+      manager: payload.manager || 'Admin Lab'
+    }))
+
+    setPage('offboarding')
+    setMessage(`Utilisateur chargé pour offboarding : ${payload.display_name || payload.username}`)
+  }
+
   function updateForm(field, value) {
     setForm(current => {
       const next = { ...current, [field]: value }
@@ -343,6 +429,7 @@ function App() {
           <button className={page === 'overview' ? 'active' : ''} onClick={() => setPage('overview')}>Vue générale</button>
           <button className={page === 'requests' ? 'active' : ''} onClick={() => setPage('requests')}>Demandes</button>
           <button className={page === 'newRequest' ? 'active' : ''} onClick={() => setPage('newRequest')}>Nouvelle demande</button>
+          <button className={page === 'offboarding' ? 'active' : ''} onClick={() => setPage('offboarding')}>Offboarding</button>
           <button className={page === 'templates' ? 'active' : ''} onClick={() => setPage('templates')}>Templates</button>
           <button className={page === 'audit' ? 'active' : ''} onClick={() => setPage('audit')}>Audit logs</button>
           <button className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}>Paramètres</button>
@@ -389,6 +476,8 @@ function App() {
               setSearch={setSearch}
               statusFilter={statusFilter}
               setStatusFilter={setStatusFilter}
+              typeFilter={typeFilter}
+              setTypeFilter={setTypeFilter}
               loadRequests={loadRequests}
               approveRequest={approveRequest}
               rejectRequest={rejectRequest}
@@ -405,6 +494,16 @@ function App() {
               roles={roles}
               preview={preview}
               createRequest={createRequest}
+            />
+          )}
+
+          {page === 'offboarding' && (
+            <OffboardingPage
+              requests={requests}
+              form={offboardingForm}
+              updateForm={updateOffboardingForm}
+              createOffboardingRequest={createOffboardingRequest}
+              loadRequestIntoOffboarding={loadRequestIntoOffboarding}
             />
           )}
 
@@ -478,7 +577,7 @@ function OverviewPage({ stats, requests, setPage, setSelectedRequest }) {
                 <button className="mini-item" key={request.id} onClick={() => setSelectedRequest(request)}>
                   <div>
                     <strong>{payload.display_name || 'Utilisateur inconnu'}</strong>
-                    <span>{payload.department || '-'} · {payload.job_title || '-'}</span>
+                    <span>{TYPE_LABELS[request.type] || request.type || 'Création'} · {payload.department || '-'} · {payload.job_title || '-'}</span>
                   </div>
                   <StatusBadge status={request.status} />
                 </button>
@@ -511,6 +610,8 @@ function RequestsPage({
   setSearch,
   statusFilter,
   setStatusFilter,
+  typeFilter,
+  setTypeFilter,
   loadRequests,
   approveRequest,
   rejectRequest,
@@ -531,6 +632,12 @@ function RequestsPage({
           onChange={event => setSearch(event.target.value)}
           placeholder="Rechercher un utilisateur, login, service..."
         />
+
+        <select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}>
+          {TYPE_FILTERS.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
 
         <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
           <option value="all">Tous les statuts</option>
@@ -561,6 +668,7 @@ function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, 
         <thead>
           <tr>
             <th>Utilisateur</th>
+            <th>Type</th>
             <th>Login</th>
             <th>Email</th>
             <th>Service</th>
@@ -573,7 +681,7 @@ function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, 
         <tbody>
           {requests.length === 0 && (
             <tr>
-              <td colSpan="7" className="empty">Aucune demande à afficher.</td>
+              <td colSpan="8" className="empty">Aucune demande à afficher.</td>
             </tr>
           )}
 
@@ -587,6 +695,7 @@ function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, 
                     {payload.display_name || 'Utilisateur inconnu'}
                   </button>
                 </td>
+                <td><TypeBadge type={request.type} /></td>
                 <td>{payload.username || '-'}</td>
                 <td>{payload.email || '-'}</td>
                 <td>{payload.department || '-'}</td>
@@ -709,6 +818,165 @@ function NewRequestPage({ form, updateForm, departments, roles, preview, createR
     </div>
   )
 }
+
+
+function OffboardingPage({ requests, form, updateForm, createOffboardingRequest, loadRequestIntoOffboarding }) {
+  const onboardingUsers = requests
+    .filter(request => request.type === 'onboarding' && request.status === 'completed')
+    .map(request => request.ad_payload || {})
+    .filter(payload => payload.username)
+
+  return (
+    <div className="content-grid">
+      <section className="panel">
+        <PanelHeader
+          title="Créer une demande offboarding"
+          subtitle="Prépare la désactivation et le nettoyage d’un compte utilisateur."
+        />
+
+        <form className="form" onSubmit={createOffboardingRequest}>
+          <Field label="Utilisateur existant">
+            <select
+              value=""
+              onChange={event => {
+                const selected = requests.find(request => request.id === event.target.value)
+                if (selected) {
+                  loadRequestIntoOffboarding(selected)
+                }
+              }}
+            >
+              <option value="">Sélectionner depuis les onboardings terminés...</option>
+              {requests
+                .filter(request => request.type === 'onboarding' && request.status === 'completed')
+                .map(request => {
+                  const payload = request.ad_payload || {}
+                  return (
+                    <option key={request.id} value={request.id}>
+                      {payload.display_name} · {payload.username}
+                    </option>
+                  )
+                })}
+            </select>
+          </Field>
+
+          <div className="form-grid">
+            <Field label="Login">
+              <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
+            </Field>
+
+            <Field label="Nom affiché">
+              <input value={form.display_name} onChange={e => updateForm('display_name', e.target.value)} />
+            </Field>
+
+            <Field label="Service">
+              <input value={form.department} onChange={e => updateForm('department', e.target.value)} />
+            </Field>
+
+            <Field label="Manager">
+              <input value={form.manager} onChange={e => updateForm('manager', e.target.value)} />
+            </Field>
+
+            <Field label="Date de départ">
+              <input type="date" value={form.end_date} onChange={e => updateForm('end_date', e.target.value)} />
+            </Field>
+
+            <Field label="OU cible">
+              <input value={form.move_to_ou} onChange={e => updateForm('move_to_ou', e.target.value)} />
+            </Field>
+          </div>
+
+          <div className="option-grid">
+            <label className="check-option">
+              <input
+                type="checkbox"
+                checked={form.disable_account}
+                onChange={e => updateForm('disable_account', e.target.checked)}
+              />
+              <span>Désactiver le compte</span>
+            </label>
+
+            <label className="check-option">
+              <input
+                type="checkbox"
+                checked={form.remove_groups}
+                onChange={e => updateForm('remove_groups', e.target.checked)}
+              />
+              <span>Retirer les groupes</span>
+            </label>
+
+            <label className="check-option">
+              <input
+                type="checkbox"
+                checked={form.convert_mailbox}
+                onChange={e => updateForm('convert_mailbox', e.target.checked)}
+              />
+              <span>Convertir la mailbox</span>
+            </label>
+          </div>
+
+          <Field label="Redirection mail vers">
+            <input value={form.forward_to} onChange={e => updateForm('forward_to', e.target.value)} placeholder="optionnel" />
+          </Field>
+
+          <Field label="Commentaire">
+            <textarea value={form.comment} onChange={e => updateForm('comment', e.target.value)} />
+          </Field>
+
+          <div className="panel-footer">
+            <button type="submit">Créer demande offboarding</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel preview-panel">
+        <PanelHeader
+          title="Aperçu offboarding"
+          subtitle="Actions prévues pour l’agent Windows."
+        />
+
+        <div className="preview-card offboarding-preview">
+          <div className="avatar danger-avatar">D</div>
+
+          <div>
+            <strong>{form.display_name || 'Utilisateur'}</strong>
+            <span>{form.username || 'login non défini'}</span>
+          </div>
+        </div>
+
+        <div className="preview-list">
+          <PreviewRow label="Service" value={form.department || '-'} />
+          <PreviewRow label="Fin prévue" value={form.end_date || '-'} />
+          <PreviewRow label="OU cible" value={form.move_to_ou || '-'} />
+          <PreviewRow label="Manager" value={form.manager || '-'} />
+        </div>
+
+        <div className="groups-box">
+          <strong>Actions prévues</strong>
+          <ul>
+            <li>{form.disable_account ? 'Désactivation du compte' : 'Compte non désactivé'}</li>
+            <li>{form.remove_groups ? 'Retrait des groupes' : 'Groupes conservés'}</li>
+            <li>{form.convert_mailbox ? 'Conversion mailbox demandée' : 'Pas de conversion mailbox'}</li>
+            <li>{form.forward_to ? `Redirection vers ${form.forward_to}` : 'Pas de redirection mail'}</li>
+          </ul>
+        </div>
+
+        <div className="groups-box">
+          <strong>Utilisateurs disponibles</strong>
+          {onboardingUsers.length === 0 ? (
+            <p>Aucun onboarding terminé chargé.</p>
+          ) : (
+            <ul>
+              {onboardingUsers.slice(0, 8).map(user => (
+                <li key={user.username}>{user.display_name} · {user.username}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}
+
 
 function TemplatesPage({ departments, templates, loadTemplates, apiFetch, setMessage }) {
   const [departmentName, setDepartmentName] = useState('Support')
@@ -1091,6 +1359,16 @@ function Metric({ title, value, tone }) {
       <span>{title}</span>
       <strong>{value}</strong>
     </div>
+  )
+}
+
+function TypeBadge({ type }) {
+  const safeType = type || 'onboarding'
+
+  return (
+    <span className={`type-badge ${safeType}`}>
+      {TYPE_LABELS[safeType] || safeType}
+    </span>
   )
 }
 
