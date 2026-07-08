@@ -1,13 +1,17 @@
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
-from pathlib import Path
 from datetime import datetime
 from uuid import uuid4
 import json
 import os
-import unicodedata
+
+from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, AUDIT_FILE
+from app.core.security import require_api_key
+from app.core.storage import load_json, save_json
+from app.services.audit import write_audit_log
+from app.utils.naming import generate_username, generate_email
+from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload
 
 
 app = FastAPI(
@@ -18,104 +22,8 @@ app = FastAPI(
     redoc_url=None
 )
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-TEMPLATES_FILE = DATA_DIR / "templates.json"
-REQUESTS_FILE = DATA_DIR / "requests.json"
-AUDIT_FILE = DATA_DIR / "audit.jsonl"
-API_KEY = os.getenv("EITAS_API_KEY", "dev-local-key-change-me")
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
-
-
-
-
-def require_api_key(x_api_key: str | None = Header(default=None)):
-    if x_api_key != API_KEY:
-        raise HTTPException(
-            status_code=401,
-            detail="API key invalide ou manquante"
-        )
-
-
-class OnboardingRequest(BaseModel):
-    first_name: str
-    last_name: str
-    department: str
-    job_title: str
-    manager: str | None = None
-    start_date: str
-    manual_groups: list[str] = Field(default_factory=list)
-
-
-class AgentResult(BaseModel):
-    success: bool
-    message: str
-    details: dict = Field(default_factory=dict)
-
-
-class ResetRequestsPayload(BaseModel):
-    confirm: str
-
-
-class ClaimRequestPayload(BaseModel):
-    agent_name: str | None = None
-
-
-class ApprovalPayload(BaseModel):
-    approved_by: str
-    comment: str | None = None
-
-
-def load_json(path: Path, default):
-    if not path.exists():
-        return default
-
-    with path.open("r", encoding="utf-8") as file:
-        return json.load(file)
-
-
-def save_json(path: Path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
-
-
-def write_audit_log(action: str, request_id: str | None = None, actor: str = "system", message: str = "", details: dict | None = None):
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    event = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "action": action,
-        "request_id": request_id,
-        "actor": actor,
-        "message": message,
-        "details": details or {}
-    }
-
-    with AUDIT_FILE.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(event, ensure_ascii=False) + "\n")
-
-
-def normalize_text(value: str) -> str:
-    value = value.strip().lower()
-    value = unicodedata.normalize("NFKD", value)
-    value = "".join(char for char in value if not unicodedata.combining(char))
-    value = value.replace(" ", "-")
-    return value
-
-
-def generate_username(first_name: str, last_name: str) -> str:
-    first = normalize_text(first_name)
-    last = normalize_text(last_name)
-    return f"{first[0]}.{last}"
-
-
-def generate_email(first_name: str, last_name: str) -> str:
-    first = normalize_text(first_name).replace("-", ".")
-    last = normalize_text(last_name).replace("-", ".")
-    return f"{first}.{last}@lab.local"
 
 
 @app.get("/docs-local", include_in_schema=False)
@@ -517,4 +425,140 @@ def list_audit_logs(limit: int = 50, api_key: None = Depends(require_api_key)):
     return {
         "count": len(logs),
         "logs": logs
+    }
+
+
+@app.get("/api/admin/templates")
+def admin_get_templates(api_key: None = Depends(require_api_key)):
+    return load_json(TEMPLATES_FILE, {"departments": {}})
+
+
+@app.post("/api/admin/templates/departments")
+def upsert_department_template(payload: DepartmentTemplatePayload, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    existing_department = departments.get(payload.name, {})
+    existing_roles = existing_department.get("roles", {})
+
+    departments[payload.name] = {
+        "default_ou": payload.default_ou,
+        "default_groups": sorted(set(payload.default_groups)),
+        "roles": existing_roles
+    }
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_department_upserted",
+        actor="admin",
+        message=f"Département template créé/modifié : {payload.name}",
+        details={
+            "department": payload.name,
+            "default_ou": payload.default_ou,
+            "default_groups": payload.default_groups
+        }
+    )
+
+    return {
+        "message": "Département template créé/modifié",
+        "department": departments[payload.name]
+    }
+
+
+@app.delete("/api/admin/templates/departments/{department_name}")
+def delete_department_template(department_name: str, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    if department_name not in departments:
+        raise HTTPException(status_code=404, detail="Département template introuvable")
+
+    deleted_department = departments.pop(department_name)
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_department_deleted",
+        actor="admin",
+        message=f"Département template supprimé : {department_name}",
+        details={
+            "department": department_name
+        }
+    )
+
+    return {
+        "message": "Département template supprimé",
+        "department_name": department_name,
+        "deleted": deleted_department
+    }
+
+
+@app.post("/api/admin/templates/departments/{department_name}/roles")
+def upsert_role_template(department_name: str, payload: RoleTemplatePayload, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    if department_name not in departments:
+        raise HTTPException(status_code=404, detail="Département template introuvable")
+
+    roles = departments[department_name].setdefault("roles", {})
+
+    roles[payload.name] = {
+        "groups": sorted(set(payload.groups))
+    }
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_role_upserted",
+        actor="admin",
+        message=f"Poste template créé/modifié : {payload.name}",
+        details={
+            "department": department_name,
+            "role": payload.name,
+            "groups": payload.groups
+        }
+    )
+
+    return {
+        "message": "Poste template créé/modifié",
+        "department": department_name,
+        "role": payload.name,
+        "data": roles[payload.name]
+    }
+
+
+@app.delete("/api/admin/templates/departments/{department_name}/roles/{role_name}")
+def delete_role_template(department_name: str, role_name: str, api_key: None = Depends(require_api_key)):
+    templates = load_json(TEMPLATES_FILE, {"departments": {}})
+    departments = templates.setdefault("departments", {})
+
+    if department_name not in departments:
+        raise HTTPException(status_code=404, detail="Département template introuvable")
+
+    roles = departments[department_name].setdefault("roles", {})
+
+    if role_name not in roles:
+        raise HTTPException(status_code=404, detail="Poste template introuvable")
+
+    deleted_role = roles.pop(role_name)
+
+    save_json(TEMPLATES_FILE, templates)
+
+    write_audit_log(
+        action="template_role_deleted",
+        actor="admin",
+        message=f"Poste template supprimé : {role_name}",
+        details={
+            "department": department_name,
+            "role": role_name
+        }
+    )
+
+    return {
+        "message": "Poste template supprimé",
+        "department": department_name,
+        "role": role_name,
+        "deleted": deleted_role
     }

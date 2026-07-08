@@ -59,6 +59,22 @@
           ]
         }
       }
+    },
+    "Support": {
+      "default_ou": "OU=Users,OU=Support,DC=lab,DC=local",
+      "default_groups": [
+        "GG_Printer_Support",
+        "GG_Support_Read"
+      ],
+      "roles": {
+        "Technicien helpdesk": {
+          "groups": [
+            "GG_M365_Standard",
+            "GG_RemoteSupport",
+            "GG_Support_RW"
+          ]
+        }
+      }
     }
   }
 }

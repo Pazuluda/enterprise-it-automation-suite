@@ -31,3 +31,9 @@ api/main.py.broken*
 Thumbs.db
 .vscode/
 .idea/
+
+# React / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
