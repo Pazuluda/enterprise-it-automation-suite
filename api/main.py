@@ -236,7 +236,44 @@ def update_agent_config(payload: dict, api_key: None = Depends(require_api_key))
 
     config["updated_at"] = datetime.utcnow().isoformat() + "Z"
 
+    previous_config = get_agent_config()
+
     save_json(AGENT_CONFIG_FILE, config)
+
+    changed_fields = {}
+
+    if previous_config.get("interval_minutes") != config.get("interval_minutes"):
+        changed_fields["interval_minutes"] = {
+            "old": previous_config.get("interval_minutes"),
+            "new": config.get("interval_minutes")
+        }
+
+    if previous_config.get("pause_processing") != config.get("pause_processing"):
+        changed_fields["pause_processing"] = {
+            "old": previous_config.get("pause_processing"),
+            "new": config.get("pause_processing")
+        }
+
+    if changed_fields:
+        if "pause_processing" in changed_fields:
+            action = "agent_processing_paused" if config.get("pause_processing") else "agent_processing_resumed"
+            message = "Traitement agent mis en pause" if config.get("pause_processing") else "Traitement agent repris"
+        else:
+            action = "agent_interval_updated"
+            message = f"Fréquence agent mise à jour : {config.get('interval_minutes')} minute(s)"
+
+        write_audit_log(
+            action=action,
+            request_id=None,
+            actor="react-admin",
+            message=message,
+            details={
+                "changed_fields": changed_fields,
+                "interval_minutes": config.get("interval_minutes"),
+                "pause_processing": config.get("pause_processing"),
+                "task_name": config.get("task_name")
+            }
+        )
 
     return {
         "ok": True,
