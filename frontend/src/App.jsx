@@ -138,7 +138,7 @@ function isLegacyOu(value) {
 
 
 
-function CsvImportPage({ apiFetch, loadRequests, setMessage, templates }) {
+function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests = [] }) {
   const [csvText, setCsvText] = useState('')
   const [headers, setHeaders] = useState([])
   const [rows, setRows] = useState([])
@@ -146,8 +146,91 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates }) {
   const [report, setReport] = useState(null)
   const [parseError, setParseError] = useState('')
 
-  const validRows = rows.filter(row => row.errors.length === 0)
-  const invalidRows = rows.filter(row => row.errors.length > 0)
+  function buildCsvDuplicateKey(row) {
+    return [
+      row.first_name,
+      row.last_name,
+      row.department
+    ]
+      .map(value => normalizeKey(value))
+      .filter(Boolean)
+      .join('|')
+  }
+
+  function buildRequestDuplicateKey(request) {
+    const firstName = request.first_name || request.employee?.first_name || request.payload?.first_name || ''
+    const lastName = request.last_name || request.employee?.last_name || request.payload?.last_name || ''
+
+    const displayName = request.display_name
+      || request.full_name
+      || request.name
+      || request.employee?.display_name
+      || request.payload?.display_name
+      || [firstName, lastName].filter(Boolean).join(' ')
+
+    const parts = String(displayName || '')
+      .trim()
+      .split(/\s+/)
+
+    const guessedFirstName = firstName || parts[0] || ''
+    const guessedLastName = lastName || parts.slice(1).join(' ') || ''
+
+    const department = request.department
+      || request.service
+      || request.employee?.department
+      || request.payload?.department
+      || ''
+
+    return [
+      guessedFirstName,
+      guessedLastName,
+      department
+    ]
+      .map(value => normalizeKey(value))
+      .filter(Boolean)
+      .join('|')
+  }
+
+  const existingRequestKeys = new Set(
+    requests
+      .map(buildRequestDuplicateKey)
+      .filter(Boolean)
+  )
+
+  const csvKeyCounts = rows.reduce((acc, row) => {
+    const key = buildCsvDuplicateKey(row)
+
+    if (key) {
+      acc[key] = (acc[key] || 0) + 1
+    }
+
+    return acc
+  }, {})
+
+  const rowsWithDuplicateState = rows.map(row => {
+    const key = buildCsvDuplicateKey(row)
+    const duplicateErrors = []
+
+    if (key && csvKeyCounts[key] > 1) {
+      duplicateErrors.push('Doublon dans le CSV')
+    }
+
+    if (key && existingRequestKeys.has(key)) {
+      duplicateErrors.push('Déjà présent dans les demandes')
+    }
+
+    return {
+      ...row,
+      duplicateErrors,
+      allErrors: [
+        ...(row.errors || []),
+        ...duplicateErrors
+      ]
+    }
+  })
+
+  const validRows = rowsWithDuplicateState.filter(row => row.allErrors.length === 0)
+  const invalidRows = rowsWithDuplicateState.filter(row => row.allErrors.length > 0)
 
   const departmentTemplates = templates?.departments || {}
 
@@ -703,6 +786,7 @@ Emma;Durand;Support;Technicien helpdesk;Nina Moreau;2026-07-16;GG_M365_Standard`
               <h2>Prévisualisation avant import</h2>
               <p>
                 {validRows.length} ligne(s) valide(s), {invalidRows.length} ligne(s) à corriger.
+                Les doublons CSV ou déjà présents sont bloqués avant import.
               </p>
             </div>
 
@@ -730,8 +814,8 @@ Emma;Durand;Support;Technicien helpdesk;Nina Moreau;2026-07-16;GG_M365_Standard`
               </thead>
 
               <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.id} className={row.errors.length ? 'csv-row-invalid' : ''}>
+                {rowsWithDuplicateState.map((row, index) => (
+                  <tr key={row.id} className={row.allErrors.length ? 'csv-row-invalid' : ''}>
                     <td>{row.line}</td>
                     <td>
                       <input value={row.first_name} onChange={(event) => updateRow(index, 'first_name', event.target.value)} />
@@ -787,12 +871,14 @@ Emma;Durand;Support;Technicien helpdesk;Nina Moreau;2026-07-16;GG_M365_Standard`
                       <textarea value={row.manual_groups} onChange={(event) => updateRow(index, 'manual_groups', event.target.value)} />
                     </td>
                     <td>
-                      {row.errors.length === 0 && !row.warning ? (
+                      {row.allErrors.length === 0 && !row.warning ? (
                         <span className="csv-status-ok">Valide</span>
+                      ) : row.allErrors.length > 0 ? (
+                        <span className="csv-status-error">{row.allErrors.join(', ')}</span>
                       ) : row.warning ? (
                         <span className="csv-status-warning">{row.warning}</span>
                       ) : (
-                        <span className="csv-status-error">{row.errors.join(', ')}</span>
+                        <span className="csv-status-ok">Valide</span>
                       )}
                     </td>
                     <td>
@@ -1642,8 +1728,152 @@ function App() {
     await testApi()
   }
 
+  function buildOnboardingFormDuplicateKey(source) {
+    return [
+      source.first_name,
+      source.last_name,
+      source.department
+    ]
+      .map(value => normalizeText(String(value || '')))
+      .filter(Boolean)
+      .join('|')
+  }
+
+  function buildExistingOnboardingDuplicateKey(request) {
+    const requestType = request.type || request.request_type || 'onboarding'
+
+    if (requestType !== 'onboarding') {
+      return ''
+    }
+
+    const firstName =
+      request.first_name ||
+      request.employee?.first_name ||
+      request.payload?.first_name ||
+      request.data?.first_name ||
+      ''
+
+    const lastName =
+      request.last_name ||
+      request.employee?.last_name ||
+      request.payload?.last_name ||
+      request.data?.last_name ||
+      ''
+
+    const displayName =
+      request.display_name ||
+      request.full_name ||
+      request.name ||
+      request.employee?.display_name ||
+      request.payload?.display_name ||
+      request.data?.display_name ||
+      [firstName, lastName].filter(Boolean).join(' ')
+
+    const parts = String(displayName || '').trim().split(/\s+/)
+
+    const guessedFirstName = firstName || parts[0] || ''
+    const guessedLastName = lastName || parts.slice(1).join(' ') || ''
+
+    const department =
+      request.department ||
+      request.service ||
+      request.employee?.department ||
+      request.payload?.department ||
+      request.data?.department ||
+      ''
+
+    return [
+      guessedFirstName,
+      guessedLastName,
+      department
+    ]
+      .map(value => normalizeText(String(value || '')))
+      .filter(Boolean)
+      .join('|')
+  }
+
+  function getOnboardingDuplicateRequest(source) {
+    const wantedFirstName = normalizeText(String(source.first_name || ''))
+    const wantedLastName = normalizeText(String(source.last_name || ''))
+    const wantedDepartment = normalizeText(String(source.department || ''))
+
+    if (!wantedFirstName || !wantedLastName || !wantedDepartment) {
+      return null
+    }
+
+    return requests.find(request => {
+      const status = request.status || ''
+
+      // Une demande rejetée peut être relancée, donc on ne bloque pas dessus.
+      if (status === 'rejected') {
+        return false
+      }
+
+      const typeText = normalizeText(String(
+        request.type ||
+        request.request_type ||
+        request.kind ||
+        request.category ||
+        ''
+      ))
+
+      // On ne bloque que les créations / onboarding.
+      // Si le type est inconnu, on accepte quand même la recherche car les anciennes demandes
+      // peuvent ne pas avoir toutes les mêmes clés.
+      const looksLikeNonOnboarding =
+        typeText.includes('offboarding') ||
+        typeText.includes('depart') ||
+        typeText.includes('modification')
+
+      if (looksLikeNonOnboarding) {
+        return false
+      }
+
+      const requestText = normalizeText(JSON.stringify(request))
+
+      return (
+        requestText.includes(wantedFirstName) &&
+        requestText.includes(wantedLastName) &&
+        requestText.includes(wantedDepartment)
+      )
+    }) || null
+  }
+
+  function getRequestDisplayName(request) {
+    return request.display_name
+      || request.full_name
+      || request.name
+      || [request.first_name, request.last_name].filter(Boolean).join(' ')
+      || request.username
+      || request.login
+      || 'Utilisateur'
+  }
+
+  function getStatusLabel(status) {
+    const labels = {
+      waiting_approval: 'En attente validation',
+      approved: 'Validée',
+      pending: 'En attente agent',
+      processing: 'En traitement',
+      completed: 'Terminée',
+      failed: 'Échouée',
+      rejected: 'Rejetée'
+    }
+
+    return labels[status] || status || 'Statut inconnu'
+  }
+
   async function createRequest(event) {
     event.preventDefault()
+
+    const duplicateRequest = getOnboardingDuplicateRequest(form)
+
+    if (duplicateRequest) {
+      setMessage(
+        `Doublon détecté : ${getRequestDisplayName(duplicateRequest)} existe déjà en statut ${getStatusLabel(duplicateRequest.status)}.`
+      )
+      return
+    }
 
     try {
       const payload = {
@@ -2146,6 +2376,7 @@ function App() {
               loadRequests={loadRequests}
               setMessage={setMessage}
               templates={templates}
+              requests={requests}
             />
           )}
 
