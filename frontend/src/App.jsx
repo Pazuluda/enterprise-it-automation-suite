@@ -197,9 +197,9 @@ function App() {
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [auditFocusId, setAuditFocusId] = useState('')
 
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [search, setSearch] = useState(() => localStorage.getItem('eitas_requests_search') || '')
+  const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('eitas_requests_status_filter') || 'all')
+  const [typeFilter, setTypeFilter] = useState(() => localStorage.getItem('eitas_requests_type_filter') || 'all')
 
   const [form, setForm] = useState({
     first_name: 'Emma',
@@ -388,6 +388,19 @@ function App() {
     localStorage.setItem('eitas_live_refresh_enabled', liveRefreshEnabled ? 'true' : 'false')
   }, [liveRefreshEnabled])
 
+  useEffect(() => {
+    localStorage.setItem('eitas_requests_search', search)
+  }, [search])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_requests_status_filter', statusFilter)
+  }, [statusFilter])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_requests_type_filter', typeFilter)
+  }, [typeFilter])
+
+
   function saveConfig() {
     localStorage.setItem('eitas_api_key', apiKey)
     setMessage('Clé API enregistrée dans ce navigateur.')
@@ -554,6 +567,232 @@ function App() {
     } catch (error) {
       if (!silent) setMessage(error.message)
     }
+  }
+
+  function exportAuditLogsCsv() {
+    const escapeCsv = (value) => {
+      const text = String(value ?? '')
+      return `"${text.replaceAll('"', '""')}"`
+    }
+
+    const formatAuditDate = (value) => {
+      if (!value) return ''
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return value
+      return date.toLocaleString('fr-FR')
+    }
+
+    const actionLabels = {
+      request_created: 'Demande créée',
+      request_approved: 'Demande approuvée',
+      request_rejected: 'Demande rejetée',
+      request_claimed: 'Demande prise par agent',
+      request_completed: 'Demande terminée',
+      request_failed: 'Demande échouée',
+      request_retried: 'Demande relancée',
+      agent_processing_paused: 'Agent mis en pause',
+      agent_processing_resumed: 'Agent repris',
+      agent_interval_updated: 'Fréquence agent modifiée',
+      requests_reset: 'Demandes réinitialisées'
+    }
+
+    const headers = [
+      'Date',
+      'Action',
+      'Acteur',
+      'Demande',
+      'Message',
+      'Details'
+    ]
+
+    const rows = auditLogs.map((log) => {
+      const details = log.details && typeof log.details === 'object'
+        ? JSON.stringify(log.details)
+        : (log.details || '')
+
+      return [
+        formatAuditDate(log.timestamp || log.created_at || log.date),
+        actionLabels[log.action] || log.action || '',
+        log.actor || log.user || log.source || '',
+        log.request_id || log.id || '',
+        log.message || '',
+        details
+      ]
+    })
+
+    const csv = '\ufeff' + [
+      headers.map(escapeCsv).join(';'),
+      ...rows.map(row => row.map(escapeCsv).join(';'))
+    ].join('\r\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-audit-logs-${timestamp}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setMessage(`${auditLogs.length} audit log(s) exporté(s).`)
+  }
+
+  function exportFilteredRequestsCsv() {
+    const escapeCsv = (value) => {
+      const text = String(value ?? '')
+      return `"${text.replaceAll('"', '""')}"`
+    }
+
+    const normalizeKey = (value) => String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+
+    const findDeepValue = (source, keys) => {
+      const wanted = new Set(keys.map(normalizeKey))
+      const queue = [source]
+      const seen = new Set()
+
+      while (queue.length > 0) {
+        const current = queue.shift()
+
+        if (!current || typeof current !== 'object') continue
+        if (seen.has(current)) continue
+        seen.add(current)
+
+        for (const [key, value] of Object.entries(current)) {
+          if (wanted.has(normalizeKey(key)) && value !== null && value !== undefined && value !== '') {
+            if (typeof value !== 'object') return value
+          }
+
+          if (value && typeof value === 'object') {
+            queue.push(value)
+          }
+        }
+      }
+
+      return ''
+    }
+
+    const pick = (request, paths, deepKeys = []) => {
+      for (const path of paths) {
+        const value = path.split('.').reduce((current, key) => current?.[key], request)
+
+        if (value !== null && value !== undefined && value !== '') {
+          return value
+        }
+      }
+
+      return findDeepValue(request, deepKeys.length ? deepKeys : paths.map(path => path.split('.').pop()))
+    }
+
+    const typeLabels = {
+      onboarding: 'Création',
+      offboarding: 'Départ',
+      modification: 'Modification'
+    }
+
+    const statusLabels = {
+      waiting_approval: 'En attente validation',
+      approved: 'Validée',
+      pending: 'En attente agent',
+      processing: 'En traitement',
+      completed: 'Terminée',
+      failed: 'Échouée',
+      rejected: 'Rejetée'
+    }
+
+    const headers = [
+      'Utilisateur',
+      'Type',
+      'Login',
+      'Email',
+      'Service',
+      'Poste',
+      'Statut',
+      'Agent',
+      'Message'
+    ]
+
+    const rows = filteredRequests.map((request) => {
+      const requestType = pick(request, ['type', 'request_type'], ['type', 'request_type'])
+      const firstName = pick(request, ['first_name', 'employee.first_name', 'payload.first_name', 'data.first_name'], ['first_name', 'firstname', 'given_name', 'prenom'])
+      const lastName = pick(request, ['last_name', 'employee.last_name', 'payload.last_name', 'data.last_name'], ['last_name', 'lastname', 'surname', 'nom'])
+
+      const user = pick(
+        request,
+        ['display_name', 'full_name', 'name', 'employee.display_name', 'payload.display_name', 'data.display_name'],
+        ['display_name', 'fullname', 'full_name', 'displayname', 'name']
+      ) || [firstName, lastName].filter(Boolean).join(' ')
+
+      const login = pick(
+        request,
+        ['login', 'username', 'sam_account_name', 'employee.login', 'payload.login', 'data.login'],
+        ['login', 'username', 'sam_account_name', 'samaccountname']
+      )
+
+      const email = pick(
+        request,
+        ['email', 'mail', 'employee.email', 'payload.email', 'data.email'],
+        ['email', 'mail', 'user_principal_name', 'upn']
+      )
+
+      const department = pick(
+        request,
+        ['department', 'service', 'employee.department', 'payload.department', 'data.department'],
+        ['department', 'service']
+      )
+
+      const jobTitle = pick(
+        request,
+        ['job_title', 'poste', 'position', 'employee.job_title', 'payload.job_title', 'data.job_title'],
+        ['job_title', 'jobtitle', 'poste', 'position']
+      )
+
+      const status = pick(request, ['status'], ['status'])
+      const agent = pick(
+        request,
+        ['processing_by', 'agent_name', 'completed_by', 'agent.computer_name'],
+        ['processing_by', 'agent_name', 'computer_name', 'completed_by']
+      )
+
+      const message = request.agent_result?.message
+        || request.result?.message
+        || pick(request, ['message'], ['message'])
+
+      return [
+        user,
+        typeLabels[requestType] || requestType || '',
+        login,
+        email,
+        department,
+        jobTitle,
+        statusLabels[status] || status || '',
+        agent,
+        message
+      ]
+    })
+
+    const csv = '\ufeff' + [
+      headers.map(escapeCsv).join(';'),
+      ...rows.map(row => row.map(escapeCsv).join(';'))
+    ].join('\r\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-demandes-${timestamp}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setMessage(`${filteredRequests.length} demande(s) exportée(s).`)
   }
 
   async function refreshAll() {
@@ -844,6 +1083,46 @@ function App() {
               <small>Dernière synchro {lastLiveRefreshAt.toLocaleTimeString('fr-FR')}</small>
             )}
           </button>
+
+          {page === 'requests' && (
+            <span className={`request-filter-summary ${(search || typeFilter !== 'all' || statusFilter !== 'all') ? 'active' : ''}`}>
+              {filteredRequests.length} / {requests.length} demandes
+            </span>
+          )}
+
+          {page === 'requests' && filteredRequests.length > 0 && (
+            <button
+              type="button"
+              className="export-requests-button"
+              onClick={exportFilteredRequestsCsv}
+            >
+              Export CSV
+            </button>
+          )}
+
+          {page === 'requests' && (search || typeFilter !== 'all' || statusFilter !== 'all') && (
+            <button
+              type="button"
+              className="reset-filters-button"
+              onClick={() => {
+                setSearch('')
+                setTypeFilter('all')
+                setStatusFilter('all')
+              }}
+            >
+              Réinitialiser filtres
+            </button>
+          )}
+
+          {page === 'audit' && auditLogs.length > 0 && (
+            <button
+              type="button"
+              className="export-audit-button"
+              onClick={exportAuditLogsCsv}
+            >
+              Export audit CSV
+            </button>
+          )}
 
           <button onClick={refreshAll}>Actualiser</button>
           </div>

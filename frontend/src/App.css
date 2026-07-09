@@ -5118,3 +5118,77 @@ table tbody td {
     transform: translateY(0) scale(1);
   }
 }
+
+/* ========================================================= */
+/* === EITAS reset filters button ========================== */
+/* ========================================================= */
+
+.reset-filters-button {
+  background: #ffffff !important;
+  color: #15192f !important;
+  border: 1px solid #cfd8ea !important;
+  box-shadow: none !important;
+}
+
+.reset-filters-button:hover {
+  background: #eef4ff !important;
+  border-color: #9eb6e8 !important;
+}
+
+/* ========================================================= */
+/* === EITAS request filter summary ======================== */
+/* ========================================================= */
+
+.request-filter-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 13px;
+
+  border-radius: 999px;
+  border: 1px solid #d7deea;
+  background: #ffffff;
+
+  color: #4b5674;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.request-filter-summary.active {
+  color: #1d4ed8;
+  background: #eef4ff;
+  border-color: #b8c9f3;
+}
+
+/* ========================================================= */
+/* === EITAS export requests CSV button ==================== */
+/* ========================================================= */
+
+.export-requests-button {
+  background: #ffffff !important;
+  color: #0f3f2e !important;
+  border: 1px solid #b7efc5 !important;
+  box-shadow: none !important;
+}
+
+.export-requests-button:hover {
+  background: #f0fff4 !important;
+  border-color: #86efac !important;
+}
+
+/* ========================================================= */
+/* === EITAS export audit CSV button ======================= */
+/* ========================================================= */
+
+.export-audit-button {
+  background: #ffffff !important;
+  color: #1e1b4b !important;
+  border: 1px solid #c4b5fd !important;
+  box-shadow: none !important;
+}
+
+.export-audit-button:hover {
+  background: #f5f3ff !important;
+  border-color: #a78bfa !important;
+}
