@@ -5192,3 +5192,378 @@ table tbody td {
   background: #f5f3ff !important;
   border-color: #a78bfa !important;
 }
+
+/* ========================================================= */
+/* === EITAS requests pagination =========================== */
+/* ========================================================= */
+
+.request-page-size-select {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #cfd8ea;
+  background: #ffffff;
+  color: #15192f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.request-pagination-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  min-height: 38px;
+  padding: 4px;
+
+  border-radius: 999px;
+  border: 1px solid #d7deea;
+  background: #ffffff;
+}
+
+.request-pagination-controls span {
+  min-width: 78px;
+  text-align: center;
+  color: #4b5674;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.request-pagination-controls button {
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  border: 1px solid #b8c9f3;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.request-pagination-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ========================================================= */
+/* === EITAS clean requests pagination ===================== */
+/* ========================================================= */
+
+.request-pagination-controls {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+
+  min-height: 38px !important;
+  padding: 3px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background: #ffffff !important;
+
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.request-pagination-controls span {
+  min-width: 54px !important;
+  padding: 0 10px !important;
+
+  text-align: center !important;
+  color: #30364f !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.request-pagination-controls button {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+
+  padding: 0 !important;
+  border-radius: 9px !important;
+
+  background: #f8fafc !important;
+  color: #15192f !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+
+  font-size: 20px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+.request-pagination-controls button:hover:not(:disabled) {
+  background: #15192f !important;
+  color: #ffffff !important;
+}
+
+.request-pagination-controls button:disabled {
+  color: #a8b2c4 !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+
+.request-page-size-select {
+  min-height: 38px !important;
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background: #ffffff !important;
+  color: #30364f !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* ========================================================= */
+/* === EITAS pagination emergency fix ====================== */
+/* ========================================================= */
+
+.request-pagination-controls {
+  flex-shrink: 0 !important;
+  overflow: visible !important;
+}
+
+.request-pagination-controls button {
+  overflow: hidden !important;
+  text-indent: 0 !important;
+  white-space: nowrap !important;
+}
+
+.request-pagination-controls span {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ========================================================= */
+/* === EITAS audit logs pagination ========================= */
+/* ========================================================= */
+
+.audit-page-size-select {
+  min-height: 38px !important;
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background: #ffffff !important;
+  color: #30364f !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.audit-pagination-controls {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+
+  min-height: 38px !important;
+  padding: 3px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background: #ffffff !important;
+
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.audit-pagination-controls span {
+  min-width: 54px !important;
+  padding: 0 10px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  color: #30364f !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.audit-pagination-controls button {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+
+  padding: 0 !important;
+  border-radius: 9px !important;
+
+  background: #f8fafc !important;
+  color: #15192f !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+
+  font-size: 20px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+.audit-pagination-controls button:hover:not(:disabled) {
+  background: #15192f !important;
+  color: #ffffff !important;
+}
+
+.audit-pagination-controls button:disabled {
+  color: #a8b2c4 !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+
+/* ========================================================= */
+/* === EITAS audit filters ================================= */
+/* ========================================================= */
+
+.audit-filter-summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 13px;
+
+  border-radius: 999px;
+  border: 1px solid #d7deea;
+  background: #ffffff;
+
+  color: #4b5674;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.audit-filter-summary.active {
+  color: #1d4ed8;
+  background: #eef4ff;
+  border-color: #b8c9f3;
+}
+
+.audit-search-input {
+  min-height: 38px;
+  width: 190px;
+  padding: 0 12px;
+
+  border-radius: 12px;
+  border: 1px solid #cfd8ea;
+  background: #ffffff;
+
+  color: #15192f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.audit-action-select {
+  min-height: 38px;
+  max-width: 220px;
+  padding: 0 12px;
+
+  border-radius: 12px;
+  border: 1px solid #cfd8ea;
+  background: #ffffff;
+
+  color: #30364f;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.reset-audit-filters-button {
+  background: #ffffff !important;
+  color: #15192f !important;
+  border: 1px solid #cfd8ea !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+}
+
+.reset-audit-filters-button:hover {
+  background: #eef4ff !important;
+  border-color: #9eb6e8 !important;
+}
+
+/* ========================================================= */
+/* === EITAS audit filters cleanup ========================= */
+/* ========================================================= */
+
+.topbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.audit-search-input {
+  flex: 0 0 220px !important;
+  width: 220px !important;
+  min-height: 38px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background: #ffffff !important;
+
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.audit-action-select,
+.audit-page-size-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  min-height: 38px !important;
+  padding: 0 36px 0 12px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2330364f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+
+  color: #30364f !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.audit-action-select {
+  flex: 0 0 210px !important;
+  width: 210px !important;
+  max-width: 210px !important;
+}
+
+.audit-page-size-select {
+  flex: 0 0 122px !important;
+  width: 122px !important;
+  max-width: 122px !important;
+}
+
+.reset-audit-filters-button {
+  min-height: 38px !important;
+  padding: 0 14px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #cfd8ea !important;
+  background: #ffffff !important;
+  color: #15192f !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+}
+
+.reset-audit-filters-button:hover {
+  background: #eef4ff !important;
+  border-color: #9eb6e8 !important;
+}
+
+.audit-filter-summary {
+  flex: 0 0 auto !important;
+  min-height: 38px !important;
+}
+
+.export-audit-button {
+  white-space: nowrap !important;
+}

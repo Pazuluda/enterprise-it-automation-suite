@@ -180,7 +180,10 @@ function BackToTopButton({ page }) {
 }
 
 function App() {
-  const [page, setPage] = useState('overview')
+  const [page, setPage] = useState(() => {
+    const savedPage = localStorage.getItem('eitas_last_page')
+    return savedPage && PAGES[savedPage] ? savedPage : 'overview'
+  })
   const [apiKey, setApiKey] = useState(localStorage.getItem('eitas_api_key') || '')
   const [apiStatus, setApiStatus] = useState('Non testé')
   const [message, setMessage] = useState('')
@@ -194,12 +197,30 @@ function App() {
   const [lastLiveRefreshAt, setLastLiveRefreshAt] = useState(null)
   const [templates, setTemplates] = useState({ departments: {} })
   const [auditLogs, setAuditLogs] = useState([])
+  const [auditPage, setAuditPage] = useState(() => {
+    const savedPage = Number(localStorage.getItem('eitas_audit_page') || '1')
+    return Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1
+  })
+  const [auditPageSize, setAuditPageSize] = useState(() => {
+    const savedSize = Number(localStorage.getItem('eitas_audit_page_size') || '50')
+    return [20, 50, 100].includes(savedSize) ? savedSize : 50
+  })
+  const [auditSearch, setAuditSearch] = useState(() => localStorage.getItem('eitas_audit_search') || '')
+  const [auditActionFilter, setAuditActionFilter] = useState(() => localStorage.getItem('eitas_audit_action_filter') || 'all')
   const [selectedRequest, setSelectedRequest] = useState(null)
   const [auditFocusId, setAuditFocusId] = useState('')
 
   const [search, setSearch] = useState(() => localStorage.getItem('eitas_requests_search') || '')
   const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('eitas_requests_status_filter') || 'all')
   const [typeFilter, setTypeFilter] = useState(() => localStorage.getItem('eitas_requests_type_filter') || 'all')
+  const [requestPage, setRequestPage] = useState(() => {
+    const savedPage = Number(localStorage.getItem('eitas_requests_page') || '1')
+    return Number.isFinite(savedPage) && savedPage > 0 ? savedPage : 1
+  })
+  const [requestPageSize, setRequestPageSize] = useState(() => {
+    const savedSize = Number(localStorage.getItem('eitas_requests_page_size') || '20')
+    return [10, 20, 50].includes(savedSize) ? savedSize : 20
+  })
 
   const [form, setForm] = useState({
     first_name: 'Emma',
@@ -266,6 +287,19 @@ function App() {
       return matchSearch && matchStatus && matchType
     })
   }, [requests, search, statusFilter, typeFilter])
+
+  const requestTotalPages = Math.max(1, Math.ceil(filteredRequests.length / requestPageSize))
+  const requestPageStart = (requestPage - 1) * requestPageSize
+  const paginatedRequests = filteredRequests.slice(requestPageStart, requestPageStart + requestPageSize)
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredRequests.length / requestPageSize))
+
+    if (requestPage > maxPage) {
+      setRequestPage(maxPage)
+    }
+  }, [filteredRequests.length, requestPage, requestPageSize])
+
 
   const stats = {
     total: requests.length,
@@ -389,6 +423,11 @@ function App() {
   }, [liveRefreshEnabled])
 
   useEffect(() => {
+    localStorage.setItem('eitas_last_page', page)
+  }, [page])
+
+
+  useEffect(() => {
     localStorage.setItem('eitas_requests_search', search)
   }, [search])
 
@@ -399,6 +438,40 @@ function App() {
   useEffect(() => {
     localStorage.setItem('eitas_requests_type_filter', typeFilter)
   }, [typeFilter])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_requests_page', String(requestPage))
+  }, [requestPage])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_requests_page_size', String(requestPageSize))
+    setRequestPage(1)
+  }, [requestPageSize])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_audit_page', String(auditPage))
+  }, [auditPage])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_audit_page_size', String(auditPageSize))
+    setAuditPage(1)
+  }, [auditPageSize])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_audit_search', auditSearch)
+  }, [auditSearch])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_audit_action_filter', auditActionFilter)
+  }, [auditActionFilter])
+
+  useEffect(() => {
+    setAuditPage(1)
+  }, [auditSearch, auditActionFilter])
+
+  useEffect(() => {
+    setRequestPage(1)
+  }, [search, statusFilter, typeFilter])
 
 
   function saveConfig() {
@@ -569,6 +642,77 @@ function App() {
     }
   }
 
+  const auditActionLabels = {
+    request_created: 'Demande créée',
+    offboarding_request_created: 'Départ créé',
+    modification_request_created: 'Modification créée',
+    request_approved: 'Demande approuvée',
+    request_rejected: 'Demande rejetée',
+    request_claimed: 'Prise par agent',
+    request_completed: 'Demande terminée',
+    request_failed: 'Demande échouée',
+    request_retried: 'Demande relancée',
+    template_department_upserted: 'Template modifié',
+    agent_processing_paused: 'Agent en pause',
+    agent_processing_resumed: 'Agent repris',
+    agent_interval_updated: 'Fréquence agent modifiée',
+    requests_reset: 'Demandes réinitialisées'
+  }
+
+  const auditActionOptions = Array.from(
+    new Set(auditLogs.map(log => log.action).filter(Boolean))
+  ).sort()
+
+  const filteredAuditLogs = auditLogs.filter((log) => {
+    const searchValue = auditSearch.trim().toLowerCase()
+    const actionMatches = auditActionFilter === 'all' || log.action === auditActionFilter
+
+    if (!actionMatches) {
+      return false
+    }
+
+    if (!searchValue) {
+      return true
+    }
+
+    const actorValue = String(log.actor || log.user || log.source || '').toLowerCase()
+
+    // Si tu tapes exactement api/admin/agent, on filtre vraiment sur l'acteur.
+    // Ça évite les faux résultats venant des détails techniques.
+    if (['api', 'admin', 'agent', 'react-admin'].includes(searchValue)) {
+      return actorValue === searchValue
+    }
+
+    // Recherche uniquement dans les colonnes visibles, pas dans le JSON details.
+    const haystack = [
+      log.timestamp,
+      log.created_at,
+      log.date,
+      log.action,
+      auditActionLabels[log.action],
+      log.actor,
+      log.user,
+      log.source,
+      log.request_id,
+      log.id,
+      log.message
+    ].join(' ').toLowerCase()
+
+    return haystack.includes(searchValue)
+  })
+
+  const auditTotalPages = Math.max(1, Math.ceil(filteredAuditLogs.length / auditPageSize))
+  const auditPageStart = (auditPage - 1) * auditPageSize
+  const paginatedAuditLogs = filteredAuditLogs.slice(auditPageStart, auditPageStart + auditPageSize)
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredAuditLogs.length / auditPageSize))
+
+    if (auditPage > maxPage) {
+      setAuditPage(maxPage)
+    }
+  }, [filteredAuditLogs.length, auditPage, auditPageSize])
+
   function exportAuditLogsCsv() {
     const escapeCsv = (value) => {
       const text = String(value ?? '')
@@ -605,7 +749,7 @@ function App() {
       'Details'
     ]
 
-    const rows = auditLogs.map((log) => {
+    const rows = filteredAuditLogs.map((log) => {
       const details = log.details && typeof log.details === 'object'
         ? JSON.stringify(log.details)
         : (log.details || '')
@@ -637,7 +781,7 @@ function App() {
     link.remove()
     URL.revokeObjectURL(url)
 
-    setMessage(`${auditLogs.length} audit log(s) exporté(s).`)
+    setMessage(`${filteredAuditLogs.length} audit log(s) exporté(s).`)
   }
 
   function exportFilteredRequestsCsv() {
@@ -1100,6 +1244,37 @@ function App() {
             </button>
           )}
 
+          {page === 'requests' && requests.length > 0 && (
+            <select
+              className="request-page-size-select"
+              value={requestPageSize}
+              onChange={(event) => setRequestPageSize(Number(event.target.value))}
+              title="Nombre de demandes affichées par page"
+            >
+              <option value={10}>10 / page</option>
+              <option value={20}>20 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
+          )}
+
+          {page === 'requests' && filteredRequests.length > requestPageSize && (
+            <div className="request-pagination-controls">
+              <button
+                type="button"
+                disabled={requestPage <= 1}
+                onClick={() => setRequestPage(current => Math.max(1, current - 1))}
+              >‹</button>
+
+              <span>{requestPage} / {requestTotalPages}</span>
+
+              <button
+                type="button"
+                disabled={requestPage >= requestTotalPages}
+                onClick={() => setRequestPage(current => Math.min(requestTotalPages, current + 1))}
+              >›</button>
+            </div>
+          )}
+
           {page === 'requests' && (search || typeFilter !== 'all' || statusFilter !== 'all') && (
             <button
               type="button"
@@ -1108,10 +1283,90 @@ function App() {
                 setSearch('')
                 setTypeFilter('all')
                 setStatusFilter('all')
+                setRequestPage(1)
               }}
             >
               Réinitialiser filtres
             </button>
+          )}
+
+          {page === 'audit' && auditLogs.length > 0 && (
+            <span className={`audit-filter-summary ${(auditSearch || auditActionFilter !== 'all') ? 'active' : ''}`}>
+              {filteredAuditLogs.length} / {auditLogs.length} logs
+            </span>
+          )}
+
+          {page === 'audit' && auditLogs.length > 0 && (
+            <input
+              className="audit-search-input"
+              value={auditSearch}
+              onChange={(event) => setAuditSearch(event.target.value)}
+              placeholder="Rechercher audit..."
+              title="Rechercher dans les audit logs"
+            />
+          )}
+
+          {page === 'audit' && auditLogs.length > 0 && (
+            <select
+              className="audit-action-select"
+              value={auditActionFilter}
+              onChange={(event) => setAuditActionFilter(event.target.value)}
+              title="Filtrer par action"
+            >
+              <option value="all">Toutes les actions</option>
+              {auditActionOptions.map(action => (
+                <option key={action} value={action}>{auditActionLabels[action] || action}</option>
+              ))}
+            </select>
+          )}
+
+          {page === 'audit' && (auditSearch || auditActionFilter !== 'all') && (
+            <button
+              type="button"
+              className="reset-audit-filters-button"
+              onClick={() => {
+                setAuditSearch('')
+                setAuditActionFilter('all')
+                setAuditPage(1)
+              }}
+            >
+              Réinitialiser
+            </button>
+          )}
+
+          {page === 'audit' && auditLogs.length > 0 && (
+            <select
+              className="audit-page-size-select"
+              value={auditPageSize}
+              onChange={(event) => setAuditPageSize(Number(event.target.value))}
+              title="Nombre d’audit logs affichés par page"
+            >
+              <option value={20}>20 / page</option>
+              <option value={50}>50 / page</option>
+              <option value={100}>100 / page</option>
+            </select>
+          )}
+
+          {page === 'audit' && filteredAuditLogs.length > auditPageSize && (
+            <div className="audit-pagination-controls">
+              <button
+                type="button"
+                disabled={auditPage <= 1}
+                onClick={() => setAuditPage(current => Math.max(1, current - 1))}
+              >
+                ‹
+              </button>
+
+              <span>{auditPage} / {auditTotalPages}</span>
+
+              <button
+                type="button"
+                disabled={auditPage >= auditTotalPages}
+                onClick={() => setAuditPage(current => Math.min(auditTotalPages, current + 1))}
+              >
+                ›
+              </button>
+            </div>
           )}
 
           {page === 'audit' && auditLogs.length > 0 && (
@@ -1120,7 +1375,7 @@ function App() {
               className="export-audit-button"
               onClick={exportAuditLogsCsv}
             >
-              Export audit CSV
+              Export CSV
             </button>
           )}
 
@@ -1162,7 +1417,7 @@ function App() {
 
           {page === 'requests' && (
             <RequestsPage
-              requests={filteredRequests}
+              requests={paginatedRequests}
               search={search}
               setSearch={setSearch}
               statusFilter={statusFilter}
@@ -1221,7 +1476,7 @@ function App() {
 
           {page === 'audit' && (
             <AuditPage
-              auditLogs={auditLogs}
+              auditLogs={paginatedAuditLogs}
               loadAuditLogs={loadAuditLogs}
               auditFocusId={auditFocusId}
               setAuditFocusId={setAuditFocusId}
