@@ -141,8 +141,11 @@ function isLegacyOu(value) {
 function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests = [] }) {
   const [csvText, setCsvText] = useState('')
   const [headers, setHeaders] = useState([])
+  const [csvRecords, setCsvRecords] = useState([])
+  const [columnMapping, setColumnMapping] = useState({})
   const [rows, setRows] = useState([])
   const [importing, setImporting] = useState(false)
+  const [approvingImported, setApprovingImported] = useState(false)
   const [report, setReport] = useState(null)
   const [parseError, setParseError] = useState('')
 
@@ -359,13 +362,13 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
 
 
   const aliases = {
-    first_name: ['prenom', 'prénom', 'first_name', 'firstname', 'given_name', 'givenname'],
-    last_name: ['nom', 'last_name', 'lastname', 'surname', 'family_name', 'familyname'],
-    department: ['service', 'departement', 'département', 'department', 'equipe', 'équipe'],
-    job_title: ['poste', 'fonction', 'job_title', 'jobtitle', 'position', 'role', 'rôle'],
-    manager: ['manager', 'responsable', 'manager_name', 'managername'],
-    start_date: ['date_debut', 'date début', 'date_arrivee', 'date arrivée', 'start_date', 'startdate'],
-    manual_groups: ['groupes', 'groupes_ad', 'ad_groups', 'groups', 'manual_groups', 'groupes manuels']
+    first_name: ['prenom', 'prénom', 'first_name', 'firstname', 'given_name', 'givenname', 'first', 'forename'],
+    last_name: ['nom', 'last_name', 'lastname', 'surname', 'family_name', 'familyname', 'last', 'name'],
+    department: ['service', 'departement', 'département', 'department', 'equipe', 'équipe', 'team', 'business_unit', 'bu'],
+    job_title: ['poste', 'fonction', 'job_title', 'jobtitle', 'position', 'role', 'rôle', 'metier', 'métier'],
+    manager: ['manager', 'responsable', 'manager_name', 'managername', 'superieur', 'supérieur', 'n1'],
+    start_date: ['date_debut', 'date début', 'date_arrivee', 'date arrivée', 'start_date', 'startdate', 'arrival_date', 'date'],
+    manual_groups: ['groupes', 'groupes_ad', 'ad_groups', 'groups', 'manual_groups', 'groupes manuels', 'security_groups', 'gg']
   }
 
   function normalizeKey(value) {
@@ -440,6 +443,87 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
       .join('\n')
   }
 
+  const csvMappingFields = [
+    { key: 'first_name', label: 'Prénom', required: true },
+    { key: 'last_name', label: 'Nom', required: true },
+    { key: 'department', label: 'Service', required: true },
+    { key: 'job_title', label: 'Poste', required: true },
+    { key: 'manager', label: 'Manager', required: false },
+    { key: 'start_date', label: 'Date début', required: false },
+    { key: 'manual_groups', label: 'Groupes AD', required: false }
+  ]
+
+  function guessColumnMapping(csvHeaders) {
+    const mapping = {}
+
+    for (const field of csvMappingFields) {
+      const wanted = new Set((aliases[field.key] || []).map(normalizeKey))
+      const exact = csvHeaders.find(header => wanted.has(normalizeKey(header)))
+
+      mapping[field.key] = exact || ''
+    }
+
+    return mapping
+  }
+
+  function getMappedValue(record, field, mapping) {
+    const mappedColumn = mapping[field]
+
+    if (mappedColumn && Object.prototype.hasOwnProperty.call(record, mappedColumn)) {
+      return record[mappedColumn]
+    }
+
+    return getValue(record, field)
+  }
+
+  function buildRowsFromRecords(records, mapping) {
+    return records.map(({ line, record }, index) => {
+      const row = {
+        id: `csv-${Date.now()}-${index}`,
+        line,
+        first_name: getMappedValue(record, 'first_name', mapping),
+        last_name: getMappedValue(record, 'last_name', mapping),
+        department: getMappedValue(record, 'department', mapping),
+        job_title: getMappedValue(record, 'job_title', mapping),
+        manager: getMappedValue(record, 'manager', mapping),
+        start_date: getMappedValue(record, 'start_date', mapping),
+        manual_groups: splitGroups(getMappedValue(record, 'manual_groups', mapping)),
+        raw: record,
+        errors: [],
+        warning: ''
+      }
+
+      const groupsFromTemplate = getTemplateGroups(row.department, row.job_title)
+
+      if (groupsFromTemplate) {
+        row.manual_groups = groupsFromTemplate
+      }
+
+      row.errors = validateRow(row)
+      return row
+    })
+  }
+
+  function updateColumnMapping(field, value) {
+    setColumnMapping(current => ({
+      ...current,
+      [field]: value
+    }))
+  }
+
+  function applyColumnMapping() {
+    if (csvRecords.length === 0) {
+      setMessage('Aucune ligne CSV à remapper.')
+      return
+    }
+
+    const remappedRows = buildRowsFromRecords(csvRecords, columnMapping)
+
+    setRows(remappedRows)
+    setReport(null)
+    setMessage('Mapping CSV appliqué.')
+  }
+
   function validateRow(row) {
     const errors = []
 
@@ -477,7 +561,7 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
     const delimiter = detectDelimiter(lines[0])
     const csvHeaders = parseCsvLine(lines[0], delimiter)
 
-    const parsedRows = lines.slice(1).map((line, index) => {
+    const parsedRecords = lines.slice(1).map((line, index) => {
       const values = parseCsvLine(line, delimiter)
       const record = {}
 
@@ -485,26 +569,18 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
         record[header] = values[headerIndex] || ''
       })
 
-      const row = {
-        id: `csv-${Date.now()}-${index}`,
+      return {
         line: index + 2,
-        first_name: getValue(record, 'first_name'),
-        last_name: getValue(record, 'last_name'),
-        department: getValue(record, 'department'),
-        job_title: getValue(record, 'job_title'),
-        manager: getValue(record, 'manager'),
-        start_date: getValue(record, 'start_date'),
-        manual_groups: splitGroups(getValue(record, 'manual_groups')),
-        raw: record,
-        errors: [],
-        warning: ''
+        record
       }
-
-      row.errors = validateRow(row)
-      return row
     })
 
+    const guessedMapping = guessColumnMapping(csvHeaders)
+    const parsedRows = buildRowsFromRecords(parsedRecords, guessedMapping)
+
     setHeaders(csvHeaders)
+    setCsvRecords(parsedRecords)
+    setColumnMapping(guessedMapping)
     setRows(parsedRows)
     setMessage(`${parsedRows.length} ligne(s) CSV analysée(s).`)
   }
@@ -553,6 +629,86 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
     setRows(currentRows => currentRows.filter((_, rowIndex) => rowIndex !== index))
   }
 
+  function findRequestIdDeep(source) {
+    if (!source || typeof source !== 'object') {
+      return ''
+    }
+
+    for (const key of ['id', 'request_id']) {
+      const value = source[key]
+
+      if (typeof value === 'string' && value.trim()) {
+        return value
+      }
+    }
+
+    for (const value of Object.values(source)) {
+      if (value && typeof value === 'object') {
+        const found = findRequestIdDeep(value)
+
+        if (found) {
+          return found
+        }
+      }
+    }
+
+    return ''
+  }
+
+  function normalizeImportedName(value) {
+    return String(value || '')
+      .trim()
+      .split(/\s+/)
+      .map(part => normalizeKey(part))
+      .filter(Boolean)
+  }
+
+  function requestMatchesImportedResult(request, result) {
+    const status = request.status || ''
+
+    if (status === 'rejected') {
+      return false
+    }
+
+    const requestKey = buildRequestDuplicateKey(request)
+
+    if (result.rowKey && requestKey === result.rowKey) {
+      return true
+    }
+
+    const requestText = normalizeKey(JSON.stringify(request))
+    const nameParts = normalizeImportedName(result.name)
+
+    return nameParts.length > 0 && nameParts.every(part => requestText.includes(part))
+  }
+
+  async function resolveImportedResultIds(results) {
+    let latestRequests = requests
+
+    try {
+      const data = await apiFetch('/api/requests')
+      latestRequests = Array.isArray(data)
+        ? data
+        : data.requests || data.items || data.data || []
+    } catch {
+      latestRequests = requests
+    }
+
+    return results.map(result => {
+      if (!result.ok || result.id) {
+        return result
+      }
+
+      const matchingRequest = latestRequests.find(request => requestMatchesImportedResult(request, result))
+      const resolvedId = findRequestIdDeep(matchingRequest)
+
+      return {
+        ...result,
+        id: resolvedId || ''
+      }
+    })
+  }
+
   async function importValidRows() {
     if (validRows.length === 0) {
       setMessage('Aucune ligne valide à importer.')
@@ -587,24 +743,29 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
         results.push({
           ok: true,
           name: `${row.first_name} ${row.last_name}`,
-          id: created.id || created.request_id || ''
+          id: findRequestIdDeep(created),
+          rowKey: buildCsvDuplicateKey(row),
+          department: row.department
         })
       } catch (error) {
         results.push({
           ok: false,
           name: `${row.first_name} ${row.last_name}`,
-          error: error.message
+          error: error.message,
+          rowKey: buildCsvDuplicateKey(row),
+          department: row.department
         })
       }
     }
 
-    const successCount = results.filter(result => result.ok).length
-    const failedCount = results.length - successCount
+    const resolvedResults = await resolveImportedResultIds(results)
+    const successCount = resolvedResults.filter(result => result.ok).length
+    const failedCount = resolvedResults.length - successCount
 
     setReport({
       successCount,
       failedCount,
-      results
+      results: resolvedResults
     })
 
     await loadRequests(true)
@@ -698,6 +859,76 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
     setMessage('Modèle CSV téléchargé.')
   }
 
+  async function approveImportedRequests() {
+    if (!report?.results?.length) {
+      setMessage('Aucune demande importée à approuver.')
+      return
+    }
+
+    const resolvedResults = await resolveImportedResultIds(report.results)
+
+    setReport(current => ({
+      ...current,
+      results: resolvedResults
+    }))
+
+    const importedRequests = resolvedResults.filter(result => result.ok && result.id)
+
+    if (importedRequests.length === 0) {
+      setMessage('Aucune demande créée avec ID disponible.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Approuver ${importedRequests.length} demande(s) importée(s) ? Elles passeront en attente agent Windows.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setApprovingImported(true)
+
+    const approvalResults = []
+
+    for (const item of importedRequests) {
+      try {
+        await apiFetch(`/api/admin/requests/${item.id}/approve`, {
+          method: 'POST',
+          body: JSON.stringify({
+            approved_by: 'react-admin'
+          })
+        })
+
+        approvalResults.push({
+          ...item,
+          approved: true
+        })
+      } catch (error) {
+        approvalResults.push({
+          ...item,
+          approved: false,
+          error: error.message
+        })
+      }
+    }
+
+    const approvedCount = approvalResults.filter(result => result.approved).length
+    const failedCount = approvalResults.length - approvedCount
+
+    setReport(current => ({
+      ...current,
+      results: resolvedResults,
+      approvalResults,
+      approvedCount,
+      approvalFailedCount: failedCount
+    }))
+
+    await loadRequests(true)
+    setMessage(`${approvedCount} demande(s) approuvée(s), ${failedCount} erreur(s).`)
+    setApprovingImported(false)
+  }
+
   async function readCsvFile(event) {
     const file = event.target.files?.[0]
 
@@ -706,6 +937,9 @@ function CsvImportPage({ apiFetch, loadRequests, setMessage, templates, requests
     const text = await file.text()
     setCsvText(text)
     setRows([])
+    setCsvRecords([])
+    setHeaders([])
+    setColumnMapping({})
     setReport(null)
     setParseError('')
   }
@@ -760,6 +994,41 @@ Emma;Durand;Support;Technicien helpdesk;Nina Moreau;2026-07-16;GG_M365_Standard`
         />
 
         {parseError && <div className="csv-import-error">{parseError}</div>}
+
+        {headers.length > 0 && (
+          <div className="csv-mapping-panel">
+            <div className="csv-mapping-header">
+              <div>
+                <strong>Mapping des colonnes CSV</strong>
+                <span>Associe chaque champ attendu à une colonne de ton fichier.</span>
+              </div>
+
+              <button type="button" onClick={applyColumnMapping}>
+                Appliquer mapping
+              </button>
+            </div>
+
+            <div className="csv-mapping-grid">
+              {csvMappingFields.map(field => (
+                <label key={field.key} className={field.required ? 'required' : ''}>
+                  <span>{field.label}{field.required ? ' *' : ''}</span>
+
+                  <select
+                    value={columnMapping[field.key] || ''}
+                    onChange={(event) => updateColumnMapping(field.key, event.target.value)}
+                  >
+                    <option value="">Auto / non défini</option>
+                    {headers.map(header => (
+                      <option key={`${field.key}-${header}`} value={header}>
+                        {header}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="csv-import-actions">
           <button type="button" onClick={parseCsvImport}>
@@ -896,14 +1165,38 @@ Emma;Durand;Support;Technicien helpdesk;Nina Moreau;2026-07-16;GG_M365_Standard`
 
       {report && (
         <section className="card csv-import-report">
-          <h2>Rapport d’import</h2>
-          <p>{report.successCount} demande(s) créée(s), {report.failedCount} erreur(s).</p>
+          <div className="csv-report-header">
+            <div>
+              <h2>Rapport d’import</h2>
+              <p>{report.successCount} demande(s) créée(s), {report.failedCount} erreur(s).</p>
+              {typeof report.approvedCount === 'number' && (
+                <p>{report.approvedCount} demande(s) approuvée(s), {report.approvalFailedCount || 0} erreur(s) d’approbation.</p>
+              )}
+            </div>
+
+            {report.successCount > 0 && (
+              <button
+                type="button"
+                className="csv-bulk-approve-button"
+                disabled={approvingImported || report.approvedCount === report.successCount}
+                onClick={approveImportedRequests}
+              >
+                {approvingImported ? 'Approbation...' : report.approvedCount === report.successCount ? 'Demandes approuvées' : 'Approuver les demandes importées'}
+              </button>
+            )}
+          </div>
 
           <div className="csv-report-list">
             {report.results.map((result, index) => (
               <div key={`${result.name}-${index}`} className={result.ok ? 'csv-report-ok' : 'csv-report-error'}>
                 <strong>{result.name}</strong>
-                <span>{result.ok ? `Créée ${result.id ? `(${result.id})` : ''}` : result.error}</span>
+                <span>
+                  {result.ok ? `Créée ${result.id ? `(${result.id})` : ''}` : result.error}
+                  {report.approvalResults?.find(item => item.id === result.id)?.approved && ' · Approuvée'}
+                  {report.approvalResults?.find(item => item.id === result.id && item.approved === false)?.error && (
+                    ` · Erreur approbation : ${report.approvalResults.find(item => item.id === result.id)?.error}`
+                  )}
+                </span>
               </div>
             ))}
           </div>
@@ -1720,6 +2013,129 @@ function App() {
     setMessage(`${filteredRequests.length} demande(s) exportée(s).`)
   }
 
+  function findRequestIdForBulkAction(source) {
+    if (!source || typeof source !== 'object') {
+      return ''
+    }
+
+    for (const key of ['id', 'request_id']) {
+      const value = source[key]
+
+      if (typeof value === 'string' && value.trim()) {
+        return value
+      }
+    }
+
+    for (const value of Object.values(source)) {
+      if (value && typeof value === 'object') {
+        const found = findRequestIdForBulkAction(value)
+
+        if (found) {
+          return found
+        }
+      }
+    }
+
+    return ''
+  }
+
+  const approvableFilteredRequests = filteredRequests.filter(request => {
+    const status = String(request.status || '').toLowerCase()
+    return ['waiting_approval', 'a_valider', 'à valider', 'to_approve'].includes(status)
+  })
+
+  async function approveFilteredRequests() {
+    if (approvableFilteredRequests.length === 0) {
+      setMessage('Aucune demande filtrée à approuver.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Approuver ${approvableFilteredRequests.length} demande(s) filtrée(s) ? Elles passeront en attente agent Windows.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    let approvedCount = 0
+    let failedCount = 0
+
+    for (const request of approvableFilteredRequests) {
+      const requestId = findRequestIdForBulkAction(request)
+
+      if (!requestId) {
+        failedCount += 1
+        continue
+      }
+
+      try {
+        await apiFetch(`/api/admin/requests/${requestId}/approve`, {
+          method: 'POST',
+          body: JSON.stringify({
+            approved_by: 'react-admin'
+          })
+        })
+
+        approvedCount += 1
+      } catch {
+        failedCount += 1
+      }
+    }
+
+    await loadRequests(true)
+    await loadAuditLogs(true)
+
+    setMessage(`${approvedCount} demande(s) approuvée(s), ${failedCount} erreur(s).`)
+  }
+
+  const retryableFilteredRequests = filteredRequests.filter(request => {
+    const status = String(request.status || '').toLowerCase()
+    return ['failed', 'rejected', 'échouée', 'echouee', 'rejetée', 'rejetee'].includes(status)
+  })
+
+  async function retryFilteredRequests() {
+    if (retryableFilteredRequests.length === 0) {
+      setMessage('Aucune demande filtrée à relancer.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Relancer ${retryableFilteredRequests.length} demande(s) filtrée(s) ? Elles repartiront dans le workflow agent.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    let retriedCount = 0
+    let failedCount = 0
+
+    for (const request of retryableFilteredRequests) {
+      const requestId = findRequestIdForBulkAction(request)
+
+      if (!requestId) {
+        failedCount += 1
+        continue
+      }
+
+      try {
+        await apiFetch(`/api/admin/requests/${requestId}/retry`, {
+          method: 'POST'
+        })
+
+        retriedCount += 1
+      } catch {
+        failedCount += 1
+      }
+    }
+
+    await loadRequests(true)
+    await loadAuditLogs(true)
+
+    setMessage(`${retriedCount} demande(s) relancée(s), ${failedCount} erreur(s).`)
+  }
+
   async function refreshAll() {
     await loadTemplates()
     await loadRequests()
@@ -2158,6 +2574,26 @@ function App() {
             <span className={`request-filter-summary ${(search || typeFilter !== 'all' || statusFilter !== 'all') ? 'active' : ''}`}>
               {filteredRequests.length} / {requests.length} demandes
             </span>
+          )}
+
+          {page === 'requests' && approvableFilteredRequests.length > 0 && (
+            <button
+              type="button"
+              className="bulk-approve-filtered-button"
+              onClick={approveFilteredRequests}
+            >
+              Approuver les résultats
+            </button>
+          )}
+
+          {page === 'requests' && retryableFilteredRequests.length > 0 && (
+            <button
+              type="button"
+              className="bulk-retry-filtered-button"
+              onClick={retryFilteredRequests}
+            >
+              Relancer les résultats
+            </button>
           )}
 
           {page === 'requests' && filteredRequests.length > 0 && (
