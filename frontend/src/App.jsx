@@ -132,6 +132,53 @@ function isLegacyOu(value) {
 
 
 
+
+function BackToTopButton({ page }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const main = document.querySelector('.main')
+
+    function updateVisibility() {
+      const scrollTop = main ? main.scrollTop : window.scrollY
+      setVisible(scrollTop > 240)
+    }
+
+    updateVisibility()
+
+    if (main) {
+      main.addEventListener('scroll', updateVisibility, { passive: true })
+      return () => main.removeEventListener('scroll', updateVisibility)
+    }
+
+    window.addEventListener('scroll', updateVisibility, { passive: true })
+    return () => window.removeEventListener('scroll', updateVisibility)
+  }, [page])
+
+  function scrollToTop() {
+    const main = document.querySelector('.main')
+
+    if (main) {
+      main.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  return (
+    <button
+      type="button"
+      className={`back-to-top-button ${visible ? 'visible' : 'hidden'} ${page === 'overview' ? 'overview' : 'with-live-badge'}`}
+      onClick={scrollToTop}
+      title="Remonter en haut"
+      aria-label="Remonter en haut"
+    >
+      ↑
+    </button>
+  )
+}
+
 function App() {
   const [page, setPage] = useState('overview')
   const [apiKey, setApiKey] = useState(localStorage.getItem('eitas_api_key') || '')
@@ -810,7 +857,17 @@ function App() {
             lastLiveRefreshAt={lastLiveRefreshAt}
           />
 
-          {message && <div className="notice">{message}</div>}
+          <BackToTopButton page={page} />
+
+          {message && (
+            <div className={`notice toast-notice ${
+              /erreur|impossible|invalide|manquante|refusée|échoué|échec/i.test(message)
+                ? 'toast-error'
+                : 'toast-success'
+            }`}>
+              {message}
+            </div>
+          )}
 
           <AgentSystemBanner agentStatus={agentStatus} agentConfig={agentConfig} />
 
@@ -1452,16 +1509,7 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
 
   return (
     <div className="agent-ops-page" id="agent-page-top">
-      <nav className="agent-jumpbar" aria-label="Navigation exploitation agent">
-        <a href="#agent-page-top">Haut</a>
-        <a href="#agent-etat-global">État global</a>
-        <a href="#agent-pilotage">Pilotage</a>
-        <a href="#agent-supervision">Supervision</a>
-        <a href="#agent-exploitation">Exploitation</a>
-        <a href="#agent-powershell">PowerShell</a>
-      </nav>
-
-      <div className="agent-layout-group" id="agent-etat-global">
+<div className="agent-layout-group" id="agent-etat-global">
         <div className="agent-section-heading">
           <span>État global</span>
           <strong>Synthèse immédiate de l’agent Windows.</strong>
