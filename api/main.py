@@ -25,6 +25,8 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
+AGENT_STATUS_FILE = DATA_DIR / "agent-status.json"
+
 
 
 @app.get("/app", include_in_schema=False)
@@ -174,6 +176,72 @@ def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key))
             return request
 
     raise HTTPException(status_code=404, detail="Demande introuvable")
+
+
+
+@app.post("/api/agent/heartbeat")
+def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_key)):
+    now = datetime.utcnow()
+
+    status = {
+        "online": True,
+        "agent_name": payload.get("agent_name") or payload.get("agent") or "unknown",
+        "computer_name": payload.get("computer_name") or "",
+        "mode": payload.get("mode") or "unknown",
+        "script": payload.get("script") or "",
+        "status": payload.get("status") or "running",
+        "message": payload.get("message") or "Heartbeat reçu",
+        "received_at": now.isoformat() + "Z",
+        "api_base_url": payload.get("api_base_url") or "",
+        "version": payload.get("version") or "0.1.0"
+    }
+
+    save_json(AGENT_STATUS_FILE, status)
+
+    return {
+        "ok": True,
+        "message": "Heartbeat agent enregistré",
+        "status": status
+    }
+
+
+@app.get("/api/agent/status")
+def get_agent_status(api_key: None = Depends(require_api_key)):
+    if not AGENT_STATUS_FILE.exists():
+        return {
+            "online": False,
+            "message": "Aucun heartbeat agent reçu",
+            "received_at": None,
+            "seconds_since_seen": None
+        }
+
+    try:
+        status = json.loads(AGENT_STATUS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Impossible de lire le statut agent")
+
+    received_at_raw = status.get("received_at")
+    seconds_since_seen = None
+    online = False
+
+    if received_at_raw:
+        try:
+            received_at = datetime.fromisoformat(str(received_at_raw).replace("Z", ""))
+            seconds_since_seen = int((datetime.utcnow() - received_at).total_seconds())
+            online = seconds_since_seen <= 300
+        except Exception:
+            seconds_since_seen = None
+            online = False
+
+    status["online"] = online
+    status["seconds_since_seen"] = seconds_since_seen
+
+    if online:
+        status["message"] = status.get("message") or "Agent actif"
+    else:
+        status["message"] = "Agent non vu depuis plus de 5 minutes"
+
+    return status
 
 
 @app.get("/api/agent/pending")

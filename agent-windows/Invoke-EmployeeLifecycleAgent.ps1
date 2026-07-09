@@ -1,4 +1,4 @@
-﻿[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $ErrorActionPreference = "Stop"
@@ -95,6 +95,30 @@ function Invoke-EitasApi {
         -ContentType "application/json; charset=utf-8" `
         -Body $JsonBody
 }
+
+
+function Send-AgentHeartbeat {
+    try {
+        $Body = @{
+            agent_name = $AgentName
+            computer_name = $env:COMPUTERNAME
+            mode = $Mode
+            script = "Invoke-EmployeeLifecycleAgent.ps1"
+            status = "running"
+            message = "Heartbeat agent reçu"
+            api_base_url = $ApiBaseUrl
+            version = "0.1.0"
+        }
+
+        Invoke-EitasApi -Method "POST" -Path "/api/agent/heartbeat" -Body $Body | Out-Null
+
+        Write-Host "[OK] Heartbeat agent envoyé"
+    }
+    catch {
+        Write-Warning "Heartbeat agent non envoyé : $($_.Exception.Message)"
+    }
+}
+
 
 function Send-AgentResult {
     param(

@@ -138,6 +138,7 @@ function App() {
   const [apiStatus, setApiStatus] = useState('Non testé')
   const [message, setMessage] = useState('')
   const [requests, setRequests] = useState([])
+  const [agentStatus, setAgentStatus] = useState(null)
   const [templates, setTemplates] = useState({ departments: {} })
   const [auditLogs, setAuditLogs] = useState([])
   const [selectedRequest, setSelectedRequest] = useState(null)
@@ -296,6 +297,17 @@ function App() {
     }
   }
 
+  async function loadAgentStatus() {
+    try {
+      const data = await apiFetch('/api/agent/status')
+      setAgentStatus(data)
+    }
+    catch {
+      setAgentStatus(null)
+    }
+  }
+
+
   async function loadTemplates() {
     try {
       const data = await apiFetch('/api/admin/templates')
@@ -344,6 +356,7 @@ function App() {
   async function refreshAll() {
     await loadTemplates()
     await loadRequests()
+    loadAgentStatus()
     await loadAuditLogs()
     await testApi()
   }
@@ -626,6 +639,7 @@ function App() {
             <OverviewPage
               stats={stats}
               requests={requests}
+              agentStatus={agentStatus}
               setPage={setPage}
               setSelectedRequest={setSelectedRequest}
             />
@@ -700,7 +714,7 @@ function App() {
           )}
 
           {page === 'agentOps' && (
-            <AgentOperationsPage requests={requests} />
+            <AgentOperationsPage requests={requests} agentStatus={agentStatus} loadAgentStatus={loadAgentStatus} />
           )}
 
           {page === 'settings' && (
@@ -806,7 +820,7 @@ function AgentHealthCard({ requests }) {
 }
 
 
-function OverviewPage({ requests, setPage }) {
+function OverviewPage({ requests, agentStatus, setPage }) {
   const safeRequests = Array.isArray(requests) ? requests : []
 
   const waitingApproval = safeRequests.filter(request => request.status === 'waiting_approval').length
@@ -904,7 +918,7 @@ function OverviewPage({ requests, setPage }) {
 }
 
 
-function AgentOperationsPage({ requests }) {
+function AgentOperationsPage({ requests, agentStatus, loadAgentStatus }) {
   const [copiedCommand, setCopiedCommand] = useState('')
 
   const agentRuns = (requests || [])
@@ -927,11 +941,15 @@ function AgentOperationsPage({ requests }) {
     return ['failed', 'error'].includes(request.status)
   }).length
 
-  const agentName = details.agent || last?.processing_by || 'SRV-DC01'
-  const mode = details.mode || '-'
-  const lastRun = last?.completed_at || last?.updated_at || last?.created_at
-  const lastMessage = result.message || 'Aucun résultat agent récent.'
-  const lastSuccess = result.success !== false
+  const heartbeatOnline = agentStatus?.online === true
+  const heartbeatSeen = agentStatus?.received_at
+  const heartbeatSeconds = agentStatus?.seconds_since_seen
+
+  const agentName = agentStatus?.agent_name || details.agent || last?.processing_by || 'SRV-DC01'
+  const mode = agentStatus?.mode || details.mode || '-'
+  const lastRun = heartbeatSeen || last?.completed_at || last?.updated_at || last?.created_at
+  const lastMessage = agentStatus?.message || result.message || 'Aucun résultat agent récent.'
+  const lastSuccess = heartbeatOnline || result.success !== false
 
   const powershellCommands = [
     {
@@ -992,6 +1010,36 @@ function AgentOperationsPage({ requests }) {
         <strong>{mode}</strong>
       </section>
 
+      <section className={`agent-heartbeat-card ${agentStatus?.online ? 'online' : 'offline'}`}>
+        <div>
+          <span>Heartbeat agent</span>
+          <h3>{agentStatus?.online ? 'Agent connecté' : 'Agent non connecté'}</h3>
+          <p>{agentStatus?.message || 'Aucun heartbeat reçu.'}</p>
+        </div>
+
+        <div className="agent-heartbeat-details">
+          <div>
+            <span>Dernier signal</span>
+            <strong>{agentStatus?.received_at ? new Date(agentStatus.received_at).toLocaleString('fr-FR') : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Vu il y a</span>
+            <strong>{agentStatus?.seconds_since_seen != null ? `${agentStatus.seconds_since_seen}s` : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Mode</span>
+            <strong>{agentStatus?.mode || '-'}</strong>
+          </div>
+
+          <div>
+            <span>Script</span>
+            <strong>{agentStatus?.script || '-'}</strong>
+          </div>
+        </div>
+      </section>
+
       <div className="agent-ops-grid">
         <div className="agent-ops-card">
           <span>Agent</span>
@@ -1002,7 +1050,7 @@ function AgentOperationsPage({ requests }) {
         <div className="agent-ops-card">
           <span>Dernier passage</span>
           <strong>{lastRun ? new Date(lastRun).toLocaleString('fr-FR') : '-'}</strong>
-          <p>Basé sur la dernière demande traitée.</p>
+          <p>{heartbeatSeen ? `Heartbeat reçu il y a ${heartbeatSeconds}s` : 'Basé sur la dernière demande traitée.'}</p>
         </div>
 
         <div className="agent-ops-card">
@@ -1022,6 +1070,7 @@ function AgentOperationsPage({ requests }) {
         <PanelHeader
           title="Configuration connue"
           subtitle="Chemins et éléments importants du serveur Windows."
+          action={<button className="secondary" onClick={loadAgentStatus}>Recharger statut</button>}
         />
 
         <div className="agent-ops-config">
