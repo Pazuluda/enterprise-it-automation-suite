@@ -905,6 +905,8 @@ function OverviewPage({ requests, setPage }) {
 
 
 function AgentOperationsPage({ requests }) {
+  const [copiedCommand, setCopiedCommand] = useState('')
+
   const agentRuns = (requests || [])
     .filter(request => request.agent_result || request.processing_by || request.completed_at)
     .sort((a, b) => {
@@ -961,6 +963,22 @@ function AgentOperationsPage({ requests }) {
       code: 'Enable-ScheduledTask -TaskName "EITAS Employee Lifecycle Agent"'
     }
   ]
+
+
+  async function copyAgentCommand(title, code) {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopiedCommand(title)
+
+      window.setTimeout(() => {
+        setCopiedCommand('')
+      }, 1800)
+    }
+    catch {
+      setCopiedCommand('')
+      window.alert('Impossible de copier la commande.')
+    }
+  }
 
   return (
     <div className="agent-ops-page">
@@ -1048,7 +1066,18 @@ function AgentOperationsPage({ requests }) {
         <div className="agent-command-list">
           {powershellCommands.map(item => (
             <div className="agent-command-card" key={item.title}>
-              <strong>{item.title}</strong>
+              <div className="agent-command-header">
+                <strong>{item.title}</strong>
+
+                <button
+                  type="button"
+                  className="copy-command-button"
+                  onClick={() => copyAgentCommand(item.title, item.code)}
+                >
+                  {copiedCommand === item.title ? 'Copié' : 'Copier'}
+                </button>
+              </div>
+
               <pre>{item.code}</pre>
             </div>
           ))}

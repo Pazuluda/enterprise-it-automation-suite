@@ -3857,3 +3857,37 @@ td details pre {
   padding: 10px;
   font-size: 12px;
 }
+
+/* ========================================================= */
+/* === EITAS command copy buttons ========================== */
+/* ========================================================= */
+
+.agent-command-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.agent-command-header strong {
+  margin-bottom: 0;
+}
+
+.copy-command-button {
+  width: auto;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.copy-command-button:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
