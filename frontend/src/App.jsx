@@ -141,6 +141,10 @@ function App() {
   const [agentStatus, setAgentStatus] = useState(null)
   const [agentConfig, setAgentConfig] = useState(null)
   const [agentHistory, setAgentHistory] = useState([])
+  const [liveRefreshEnabled, setLiveRefreshEnabled] = useState(() => {
+    return localStorage.getItem('eitas_live_refresh_enabled') !== 'false'
+  })
+  const [lastLiveRefreshAt, setLastLiveRefreshAt] = useState(null)
   const [templates, setTemplates] = useState({ departments: {} })
   const [auditLogs, setAuditLogs] = useState([])
   const [selectedRequest, setSelectedRequest] = useState(null)
@@ -273,29 +277,93 @@ function App() {
     return data
   }
 
+  useEffect(() => {
+    const portalGlobalLiveRefresh = window.setInterval(() => {
+      if (!liveRefreshEnabled) {
+        return
+      }
+
+      testApi(true)
+      loadRequests(true)
+      loadAgentStatus()
+      loadAgentConfig()
+
+      if (page === 'audit' || page === 'agentOps') {
+        loadAuditLogs(true)
+        loadAgentHistory()
+      }
+
+      if (page === 'templates' || page === 'newRequest' || page === 'offboarding' || page === 'modification') {
+        loadTemplates(true)
+      }
+
+      setLastLiveRefreshAt(new Date())
+    }, 5000)
+
+    return () => {
+      window.clearInterval(portalGlobalLiveRefresh)
+    }
+  }, [apiKey, page, liveRefreshEnabled])
+
+  useEffect(() => {
+    if (!message) {
+      return
+    }
+
+    const persistentKeywords = [
+      'invalide',
+      'erreur',
+      'Erreur',
+      'impossible',
+      'Impossible',
+      'manquante',
+      'refusée',
+      'échoué',
+      'échec'
+    ]
+
+    const shouldPersist = persistentKeywords.some(keyword => message.includes(keyword))
+
+    if (shouldPersist) {
+      return
+    }
+
+    const messageAutoClearTimer = window.setTimeout(() => {
+      setMessage('')
+    }, 3500)
+
+    return () => {
+      window.clearTimeout(messageAutoClearTimer)
+    }
+  }, [message])
+
+  useEffect(() => {
+    localStorage.setItem('eitas_live_refresh_enabled', liveRefreshEnabled ? 'true' : 'false')
+  }, [liveRefreshEnabled])
+
   function saveConfig() {
     localStorage.setItem('eitas_api_key', apiKey)
     setMessage('Clé API enregistrée dans ce navigateur.')
   }
 
-  async function testApi() {
+  async function testApi(silent = false) {
     try {
       const data = await apiFetch('/api/agent/pending')
       setApiStatus(`Connecté · ${data.count} en attente agent`)
-      setMessage('Connexion API opérationnelle.')
+      if (!silent) setMessage('Connexion API opérationnelle.')
     } catch (error) {
       setApiStatus('Erreur API')
-      setMessage(error.message)
+      if (!silent) setMessage(error.message)
     }
   }
 
-  async function loadRequests() {
+  async function loadRequests(silent = false) {
     try {
       const data = await apiFetch('/api/requests')
       setRequests(data)
-      setMessage('Demandes rechargées.')
+      if (!silent) setMessage('Demandes rechargées.')
     } catch (error) {
-      setMessage(error.message)
+      if (!silent) setMessage(error.message)
     }
   }
 
@@ -395,19 +463,8 @@ function App() {
 
 
 
-  useEffect(() => {
-    const heartbeatAutoRefresh = window.setInterval(() => {
-      loadAgentStatus()
-    }, 30000)
 
-    return () => {
-      window.clearInterval(heartbeatAutoRefresh)
-    }
-  }, [])
-
-
-
-  async function loadTemplates() {
+  async function loadTemplates(silent = false) {
     try {
       const data = await apiFetch('/api/admin/templates')
       setTemplates(data)
@@ -432,13 +489,13 @@ function App() {
         }
       })
 
-      setMessage('Templates rechargés.')
+      if (!silent) setMessage('Templates rechargés.')
     } catch (error) {
-      setMessage(error.message)
+      if (!silent) setMessage(error.message)
     }
   }
 
-  async function loadAuditLogs() {
+  async function loadAuditLogs(silent = false) {
     try {
       const data = await apiFetch('/api/audit-logs?limit=100')
       const logs = Array.isArray(data)
@@ -446,9 +503,9 @@ function App() {
         : data.logs || data.audit_logs || data.events || []
 
       setAuditLogs(logs)
-      setMessage('Audit logs rechargés.')
+      if (!silent) setMessage('Audit logs rechargés.')
     } catch (error) {
-      setMessage(error.message)
+      if (!silent) setMessage(error.message)
     }
   }
 
@@ -724,14 +781,35 @@ function App() {
           </div>
 
           <div className="topbar-actions">
-            <span className={`api-badge ${apiStatus.startsWith('Connecté') ? 'online' : ''}`}>
-              {apiStatus}
-            </span>
-            <button onClick={refreshAll}>Actualiser</button>
+            {page === 'overview' && (
+              <span className={`api-badge ${apiStatus.startsWith('Connecté') ? 'online' : ''}`}>
+                {apiStatus}
+              </span>
+            )}
+            <button
+            type="button"
+            className={`live-refresh-pill ${['overview', 'dashboard'].includes(page) ? 'visible' : 'hidden'} ${liveRefreshEnabled ? 'active' : 'paused'}`}
+            onClick={() => setLiveRefreshEnabled(current => !current)}
+            title="Activer ou mettre en pause le rafraîchissement automatique de l’interface"
+          >
+            {liveRefreshEnabled ? 'Temps réel actif' : 'Temps réel en pause'}
+            {lastLiveRefreshAt && (
+              <small>Dernière synchro {lastLiveRefreshAt.toLocaleTimeString('fr-FR')}</small>
+            )}
+          </button>
+
+          <button onClick={refreshAll}>Actualiser</button>
           </div>
         </header>
 
-        <main className="main">
+        <main className={`main page-${page}`}>
+          <LiveRefreshFloatingBadge
+            page={page}
+            liveRefreshEnabled={liveRefreshEnabled}
+            setLiveRefreshEnabled={setLiveRefreshEnabled}
+            lastLiveRefreshAt={lastLiveRefreshAt}
+          />
+
           {message && <div className="notice">{message}</div>}
 
           <AgentSystemBanner agentStatus={agentStatus} agentConfig={agentConfig} />
@@ -920,6 +998,26 @@ function AgentHealthCard({ requests }) {
   )
 }
 
+
+
+
+function LiveRefreshFloatingBadge({ page, liveRefreshEnabled, setLiveRefreshEnabled, lastLiveRefreshAt }) {
+  return (
+    <button
+      type="button"
+      className={`live-refresh-floating ${['overview', 'dashboard'].includes(page) ? 'hidden' : 'visible'} ${liveRefreshEnabled ? 'active' : 'paused'}`}
+      onClick={() => setLiveRefreshEnabled(current => !current)}
+      title="Activer ou mettre en pause le rafraîchissement automatique de l’interface"
+    >
+      <span>{liveRefreshEnabled ? 'Temps réel actif' : 'Temps réel en pause'}</span>
+      <small>
+        {lastLiveRefreshAt
+          ? `Synchro ${lastLiveRefreshAt.toLocaleTimeString('fr-FR')}`
+          : 'En attente synchro'}
+      </small>
+    </button>
+  )
+}
 
 
 function AgentSystemBanner({ agentStatus, agentConfig }) {
