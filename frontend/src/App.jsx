@@ -714,6 +714,85 @@ function App() {
   )
 }
 
+
+function AgentHealthCard({ requests }) {
+  const completedWithAgent = (requests || [])
+    .filter(request => request.agent_result || request.processing_by || request.completed_at)
+    .sort((a, b) => {
+      const dateA = new Date(a.completed_at || a.updated_at || a.created_at || 0).getTime()
+      const dateB = new Date(b.completed_at || b.updated_at || b.created_at || 0).getTime()
+      return dateB - dateA
+    })
+
+  const last = completedWithAgent[0]
+
+  const pendingCount = (requests || []).filter(request => {
+    return ['approved', 'pending', 'processing'].includes(request.status)
+  }).length
+
+  if (!last) {
+    return (
+      <section className="agent-health-card warning">
+        <div className="agent-health-header">
+          <div>
+            <span>Agent automatique</span>
+            <h3>Aucun passage détecté</h3>
+          </div>
+          <strong>Inconnu</strong>
+        </div>
+
+        <p>Aucune demande traitée par l’agent Windows pour le moment.</p>
+      </section>
+    )
+  }
+
+  const result = last.agent_result || {}
+  const details = result.details || {}
+  const success = result.success !== false
+  const mode = details.mode || '-'
+  const agent = details.agent || last.processing_by || '-'
+  const completedAt = last.completed_at || last.updated_at || last.created_at
+  const requestType = details.request_type || last.type || last.request_type || '-'
+
+  return (
+    <section className={`agent-health-card ${success ? 'ok' : 'error'}`}>
+      <div className="agent-health-header">
+        <div>
+          <span>Agent automatique</span>
+          <h3>{success ? 'Dernier passage OK' : 'Dernier passage en erreur'}</h3>
+        </div>
+
+        <strong>{mode}</strong>
+      </div>
+
+      <div className="agent-health-grid">
+        <div>
+          <span>Dernier agent</span>
+          <strong>{agent}</strong>
+        </div>
+
+        <div>
+          <span>Dernier passage</span>
+          <strong>{completedAt ? new Date(completedAt).toLocaleString('fr-FR') : '-'}</strong>
+        </div>
+
+        <div>
+          <span>Type traité</span>
+          <strong>{requestType}</strong>
+        </div>
+
+        <div>
+          <span>En attente agent</span>
+          <strong>{pendingCount}</strong>
+        </div>
+      </div>
+
+      <p>{result.message || 'Dernier résultat agent récupéré depuis les demandes.'}</p>
+    </section>
+  )
+}
+
+
 function OverviewPage({ requests, setPage }) {
   const safeRequests = Array.isArray(requests) ? requests : []
 
@@ -755,7 +834,9 @@ function OverviewPage({ requests, setPage }) {
 
       <div className="content-grid">
         <section className="panel">
-          <div className="panel-header">
+                <AgentHealthCard requests={requests} />
+
+<div className="panel-header">
             <div>
               <h2>Demandes récentes</h2>
               <p>Dernières demandes enregistrées.</p>
