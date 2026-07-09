@@ -1315,8 +1315,60 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
     }
   }
 
+
+  const configuredInterval = agentConfig?.interval_minutes || agentStatus?.schedule_interval_minutes || 2
+  const appliedInterval = agentStatus?.schedule_interval_minutes || configuredInterval
+
+  const compactAgentStatuses = [
+    {
+      label: 'Connexion',
+      value: agentStatus?.online ? 'Connecté' : 'Hors ligne',
+      state: agentStatus?.online ? 'ok' : 'error'
+    },
+    {
+      label: 'Traitement',
+      value: agentConfig?.pause_processing ? 'En pause' : 'Actif',
+      state: agentConfig?.pause_processing ? 'warning' : 'ok'
+    },
+    {
+      label: 'Fréquence config.',
+      value: `${configuredInterval} min`,
+      state: 'neutral'
+    },
+    {
+      label: 'Fréquence appliquée',
+      value: `${appliedInterval} min`,
+      state: appliedInterval === configuredInterval ? 'ok' : 'warning'
+    },
+    {
+      label: 'Tâche Windows',
+      value: agentStatus?.task?.enabled ? 'Active' : 'Inactive',
+      state: agentStatus?.task?.enabled ? 'ok' : 'error'
+    },
+    {
+      label: 'Résultat',
+      value: getWindowsTaskResultLabel(agentStatus?.task?.last_task_result),
+      state: [0, 267008, 267009].includes(Number(agentStatus?.task?.last_task_result)) ? 'ok' : 'warning'
+    }
+  ]
+
   return (
-    <div className="agent-ops-page">
+    <div className="agent-ops-page" id="agent-page-top">
+      <nav className="agent-jumpbar" aria-label="Navigation exploitation agent">
+        <a href="#agent-page-top">Haut</a>
+        <a href="#agent-etat-global">État global</a>
+        <a href="#agent-pilotage">Pilotage</a>
+        <a href="#agent-supervision">Supervision</a>
+        <a href="#agent-exploitation">Exploitation</a>
+        <a href="#agent-powershell">PowerShell</a>
+      </nav>
+
+      <div className="agent-layout-group" id="agent-etat-global">
+        <div className="agent-section-heading">
+          <span>État global</span>
+          <strong>Synthèse immédiate de l’agent Windows.</strong>
+        </div>
+
       <section className={`agent-ops-hero ${lastSuccess ? 'ok' : 'error'}`}>
         <div>
           <span>Exploitation agent</span>
@@ -1327,45 +1379,21 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
         <strong>{mode}</strong>
       </section>
 
-      <section className={`agent-heartbeat-card ${agentStatus?.online ? 'online' : 'offline'}`}>
-        <div>
-          <span>Heartbeat agent</span>
-          <h3>{agentStatus?.online ? 'Agent connecté' : 'Agent non connecté'}</h3>
-          <p>{agentStatus?.message || 'Aucun heartbeat reçu.'}</p>
-        </div>
-
-        <div className="agent-heartbeat-details">
-          <div>
-            <span>Dernier signal</span>
-            <strong>{agentStatus?.received_at ? new Date(agentStatus.received_at).toLocaleString('fr-FR') : '-'}</strong>
+      <section className="agent-compact-summary">
+        {compactAgentStatuses.map(item => (
+          <div className={`agent-compact-item ${item.state}`} key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
           </div>
-
-          <div>
-            <span>Vu il y a</span>
-            <strong>{agentStatus?.seconds_since_seen != null ? `${agentStatus.seconds_since_seen}s` : '-'}</strong>
-          </div>
-
-          <div>
-            <span>Mode</span>
-            <strong>{agentStatus?.mode || '-'}</strong>
-          </div>
-
-          <div>
-            <span>Script</span>
-            <strong>{agentStatus?.script || '-'}</strong>
-          </div>
-
-          <div>
-            <span>Fréquence appliquée</span>
-            <strong>{agentStatus?.schedule_interval_minutes ? `Toutes les ${agentStatus.schedule_interval_minutes} min` : '-'}</strong>
-          </div>
-
-          <div>
-            <span>Pause traitement</span>
-            <strong>{agentStatus?.pause_processing ? 'Oui' : 'Non'}</strong>
-          </div>
-        </div>
+        ))}
       </section>
+      </div>
+
+      <div className="agent-layout-group" id="agent-pilotage">
+        <div className="agent-section-heading">
+          <span>Pilotage</span>
+          <strong>Actions et configuration appliquées par l’agent.</strong>
+        </div>
 
       <section className={`agent-pause-card ${agentConfig?.pause_processing ? 'paused' : 'active'}`}>
         <div>
@@ -1386,75 +1414,6 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
           {agentConfig?.pause_processing ? 'Reprendre le traitement' : 'Mettre en pause'}
         </button>
       </section>
-
-      <section className={`agent-task-status-card ${agentStatus?.task?.enabled ? 'enabled' : 'disabled'}`}>
-        <div>
-          <span>Tâche planifiée Windows</span>
-          <h3>{agentStatus?.task?.enabled ? 'Tâche activée' : 'Tâche désactivée ou inconnue'}</h3>
-          <p>{agentStatus?.task?.task_name || 'EITAS Employee Lifecycle Agent'}</p>
-        </div>
-
-        <div className="agent-task-status-details">
-          <div>
-            <span>État Windows</span>
-            <strong>{getWindowsTaskStateLabel(agentStatus?.task?.state)}</strong>
-          </div>
-
-          <div>
-            <span>Dernier lancement</span>
-            <strong>{agentStatus?.task?.last_run_time ? new Date(agentStatus.task.last_run_time).toLocaleString('fr-FR') : '-'}</strong>
-          </div>
-
-          <div>
-            <span>Prochain lancement</span>
-            <strong>{agentStatus?.task?.next_run_time ? new Date(agentStatus.task.next_run_time).toLocaleString('fr-FR') : '-'}</strong>
-          </div>
-
-          <div>
-            <span>Résultat Windows</span>
-            <strong>{getWindowsTaskResultLabel(agentStatus?.task?.last_task_result)}</strong>
-            {agentStatus?.task?.last_task_result != null && (
-              <small className="agent-task-result-code">Code Windows : {agentStatus.task.last_task_result}</small>
-            )}
-          </div>
-
-          <div>
-            <span>Répétition</span>
-            <strong>{agentStatus?.task?.repetition_interval || '-'}</strong>
-          </div>
-
-          <div>
-            <span>Activée</span>
-            <strong>{agentStatus?.task?.enabled === true ? 'Oui' : agentStatus?.task?.enabled === false ? 'Non' : '-'}</strong>
-          </div>
-        </div>
-      </section>
-
-      <div className="agent-ops-grid">
-        <div className="agent-ops-card">
-          <span>Agent</span>
-          <strong>{agentName}</strong>
-          <p>Serveur Windows chargé d’exécuter les actions AD.</p>
-        </div>
-
-        <div className="agent-ops-card">
-          <span>Dernier passage</span>
-          <strong>{lastRun ? new Date(lastRun).toLocaleString('fr-FR') : '-'}</strong>
-          <p>{heartbeatSeen ? `Heartbeat reçu il y a ${heartbeatSeconds}s` : 'Basé sur la dernière demande traitée.'}</p>
-        </div>
-
-        <div className="agent-ops-card">
-          <span>En attente agent</span>
-          <strong>{pendingCount}</strong>
-          <p>Demandes validées ou en cours côté agent.</p>
-        </div>
-
-        <div className="agent-ops-card">
-          <span>Échecs techniques</span>
-          <strong>{failedCount}</strong>
-          <p>Demandes en erreur à surveiller.</p>
-        </div>
-      </div>
 
       <section className="panel agent-ops-section">
         <PanelHeader
@@ -1512,20 +1471,103 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
           </div>
         </div>
       </section>
+      </div>
 
-      <section className="panel agent-diagnostic-section">
-        <PanelHeader
-          title="Diagnostic agent"
-          subtitle="Bloc complet à copier pour dépannage ou documentation."
-          action={
-            <button className="secondary" onClick={copyAgentDiagnostic}>
-              {copiedCommand === 'Diagnostic agent' ? 'Diagnostic copié' : 'Copier diagnostic'}
-            </button>
-          }
-        />
+      <div className="agent-layout-group" id="agent-supervision">
+        <div className="agent-section-heading">
+          <span>Supervision technique</span>
+          <strong>Heartbeat et état réel de la tâche planifiée Windows.</strong>
+        </div>
 
-        <pre className="agent-diagnostic-preview">{buildAgentDiagnosticText()}</pre>
+      <section className={`agent-heartbeat-card ${agentStatus?.online ? 'online' : 'offline'}`}>
+        <div>
+          <span>Heartbeat agent</span>
+          <h3>{agentStatus?.online ? 'Agent connecté' : 'Agent non connecté'}</h3>
+          <p>{agentStatus?.message || 'Aucun heartbeat reçu.'}</p>
+        </div>
+
+        <div className="agent-heartbeat-details">
+          <div>
+            <span>Dernier signal</span>
+            <strong>{agentStatus?.received_at ? new Date(agentStatus.received_at).toLocaleString('fr-FR') : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Vu il y a</span>
+            <strong>{agentStatus?.seconds_since_seen != null ? `${agentStatus.seconds_since_seen}s` : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Mode</span>
+            <strong>{agentStatus?.mode || '-'}</strong>
+          </div>
+
+          <div>
+            <span>Script</span>
+            <strong>{agentStatus?.script || '-'}</strong>
+          </div>
+
+          <div>
+            <span>Fréquence appliquée</span>
+            <strong>{agentStatus?.schedule_interval_minutes ? `Toutes les ${agentStatus.schedule_interval_minutes} min` : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Pause traitement</span>
+            <strong>{agentStatus?.pause_processing ? 'Oui' : 'Non'}</strong>
+          </div>
+        </div>
       </section>
+
+      <section className={`agent-task-status-card ${agentStatus?.task?.enabled ? 'enabled' : 'disabled'}`}>
+        <div>
+          <span>Tâche planifiée Windows</span>
+          <h3>{agentStatus?.task?.enabled ? 'Tâche activée' : 'Tâche désactivée ou inconnue'}</h3>
+          <p>{agentStatus?.task?.task_name || 'EITAS Employee Lifecycle Agent'}</p>
+        </div>
+
+        <div className="agent-task-status-details">
+          <div>
+            <span>État Windows</span>
+            <strong>{getWindowsTaskStateLabel(agentStatus?.task?.state)}</strong>
+          </div>
+
+          <div>
+            <span>Dernier lancement</span>
+            <strong>{agentStatus?.task?.last_run_time ? new Date(agentStatus.task.last_run_time).toLocaleString('fr-FR') : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Prochain lancement</span>
+            <strong>{agentStatus?.task?.next_run_time ? new Date(agentStatus.task.next_run_time).toLocaleString('fr-FR') : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Résultat Windows</span>
+            <strong>{getWindowsTaskResultLabel(agentStatus?.task?.last_task_result)}</strong>
+            {agentStatus?.task?.last_task_result != null && (
+              <small className="agent-task-result-code">Code Windows : {agentStatus.task.last_task_result}</small>
+            )}
+          </div>
+
+          <div>
+            <span>Répétition</span>
+            <strong>{agentStatus?.task?.repetition_interval || '-'}</strong>
+          </div>
+
+          <div>
+            <span>Activée</span>
+            <strong>{agentStatus?.task?.enabled === true ? 'Oui' : agentStatus?.task?.enabled === false ? 'Non' : '-'}</strong>
+          </div>
+        </div>
+      </section>
+      </div>
+
+      <div className="agent-layout-group" id="agent-exploitation">
+        <div className="agent-section-heading">
+          <span>Exploitation</span>
+          <strong>Historique et diagnostic de dépannage.</strong>
+        </div>
 
       <section className="panel agent-history-section">
         <PanelHeader
@@ -1567,11 +1609,38 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
         </div>
       </section>
 
+      <section className="panel agent-diagnostic-section">
+        <PanelHeader
+          title="Diagnostic agent"
+          subtitle="Bloc complet à copier pour dépannage ou documentation."
+          action={
+            <button className="secondary" onClick={copyAgentDiagnostic}>
+              {copiedCommand === 'Diagnostic agent' ? 'Diagnostic copié' : 'Copier diagnostic'}
+            </button>
+          }
+        />
+
+        <details className="agent-diagnostic-details">
+          <summary>Afficher le diagnostic brut</summary>
+          <pre className="agent-diagnostic-preview">{buildAgentDiagnosticText()}</pre>
+        </details>
+      </section>
+      </div>
+
+      <div className="agent-layout-group" id="agent-powershell">
+        <div className="agent-section-heading">
+          <span>Référence PowerShell</span>
+          <strong>Commandes utiles à lancer sur SRV-DC01.</strong>
+        </div>
+
       <section className="panel agent-ops-section">
         <PanelHeader
           title="Commandes PowerShell utiles"
           subtitle="À lancer sur SRV-DC01 en PowerShell admin."
         />
+
+        <details className="agent-commands-details">
+          <summary>Afficher les commandes PowerShell</summary>
 
         <div className="agent-command-list">
           {powershellCommands.map(item => (
@@ -1592,7 +1661,10 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
             </div>
           ))}
         </div>
+        </details>
       </section>
+      </div>
+
     </div>
   )
 }

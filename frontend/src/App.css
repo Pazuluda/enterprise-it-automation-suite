@@ -4370,3 +4370,237 @@ td details pre {
   max-height: 360px;
   overflow: auto;
 }
+
+/* ========================================================= */
+/* === EITAS compact agent summary ========================= */
+/* ========================================================= */
+
+.agent-compact-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+}
+
+.agent-compact-item {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.agent-compact-item span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.agent-compact-item strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.agent-compact-item.ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.agent-compact-item.warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.agent-compact-item.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.agent-compact-item.neutral {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+}
+
+/* ========================================================= */
+/* === EITAS professional agent page layout ================ */
+/* ========================================================= */
+
+.agent-layout-group {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-section-heading {
+  border-left: 4px solid #c7d2fe;
+  padding: 4px 0 4px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.agent-section-heading span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.agent-section-heading strong {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.agent-diagnostic-details {
+  margin: 16px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.agent-diagnostic-details summary {
+  cursor: pointer;
+  padding: 13px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.agent-diagnostic-details .agent-diagnostic-preview {
+  margin: 0;
+  border-radius: 0;
+  max-height: 320px;
+}
+
+/* ========================================================= */
+/* === EITAS collapsible PowerShell commands =============== */
+/* ========================================================= */
+
+.agent-commands-details {
+  margin: 16px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.agent-commands-details summary {
+  cursor: pointer;
+  padding: 13px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.agent-commands-details .agent-command-list {
+  padding: 14px;
+}
+
+/* ========================================================= */
+/* === EITAS agent internal navigation ===================== */
+/* ========================================================= */
+
+.agent-jumpbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  background: rgba(248, 250, 252, 0.94);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+}
+
+.agent-jumpbar a {
+  text-decoration: none;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.agent-jumpbar a:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+.agent-layout-group {
+  scroll-margin-top: 80px;
+}
+
+/* ========================================================= */
+/* === EITAS smooth internal navigation ==================== */
+/* ========================================================= */
+
+html {
+  scroll-behavior: smooth;
+}
+
+#agent-page-top {
+  scroll-margin-top: 90px;
+}
+
+/* ========================================================= */
+/* === EITAS fixed sidebar / independent page scroll ======= */
+/* ========================================================= */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+.app {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.main {
+  height: 100vh;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.content {
+  min-width: 0;
+}
+
+/* Scrollbar plus propre côté contenu */
+.main::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.main::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.main::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
