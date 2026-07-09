@@ -4077,3 +4077,80 @@ td details pre {
   font-size: 11px;
   font-weight: 800;
 }
+
+/* ========================================================= */
+/* === EITAS agent pause control =========================== */
+/* ========================================================= */
+
+.agent-pause-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.agent-pause-card.active {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 70%);
+}
+
+.agent-pause-card.paused {
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 70%);
+}
+
+.agent-pause-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.agent-pause-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.agent-pause-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pause-agent-button,
+.resume-agent-button {
+  width: auto;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pause-agent-button {
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.resume-agent-button {
+  border: 1px solid #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+@media (max-width: 850px) {
+  .agent-pause-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

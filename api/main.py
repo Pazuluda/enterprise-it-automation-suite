@@ -186,6 +186,7 @@ def get_default_agent_config():
         "interval_minutes": 2,
         "allowed_intervals": [1, 2, 5, 10, 15, 30],
         "task_name": "EITAS Employee Lifecycle Agent",
+        "pause_processing": False,
         "message": "Configuration agent par défaut"
     }
 
@@ -224,7 +225,15 @@ def update_agent_config(payload: dict, api_key: None = Depends(require_api_key))
         )
 
     config["interval_minutes"] = interval_minutes
-    config["message"] = f"Fréquence agent configurée à {interval_minutes} minute(s)"
+
+    if "pause_processing" in payload:
+        config["pause_processing"] = bool(payload.get("pause_processing"))
+
+    if config.get("pause_processing"):
+        config["message"] = f"Agent en pause. Fréquence conservée à {interval_minutes} minute(s)"
+    else:
+        config["message"] = f"Fréquence agent configurée à {interval_minutes} minute(s)"
+
     config["updated_at"] = datetime.utcnow().isoformat() + "Z"
 
     save_json(AGENT_CONFIG_FILE, config)
@@ -252,6 +261,7 @@ def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_k
         "api_base_url": payload.get("api_base_url") or "",
         "version": payload.get("version") or "0.1.0",
         "schedule_interval_minutes": payload.get("schedule_interval_minutes"),
+        "pause_processing": bool(payload.get("pause_processing")),
         "task": payload.get("task") or {}
     }
 

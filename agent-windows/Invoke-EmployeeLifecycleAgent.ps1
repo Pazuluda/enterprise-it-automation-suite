@@ -23,6 +23,7 @@ $Mode = [string]$Config.Mode
 $AgentName = [string]$Config.AgentName
 $TaskName = [string]$Config.TaskName
 $Script:AgentIntervalMinutes = $null
+$Script:AgentPauseProcessing = $false
 
 if ([string]::IsNullOrWhiteSpace($Mode)) {
     $Mode = "Simulation"
@@ -173,6 +174,10 @@ function Sync-AgentRuntimeConfig {
         $Script:AgentIntervalMinutes = $IntervalMinutes
         Set-AgentTaskInterval -IntervalMinutes $IntervalMinutes
     }
+
+    if ($null -ne $RemoteConfig.pause_processing) {
+        $Script:AgentPauseProcessing = [bool]$RemoteConfig.pause_processing
+    }
 }
 
 
@@ -222,6 +227,7 @@ function Send-AgentHeartbeat {
             api_base_url = $ApiBaseUrl
             version = "0.1.0"
             schedule_interval_minutes = $Script:AgentIntervalMinutes
+            pause_processing = $Script:AgentPauseProcessing
             task = Get-AgentScheduledTaskStatus
         }
 

@@ -335,6 +335,28 @@ function App() {
     }
   }
 
+  async function updateAgentPause(pauseProcessing) {
+    try {
+      const intervalMinutes = agentConfig?.interval_minutes || 2
+
+      const data = await apiFetch('/api/agent/config', {
+        method: 'POST',
+        body: JSON.stringify({
+          interval_minutes: intervalMinutes,
+          pause_processing: pauseProcessing
+        })
+      })
+
+      setAgentConfig(data.config)
+      setMessage(pauseProcessing ? 'Traitement agent mis en pause.' : 'Traitement agent repris.')
+      await loadAgentStatus()
+    }
+    catch (error) {
+      setMessage(error.message)
+    }
+  }
+
+
 
   useEffect(() => {
     const heartbeatAutoRefresh = window.setInterval(() => {
@@ -754,7 +776,7 @@ function App() {
           )}
 
           {page === 'agentOps' && (
-            <AgentOperationsPage requests={requests} agentStatus={agentStatus} agentConfig={agentConfig} loadAgentStatus={loadAgentStatus} loadAgentConfig={loadAgentConfig} updateAgentInterval={updateAgentInterval} />
+            <AgentOperationsPage requests={requests} agentStatus={agentStatus} agentConfig={agentConfig} loadAgentStatus={loadAgentStatus} loadAgentConfig={loadAgentConfig} updateAgentInterval={updateAgentInterval} updateAgentPause={updateAgentPause} />
           )}
 
           {page === 'settings' && (
@@ -958,7 +980,7 @@ function OverviewPage({ requests, agentStatus, setPage }) {
 }
 
 
-function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStatus, loadAgentConfig, updateAgentInterval }) {
+function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStatus, loadAgentConfig, updateAgentInterval, updateAgentPause }) {
   const [copiedCommand, setCopiedCommand] = useState('')
 
   const agentRuns = (requests || [])
@@ -1114,7 +1136,32 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
             <span>Fréquence appliquée</span>
             <strong>{agentStatus?.schedule_interval_minutes ? `Toutes les ${agentStatus.schedule_interval_minutes} min` : '-'}</strong>
           </div>
+
+          <div>
+            <span>Pause traitement</span>
+            <strong>{agentStatus?.pause_processing ? 'Oui' : 'Non'}</strong>
+          </div>
         </div>
+      </section>
+
+      <section className={`agent-pause-card ${agentConfig?.pause_processing ? 'paused' : 'active'}`}>
+        <div>
+          <span>Traitement des demandes</span>
+          <h3>{agentConfig?.pause_processing ? 'Agent en pause' : 'Traitement actif'}</h3>
+          <p>
+            {agentConfig?.pause_processing
+              ? 'Le heartbeat continue, mais les demandes ne sont pas traitées.'
+              : 'L’agent peut traiter les demandes validées.'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className={agentConfig?.pause_processing ? 'resume-agent-button' : 'pause-agent-button'}
+          onClick={() => updateAgentPause(!agentConfig?.pause_processing)}
+        >
+          {agentConfig?.pause_processing ? 'Reprendre le traitement' : 'Mettre en pause'}
+        </button>
       </section>
 
       <section className={`agent-task-status-card ${agentStatus?.task?.enabled ? 'enabled' : 'disabled'}`}>
