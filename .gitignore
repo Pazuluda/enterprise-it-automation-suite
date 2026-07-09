@@ -1,3 +1,7 @@
 
 # EITAS runtime agent heartbeat
 api/data/agent-status.json
+
+# EITAS runtime agent config
+api/data/agent-config.json
+agent-windows/agent-interval.txt

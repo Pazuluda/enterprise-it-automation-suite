@@ -21,6 +21,8 @@ $ApiBaseUrl = [string]$Config.ApiBaseUrl
 $ApiKey = [string]$Config.ApiKey
 $Mode = [string]$Config.Mode
 $AgentName = [string]$Config.AgentName
+$TaskName = [string]$Config.TaskName
+$Script:AgentIntervalMinutes = $null
 
 if ([string]::IsNullOrWhiteSpace($Mode)) {
     $Mode = "Simulation"
@@ -28,6 +30,10 @@ if ([string]::IsNullOrWhiteSpace($Mode)) {
 
 if ([string]::IsNullOrWhiteSpace($AgentName)) {
     $AgentName = $env:COMPUTERNAME
+}
+
+if ([string]::IsNullOrWhiteSpace($TaskName)) {
+    $TaskName = "EITAS Employee Lifecycle Agent"
 }
 
 if ([string]::IsNullOrWhiteSpace($ApiBaseUrl)) {
@@ -97,6 +103,79 @@ function Invoke-EitasApi {
 }
 
 
+
+function Get-AgentRemoteConfig {
+    try {
+        return Invoke-EitasApi -Method "GET" -Path "/api/agent/config"
+    }
+    catch {
+        Write-Warning "Configuration agent distante non récupérée : $($_.Exception.Message)"
+        return $null
+    }
+}
+
+function Set-AgentTaskInterval {
+    param(
+        [int]$IntervalMinutes
+    )
+
+    if ($IntervalMinutes -lt 1 -or $IntervalMinutes -gt 1440) {
+        Write-Warning "Fréquence agent ignorée : $IntervalMinutes minute(s)"
+        return
+    }
+
+    $MarkerPath = Join-Path $ScriptRoot "agent-interval.txt"
+    $CurrentInterval = $null
+
+    if (Test-Path $MarkerPath) {
+        try {
+            $CurrentInterval = [int]((Get-Content $MarkerPath -Raw).Trim())
+        }
+        catch {
+            $CurrentInterval = $null
+        }
+    }
+
+    if ($CurrentInterval -eq $IntervalMinutes) {
+        Write-Host ("[OK] Fréquence déjà appliquée : toutes les {0} minute(s)" -f $IntervalMinutes)
+        return
+    }
+
+    try {
+        Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop | Out-Null
+
+        $Trigger = New-ScheduledTaskTrigger `
+            -Once `
+            -At (Get-Date).AddMinutes(1) `
+            -RepetitionInterval (New-TimeSpan -Minutes $IntervalMinutes) `
+            -RepetitionDuration (New-TimeSpan -Days 3650)
+
+        Set-ScheduledTask -TaskName $TaskName -Trigger $Trigger | Out-Null
+
+        Set-Content -Path $MarkerPath -Value $IntervalMinutes -Encoding UTF8
+
+        Write-Host ("[OK] Fréquence tâche agent appliquée : toutes les {0} minute(s)" -f $IntervalMinutes) -ForegroundColor Green
+    }
+    catch {
+        Write-Warning "Fréquence tâche agent non appliquée : $($_.Exception.Message)"
+    }
+}
+
+function Sync-AgentRuntimeConfig {
+    $RemoteConfig = Get-AgentRemoteConfig
+
+    if ($null -eq $RemoteConfig) {
+        return
+    }
+
+    if ($RemoteConfig.interval_minutes) {
+        $IntervalMinutes = [int]$RemoteConfig.interval_minutes
+        $Script:AgentIntervalMinutes = $IntervalMinutes
+        Set-AgentTaskInterval -IntervalMinutes $IntervalMinutes
+    }
+}
+
+
 function Send-AgentHeartbeat {
     try {
         $Body = @{
@@ -108,6 +187,7 @@ function Send-AgentHeartbeat {
             message = "Heartbeat agent reçu"
             api_base_url = $ApiBaseUrl
             version = "0.1.0"
+            schedule_interval_minutes = $Script:AgentIntervalMinutes
         }
 
         Invoke-EitasApi -Method "POST" -Path "/api/agent/heartbeat" -Body $Body | Out-Null

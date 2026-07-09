@@ -26,6 +26,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 AGENT_STATUS_FILE = DATA_DIR / "agent-status.json"
+AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 
 
 
@@ -179,6 +180,62 @@ def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key))
 
 
 
+
+def get_default_agent_config():
+    return {
+        "interval_minutes": 2,
+        "allowed_intervals": [1, 2, 5, 10, 15, 30],
+        "task_name": "EITAS Employee Lifecycle Agent",
+        "message": "Configuration agent par défaut"
+    }
+
+
+@app.get("/api/agent/config")
+def get_agent_config(api_key: None = Depends(require_api_key)):
+    config = get_default_agent_config()
+
+    if AGENT_CONFIG_FILE.exists():
+        try:
+            saved = json.loads(AGENT_CONFIG_FILE.read_text(encoding="utf-8"))
+            if isinstance(saved, dict):
+                config.update(saved)
+        except Exception:
+            raise HTTPException(status_code=500, detail="Impossible de lire la configuration agent")
+
+    if config.get("interval_minutes") not in config["allowed_intervals"]:
+        config["interval_minutes"] = 2
+
+    return config
+
+
+@app.post("/api/agent/config")
+def update_agent_config(payload: dict, api_key: None = Depends(require_api_key)):
+    config = get_default_agent_config()
+
+    try:
+        interval_minutes = int(payload.get("interval_minutes"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="interval_minutes invalide")
+
+    if interval_minutes not in config["allowed_intervals"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Fréquence non autorisée. Valeurs possibles : {config['allowed_intervals']}"
+        )
+
+    config["interval_minutes"] = interval_minutes
+    config["message"] = f"Fréquence agent configurée à {interval_minutes} minute(s)"
+    config["updated_at"] = datetime.utcnow().isoformat() + "Z"
+
+    save_json(AGENT_CONFIG_FILE, config)
+
+    return {
+        "ok": True,
+        "message": "Configuration agent enregistrée",
+        "config": config
+    }
+
+
 @app.post("/api/agent/heartbeat")
 def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_key)):
     now = datetime.utcnow()
@@ -193,7 +250,8 @@ def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_k
         "message": payload.get("message") or "Heartbeat reçu",
         "received_at": now.isoformat() + "Z",
         "api_base_url": payload.get("api_base_url") or "",
-        "version": payload.get("version") or "0.1.0"
+        "version": payload.get("version") or "0.1.0",
+        "schedule_interval_minutes": payload.get("schedule_interval_minutes")
     }
 
     save_json(AGENT_STATUS_FILE, status)

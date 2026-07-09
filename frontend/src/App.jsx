@@ -139,6 +139,7 @@ function App() {
   const [message, setMessage] = useState('')
   const [requests, setRequests] = useState([])
   const [agentStatus, setAgentStatus] = useState(null)
+  const [agentConfig, setAgentConfig] = useState(null)
   const [templates, setTemplates] = useState({ departments: {} })
   const [auditLogs, setAuditLogs] = useState([])
   const [selectedRequest, setSelectedRequest] = useState(null)
@@ -306,6 +307,34 @@ function App() {
       setAgentStatus(null)
     }
   }
+
+  async function loadAgentConfig() {
+    try {
+      const data = await apiFetch('/api/agent/config')
+      setAgentConfig(data)
+    }
+    catch {
+      setAgentConfig(null)
+    }
+  }
+
+  async function updateAgentInterval(intervalMinutes) {
+    try {
+      const data = await apiFetch('/api/agent/config', {
+        method: 'POST',
+        body: JSON.stringify({
+          interval_minutes: intervalMinutes
+        })
+      })
+
+      setAgentConfig(data.config)
+      setMessage(`Fréquence agent enregistrée : toutes les ${intervalMinutes} minute(s). Elle sera appliquée au prochain passage agent.`)
+    }
+    catch (error) {
+      setMessage(error.message)
+    }
+  }
+
 
   useEffect(() => {
     const heartbeatAutoRefresh = window.setInterval(() => {
@@ -725,7 +754,7 @@ function App() {
           )}
 
           {page === 'agentOps' && (
-            <AgentOperationsPage requests={requests} agentStatus={agentStatus} loadAgentStatus={loadAgentStatus} />
+            <AgentOperationsPage requests={requests} agentStatus={agentStatus} agentConfig={agentConfig} loadAgentStatus={loadAgentStatus} loadAgentConfig={loadAgentConfig} updateAgentInterval={updateAgentInterval} />
           )}
 
           {page === 'settings' && (
@@ -929,7 +958,7 @@ function OverviewPage({ requests, agentStatus, setPage }) {
 }
 
 
-function AgentOperationsPage({ requests, agentStatus, loadAgentStatus }) {
+function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStatus, loadAgentConfig, updateAgentInterval }) {
   const [copiedCommand, setCopiedCommand] = useState('')
 
   const agentRuns = (requests || [])
@@ -1048,6 +1077,11 @@ function AgentOperationsPage({ requests, agentStatus, loadAgentStatus }) {
             <span>Script</span>
             <strong>{agentStatus?.script || '-'}</strong>
           </div>
+
+          <div>
+            <span>Fréquence appliquée</span>
+            <strong>{agentStatus?.schedule_interval_minutes ? `Toutes les ${agentStatus.schedule_interval_minutes} min` : '-'}</strong>
+          </div>
         </div>
       </section>
 
@@ -1092,7 +1126,24 @@ function AgentOperationsPage({ requests, agentStatus, loadAgentStatus }) {
 
           <div>
             <span>Fréquence</span>
-            <strong>Toutes les 2 minutes</strong>
+            <strong>
+              Toutes les {agentConfig?.interval_minutes || 2} minute{(agentConfig?.interval_minutes || 2) > 1 ? 's' : ''}
+            </strong>
+
+            <div className="agent-frequency-control">
+              <select
+                value={agentConfig?.interval_minutes || 2}
+                onChange={(event) => updateAgentInterval(Number(event.target.value))}
+              >
+                {(agentConfig?.allowed_intervals || [1, 2, 5, 10, 15, 30]).map(value => (
+                  <option key={value} value={value}>
+                    Toutes les {value} minute{value > 1 ? 's' : ''}
+                  </option>
+                ))}
+              </select>
+
+              <p>Appliquée automatiquement au prochain passage agent.</p>
+            </div>
           </div>
 
           <div>
