@@ -4154,3 +4154,51 @@ td details pre {
     align-items: flex-start;
   }
 }
+
+/* ========================================================= */
+/* === EITAS global agent alert banner ===================== */
+/* ========================================================= */
+
+.agent-system-alerts {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.agent-system-alert {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.agent-system-alert strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.agent-system-alert span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-system-alert.warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.agent-system-alert.warning strong {
+  color: #92400e;
+}
+
+.agent-system-alert.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.agent-system-alert.error strong {
+  color: #991b1b;
+}

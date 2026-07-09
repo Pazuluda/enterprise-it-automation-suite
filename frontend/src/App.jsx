@@ -697,6 +697,8 @@ function App() {
         <main className="main">
           {message && <div className="notice">{message}</div>}
 
+          <AgentSystemBanner agentStatus={agentStatus} agentConfig={agentConfig} />
+
           {page === 'overview' && (
             <OverviewPage
               stats={stats}
@@ -878,6 +880,65 @@ function AgentHealthCard({ requests }) {
 
       <p>{result.message || 'Dernier résultat agent récupéré depuis les demandes.'}</p>
     </section>
+  )
+}
+
+
+
+function AgentSystemBanner({ agentStatus, agentConfig }) {
+  const alerts = []
+
+  if (agentConfig?.pause_processing) {
+    alerts.push({
+      type: 'warning',
+      title: 'Agent en pause',
+      message: 'Le heartbeat continue, mais les demandes validées ne seront pas traitées.'
+    })
+  }
+
+  if (agentStatus && agentStatus.online === false) {
+    alerts.push({
+      type: 'error',
+      title: 'Agent hors ligne',
+      message: 'Aucun heartbeat récent reçu depuis le serveur Windows.'
+    })
+  }
+
+  if (agentStatus?.task?.enabled === false) {
+    alerts.push({
+      type: 'error',
+      title: 'Tâche Windows désactivée',
+      message: 'La tâche planifiée agent est désactivée sur le serveur Windows.'
+    })
+  }
+
+  const resultCode = Number(agentStatus?.task?.last_task_result)
+
+  if (
+    agentStatus?.task?.last_task_result !== undefined &&
+    agentStatus?.task?.last_task_result !== null &&
+    ![0, 267008, 267009].includes(resultCode)
+  ) {
+    alerts.push({
+      type: 'warning',
+      title: 'Résultat Windows à vérifier',
+      message: `Dernier code tâche Windows : ${agentStatus.task.last_task_result}`
+    })
+  }
+
+  if (alerts.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="agent-system-alerts">
+      {alerts.map(alert => (
+        <div className={`agent-system-alert ${alert.type}`} key={`${alert.title}-${alert.message}`}>
+          <strong>{alert.title}</strong>
+          <span>{alert.message}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 
