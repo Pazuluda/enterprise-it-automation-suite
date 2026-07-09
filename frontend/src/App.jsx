@@ -1038,6 +1038,38 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
     }
   }
 
+
+  function getWindowsTaskStateLabel(state) {
+    const labels = {
+      Ready: 'Prête',
+      Running: 'En cours',
+      Disabled: 'Désactivée',
+      Queued: 'En file d’attente',
+      Unknown: 'Inconnue'
+    }
+
+    return labels[state] || state || '-'
+  }
+
+  function getWindowsTaskResultLabel(code) {
+    const numericCode = Number(code)
+
+    const labels = {
+      0: 'Succès',
+      267008: 'Prête',
+      267009: 'En cours d’exécution',
+      267010: 'Tâche désactivée',
+      267011: 'Jamais lancée',
+      267014: 'Déclencheurs désactivés'
+    }
+
+    if (code === null || code === undefined || code === '') {
+      return '-'
+    }
+
+    return labels[numericCode] || `Code ${code}`
+  }
+
   return (
     <div className="agent-ops-page">
       <section className={`agent-ops-hero ${lastSuccess ? 'ok' : 'error'}`}>
@@ -1095,7 +1127,7 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
         <div className="agent-task-status-details">
           <div>
             <span>État Windows</span>
-            <strong>{agentStatus?.task?.state || '-'}</strong>
+            <strong>{getWindowsTaskStateLabel(agentStatus?.task?.state)}</strong>
           </div>
 
           <div>
@@ -1110,7 +1142,10 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
 
           <div>
             <span>Résultat Windows</span>
-            <strong>{agentStatus?.task?.last_task_result ?? '-'}</strong>
+            <strong>{getWindowsTaskResultLabel(agentStatus?.task?.last_task_result)}</strong>
+            {agentStatus?.task?.last_task_result != null && (
+              <small className="agent-task-result-code">Code Windows : {agentStatus.task.last_task_result}</small>
+            )}
           </div>
 
           <div>
