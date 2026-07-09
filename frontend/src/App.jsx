@@ -1144,8 +1144,32 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
 
 
   async function copyAgentCommand(title, code) {
+    const text = code
+
     try {
-      await navigator.clipboard.writeText(code)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      }
+      else {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.top = '-9999px'
+        textarea.style.left = '-9999px'
+
+        document.body.appendChild(textarea)
+        textarea.focus()
+        textarea.select()
+
+        const copied = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (!copied) {
+          throw new Error('fallback copy failed')
+        }
+      }
+
       setCopiedCommand(title)
 
       window.setTimeout(() => {
@@ -1153,8 +1177,7 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
       }, 1800)
     }
     catch {
-      setCopiedCommand('')
-      window.alert('Impossible de copier la commande.')
+      window.prompt('Copie automatique bloquée. Copie la commande ici :', text)
     }
   }
 
