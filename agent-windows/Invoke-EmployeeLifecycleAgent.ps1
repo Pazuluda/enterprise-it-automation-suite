@@ -176,6 +176,40 @@ function Sync-AgentRuntimeConfig {
 }
 
 
+
+function Get-AgentScheduledTaskStatus {
+    try {
+        $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+        $TaskInfo = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction Stop
+        $Trigger = $Task.Triggers | Select-Object -First 1
+
+        $RepetitionInterval = $null
+
+        if ($Trigger -and $Trigger.Repetition -and $Trigger.Repetition.Interval) {
+            $RepetitionInterval = [string]$Trigger.Repetition.Interval
+        }
+
+        return @{
+            task_name = $TaskName
+            state = [string]$Task.State
+            enabled = [bool]$Task.Settings.Enabled
+            last_run_time = if ($TaskInfo.LastRunTime) { $TaskInfo.LastRunTime.ToString("s") } else { $null }
+            next_run_time = if ($TaskInfo.NextRunTime) { $TaskInfo.NextRunTime.ToString("s") } else { $null }
+            last_task_result = $TaskInfo.LastTaskResult
+            repetition_interval = $RepetitionInterval
+        }
+    }
+    catch {
+        return @{
+            task_name = $TaskName
+            state = "unknown"
+            enabled = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+
 function Send-AgentHeartbeat {
     try {
         $Body = @{
@@ -188,6 +222,7 @@ function Send-AgentHeartbeat {
             api_base_url = $ApiBaseUrl
             version = "0.1.0"
             schedule_interval_minutes = $Script:AgentIntervalMinutes
+            task = Get-AgentScheduledTaskStatus
         }
 
         Invoke-EitasApi -Method "POST" -Path "/api/agent/heartbeat" -Body $Body | Out-Null

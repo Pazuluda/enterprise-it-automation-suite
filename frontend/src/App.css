@@ -3992,3 +3992,76 @@ td details pre {
   font-size: 11px;
   font-weight: 700;
 }
+
+/* ========================================================= */
+/* === EITAS Windows scheduled task status ================= */
+/* ========================================================= */
+
+.agent-task-status-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.agent-task-status-card.enabled {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 70%);
+}
+
+.agent-task-status-card.disabled {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 70%);
+}
+
+.agent-task-status-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.agent-task-status-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.agent-task-status-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-task-status-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.agent-task-status-details div {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.agent-task-status-details strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 850px) {
+  .agent-task-status-card {
+    grid-template-columns: 1fr;
+  }
+}

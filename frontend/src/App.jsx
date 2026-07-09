@@ -1085,6 +1085,46 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
         </div>
       </section>
 
+      <section className={`agent-task-status-card ${agentStatus?.task?.enabled ? 'enabled' : 'disabled'}`}>
+        <div>
+          <span>Tâche planifiée Windows</span>
+          <h3>{agentStatus?.task?.enabled ? 'Tâche activée' : 'Tâche désactivée ou inconnue'}</h3>
+          <p>{agentStatus?.task?.task_name || 'EITAS Employee Lifecycle Agent'}</p>
+        </div>
+
+        <div className="agent-task-status-details">
+          <div>
+            <span>État Windows</span>
+            <strong>{agentStatus?.task?.state || '-'}</strong>
+          </div>
+
+          <div>
+            <span>Dernier lancement</span>
+            <strong>{agentStatus?.task?.last_run_time ? new Date(agentStatus.task.last_run_time).toLocaleString('fr-FR') : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Prochain lancement</span>
+            <strong>{agentStatus?.task?.next_run_time ? new Date(agentStatus.task.next_run_time).toLocaleString('fr-FR') : '-'}</strong>
+          </div>
+
+          <div>
+            <span>Résultat Windows</span>
+            <strong>{agentStatus?.task?.last_task_result ?? '-'}</strong>
+          </div>
+
+          <div>
+            <span>Répétition</span>
+            <strong>{agentStatus?.task?.repetition_interval || '-'}</strong>
+          </div>
+
+          <div>
+            <span>Activée</span>
+            <strong>{agentStatus?.task?.enabled === true ? 'Oui' : agentStatus?.task?.enabled === false ? 'Non' : '-'}</strong>
+          </div>
+        </div>
+      </section>
+
       <div className="agent-ops-grid">
         <div className="agent-ops-card">
           <span>Agent</span>

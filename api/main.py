@@ -251,7 +251,8 @@ def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_k
         "received_at": now.isoformat() + "Z",
         "api_base_url": payload.get("api_base_url") or "",
         "version": payload.get("version") or "0.1.0",
-        "schedule_interval_minutes": payload.get("schedule_interval_minutes")
+        "schedule_interval_minutes": payload.get("schedule_interval_minutes"),
+        "task": payload.get("task") or {}
     }
 
     save_json(AGENT_STATUS_FILE, status)
