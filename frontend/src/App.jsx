@@ -307,6 +307,17 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    const heartbeatAutoRefresh = window.setInterval(() => {
+      loadAgentStatus()
+    }, 30000)
+
+    return () => {
+      window.clearInterval(heartbeatAutoRefresh)
+    }
+  }, [])
+
+
 
   async function loadTemplates() {
     try {
