@@ -4202,3 +4202,149 @@ td details pre {
 .agent-system-alert.error strong {
   color: #991b1b;
 }
+
+/* ========================================================= */
+/* === EITAS agent operations history ====================== */
+/* ========================================================= */
+
+.agent-history-section {
+  overflow: hidden;
+}
+
+.agent-history-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.agent-history-row {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(160px, 0.8fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.agent-history-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-history-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.agent-history-meta,
+.agent-history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-history-meta small,
+.agent-history-details span {
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.agent-history-empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .agent-history-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS agent operations history ====================== */
+/* ========================================================= */
+
+.agent-history-section {
+  overflow: hidden;
+}
+
+.agent-history-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.agent-history-row {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(160px, 0.8fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.agent-history-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-history-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.agent-history-meta,
+.agent-history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-history-meta small,
+.agent-history-details span {
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.agent-history-empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .agent-history-row {
+    grid-template-columns: 1fr;
+  }
+}

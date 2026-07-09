@@ -140,6 +140,7 @@ function App() {
   const [requests, setRequests] = useState([])
   const [agentStatus, setAgentStatus] = useState(null)
   const [agentConfig, setAgentConfig] = useState(null)
+  const [agentHistory, setAgentHistory] = useState([])
   const [templates, setTemplates] = useState({ departments: {} })
   const [auditLogs, setAuditLogs] = useState([])
   const [selectedRequest, setSelectedRequest] = useState(null)
@@ -318,6 +319,40 @@ function App() {
     }
   }
 
+  async function loadAgentHistory() {
+    try {
+      const data = await apiFetch('/api/audit-logs?limit=200')
+
+      const logs = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.logs)
+          ? data.logs
+          : Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.audit_logs)
+              ? data.audit_logs
+              : []
+
+      const agentActions = [
+        'agent_processing_paused',
+        'agent_processing_resumed',
+        'agent_interval_updated'
+      ]
+
+      const filteredLogs = logs
+        .filter(log => agentActions.includes(log.action))
+        .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
+        .slice(0, 12)
+
+      setAgentHistory(filteredLogs)
+    }
+    catch (error) {
+      console.error('Erreur chargement historique agent', error)
+      setAgentHistory([])
+    }
+  }
+
+
   async function updateAgentInterval(intervalMinutes) {
     try {
       const data = await apiFetch('/api/agent/config', {
@@ -329,6 +364,7 @@ function App() {
 
       setAgentConfig(data.config)
       setMessage(`Fréquence agent enregistrée : toutes les ${intervalMinutes} minute(s). Elle sera appliquée au prochain passage agent.`)
+      await loadAgentHistory()
     }
     catch (error) {
       setMessage(error.message)
@@ -350,6 +386,7 @@ function App() {
       setAgentConfig(data.config)
       setMessage(pauseProcessing ? 'Traitement agent mis en pause.' : 'Traitement agent repris.')
       await loadAgentStatus()
+      await loadAgentHistory()
     }
     catch (error) {
       setMessage(error.message)
@@ -778,7 +815,7 @@ function App() {
           )}
 
           {page === 'agentOps' && (
-            <AgentOperationsPage requests={requests} agentStatus={agentStatus} agentConfig={agentConfig} loadAgentStatus={loadAgentStatus} loadAgentConfig={loadAgentConfig} updateAgentInterval={updateAgentInterval} updateAgentPause={updateAgentPause} />
+            <AgentOperationsPage requests={requests} agentStatus={agentStatus} agentConfig={agentConfig} loadAgentStatus={loadAgentStatus} loadAgentConfig={loadAgentConfig} updateAgentInterval={updateAgentInterval} updateAgentPause={updateAgentPause} agentHistory={agentHistory} loadAgentHistory={loadAgentHistory} />
           )}
 
           {page === 'settings' && (
@@ -1041,7 +1078,7 @@ function OverviewPage({ requests, agentStatus, setPage }) {
 }
 
 
-function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStatus, loadAgentConfig, updateAgentInterval, updateAgentPause }) {
+function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStatus, loadAgentConfig, updateAgentInterval, updateAgentPause, agentHistory, loadAgentHistory }) {
   const [copiedCommand, setCopiedCommand] = useState('')
 
   const agentRuns = (requests || [])
@@ -1348,6 +1385,46 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
             <span>Logs</span>
             <strong>C:\EnterpriseIT\agent-windows\logs</strong>
           </div>
+        </div>
+      </section>
+
+      <section className="panel agent-history-section">
+        <PanelHeader
+          title="Historique exploitation agent"
+          subtitle="Derniers changements de pause, reprise et fréquence."
+          action={<button className="secondary" onClick={loadAgentHistory}>Recharger historique</button>}
+        />
+
+        <div className="agent-history-list">
+          {(agentHistory || []).length === 0 && (
+            <div className="agent-history-empty">
+              Aucun événement d’exploitation agent récent.
+            </div>
+          )}
+
+          {(agentHistory || []).map(log => (
+            <div className="agent-history-row" key={`${log.timestamp}-${log.action}`}>
+              <div>
+                <span>{log.timestamp ? new Date(log.timestamp).toLocaleString('fr-FR') : '-'}</span>
+                <strong>{log.message || log.action}</strong>
+              </div>
+
+              <div className="agent-history-meta">
+                <small>{log.action}</small>
+                <small>{log.actor || '-'}</small>
+              </div>
+
+              <div className="agent-history-details">
+                {log.details?.interval_minutes && (
+                  <span>Toutes les {log.details.interval_minutes} min</span>
+                )}
+
+                {log.details?.pause_processing !== undefined && (
+                  <span>{log.details.pause_processing ? 'Pause active' : 'Traitement actif'}</span>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
