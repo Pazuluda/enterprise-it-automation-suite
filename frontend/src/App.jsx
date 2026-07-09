@@ -60,6 +60,14 @@ const PAGES = {
     title: 'Audit logs',
     subtitle: 'Historique des actions et traçabilité du portail.'
   },
+  agentOps: {
+
+    title: 'Exploitation agent',
+
+    subtitle: 'Supervision et commandes utiles côté Windows Server.'
+
+  },
+
   settings: {
     title: 'Paramètres',
     subtitle: 'Connexion API et configuration locale.'
@@ -585,6 +593,7 @@ function App() {
           <button className={page === 'modification' ? 'active' : ''} onClick={() => setPage('modification')}>Modification</button>
           <button className={page === 'templates' ? 'active' : ''} onClick={() => setPage('templates')}>Templates</button>
           <button className={page === 'audit' ? 'active' : ''} onClick={() => setPage('audit')}>Audit logs</button>
+          <button className={page === 'agentOps' ? 'active' : ''} onClick={() => setPage('agentOps')}>Exploitation agent</button>
           <button className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}>Paramètres</button>
         </nav>
 
@@ -688,6 +697,10 @@ function App() {
               auditFocusId={auditFocusId}
               setAuditFocusId={setAuditFocusId}
             />
+          )}
+
+          {page === 'agentOps' && (
+            <AgentOperationsPage requests={requests} />
           )}
 
           {page === 'settings' && (
@@ -889,6 +902,162 @@ function OverviewPage({ requests, setPage }) {
     </>
   )
 }
+
+
+function AgentOperationsPage({ requests }) {
+  const agentRuns = (requests || [])
+    .filter(request => request.agent_result || request.processing_by || request.completed_at)
+    .sort((a, b) => {
+      const dateA = new Date(a.completed_at || a.updated_at || a.created_at || 0).getTime()
+      const dateB = new Date(b.completed_at || b.updated_at || b.created_at || 0).getTime()
+      return dateB - dateA
+    })
+
+  const last = agentRuns[0]
+  const result = last?.agent_result || {}
+  const details = result.details || {}
+
+  const pendingCount = (requests || []).filter(request => {
+    return ['approved', 'pending', 'processing'].includes(request.status)
+  }).length
+
+  const failedCount = (requests || []).filter(request => {
+    return ['failed', 'error'].includes(request.status)
+  }).length
+
+  const agentName = details.agent || last?.processing_by || 'SRV-DC01'
+  const mode = details.mode || '-'
+  const lastRun = last?.completed_at || last?.updated_at || last?.created_at
+  const lastMessage = result.message || 'Aucun résultat agent récent.'
+  const lastSuccess = result.success !== false
+
+  const powershellCommands = [
+    {
+      title: 'Voir la tâche planifiée',
+      code: 'Get-ScheduledTaskInfo -TaskName "EITAS Employee Lifecycle Agent"'
+    },
+    {
+      title: 'Lancer l’agent maintenant',
+      code: 'Start-ScheduledTask -TaskName "EITAS Employee Lifecycle Agent"'
+    },
+    {
+      title: 'Voir les logs du jour',
+      code: 'Get-Content C:\\EnterpriseIT\\agent-windows\\logs\\agent-$(Get-Date -Format "yyyy-MM-dd").log -Tail 120'
+    },
+    {
+      title: 'Passer en Simulation',
+      code: '$Config = Get-Content C:\\EnterpriseIT\\agent-windows\\config.json -Raw | ConvertFrom-Json\n$Config.Mode = "Simulation"\n$Config | ConvertTo-Json -Depth 10 | Set-Content C:\\EnterpriseIT\\agent-windows\\config.json -Encoding UTF8'
+    },
+    {
+      title: 'Passer en Production',
+      code: '$Config = Get-Content C:\\EnterpriseIT\\agent-windows\\config.json -Raw | ConvertFrom-Json\n$Config.Mode = "Production"\n$Config | ConvertTo-Json -Depth 10 | Set-Content C:\\EnterpriseIT\\agent-windows\\config.json -Encoding UTF8'
+    },
+    {
+      title: 'Désactiver temporairement l’agent automatique',
+      code: 'Disable-ScheduledTask -TaskName "EITAS Employee Lifecycle Agent"'
+    },
+    {
+      title: 'Réactiver l’agent automatique',
+      code: 'Enable-ScheduledTask -TaskName "EITAS Employee Lifecycle Agent"'
+    }
+  ]
+
+  return (
+    <div className="agent-ops-page">
+      <section className={`agent-ops-hero ${lastSuccess ? 'ok' : 'error'}`}>
+        <div>
+          <span>Exploitation agent</span>
+          <h2>{lastSuccess ? 'Agent Windows opérationnel' : 'Dernier traitement en erreur'}</h2>
+          <p>{lastMessage}</p>
+        </div>
+
+        <strong>{mode}</strong>
+      </section>
+
+      <div className="agent-ops-grid">
+        <div className="agent-ops-card">
+          <span>Agent</span>
+          <strong>{agentName}</strong>
+          <p>Serveur Windows chargé d’exécuter les actions AD.</p>
+        </div>
+
+        <div className="agent-ops-card">
+          <span>Dernier passage</span>
+          <strong>{lastRun ? new Date(lastRun).toLocaleString('fr-FR') : '-'}</strong>
+          <p>Basé sur la dernière demande traitée.</p>
+        </div>
+
+        <div className="agent-ops-card">
+          <span>En attente agent</span>
+          <strong>{pendingCount}</strong>
+          <p>Demandes validées ou en cours côté agent.</p>
+        </div>
+
+        <div className="agent-ops-card">
+          <span>Échecs techniques</span>
+          <strong>{failedCount}</strong>
+          <p>Demandes en erreur à surveiller.</p>
+        </div>
+      </div>
+
+      <section className="panel agent-ops-section">
+        <PanelHeader
+          title="Configuration connue"
+          subtitle="Chemins et éléments importants du serveur Windows."
+        />
+
+        <div className="agent-ops-config">
+          <div>
+            <span>Tâche planifiée</span>
+            <strong>EITAS Employee Lifecycle Agent</strong>
+          </div>
+
+          <div>
+            <span>Fréquence</span>
+            <strong>Toutes les 2 minutes</strong>
+          </div>
+
+          <div>
+            <span>Wrapper logs</span>
+            <strong>C:\EnterpriseIT\agent-windows\Run-EitasAgent.ps1</strong>
+          </div>
+
+          <div>
+            <span>Script agent</span>
+            <strong>C:\EnterpriseIT\agent-windows\Invoke-EmployeeLifecycleAgent.ps1</strong>
+          </div>
+
+          <div>
+            <span>Config locale</span>
+            <strong>C:\EnterpriseIT\agent-windows\config.json</strong>
+          </div>
+
+          <div>
+            <span>Logs</span>
+            <strong>C:\EnterpriseIT\agent-windows\logs</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel agent-ops-section">
+        <PanelHeader
+          title="Commandes PowerShell utiles"
+          subtitle="À lancer sur SRV-DC01 en PowerShell admin."
+        />
+
+        <div className="agent-command-list">
+          {powershellCommands.map(item => (
+            <div className="agent-command-card" key={item.title}>
+              <strong>{item.title}</strong>
+              <pre>{item.code}</pre>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
 
 function RequestsPage({
   requests,
