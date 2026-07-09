@@ -3137,3 +3137,173 @@ td details pre {
   width: 18px;
   height: 18px;
 }
+
+/* ========================================================= */
+/* === EITAS agent result card ============================= */
+/* ========================================================= */
+
+.agent-result-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.agent-result-card.success {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 55%);
+}
+
+.agent-result-card.error {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 55%);
+}
+
+.agent-result-card.pending {
+  background: #f8fafc;
+}
+
+.agent-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.agent-result-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.agent-result-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.agent-result-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-result-status {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.agent-result-status.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.agent-result-status.ko {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.agent-result-status.waiting {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.agent-result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.agent-result-row {
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.agent-result-row.compact {
+  padding: 8px 10px;
+}
+
+.agent-result-row span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.agent-result-row strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agent-result-list-block {
+  margin-top: 14px;
+}
+
+.agent-result-list-block > strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.agent-result-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-result-chip {
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+.agent-result-chip.added {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.agent-result-chip.removed {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.agent-result-change-list {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-result-error {
+  margin-top: 14px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
