@@ -4348,3 +4348,25 @@ td details pre {
     grid-template-columns: 1fr;
   }
 }
+
+/* ========================================================= */
+/* === EITAS agent diagnostic block ======================== */
+/* ========================================================= */
+
+.agent-diagnostic-section {
+  overflow: hidden;
+}
+
+.agent-diagnostic-preview {
+  margin: 16px;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 360px;
+  overflow: auto;
+}

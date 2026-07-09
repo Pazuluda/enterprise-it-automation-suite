@@ -1211,6 +1211,87 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
     return labels[actor] || actor || '-'
   }
 
+
+  function buildAgentDiagnosticText() {
+    const diagnostic = {
+      generated_at: new Date().toISOString(),
+      agent: {
+        online: agentStatus?.online ?? null,
+        agent_name: agentStatus?.agent_name || agentName,
+        computer_name: agentStatus?.computer_name || '-',
+        mode,
+        script: agentStatus?.script || '-',
+        received_at: agentStatus?.received_at || null,
+        seconds_since_seen: agentStatus?.seconds_since_seen ?? null,
+        message: agentStatus?.message || null
+      },
+      processing: {
+        pause_processing: agentConfig?.pause_processing ?? agentStatus?.pause_processing ?? false,
+        pending_count: pendingCount,
+        failed_count: failedCount
+      },
+      schedule: {
+        configured_interval_minutes: agentConfig?.interval_minutes || null,
+        applied_interval_minutes: agentStatus?.schedule_interval_minutes || null,
+        task_name: agentConfig?.task_name || agentStatus?.task?.task_name || 'EITAS Employee Lifecycle Agent'
+      },
+      windows_task: agentStatus?.task || null,
+      paths: {
+        wrapper: 'C:\\EnterpriseIT\\agent-windows\\Run-EitasAgent.ps1',
+        script: 'C:\\EnterpriseIT\\agent-windows\\Invoke-EmployeeLifecycleAgent.ps1',
+        config: 'C:\\EnterpriseIT\\agent-windows\\config.json',
+        logs: 'C:\\EnterpriseIT\\agent-windows\\logs'
+      },
+      recent_agent_history: (agentHistory || []).slice(0, 5).map(log => ({
+        timestamp: log.timestamp,
+        action: log.action,
+        actor: log.actor,
+        message: log.message,
+        details: log.details
+      }))
+    }
+
+    return JSON.stringify(diagnostic, null, 2)
+  }
+
+  async function copyAgentDiagnostic() {
+    const text = buildAgentDiagnosticText()
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      }
+      else {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.top = '-9999px'
+        textarea.style.left = '-9999px'
+
+        document.body.appendChild(textarea)
+        textarea.focus()
+        textarea.select()
+
+        const copied = document.execCommand('copy')
+        document.body.removeChild(textarea)
+
+        if (!copied) {
+          throw new Error('fallback copy failed')
+        }
+      }
+
+      setCopiedCommand('Diagnostic agent')
+
+      window.setTimeout(() => {
+        setCopiedCommand('')
+      }, 1800)
+    }
+    catch {
+      window.prompt('Copie automatique bloquée. Copie le diagnostic ici :', text)
+    }
+  }
+
   return (
     <div className="agent-ops-page">
       <section className={`agent-ops-hero ${lastSuccess ? 'ok' : 'error'}`}>
@@ -1407,6 +1488,20 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
             <strong>C:\EnterpriseIT\agent-windows\logs</strong>
           </div>
         </div>
+      </section>
+
+      <section className="panel agent-diagnostic-section">
+        <PanelHeader
+          title="Diagnostic agent"
+          subtitle="Bloc complet à copier pour dépannage ou documentation."
+          action={
+            <button className="secondary" onClick={copyAgentDiagnostic}>
+              {copiedCommand === 'Diagnostic agent' ? 'Diagnostic copié' : 'Copier diagnostic'}
+            </button>
+          }
+        />
+
+        <pre className="agent-diagnostic-preview">{buildAgentDiagnosticText()}</pre>
       </section>
 
       <section className="panel agent-history-section">
