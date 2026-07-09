@@ -5567,3 +5567,410 @@ table tbody td {
 .export-audit-button {
   white-space: nowrap !important;
 }
+
+/* ========================================================= */
+/* === EITAS bulk CSV import =============================== */
+/* ========================================================= */
+
+.csv-import-page {
+  display: grid;
+  gap: 18px;
+}
+
+.csv-import-intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.csv-import-format {
+  min-width: 280px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+
+  display: grid;
+  gap: 6px;
+}
+
+.csv-import-format strong {
+  color: #15192f;
+}
+
+.csv-import-format span {
+  color: #58627e;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.csv-import-panel,
+.csv-import-preview,
+.csv-import-report {
+  overflow: hidden;
+}
+
+.csv-file-button {
+  min-height: 40px;
+  padding: 0 14px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+  border: 1px solid #cfd8ea;
+  background: #ffffff;
+
+  color: #15192f;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.csv-file-button input {
+  display: none;
+}
+
+.csv-import-textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #cfd8ea;
+  background: #ffffff;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #15192f;
+}
+
+.csv-import-error {
+  margin-top: 12px;
+  padding: 12px 14px;
+
+  border-radius: 12px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #9f1239;
+
+  font-weight: 800;
+}
+
+.csv-import-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.csv-import-create-button {
+  background: #0f6b2b !important;
+}
+
+.csv-import-create-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.csv-import-badges {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.csv-import-badges span {
+  min-height: 34px;
+  padding: 0 12px;
+
+  display: inline-flex;
+  align-items: center;
+
+  border-radius: 999px;
+  border: 1px solid #d7deea;
+  background: #ffffff;
+
+  color: #4b5674;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.csv-import-table-wrapper {
+  overflow: auto;
+  border-top: 1px solid #dbe3ef;
+}
+
+.csv-import-table {
+  min-width: 1250px;
+  width: 100%;
+}
+
+.csv-import-table input,
+.csv-import-table textarea {
+  width: 100%;
+
+  border: 1px solid #d7deea;
+  border-radius: 10px;
+  background: #ffffff;
+
+  color: #15192f;
+  font-size: 13px;
+}
+
+.csv-import-table input {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.csv-import-table textarea {
+  min-height: 58px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.csv-row-invalid {
+  background: #fff7ed;
+}
+
+.csv-status-ok,
+.csv-status-error {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.csv-status-ok {
+  color: #0f6b2b;
+  background: #f0fff4;
+  border: 1px solid #b7efc5;
+}
+
+.csv-status-error {
+  color: #9f1239;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
+
+.csv-remove-row-button {
+  min-height: 34px !important;
+  padding: 0 10px !important;
+
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: #9f1239 !important;
+  border: 1px solid #fecdd3 !important;
+  box-shadow: none !important;
+}
+
+.csv-report-list {
+  display: grid;
+  gap: 8px;
+}
+
+.csv-report-ok,
+.csv-report-error {
+  padding: 12px 14px;
+  border-radius: 12px;
+
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.csv-report-ok {
+  background: #f0fff4;
+  border: 1px solid #b7efc5;
+  color: #0f6b2b;
+}
+
+.csv-report-error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+/* ========================================================= */
+/* === EITAS CSV service select ============================ */
+/* ========================================================= */
+
+.csv-service-select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 34px 0 10px;
+
+  border: 1px solid #d7deea;
+  border-radius: 10px;
+  background-color: #ffffff;
+
+  color: #15192f;
+  font-size: 13px;
+  font-weight: 700;
+
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2330364f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ========================================================= */
+/* === EITAS CSV job select ================================ */
+/* ========================================================= */
+
+.csv-job-select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 34px 0 10px;
+
+  border: 1px solid #d7deea;
+  border-radius: 10px;
+  background-color: #ffffff;
+
+  color: #15192f;
+  font-size: 13px;
+  font-weight: 700;
+
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2330364f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ========================================================= */
+/* === EITAS CSV service/job linked selects ================ */
+/* ========================================================= */
+
+.csv-service-select,
+.csv-job-select {
+  width: 100% !important;
+  min-height: 36px !important;
+  padding: 0 34px 0 10px !important;
+
+  border: 1px solid #d7deea !important;
+  border-radius: 10px !important;
+  background-color: #ffffff !important;
+
+  color: #15192f !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2330364f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+}
+
+/* ========================================================= */
+/* === EITAS CSV service/job linked selects ================ */
+/* ========================================================= */
+
+.csv-service-select,
+.csv-job-select {
+  width: 100% !important;
+  min-height: 36px !important;
+  padding: 0 34px 0 10px !important;
+
+  border: 1px solid #d7deea !important;
+  border-radius: 10px !important;
+  background-color: #ffffff !important;
+
+  color: #15192f !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5' stroke='%2330364f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+}
+
+/* ========================================================= */
+/* === EITAS CSV warning status ============================ */
+/* ========================================================= */
+
+.csv-status-warning {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* ========================================================= */
+/* === EITAS toast no button overlay ======================= */
+/* ========================================================= */
+
+.toast-notice {
+  top: auto !important;
+  right: auto !important;
+  bottom: 24px !important;
+  left: 276px !important;
+
+  pointer-events: none !important;
+  z-index: 9000 !important;
+
+  max-width: 460px !important;
+}
+
+@media (max-width: 900px) {
+  .toast-notice {
+    left: 18px !important;
+    right: 18px !important;
+    bottom: 18px !important;
+    max-width: none !important;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS CSV template download ========================= */
+/* ========================================================= */
+
+.csv-source-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.csv-template-button {
+  min-height: 40px !important;
+  padding: 0 14px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #b7efc5 !important;
+  background: #f0fff4 !important;
+  color: #0f6b2b !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+}
+
+.csv-template-button:hover {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+}

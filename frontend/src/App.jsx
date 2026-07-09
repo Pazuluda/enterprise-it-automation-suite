@@ -44,6 +44,10 @@ const PAGES = {
     title: 'Nouvelle demande',
     subtitle: 'Créer une demande de compte avant validation.'
   },
+  csvImport: {
+    title: 'Import CSV',
+    subtitle: 'Créer plusieurs demandes onboarding depuis un fichier CSV.'
+  },
   offboarding: {
     title: 'Offboarding',
     subtitle: 'Préparer le départ d’un collaborateur.'
@@ -131,6 +135,697 @@ function isLegacyOu(value) {
 }
 
 
+
+
+
+function CsvImportPage({ apiFetch, loadRequests, setMessage, templates }) {
+  const [csvText, setCsvText] = useState('')
+  const [headers, setHeaders] = useState([])
+  const [rows, setRows] = useState([])
+  const [importing, setImporting] = useState(false)
+  const [report, setReport] = useState(null)
+  const [parseError, setParseError] = useState('')
+
+  const validRows = rows.filter(row => row.errors.length === 0)
+  const invalidRows = rows.filter(row => row.errors.length > 0)
+
+  const departmentTemplates = templates?.departments || {}
+
+  const departmentOptions = Object.keys(departmentTemplates)
+    .sort((a, b) => a.localeCompare(b, 'fr'))
+
+  function findDepartmentTemplate(departmentName) {
+    const wanted = normalizeKey(departmentName)
+
+    if (!wanted) return null
+
+    const exact = departmentTemplates[departmentName]
+    if (exact) return exact
+
+    const matchingName = Object.keys(departmentTemplates)
+      .find(name => normalizeKey(name) === wanted)
+
+    return matchingName ? departmentTemplates[matchingName] : null
+  }
+
+  function normalizeGroups(value) {
+    if (Array.isArray(value)) {
+      return value.map(group => String(group || '').trim()).filter(Boolean)
+    }
+
+    return String(value || '')
+      .split(/[,;|\n]/)
+      .map(group => group.trim())
+      .filter(Boolean)
+  }
+
+  function getGroupFields(source) {
+    if (!source || typeof source !== 'object') return []
+
+    return [
+      source.default_groups,
+      source.groups,
+      source.ad_groups,
+      source.manual_groups,
+      source.security_groups
+    ].flatMap(normalizeGroups)
+  }
+
+  function getDepartmentJobs(departmentName) {
+    const department = findDepartmentTemplate(departmentName)
+
+    if (!department) return []
+
+    const sources = [
+      department.jobs,
+      department.job_titles,
+      department.positions,
+      department.postes,
+      department.roles
+    ].filter(Boolean)
+
+    const jobs = []
+
+    for (const source of sources) {
+      if (Array.isArray(source)) {
+        for (const item of source) {
+          if (typeof item === 'string') {
+            jobs.push(item)
+          } else if (item && typeof item === 'object') {
+            jobs.push(item.name || item.title || item.job_title || item.poste || item.position || '')
+          }
+        }
+      } else if (source && typeof source === 'object') {
+        jobs.push(...Object.keys(source))
+      }
+    }
+
+    return Array.from(new Set(jobs.map(job => String(job || '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'fr'))
+  }
+
+  function findJobTemplate(departmentName, jobTitle) {
+    const department = findDepartmentTemplate(departmentName)
+    const wanted = normalizeKey(jobTitle)
+
+    if (!department || !wanted) return null
+
+    const sources = [
+      department.jobs,
+      department.job_titles,
+      department.positions,
+      department.postes,
+      department.roles
+    ].filter(Boolean)
+
+    for (const source of sources) {
+      if (Array.isArray(source)) {
+        const match = source.find(item => {
+          if (typeof item === 'string') return normalizeKey(item) === wanted
+
+          if (item && typeof item === 'object') {
+            return normalizeKey(item.name || item.title || item.job_title || item.poste || item.position) === wanted
+          }
+
+          return false
+        })
+
+        if (match && typeof match === 'object') return match
+      }
+
+      if (source && typeof source === 'object') {
+        const key = Object.keys(source).find(name => normalizeKey(name) === wanted)
+        if (key) return source[key]
+      }
+    }
+
+    return null
+  }
+
+  function getTemplateGroups(departmentName, jobTitle = '') {
+    const department = findDepartmentTemplate(departmentName)
+    const job = findJobTemplate(departmentName, jobTitle)
+
+    const groups = [
+      ...getGroupFields(department),
+      ...getGroupFields(job)
+    ]
+
+    return Array.from(new Set(groups)).join('\n')
+  }
+
+
+  const aliases = {
+    first_name: ['prenom', 'prénom', 'first_name', 'firstname', 'given_name', 'givenname'],
+    last_name: ['nom', 'last_name', 'lastname', 'surname', 'family_name', 'familyname'],
+    department: ['service', 'departement', 'département', 'department', 'equipe', 'équipe'],
+    job_title: ['poste', 'fonction', 'job_title', 'jobtitle', 'position', 'role', 'rôle'],
+    manager: ['manager', 'responsable', 'manager_name', 'managername'],
+    start_date: ['date_debut', 'date début', 'date_arrivee', 'date arrivée', 'start_date', 'startdate'],
+    manual_groups: ['groupes', 'groupes_ad', 'ad_groups', 'groups', 'manual_groups', 'groupes manuels']
+  }
+
+  function normalizeKey(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+  }
+
+  function parseCsvLine(line, delimiter) {
+    const values = []
+    let current = ''
+    let inQuotes = false
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i]
+      const next = line[i + 1]
+
+      if (char === '"' && inQuotes && next === '"') {
+        current += '"'
+        i += 1
+        continue
+      }
+
+      if (char === '"') {
+        inQuotes = !inQuotes
+        continue
+      }
+
+      if (char === delimiter && !inQuotes) {
+        values.push(current.trim())
+        current = ''
+        continue
+      }
+
+      current += char
+    }
+
+    values.push(current.trim())
+    return values
+  }
+
+  function detectDelimiter(firstLine) {
+    const candidates = [';', ',', '\t']
+    return candidates
+      .map(delimiter => ({
+        delimiter,
+        count: firstLine.split(delimiter).length
+      }))
+      .sort((a, b) => b.count - a.count)[0].delimiter
+  }
+
+  function getValue(record, field) {
+    const wanted = new Set(aliases[field].map(normalizeKey))
+
+    for (const [key, value] of Object.entries(record)) {
+      if (wanted.has(normalizeKey(key))) {
+        return value
+      }
+    }
+
+    return ''
+  }
+
+  function splitGroups(value) {
+    return String(value || '')
+      .split(/[,|;]/)
+      .map(group => group.trim())
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  function validateRow(row) {
+    const errors = []
+
+    if (!row.first_name.trim()) errors.push('Prénom manquant')
+    if (!row.last_name.trim()) errors.push('Nom manquant')
+    if (!row.department.trim()) errors.push('Service manquant')
+    if (!row.job_title.trim()) errors.push('Poste manquant')
+
+    return errors
+  }
+
+  function parseCsvImport() {
+    setParseError('')
+    setReport(null)
+
+    const cleanText = csvText.trim()
+
+    if (!cleanText) {
+      setParseError('Colle un CSV ou sélectionne un fichier avant analyse.')
+      setRows([])
+      return
+    }
+
+    const lines = cleanText
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean)
+
+    if (lines.length < 2) {
+      setParseError('Le CSV doit contenir une ligne d’en-têtes et au moins une ligne employé.')
+      setRows([])
+      return
+    }
+
+    const delimiter = detectDelimiter(lines[0])
+    const csvHeaders = parseCsvLine(lines[0], delimiter)
+
+    const parsedRows = lines.slice(1).map((line, index) => {
+      const values = parseCsvLine(line, delimiter)
+      const record = {}
+
+      csvHeaders.forEach((header, headerIndex) => {
+        record[header] = values[headerIndex] || ''
+      })
+
+      const row = {
+        id: `csv-${Date.now()}-${index}`,
+        line: index + 2,
+        first_name: getValue(record, 'first_name'),
+        last_name: getValue(record, 'last_name'),
+        department: getValue(record, 'department'),
+        job_title: getValue(record, 'job_title'),
+        manager: getValue(record, 'manager'),
+        start_date: getValue(record, 'start_date'),
+        manual_groups: splitGroups(getValue(record, 'manual_groups')),
+        raw: record,
+        errors: [],
+        warning: ''
+      }
+
+      row.errors = validateRow(row)
+      return row
+    })
+
+    setHeaders(csvHeaders)
+    setRows(parsedRows)
+    setMessage(`${parsedRows.length} ligne(s) CSV analysée(s).`)
+  }
+
+  function updateRow(index, field, value) {
+    setRows(currentRows => currentRows.map((row, rowIndex) => {
+      if (rowIndex !== index) return row
+
+      const updated = {
+        ...row,
+        [field]: value,
+        warning: ''
+      }
+
+      if (field === 'department') {
+        const jobs = getDepartmentJobs(value)
+        const currentJobStillValid = jobs.some(job => normalizeKey(job) === normalizeKey(updated.job_title))
+
+        if (jobs.length > 0 && !currentJobStillValid) {
+          updated.job_title = jobs[0]
+        }
+
+        const groupsFromTemplate = getTemplateGroups(value, updated.job_title)
+
+        updated.manual_groups = groupsFromTemplate || ''
+        updated.warning = groupsFromTemplate
+          ? ''
+          : 'Aucun groupe trouvé pour ce service/poste'
+      }
+
+      if (field === 'job_title') {
+        const groupsFromTemplate = getTemplateGroups(updated.department, value)
+
+        updated.manual_groups = groupsFromTemplate || ''
+        updated.warning = groupsFromTemplate
+          ? ''
+          : 'Aucun groupe trouvé pour ce service/poste'
+      }
+
+      updated.errors = validateRow(updated)
+      return updated
+    }))
+  }
+
+  function removeRow(index) {
+    setRows(currentRows => currentRows.filter((_, rowIndex) => rowIndex !== index))
+  }
+
+  async function importValidRows() {
+    if (validRows.length === 0) {
+      setMessage('Aucune ligne valide à importer.')
+      return
+    }
+
+    setImporting(true)
+    setReport(null)
+
+    const results = []
+
+    for (const row of validRows) {
+      const payload = {
+        first_name: row.first_name.trim(),
+        last_name: row.last_name.trim(),
+        department: row.department.trim(),
+        job_title: row.job_title.trim(),
+        manager: row.manager.trim(),
+        start_date: row.start_date.trim(),
+        manual_groups: row.manual_groups
+          .split('\n')
+          .map(group => group.trim())
+          .filter(Boolean)
+      }
+
+      try {
+        const created = await apiFetch('/api/onboarding/request', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        })
+
+        results.push({
+          ok: true,
+          name: `${row.first_name} ${row.last_name}`,
+          id: created.id || created.request_id || ''
+        })
+      } catch (error) {
+        results.push({
+          ok: false,
+          name: `${row.first_name} ${row.last_name}`,
+          error: error.message
+        })
+      }
+    }
+
+    const successCount = results.filter(result => result.ok).length
+    const failedCount = results.length - successCount
+
+    setReport({
+      successCount,
+      failedCount,
+      results
+    })
+
+    await loadRequests(true)
+    setMessage(`${successCount} demande(s) importée(s), ${failedCount} erreur(s).`)
+    setImporting(false)
+  }
+
+  function downloadCsvTemplate() {
+    const escapeCsv = (value) => {
+      const text = String(value ?? '')
+      return `"${text.replaceAll('"', '""')}"`
+    }
+
+    const headers = [
+      'prenom',
+      'nom',
+      'service',
+      'poste',
+      'manager',
+      'date_debut',
+      'groupes'
+    ]
+
+    const templateRows = []
+
+    for (const departmentName of departmentOptions) {
+      const jobs = getDepartmentJobs(departmentName)
+
+      if (jobs.length === 0) {
+        templateRows.push([
+          'Prenom',
+          'Nom',
+          departmentName,
+          '',
+          'Manager',
+          '2026-07-20',
+          getTemplateGroups(departmentName, '')
+            .split('\n')
+            .filter(Boolean)
+            .join(',')
+        ])
+
+        continue
+      }
+
+      for (const jobTitle of jobs) {
+        templateRows.push([
+          'Prenom',
+          'Nom',
+          departmentName,
+          jobTitle,
+          'Manager',
+          '2026-07-20',
+          getTemplateGroups(departmentName, jobTitle)
+            .split('\n')
+            .filter(Boolean)
+            .join(',')
+        ])
+      }
+    }
+
+    if (templateRows.length === 0) {
+      templateRows.push([
+        'Jean',
+        'Dupont',
+        'Support',
+        'Technicien helpdesk',
+        'Nina Moreau',
+        '2026-07-20',
+        'GG_M365_Standard,GG_VPN_Users'
+      ])
+    }
+
+    const csv = '\ufeff' + [
+      headers.map(escapeCsv).join(';'),
+      ...templateRows.map(row => row.map(escapeCsv).join(';'))
+    ].join('\r\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 10)
+
+    link.href = url
+    link.download = `modele-import-onboarding-${timestamp}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setMessage('Modèle CSV téléchargé.')
+  }
+
+  async function readCsvFile(event) {
+    const file = event.target.files?.[0]
+
+    if (!file) return
+
+    const text = await file.text()
+    setCsvText(text)
+    setRows([])
+    setReport(null)
+    setParseError('')
+  }
+
+  return (
+    <div className="csv-import-page">
+      <section className="card csv-import-intro">
+        <div>
+          <h2>Import CSV onboarding en masse</h2>
+          <p>
+            Importe plusieurs collaborateurs, vérifie les lignes, modifie les groupes si besoin,
+            puis crée les demandes onboarding dans le workflow normal.
+          </p>
+        </div>
+
+        <div className="csv-import-format">
+          <strong>Colonnes reconnues</strong>
+          <span>prenom / nom / service / poste / manager / date_debut / groupes</span>
+        </div>
+      </section>
+
+      <section className="card csv-import-panel">
+        <div className="section-header">
+          <div>
+            <h2>Source CSV</h2>
+            <p>Colle le contenu CSV ou sélectionne un fichier.</p>
+          </div>
+
+          <div className="csv-source-actions">
+            <button
+              type="button"
+              className="csv-template-button"
+              onClick={downloadCsvTemplate}
+            >
+              Télécharger modèle CSV
+            </button>
+
+            <label className="csv-file-button">
+              Choisir un CSV
+              <input type="file" accept=".csv,text/csv" onChange={readCsvFile} />
+            </label>
+          </div>
+        </div>
+
+        <textarea
+          className="csv-import-textarea"
+          value={csvText}
+          onChange={(event) => setCsvText(event.target.value)}
+          placeholder={`prenom;nom;service;poste;manager;date_debut;groupes
+Lucas;Martin;Comptabilité;Assistant comptable;Marie Dupont;2026-07-15;GG_Compta_Read,GG_M365_Standard
+Emma;Durand;Support;Technicien helpdesk;Nina Moreau;2026-07-16;GG_M365_Standard`}
+        />
+
+        {parseError && <div className="csv-import-error">{parseError}</div>}
+
+        <div className="csv-import-actions">
+          <button type="button" onClick={parseCsvImport}>
+            Analyser CSV
+          </button>
+
+          {rows.length > 0 && (
+            <button
+              type="button"
+              className="csv-import-create-button"
+              disabled={importing || validRows.length === 0}
+              onClick={importValidRows}
+            >
+              {importing ? 'Import en cours...' : `Créer ${validRows.length} demande(s)`}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {rows.length > 0 && (
+        <section className="card csv-import-preview">
+          <div className="section-header">
+            <div>
+              <h2>Prévisualisation avant import</h2>
+              <p>
+                {validRows.length} ligne(s) valide(s), {invalidRows.length} ligne(s) à corriger.
+              </p>
+            </div>
+
+            <div className="csv-import-badges">
+              <span>{rows.length} ligne(s)</span>
+              <span>{headers.length} colonne(s)</span>
+            </div>
+          </div>
+
+          <div className="csv-import-table-wrapper">
+            <table className="csv-import-table">
+              <thead>
+                <tr>
+                  <th>Ligne</th>
+                  <th>Prénom</th>
+                  <th>Nom</th>
+                  <th>Service</th>
+                  <th>Poste</th>
+                  <th>Manager</th>
+                  <th>Date début</th>
+                  <th>Groupes AD</th>
+                  <th>État</th>
+                  <th></th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {rows.map((row, index) => (
+                  <tr key={row.id} className={row.errors.length ? 'csv-row-invalid' : ''}>
+                    <td>{row.line}</td>
+                    <td>
+                      <input value={row.first_name} onChange={(event) => updateRow(index, 'first_name', event.target.value)} />
+                    </td>
+                    <td>
+                      <input value={row.last_name} onChange={(event) => updateRow(index, 'last_name', event.target.value)} />
+                    </td>
+                    <td>
+                      <select
+                        className="csv-service-select"
+                        value={row.department}
+                        onChange={(event) => updateRow(index, 'department', event.target.value)}
+                      >
+                        {!departmentOptions.includes(row.department) && row.department && (
+                          <option value={row.department}>{row.department} — CSV</option>
+                        )}
+
+                        <option value="">Choisir un service</option>
+
+                        {departmentOptions.map(departmentName => (
+                          <option key={departmentName} value={departmentName}>
+                            {departmentName}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="csv-job-select"
+                        value={row.job_title}
+                        onChange={(event) => updateRow(index, 'job_title', event.target.value)}
+                      >
+                        {!getDepartmentJobs(row.department).some(job => normalizeKey(job) === normalizeKey(row.job_title)) && row.job_title && (
+                          <option value={row.job_title}>{row.job_title} — CSV</option>
+                        )}
+
+                        <option value="">Choisir un poste</option>
+
+                        {getDepartmentJobs(row.department).map(jobTitle => (
+                          <option key={jobTitle} value={jobTitle}>
+                            {jobTitle}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input value={row.manager} onChange={(event) => updateRow(index, 'manager', event.target.value)} />
+                    </td>
+                    <td>
+                      <input value={row.start_date} onChange={(event) => updateRow(index, 'start_date', event.target.value)} />
+                    </td>
+                    <td>
+                      <textarea value={row.manual_groups} onChange={(event) => updateRow(index, 'manual_groups', event.target.value)} />
+                    </td>
+                    <td>
+                      {row.errors.length === 0 && !row.warning ? (
+                        <span className="csv-status-ok">Valide</span>
+                      ) : row.warning ? (
+                        <span className="csv-status-warning">{row.warning}</span>
+                      ) : (
+                        <span className="csv-status-error">{row.errors.join(', ')}</span>
+                      )}
+                    </td>
+                    <td>
+                      <button type="button" className="csv-remove-row-button" onClick={() => removeRow(index)}>
+                        Retirer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {report && (
+        <section className="card csv-import-report">
+          <h2>Rapport d’import</h2>
+          <p>{report.successCount} demande(s) créée(s), {report.failedCount} erreur(s).</p>
+
+          <div className="csv-report-list">
+            {report.results.map((result, index) => (
+              <div key={`${result.name}-${index}`} className={result.ok ? 'csv-report-ok' : 'csv-report-error'}>
+                <strong>{result.name}</strong>
+                <span>{result.ok ? `Créée ${result.id ? `(${result.id})` : ''}` : result.error}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
 
 
 function BackToTopButton({ page }) {
@@ -1188,6 +1883,7 @@ function App() {
           <button className={page === 'overview' ? 'active' : ''} onClick={() => setPage('overview')}>Vue générale</button>
           <button className={page === 'requests' ? 'active' : ''} onClick={() => setPage('requests')}>Demandes</button>
           <button className={page === 'newRequest' ? 'active' : ''} onClick={() => setPage('newRequest')}>Nouvelle demande</button>
+<button className={page === 'csvImport' ? 'active' : ''} onClick={() => setPage('csvImport')}>Import CSV</button>
           <button className={page === 'offboarding' ? 'active' : ''} onClick={() => setPage('offboarding')}>Offboarding</button>
           <button className={page === 'modification' ? 'active' : ''} onClick={() => setPage('modification')}>Modification</button>
           <button className={page === 'templates' ? 'active' : ''} onClick={() => setPage('templates')}>Templates</button>
@@ -1441,6 +2137,15 @@ function App() {
               roles={roles}
               preview={preview}
               createRequest={createRequest}
+            />
+          )}
+
+          {page === 'csvImport' && (
+            <CsvImportPage
+              apiFetch={apiFetch}
+              loadRequests={loadRequests}
+              setMessage={setMessage}
+              templates={templates}
             />
           )}
 
