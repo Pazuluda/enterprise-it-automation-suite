@@ -1190,6 +1190,27 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
     return labels[numericCode] || `Code ${code}`
   }
 
+
+  function getAgentHistoryActionLabel(action) {
+    const labels = {
+      agent_processing_paused: 'Pause activée',
+      agent_processing_resumed: 'Traitement repris',
+      agent_interval_updated: 'Fréquence modifiée'
+    }
+
+    return labels[action] || action || '-'
+  }
+
+  function getAgentHistoryActorLabel(actor) {
+    const labels = {
+      'react-admin': 'Portail admin',
+      api: 'API',
+      agent: 'Agent Windows'
+    }
+
+    return labels[actor] || actor || '-'
+  }
+
   return (
     <div className="agent-ops-page">
       <section className={`agent-ops-hero ${lastSuccess ? 'ok' : 'error'}`}>
@@ -1410,8 +1431,8 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
               </div>
 
               <div className="agent-history-meta">
-                <small>{log.action}</small>
-                <small>{log.actor || '-'}</small>
+                <small>{getAgentHistoryActionLabel(log.action)}</small>
+                <small>{getAgentHistoryActorLabel(log.actor)}</small>
               </div>
 
               <div className="agent-history-details">
