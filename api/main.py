@@ -687,6 +687,34 @@ def create_ad_check_job(payload: dict = Body(...), api_key: None = Depends(requi
     }
 
 
+
+
+@app.get("/api/ad-check/jobs")
+def list_ad_check_jobs(limit: int = 200, api_key: None = Depends(require_api_key)):
+    jobs = load_json(AD_CHECK_JOBS_FILE, [])
+
+    try:
+        safe_limit = int(limit)
+    except (TypeError, ValueError):
+        safe_limit = 200
+
+    safe_limit = max(1, min(safe_limit, 1000))
+
+    sorted_jobs = sorted(
+        jobs,
+        key=lambda job: job.get("created_at") or "",
+        reverse=True
+    )
+
+    selected_jobs = sorted_jobs[:safe_limit]
+
+    return {
+        "count": len(jobs),
+        "returned": len(selected_jobs),
+        "jobs": selected_jobs
+    }
+
+
 @app.get("/api/ad-check/jobs/{job_id}")
 def get_ad_check_job(job_id: str, api_key: None = Depends(require_api_key)):
     jobs = load_json(AD_CHECK_JOBS_FILE, [])

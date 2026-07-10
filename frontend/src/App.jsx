@@ -72,6 +72,11 @@ const PAGES = {
 
   },
 
+  adChecks: {
+    title: 'Contrôles AD',
+    subtitle: 'Historique des contrôles Active Directory lancés depuis le portail.'
+  },
+
   settings: {
     title: 'Paramètres',
     subtitle: 'Connexion API et configuration locale.'
@@ -1307,6 +1312,8 @@ function App() {
     error: ''
   })
 
+  const [adCheckJobs, setAdCheckJobs] = useState([])
+
   const [form, setForm] = useState({
     first_name: 'Emma',
     last_name: 'Durand',
@@ -1462,9 +1469,13 @@ function App() {
       loadAgentStatus()
       loadAgentConfig()
 
-      if (page === 'audit' || page === 'agentOps') {
+      if (page === 'audit' || page === 'agentOps' || page === 'adChecks') {
         loadAuditLogs(true)
         loadAgentHistory()
+      }
+
+      if (page === 'adChecks') {
+        loadAdCheckJobs(true)
       }
 
       if (page === 'templates' || page === 'newRequest' || page === 'offboarding' || page === 'modification') {
@@ -1716,6 +1727,23 @@ function App() {
       })
 
       if (!silent) setMessage('Templates rechargés.')
+    } catch (error) {
+      if (!silent) setMessage(error.message)
+    }
+  }
+
+  async function loadAdCheckJobs(silent = false) {
+    try {
+      const data = await apiFetch('/api/ad-check/jobs?limit=300')
+      const jobs = Array.isArray(data)
+        ? data
+        : data.jobs || data.items || []
+
+      setAdCheckJobs(jobs)
+
+      if (!silent) {
+        setMessage('Contrôles AD rechargés.')
+      }
     } catch (error) {
       if (!silent) setMessage(error.message)
     }
@@ -2436,6 +2464,72 @@ Write-Host "============================================================"
     return job
   }
 
+  async function openAdCheckJobFromHistory(job) {
+    const jobId = job?.id
+
+    if (!jobId) {
+      setMessage('Job contrôle AD introuvable.')
+      return
+    }
+
+    setAdCheckTerminal({
+      open: true,
+      jobId,
+      status: job.status || '',
+      message: job.message || 'Chargement du contrôle AD...',
+      output: job.output || 'Chargement du résultat...',
+      summary: job.summary || null,
+      loading: ['pending', 'processing'].includes(String(job.status || '').toLowerCase()),
+      error: ''
+    })
+
+    try {
+      await refreshAdCheckJob(jobId)
+    } catch (error) {
+      setAdCheckTerminal(current => ({
+        ...current,
+        loading: false,
+        error: error.message || 'Erreur chargement contrôle AD'
+      }))
+    }
+  }
+
+  function copyAdCheckJobOutput(job) {
+    const text = job?.output || ''
+
+    if (!text) {
+      setMessage('Aucun résultat à copier pour ce contrôle AD.')
+      return
+    }
+
+    navigator.clipboard.writeText(text)
+    setMessage('Résultat contrôle AD copié.')
+  }
+
+  function downloadAdCheckJobOutput(job) {
+    const text = job?.output || ''
+
+    if (!text) {
+      setMessage('Aucun résultat à télécharger pour ce contrôle AD.')
+      return
+    }
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-controle-ad-resultat-${job.id || 'job'}-${timestamp}.txt`
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setMessage('Résultat contrôle AD téléchargé.')
+  }
+
   async function pollAdCheckJob(jobId) {
     for (let attempt = 0; attempt < 60; attempt += 1) {
       const job = await refreshAdCheckJob(jobId)
@@ -2508,6 +2602,7 @@ Write-Host "============================================================"
       setMessage(`Contrôle AD lancé pour ${requestIds.length} demande(s).`)
 
       await pollAdCheckJob(job.id)
+      await loadAdCheckJobs(true)
     } catch (error) {
       setAdCheckTerminal(current => ({
         ...current,
@@ -2716,6 +2811,7 @@ Write-Host "============================================================"
     await loadRequests()
     loadAgentStatus()
     await loadAuditLogs()
+    await loadAdCheckJobs(true)
     await testApi()
   }
 
@@ -3070,6 +3166,7 @@ Write-Host "============================================================"
       loadTemplates()
       loadRequests()
       loadAuditLogs()
+      loadAdCheckJobs(true)
     }
   }, [])
 
@@ -3111,6 +3208,20 @@ Write-Host "============================================================"
           <button className={page === 'templates' ? 'active' : ''} onClick={() => setPage('templates')}>Templates</button>
           <button className={page === 'audit' ? 'active' : ''} onClick={() => setPage('audit')}>Audit logs</button>
           <button className={page === 'agentOps' ? 'active' : ''} onClick={() => setPage('agentOps')}>Exploitation agent</button>
+
+            <button
+
+              type="button"
+
+              className={page === 'adChecks' ? 'active' : ''}
+
+              onClick={() => setPage('adChecks')}
+
+            >
+
+              Contrôles AD
+
+            </button>
           <button className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}>Paramètres</button>
         </nav>
 
@@ -3443,6 +3554,16 @@ Write-Host "============================================================"
 
           {page === 'agentOps' && (
             <AgentOperationsPage requests={requests} agentStatus={agentStatus} agentConfig={agentConfig} loadAgentStatus={loadAgentStatus} loadAgentConfig={loadAgentConfig} updateAgentInterval={updateAgentInterval} updateAgentPause={updateAgentPause} agentHistory={agentHistory} loadAgentHistory={loadAgentHistory} />
+          )}
+
+          {page === 'adChecks' && (
+            <AdChecksPage
+              jobs={adCheckJobs}
+              loadAdCheckJobs={loadAdCheckJobs}
+              openAdCheckJobFromHistory={openAdCheckJobFromHistory}
+              copyAdCheckJobOutput={copyAdCheckJobOutput}
+              downloadAdCheckJobOutput={downloadAdCheckJobOutput}
+            />
           )}
 
           {page === 'settings' && (
@@ -4375,6 +4496,146 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
       </section>
       </div>
 
+    </div>
+  )
+}
+
+
+function AdChecksPage({
+  jobs,
+  loadAdCheckJobs,
+  openAdCheckJobFromHistory,
+  copyAdCheckJobOutput,
+  downloadAdCheckJobOutput
+}) {
+  const safeJobs = Array.isArray(jobs) ? jobs : []
+
+  const stats = {
+    total: safeJobs.length,
+    completed: safeJobs.filter(job => job.status === 'completed').length,
+    failed: safeJobs.filter(job => job.status === 'failed').length,
+    running: safeJobs.filter(job => ['pending', 'processing'].includes(String(job.status || '').toLowerCase())).length,
+    warnings: safeJobs.reduce((total, job) => total + Number(job.summary?.warnings || 0), 0)
+  }
+
+  function formatDate(value) {
+    if (!value) return '-'
+
+    const date = new Date(value)
+
+    if (Number.isNaN(date.getTime())) {
+      return value
+    }
+
+    return date.toLocaleString('fr-FR')
+  }
+
+  function statusLabel(status) {
+    const value = String(status || '').toLowerCase()
+
+    if (value === 'completed') return 'Terminé'
+    if (value === 'failed') return 'Échec'
+    if (value === 'processing') return 'En cours'
+    if (value === 'pending') return 'En attente'
+
+    return status || 'Inconnu'
+  }
+
+  return (
+    <div className="ad-check-history-page">
+      <section className="ad-check-history-kpis">
+        <div>
+          <span>Total</span>
+          <strong>{stats.total}</strong>
+        </div>
+
+        <div>
+          <span>Terminés</span>
+          <strong>{stats.completed}</strong>
+        </div>
+
+        <div>
+          <span>En cours</span>
+          <strong>{stats.running}</strong>
+        </div>
+
+        <div>
+          <span>Échecs</span>
+          <strong>{stats.failed}</strong>
+        </div>
+
+        <div>
+          <span>Warnings</span>
+          <strong>{stats.warnings}</strong>
+        </div>
+      </section>
+
+      <section className="panel">
+        <PanelHeader
+          title="Historique des contrôles AD"
+          subtitle="Tous les contrôles Active Directory lancés depuis le portail."
+          action={<button type="button" className="secondary" onClick={() => loadAdCheckJobs()}>Recharger</button>}
+        />
+
+        <div className="ad-check-history-list">
+          {safeJobs.length === 0 && (
+            <div className="empty-dashboard-state">
+              <strong>Aucun contrôle AD</strong>
+              <span>Lance un contrôle depuis la page Demandes pour alimenter l’historique.</span>
+            </div>
+          )}
+
+          {safeJobs.map(job => {
+            const summary = job.summary || {}
+            const status = String(job.status || 'unknown').toLowerCase()
+
+            return (
+              <article className="ad-check-history-card" key={job.id}>
+                <div className="ad-check-history-card-main">
+                  <div>
+                    <div className="ad-check-history-title">
+                      <span className={`ad-check-history-dot ${status}`} />
+                      <strong>{statusLabel(job.status)}</strong>
+                    </div>
+
+                    <p>{job.message || 'Contrôle AD'}</p>
+
+                    <small>
+                      {formatDate(job.created_at)}
+                      {job.claimed_by ? ` · Agent ${job.claimed_by}` : ''}
+                      {job.completed_at ? ` · Terminé ${formatDate(job.completed_at)}` : ''}
+                    </small>
+                  </div>
+
+                  <code>{job.id}</code>
+                </div>
+
+                <div className="ad-check-history-summary">
+                  <span>Contrôlées <strong>{summary.checked ?? job.selected_count ?? '-'}</strong></span>
+                  <span>Trouvés <strong>{summary.found ?? '-'}</strong></span>
+                  <span>Introuvables <strong>{summary.missing ?? '-'}</strong></span>
+                  <span>OU OK <strong>{summary.ou_ok ?? '-'}</strong></span>
+                  <span>Warnings <strong>{summary.warnings ?? '-'}</strong></span>
+                </div>
+
+                <div className="ad-check-history-actions">
+                  <button type="button" onClick={() => openAdCheckJobFromHistory(job)}>
+                    Ouvrir résultat
+                  </button>
+
+                  <button type="button" onClick={() => copyAdCheckJobOutput(job)}>
+                    Copier
+                  </button>
+
+                  <button type="button" onClick={() => downloadAdCheckJobOutput(job)}>
+                    Télécharger TXT
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      </section>
     </div>
   )
 }

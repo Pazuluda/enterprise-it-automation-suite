@@ -7634,3 +7634,206 @@ table tbody td {
     margin-right: 14px !important;
   }
 }
+
+/* ========================================================= */
+/* === EITAS AD check history page ========================= */
+/* ========================================================= */
+
+.ad-check-history-page {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+}
+
+.ad-check-history-kpis {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.ad-check-history-kpis > div {
+  padding: 16px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+
+  border-radius: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.ad-check-history-kpis span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.ad-check-history-kpis strong {
+  color: #0f172a !important;
+  font-size: 22px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.03em !important;
+}
+
+.ad-check-history-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.ad-check-history-card {
+  padding: 16px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+
+  border-radius: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-check-history-card-main {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.ad-check-history-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+}
+
+.ad-check-history-title strong {
+  color: #0f172a !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+}
+
+.ad-check-history-card p {
+  margin: 5px 0 !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+}
+
+.ad-check-history-card small {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+.ad-check-history-card code {
+  max-width: 340px !important;
+  padding: 7px 9px !important;
+
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+
+  font-size: 11px !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-check-history-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: #94a3b8 !important;
+}
+
+.ad-check-history-dot.completed {
+  background: #16a34a !important;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12) !important;
+}
+
+.ad-check-history-dot.failed {
+  background: #dc2626 !important;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12) !important;
+}
+
+.ad-check-history-dot.pending,
+.ad-check-history-dot.processing {
+  background: #f59e0b !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12) !important;
+}
+
+.ad-check-history-summary {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.ad-check-history-summary span {
+  padding: 10px 12px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.ad-check-history-summary strong {
+  color: #0f172a !important;
+  font-weight: 950 !important;
+}
+
+.ad-check-history-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.ad-check-history-actions button {
+  min-height: 34px !important;
+  padding: 0 12px !important;
+
+  border-radius: 10px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.ad-check-history-actions button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #1e1b4b !important;
+}
+
+@media (max-width: 900px) {
+  .ad-check-history-kpis,
+  .ad-check-history-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .ad-check-history-card-main {
+    flex-direction: column !important;
+  }
+
+  .ad-check-history-card code {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .ad-check-history-kpis,
+  .ad-check-history-summary {
+    grid-template-columns: 1fr !important;
+  }
+}
