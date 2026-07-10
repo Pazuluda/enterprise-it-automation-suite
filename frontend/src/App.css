@@ -6875,3 +6875,17 @@ table tbody td {
     justify-content: flex-start !important;
   }
 }
+
+/* ========================================================= */
+/* === EITAS Requests - bulk AD check export =============== */
+/* ========================================================= */
+
+.selection-ad-check-button {
+  color: #5b21b6 !important;
+  border-color: #c4b5fd !important;
+}
+
+.selection-ad-check-button:hover {
+  background: #f5f3ff !important;
+  border-color: #8b5cf6 !important;
+}

@@ -2078,6 +2078,289 @@ function App() {
     exportFilteredRequestsCsv(selectedRequests)
   }
 
+  function sanitizeBulkAdCheckFileName(value) {
+    return String(value || 'selection')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'selection'
+  }
+
+  function escapePowerShellSingleQuotedValue(value) {
+    return String(value ?? '').replaceAll("'", "''")
+  }
+
+  function getBulkAdCheckItem(request) {
+    const payload = request.ad_payload || {}
+    const result = request.agent_result || request.result || {}
+    const details = result.details || result.data || {}
+    const requestId = findRequestIdForBulkAction(request)
+
+    const username = payload.username || payload.sam_account_name || payload.sam || details.username || details.sam_account_name || ''
+    const displayName = payload.display_name || payload.full_name || payload.name || details.display_name || details.full_name || ''
+    const expectedOu = payload.target_ou || payload.ou || payload.ou_path || payload.organizational_unit || details.target_ou || details.ou || details.ou_path || ''
+    const type = request.type || request.request_type || payload.type || details.type || ''
+    const status = request.status || ''
+
+    const modeText = [
+      result.mode,
+      details.mode,
+      payload.mode,
+      request.mode
+    ].filter(Boolean).join(' ').toLowerCase()
+
+    const simulated = Boolean(
+      details.simulated === true ||
+      details.simulation === true ||
+      payload.simulated === true ||
+      payload.simulation === true ||
+      modeText.includes('simulation')
+    )
+
+    return {
+      id: requestId,
+      type,
+      status,
+      username,
+      displayName,
+      expectedOu,
+      simulated
+    }
+  }
+
+  function buildBulkAdCheckPowerShellScript(sourceRequests) {
+    const items = sourceRequests.map(getBulkAdCheckItem)
+
+    const psItems = items.map(item => {
+      return `  @{
+    Id = '${escapePowerShellSingleQuotedValue(item.id)}'
+    Type = '${escapePowerShellSingleQuotedValue(item.type)}'
+    Status = '${escapePowerShellSingleQuotedValue(item.status)}'
+    Sam = '${escapePowerShellSingleQuotedValue(item.username)}'
+    DisplayName = '${escapePowerShellSingleQuotedValue(item.displayName)}'
+    ExpectedOu = '${escapePowerShellSingleQuotedValue(item.expectedOu)}'
+    Simulated = ${item.simulated ? '$true' : '$false'}
+  }`
+    }).join(",\n")
+
+    return `# EITAS - Controle AD en masse
+# Genere depuis le portail React
+# Date : ${new Date().toISOString()}
+
+Import-Module ActiveDirectory -ErrorAction Stop
+
+$Requests = @(
+${psItems}
+)
+
+$Properties = @(
+  'SamAccountName',
+  'DisplayName',
+  'Enabled',
+  'mail',
+  'Department',
+  'Title',
+  'Description',
+  'DistinguishedName',
+  'WhenCreated',
+  'WhenChanged',
+  'LastLogonDate'
+)
+
+function Escape-AdFilterValue {
+  param([string]$Value)
+
+  if ($null -eq $Value) {
+    return ''
+  }
+
+  return $Value -replace "'", "''"
+}
+
+$FoundCount = 0
+$MissingCount = 0
+$OkOuCount = 0
+$WarningCount = 0
+$Index = 0
+
+Write-Host ""
+Write-Host "============================================================"
+Write-Host "EITAS - CONTROLE AD EN MASSE"
+Write-Host "Demandes a controler : $($Requests.Count)"
+Write-Host "============================================================"
+
+foreach ($Item in $Requests) {
+  $Index += 1
+  $User = $null
+  $FoundVia = ''
+
+  Write-Host ""
+  Write-Host "------------------------------------------------------------"
+  Write-Host ("DEMANDE {0}/{1}" -f $Index, $Requests.Count)
+  Write-Host "------------------------------------------------------------"
+  Write-Host "ID demande        : $($Item.Id)"
+  Write-Host "Type              : $($Item.Type)"
+  Write-Host "Statut portail    : $($Item.Status)"
+  Write-Host "SamAccountName    : $($Item.Sam)"
+  Write-Host "Nom attendu       : $($Item.DisplayName)"
+  Write-Host "OU attendue       : $($Item.ExpectedOu)"
+  Write-Host "Simulation        : $($Item.Simulated)"
+
+  if ([string]::IsNullOrWhiteSpace($Item.Sam) -and [string]::IsNullOrWhiteSpace($Item.DisplayName)) {
+    Write-Host "DONNEES INSUFFISANTES : aucun login ni nom pour rechercher l'utilisateur." -ForegroundColor Yellow
+    $MissingCount += 1
+    continue
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($Item.Sam)) {
+    try {
+      $User = Get-ADUser -Identity $Item.Sam -Properties $Properties -ErrorAction Stop
+      $FoundVia = 'Identity'
+    } catch {
+      Write-Host "Introuvable par Identity, recherche alternative..."
+    }
+  }
+
+  if (-not $User) {
+    $Conditions = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($Item.Sam)) {
+      $FilterSam = Escape-AdFilterValue $Item.Sam
+      $Conditions += "SamAccountName -eq '$FilterSam'"
+      $Conditions += "UserPrincipalName -like '$FilterSam@*'"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Item.DisplayName)) {
+      $FilterName = Escape-AdFilterValue $Item.DisplayName
+      $Conditions += "DisplayName -eq '$FilterName'"
+      $Conditions += "Name -eq '$FilterName'"
+    }
+
+    if ($Conditions.Count -gt 0) {
+      $Filter = $Conditions -join ' -or '
+
+      try {
+        $User = Get-ADUser -Filter $Filter -Properties $Properties | Select-Object -First 1
+
+        if ($User) {
+          $FoundVia = 'Recherche alternative'
+        }
+      } catch {
+        Write-Host "Recherche alternative impossible : $($_.Exception.Message)" -ForegroundColor Yellow
+      }
+    }
+  }
+
+  if (-not $User) {
+    Write-Host ""
+    Write-Host "UTILISATEUR AD INTROUVABLE" -ForegroundColor Yellow
+    Write-Host "Aucun objet AD trouve pour : $($Item.Sam) / $($Item.DisplayName)"
+
+    if ($Item.Simulated) {
+      Write-Host "INFO : cette demande etait en Simulation." -ForegroundColor Cyan
+      Write-Host "Donc aucun changement AD reel nest attendu pour cette demande." -ForegroundColor Cyan
+    } else {
+      Write-Host "Attention : demande non detectee comme Simulation. Verifier si compte supprime, renomme ou historique." -ForegroundColor Yellow
+    }
+
+    $MissingCount += 1
+    continue
+  }
+
+  $FoundCount += 1
+
+  Write-Host ""
+  Write-Host "UTILISATEUR AD TROUVE" -ForegroundColor Green
+  Write-Host "Trouve via : $FoundVia"
+
+  $User | Select-Object SamAccountName, DisplayName, Enabled, mail, Department, Title, Description, DistinguishedName, WhenCreated, WhenChanged, LastLogonDate | Format-List
+
+  Write-Host "GROUPES AD"
+  try {
+    Get-ADPrincipalGroupMembership -Identity $User.SamAccountName |
+      Sort-Object Name |
+      Select-Object Name |
+      Format-Table -AutoSize
+  } catch {
+    Write-Host "Impossible de lire les groupes : $($_.Exception.Message)" -ForegroundColor Yellow
+    $WarningCount += 1
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($Item.ExpectedOu)) {
+    Write-Host "CONTROLE OU"
+    Write-Host "OU attendue : $($Item.ExpectedOu)"
+    Write-Host "DN actuel   : $($User.DistinguishedName)"
+
+    if ($User.DistinguishedName -like "*,$($Item.ExpectedOu)") {
+      Write-Host "OK : utilisateur dans OU attendue" -ForegroundColor Green
+      $OkOuCount += 1
+    } else {
+      Write-Host "WARNING : utilisateur hors OU attendue" -ForegroundColor Yellow
+      $WarningCount += 1
+    }
+  } else {
+    Write-Host "CONTROLE OU : aucune OU attendue dans la demande."
+  }
+
+  Write-Host "CONTROLE ETAT COMPTE"
+  Write-Host "Enabled actuel : $($User.Enabled)"
+
+  if ($Item.Type -eq 'offboarding') {
+    if (-not $User.Enabled) {
+      Write-Host "OK : compte desactive pour offboarding" -ForegroundColor Green
+    } else {
+      Write-Host "WARNING : compte encore actif pour offboarding" -ForegroundColor Yellow
+      $WarningCount += 1
+    }
+  }
+
+  if ($Item.Type -eq 'onboarding' -or $Item.Type -eq 'modification') {
+    if ($User.Enabled) {
+      Write-Host "OK : compte actif" -ForegroundColor Green
+    } else {
+      Write-Host "WARNING : compte desactive" -ForegroundColor Yellow
+      $WarningCount += 1
+    }
+  }
+}
+
+Write-Host ""
+Write-Host "============================================================"
+Write-Host "RESUME CONTROLE AD EN MASSE"
+Write-Host "Demandes controlees       : $($Requests.Count)"
+Write-Host "Utilisateurs trouves      : $FoundCount"
+Write-Host "Utilisateurs introuvables : $MissingCount"
+Write-Host "OU OK                     : $OkOuCount"
+Write-Host "Warnings                  : $WarningCount"
+Write-Host "============================================================"
+`
+  }
+
+  function downloadSelectedAdCheckPowerShellFile() {
+    if (selectedRequests.length === 0) {
+      setMessage('Aucune demande sélectionnée pour le contrôle AD.')
+      return
+    }
+
+    const script = buildBulkAdCheckPowerShellScript(selectedRequests)
+    const blob = new Blob([script], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-controle-ad-selection-${sanitizeBulkAdCheckFileName(String(selectedRequests.length))}-${timestamp}.ps1`
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setMessage(`${selectedRequests.length} demande(s) exportée(s) en contrôle AD PowerShell.`)
+  }
+
   async function approveSelectedRequests() {
     if (selectedApprovableRequests.length === 0) {
       setMessage('Aucune demande sélectionnée à approuver.')
@@ -2934,6 +3217,7 @@ function App() {
               approveSelectedRequests={approveSelectedRequests}
               retrySelectedRequests={retrySelectedRequests}
               exportSelectedRequestsCsv={exportSelectedRequestsCsv}
+              downloadSelectedAdCheckPowerShellFile={downloadSelectedAdCheckPowerShellFile}
               setPage={setPage}
               setSelectedRequest={setSelectedRequest}
             />
@@ -3891,6 +4175,7 @@ function RequestsPage({
   approveSelectedRequests,
   retrySelectedRequests,
   exportSelectedRequestsCsv,
+  downloadSelectedAdCheckPowerShellFile,
   setSelectedRequest
 }) {
   return (
@@ -3944,6 +4229,10 @@ function RequestsPage({
 
             <button type="button" className="selection-export-button" onClick={exportSelectedRequestsCsv}>
               Export sélection
+            </button>
+
+            <button type="button" className="selection-ad-check-button" onClick={downloadSelectedAdCheckPowerShellFile}>
+              Contrôle AD sélection
             </button>
 
             <button type="button" className="selection-clear-button" onClick={clearRequestSelection}>
