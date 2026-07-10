@@ -8318,3 +8318,63 @@ table tbody td {
     flex-direction: column !important;
   }
 }
+
+/* ========================================================= */
+/* === EITAS grouped sidebar menu ========================== */
+/* ========================================================= */
+
+.grouped-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.nav-section {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+.nav-section-title {
+  margin: 4px 0 3px 10px !important;
+
+  color: rgba(148, 163, 184, 0.95) !important;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+}
+
+.nav-section button {
+  width: 100% !important;
+}
+
+.nav-section + .nav-section {
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+/* ========================================================= */
+/* === EITAS sidebar environment card ====================== */
+/* ========================================================= */
+
+.sidebar-card.production {
+  border-color: rgba(34, 197, 94, 0.35) !important;
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.18), transparent 42%),
+    rgba(15, 23, 42, 0.62) !important;
+}
+
+.sidebar-card.simulation {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+  background:
+    radial-gradient(circle at top left, rgba(245, 158, 11, 0.16), transparent 42%),
+    rgba(15, 23, 42, 0.62) !important;
+}
+
+.agent-mode-mismatch {
+  display: block;
+  margin-top: 8px;
+  color: #92400e;
+  font-weight: 800;
+}
