@@ -28,6 +28,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 AGENT_STATUS_FILE = DATA_DIR / "agent-status.json"
 AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 AD_CHECK_JOBS_FILE = DATA_DIR / "ad-check-jobs.json"
+AD_LOOKUP_JOBS_FILE = DATA_DIR / "ad-lookup-jobs.json"
 
 
 
@@ -189,6 +190,71 @@ def get_default_agent_config():
         "task_name": "EITAS Employee Lifecycle Agent",
         "pause_processing": False,
         "message": "Configuration agent par défaut"
+    }
+
+
+
+
+def normalize_agent_mode(value):
+    raw = str(value or "").strip().lower()
+
+    if raw == "production":
+        return "Production"
+
+    return "Simulation"
+
+
+def load_agent_config_dict():
+    config = load_json(AGENT_CONFIG_FILE, {})
+
+    if not isinstance(config, dict):
+        config = {}
+
+    config["mode"] = normalize_agent_mode(config.get("mode") or config.get("Mode") or "Simulation")
+
+    return config
+
+
+@app.get("/api/agent/mode")
+def get_agent_mode(api_key: None = Depends(require_api_key)):
+    config = load_agent_config_dict()
+
+    return {
+        "mode": config.get("mode", "Simulation"),
+        "source": "api-agent-config",
+        "config": config
+    }
+
+
+@app.post("/api/admin/agent/mode")
+def set_agent_mode(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    requested_mode = payload.get("mode") or payload.get("Mode")
+    mode = normalize_agent_mode(requested_mode)
+
+    config = load_agent_config_dict()
+    old_mode = config.get("mode", "Simulation")
+
+    config["mode"] = mode
+    config["updated_at"] = datetime.utcnow().isoformat() + "Z"
+    config["updated_by"] = payload.get("updated_by") or payload.get("actor") or "react-admin"
+
+    save_json(AGENT_CONFIG_FILE, config)
+
+    write_audit_log(
+        action="agent_mode_updated",
+        actor=config["updated_by"],
+        message=f"Mode agent changé : {old_mode} -> {mode}",
+        details={
+            "old_mode": old_mode,
+            "new_mode": mode,
+            "source": "portal"
+        }
+    )
+
+    return {
+        "message": f"Mode agent défini sur {mode}",
+        "mode": mode,
+        "config": config
     }
 
 
@@ -606,6 +672,172 @@ def get_request_id_from_payload(value):
                 return item.strip()
 
     return ""
+
+
+
+
+@app.post("/api/ad-lookup/jobs")
+def create_ad_lookup_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    query = (
+        payload.get("query")
+        or payload.get("username")
+        or payload.get("sam_account_name")
+        or payload.get("sam")
+        or ""
+    )
+
+    query = str(query).strip()
+    created_by = payload.get("created_by") or "react-admin"
+
+    if not query:
+        raise HTTPException(status_code=400, detail="query est obligatoire")
+
+    job_id = str(uuid4())
+
+    job = {
+        "id": job_id,
+        "type": "ad_lookup",
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "created_by": created_by,
+        "query": query,
+        "claimed_at": None,
+        "claimed_by": None,
+        "completed_at": None,
+        "success": None,
+        "message": "Recherche AD en attente agent",
+        "output": "",
+        "result": None,
+        "details": None
+    }
+
+    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+    jobs.append(job)
+    save_json(AD_LOOKUP_JOBS_FILE, jobs)
+
+    write_audit_log(
+        action="ad_lookup_job_created",
+        request_id=job_id,
+        actor=created_by,
+        message=f"Recherche AD créée pour {query}",
+        details={
+            "job_id": job_id,
+            "query": query
+        }
+    )
+
+    return {
+        "message": "Recherche AD créée",
+        "job": job
+    }
+
+
+@app.get("/api/ad-lookup/jobs/{job_id}")
+def get_ad_lookup_job(job_id: str, api_key: None = Depends(require_api_key)):
+    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+
+    for job in jobs:
+        if job.get("id") == job_id:
+            return job
+
+    raise HTTPException(status_code=404, detail="Job recherche AD introuvable")
+
+
+@app.get("/api/agent/ad-lookup/pending")
+def get_pending_ad_lookup_jobs(api_key: None = Depends(require_api_key)):
+    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+
+    pending = [
+        job for job in jobs
+        if job.get("status") == "pending"
+    ]
+
+    return {
+        "count": len(pending),
+        "jobs": pending
+    }
+
+
+@app.post("/api/agent/ad-lookup/claim/{job_id}")
+def claim_ad_lookup_job(job_id: str, payload: dict = Body(default={}), api_key: None = Depends(require_api_key)):
+    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+
+    for job in jobs:
+        if job.get("id") == job_id:
+            current_status = job.get("status")
+
+            if current_status != "pending":
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Job recherche AD non disponible. Statut actuel : {current_status}"
+                )
+
+            agent_name = payload.get("agent_name") or "unknown-agent"
+
+            job["status"] = "processing"
+            job["claimed_at"] = datetime.utcnow().isoformat() + "Z"
+            job["claimed_by"] = agent_name
+            job["message"] = "Recherche AD en cours sur agent"
+
+            save_json(AD_LOOKUP_JOBS_FILE, jobs)
+
+            write_audit_log(
+                action="ad_lookup_job_claimed",
+                request_id=job_id,
+                actor=agent_name,
+                message="Recherche AD prise en charge par un agent",
+                details={
+                    "job_id": job_id,
+                    "query": job.get("query"),
+                    "status": "processing"
+                }
+            )
+
+            return {
+                "message": "Job recherche AD pris en charge",
+                "job": job
+            }
+
+    raise HTTPException(status_code=404, detail="Job recherche AD introuvable")
+
+
+@app.post("/api/agent/ad-lookup/result/{job_id}")
+def submit_ad_lookup_job_result(job_id: str, payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+
+    for job in jobs:
+        if job.get("id") == job_id:
+            success = bool(payload.get("success"))
+
+            job["status"] = "completed" if success else "failed"
+            job["completed_at"] = datetime.utcnow().isoformat() + "Z"
+            job["success"] = success
+            job["message"] = payload.get("message") or ("Recherche AD terminée" if success else "Recherche AD en erreur")
+            job["output"] = payload.get("output") or ""
+            job["result"] = payload.get("result")
+            job["details"] = payload.get("details")
+            job["agent_name"] = payload.get("agent_name")
+
+            save_json(AD_LOOKUP_JOBS_FILE, jobs)
+
+            write_audit_log(
+                action="ad_lookup_job_completed" if success else "ad_lookup_job_failed",
+                request_id=job_id,
+                actor=payload.get("agent_name") or "agent",
+                message=job["message"],
+                details={
+                    "job_id": job_id,
+                    "query": job.get("query"),
+                    "found": (job.get("result") or {}).get("found")
+                }
+            )
+
+            return {
+                "message": "Résultat recherche AD enregistré",
+                "job_id": job_id
+            }
+
+    raise HTTPException(status_code=404, detail="Job recherche AD introuvable")
 
 
 @app.post("/api/ad-check/jobs")

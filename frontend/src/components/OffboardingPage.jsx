@@ -1,7 +1,7 @@
 import PanelHeader from './PanelHeader.jsx'
 import { Field, PreviewRow } from './FormHelpers.jsx'
 
-export default function OffboardingPage({ requests, form, updateForm, createOffboardingRequest, loadRequestIntoOffboarding }) {
+export default function OffboardingPage({ requests, form, updateForm, createOffboardingRequest, loadRequestIntoOffboarding, runAdLookup, adLookupRunning }) {
   const onboardingUsers = requests
     .filter(request => request.type === 'onboarding' && request.status === 'completed')
     .map(request => request.ad_payload || {})
@@ -42,7 +42,12 @@ export default function OffboardingPage({ requests, form, updateForm, createOffb
 
           <div className="form-grid">
             <Field label="Login">
-              <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
+              <div className="ad-lookup-inline">
+                <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
+                <button type="button" className="ad-lookup-button" onClick={runAdLookup} disabled={adLookupRunning}>
+                  {adLookupRunning ? 'Recherche...' : 'Rechercher dans AD'}
+                </button>
+              </div>
             </Field>
 
             <Field label="Nom affiché">

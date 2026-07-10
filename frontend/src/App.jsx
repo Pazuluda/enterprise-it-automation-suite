@@ -77,6 +77,11 @@ const PAGES = {
     subtitle: 'Historique des contrôles Active Directory lancés depuis le portail.'
   },
 
+  agentMode: {
+    title: 'Mode agent',
+    subtitle: 'Choisir si l’agent Windows travaille en simulation ou en production.'
+  },
+
   settings: {
     title: 'Paramètres',
     subtitle: 'Connexion API et configuration locale.'
@@ -1313,6 +1318,23 @@ function App() {
   })
 
   const [adCheckJobs, setAdCheckJobs] = useState([])
+  const [agentModeControl, setAgentModeControl] = useState({
+    mode: 'Simulation',
+    loading: false,
+    error: ''
+  })
+  const [adLookupPanel, setAdLookupPanel] = useState({
+    open: false,
+    jobId: '',
+    target: '',
+    query: '',
+    status: '',
+    message: '',
+    output: '',
+    result: null,
+    loading: false,
+    error: ''
+  })
 
   const [form, setForm] = useState({
     first_name: 'Emma',
@@ -1476,6 +1498,7 @@ function App() {
 
       if (page === 'adChecks') {
         loadAdCheckJobs(true)
+      loadAgentMode(true)
       }
 
       if (page === 'templates' || page === 'newRequest' || page === 'offboarding' || page === 'modification') {
@@ -1729,6 +1752,70 @@ function App() {
       if (!silent) setMessage('Templates rechargés.')
     } catch (error) {
       if (!silent) setMessage(error.message)
+    }
+  }
+
+  async function loadAgentMode(silent = false) {
+    try {
+      const data = await apiFetch('/api/agent/mode')
+
+      setAgentModeControl({
+        mode: data.mode || 'Simulation',
+        loading: false,
+        error: ''
+      })
+
+      if (!silent) {
+        setMessage(`Mode agent actuel : ${data.mode || 'Simulation'}`)
+      }
+    } catch (error) {
+      setAgentModeControl(current => ({
+        ...current,
+        loading: false,
+        error: error.message
+      }))
+
+      if (!silent) {
+        setMessage(error.message)
+      }
+    }
+  }
+
+  async function updateAgentMode(nextMode) {
+    setAgentModeControl(current => ({
+      ...current,
+      loading: true,
+      error: ''
+    }))
+
+    try {
+      const data = await apiFetch('/api/admin/agent/mode', {
+        method: 'POST',
+        body: JSON.stringify({
+          mode: nextMode,
+          updated_by: 'react-admin'
+        })
+      })
+
+      setAgentModeControl({
+        mode: data.mode || nextMode,
+        loading: false,
+        error: ''
+      })
+
+      setMessage(`Mode agent défini sur ${data.mode || nextMode}. Prochain passage agent : nouveau mode appliqué.`)
+
+      if (typeof loadAgentStatus === 'function') {
+        loadAgentStatus()
+      }
+    } catch (error) {
+      setAgentModeControl(current => ({
+        ...current,
+        loading: false,
+        error: error.message
+      }))
+
+      setMessage(error.message)
     }
   }
 
@@ -2397,6 +2484,161 @@ Write-Host "============================================================"
     URL.revokeObjectURL(url)
 
     setMessage(`${selectedRequests.length} demande(s) exportée(s) en contrôle AD PowerShell.`)
+  }
+
+  function closeAdLookupPanel() {
+    setAdLookupPanel({
+      open: false,
+      jobId: '',
+      target: '',
+      query: '',
+      status: '',
+      message: '',
+      output: '',
+      result: null,
+      loading: false,
+      error: ''
+    })
+  }
+
+  function applyAdLookupResultToForm(result, target) {
+    if (!result || !result.found) {
+      return
+    }
+
+    if (target === 'offboarding') {
+      setOffboardingForm(current => ({
+        ...current,
+        username: result.username || result.sam_account_name || current.username,
+        display_name: result.display_name || result.name || current.display_name,
+        department: result.department || current.department,
+        comment: current.comment || `Compte trouvé dans AD : ${result.distinguished_name || result.ou || ''}`.trim()
+      }))
+
+      setPage('offboarding')
+      closeAdLookupPanel()
+      setMessage(`Données AD appliquées à l’offboarding : ${result.username || result.sam_account_name}`)
+      return
+    }
+
+    if (target === 'modification') {
+      setModificationForm(current => ({
+        ...current,
+        username: result.username || result.sam_account_name || current.username,
+        display_name: result.display_name || result.name || current.display_name,
+        current_department: result.department || current.current_department,
+        current_job_title: result.title || current.current_job_title,
+        comment: current.comment || `Données récupérées depuis Active Directory`
+      }))
+
+      setPage('modification')
+      closeAdLookupPanel()
+      setMessage(`Données AD appliquées à la modification : ${result.username || result.sam_account_name}`)
+    }
+  }
+
+  async function refreshAdLookupJob(jobId, target = '') {
+    const job = await apiFetch(`/api/ad-lookup/jobs/${jobId}`)
+    const result = job.result || null
+
+    setAdLookupPanel(current => ({
+      ...current,
+      open: true,
+      jobId: job.id,
+      target: target || current.target,
+      query: job.query || current.query,
+      status: job.status || '',
+      message: job.message || '',
+      output: job.output || current.output || '',
+      result,
+      loading: ['pending', 'processing'].includes(String(job.status || '').toLowerCase()),
+      error: ''
+    }))
+
+    return job
+  }
+
+  async function pollAdLookupJob(jobId, target) {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const job = await refreshAdLookupJob(jobId, target)
+      const status = String(job.status || '').toLowerCase()
+
+      if (status === 'completed' || status === 'failed') {
+        if (job.result?.found) {
+          applyAdLookupResultToForm(job.result, target)
+        }
+
+        return job
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+
+    setAdLookupPanel(current => ({
+      ...current,
+      loading: false,
+      error: 'Timeout : la recherche AD est toujours en attente. Tu peux rafraîchir plus tard.'
+    }))
+
+    return null
+  }
+
+  async function runAdLookupForForm(target) {
+    const sourceForm = target === 'offboarding' ? offboardingForm : modificationForm
+    const query = String(sourceForm.username || '').trim()
+
+    if (!query) {
+      setMessage('Renseigne un login avant de lancer la recherche AD.')
+      return
+    }
+
+    setAdLookupPanel({
+      open: true,
+      jobId: '',
+      target,
+      query,
+      status: 'creating',
+      message: 'Création du job recherche AD...',
+      output: `Recherche Active Directory demandée pour : ${query}\nEn attente de l’agent Windows...`,
+      result: null,
+      loading: true,
+      error: ''
+    })
+
+    try {
+      const response = await apiFetch('/api/ad-lookup/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          query,
+          created_by: 'react-admin'
+        })
+      })
+
+      const job = response.job || response
+
+      setAdLookupPanel(current => ({
+        ...current,
+        jobId: job.id,
+        status: job.status || 'pending',
+        message: job.message || 'Recherche AD en attente agent',
+        output: `Job recherche AD créé : ${job.id}\nQuery : ${query}\n\nEn attente de l’agent Windows...`,
+        loading: true,
+        error: ''
+      }))
+
+      setMessage(`Recherche AD lancée pour ${query}.`)
+
+      await pollAdLookupJob(job.id, target)
+    } catch (error) {
+      setAdLookupPanel(current => ({
+        ...current,
+        loading: false,
+        error: error.message || 'Erreur recherche AD',
+        output: `${current.output || ''}\n\nERREUR : ${error.message || 'Erreur recherche AD'}`
+      }))
+
+      setMessage(`Erreur recherche AD : ${error.message || 'inconnue'}`)
+    }
   }
 
   function closeAdCheckTerminal() {
@@ -3213,6 +3455,26 @@ Write-Host "============================================================"
 
               type="button"
 
+              className={page === 'agentMode' ? 'active' : ''}
+
+              onClick={() => {
+
+                setPage('agentMode')
+
+                loadAgentMode(true)
+
+              }}
+
+            >
+
+              Mode agent
+
+            </button>
+
+            <button
+
+              type="button"
+
               className={page === 'adChecks' ? 'active' : ''}
 
               onClick={() => setPage('adChecks')}
@@ -3520,6 +3782,8 @@ Write-Host "============================================================"
               updateForm={updateOffboardingForm}
               createOffboardingRequest={createOffboardingRequest}
               loadRequestIntoOffboarding={loadRequestIntoOffboarding}
+              runAdLookup={() => runAdLookupForForm('offboarding')}
+              adLookupRunning={adLookupPanel.loading && adLookupPanel.target === 'offboarding'}
             />
           )}
 
@@ -3530,6 +3794,8 @@ Write-Host "============================================================"
               updateForm={updateModificationForm}
               createModificationRequest={createModificationRequest}
               loadRequestIntoModification={loadRequestIntoModification}
+              runAdLookup={() => runAdLookupForForm('modification')}
+              adLookupRunning={adLookupPanel.loading && adLookupPanel.target === 'modification'}
             />
           )}
 
@@ -3566,6 +3832,14 @@ Write-Host "============================================================"
             />
           )}
 
+          {page === 'agentMode' && (
+            <AgentModePage
+              agentModeControl={agentModeControl}
+              loadAgentMode={loadAgentMode}
+              updateAgentMode={updateAgentMode}
+            />
+          )}
+
           {page === 'settings' && (
             <SettingsPage
               apiKey={apiKey}
@@ -3574,6 +3848,131 @@ Write-Host "============================================================"
               saveConfig={saveConfig}
               testApi={testApi}
             />
+          )}
+
+          {adLookupPanel.open && (
+            <div className="ad-lookup-overlay">
+              <div className="ad-lookup-panel">
+                <div className="ad-lookup-header">
+                  <div>
+                    <strong>Recherche Active Directory</strong>
+                    <span>
+                      {adLookupPanel.jobId ? `Job ${adLookupPanel.jobId}` : `Query ${adLookupPanel.query || '-'}`}
+                    </span>
+                  </div>
+
+                  <button type="button" onClick={closeAdLookupPanel}>Fermer</button>
+                </div>
+
+                <div className="ad-lookup-status">
+                  <span className={`ad-check-status-dot ${adLookupPanel.status || 'unknown'}`} />
+                  <strong>{adLookupPanel.status || 'unknown'}</strong>
+                  <span>{adLookupPanel.message || '-'}</span>
+                </div>
+
+                {adLookupPanel.error && (
+                  <div className="ad-check-terminal-error">
+                    {adLookupPanel.error}
+                  </div>
+                )}
+
+                {adLookupPanel.result?.found && (
+                  <div className="ad-lookup-result-grid">
+                    <div>
+                      <span>Login</span>
+                      <strong>{adLookupPanel.result.username || adLookupPanel.result.sam_account_name || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Nom</span>
+                      <strong>{adLookupPanel.result.display_name || adLookupPanel.result.name || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Compte actif</span>
+                      <strong>{String(adLookupPanel.result.enabled)}</strong>
+                    </div>
+
+                    <div>
+                      <span>Mail</span>
+                      <strong>{adLookupPanel.result.mail || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Service</span>
+                      <strong>{adLookupPanel.result.department || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Poste</span>
+                      <strong>{adLookupPanel.result.title || '-'}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {adLookupPanel.result && !adLookupPanel.result.found && (
+                  <div className="ad-lookup-not-found">
+                    <strong>Utilisateur introuvable dans Active Directory</strong>
+                    <span>Query : {adLookupPanel.query || '-'}</span>
+                  </div>
+                )}
+
+                {adLookupPanel.result?.found && (
+                  <div className="ad-lookup-ou-card">
+                    <span>OU actuelle</span>
+                    <code>{adLookupPanel.result.ou || adLookupPanel.result.distinguished_name || '-'}</code>
+                  </div>
+                )}
+
+                {adLookupPanel.result?.found && (
+                  <div className="ad-lookup-groups-card">
+                    <strong>Groupes AD</strong>
+                    <div>
+                      {(adLookupPanel.result.groups || []).length === 0 ? (
+                        <span>Aucun groupe retourné</span>
+                      ) : (
+                        adLookupPanel.result.groups.map(group => (
+                          <span key={group}>{group}</span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="ad-check-console-card ad-lookup-console">
+                  <div className="ad-check-console-header">
+                    <span>Sortie agent Windows</span>
+                    <strong>{adLookupPanel.result ? 'Résultat reçu' : 'En attente'}</strong>
+                  </div>
+
+                  <pre className="ad-check-terminal-output">
+{(adLookupPanel.output || 'En attente du résultat agent...').trim()}
+                  </pre>
+                </div>
+
+                <div className="ad-lookup-actions">
+                  <button type="button" onClick={() => adLookupPanel.jobId && refreshAdLookupJob(adLookupPanel.jobId, adLookupPanel.target)}>
+                    Rafraîchir
+                  </button>
+
+                  {adLookupPanel.result?.found && (
+                    <>
+                      <button type="button" onClick={() => applyAdLookupResultToForm(adLookupPanel.result, 'offboarding')}>
+                        Utiliser pour offboarding
+                      </button>
+
+                      <button type="button" onClick={() => applyAdLookupResultToForm(adLookupPanel.result, 'modification')}>
+                        Utiliser pour modification
+                      </button>
+                    </>
+                  )}
+
+                  {adLookupPanel.loading && (
+                    <span>En attente de l’agent Windows...</span>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {adCheckTerminal.open && (
@@ -4501,6 +4900,79 @@ function AgentOperationsPage({ requests, agentStatus, agentConfig, loadAgentStat
 }
 
 
+function AgentModePage({ agentModeControl, loadAgentMode, updateAgentMode }) {
+  const mode = agentModeControl.mode || 'Simulation'
+  const isProduction = mode === 'Production'
+
+  return (
+    <div className="agent-mode-page">
+      <section className={`agent-mode-hero ${isProduction ? 'production' : 'simulation'}`}>
+        <div>
+          <span>Mode actuel</span>
+          <strong>{mode}</strong>
+          <p>
+            {isProduction
+              ? 'Les prochaines demandes traitées par l’agent modifieront réellement Active Directory.'
+              : 'Les prochaines demandes seront simulées : aucun changement réel dans Active Directory.'}
+          </p>
+        </div>
+
+        <button type="button" onClick={() => loadAgentMode()} disabled={agentModeControl.loading}>
+          Actualiser
+        </button>
+      </section>
+
+      {agentModeControl.error && (
+        <div className="agent-mode-error">
+          {agentModeControl.error}
+        </div>
+      )}
+
+      <section className="agent-mode-grid">
+        <article className={`agent-mode-card ${mode === 'Simulation' ? 'selected' : ''}`}>
+          <div>
+            <span>Mode sécurisé</span>
+            <strong>Simulation</strong>
+            <p>Teste les workflows sans modifier les comptes AD.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => updateAgentMode('Simulation')}
+            disabled={agentModeControl.loading || mode === 'Simulation'}
+          >
+            Activer Simulation
+          </button>
+        </article>
+
+        <article className={`agent-mode-card danger ${mode === 'Production' ? 'selected' : ''}`}>
+          <div>
+            <span>Mode réel</span>
+            <strong>Production</strong>
+            <p>Applique réellement les créations, modifications, réactivations et offboardings AD.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => updateAgentMode('Production')}
+            disabled={agentModeControl.loading || mode === 'Production'}
+          >
+            Activer Production
+          </button>
+        </article>
+      </section>
+
+      <section className="agent-mode-note">
+        <strong>Important</strong>
+        <p>
+          Le changement est pris en compte au prochain passage de l’agent Windows. Le worker recherche AD live reste en lookup-only et ne traite pas les demandes classiques.
+        </p>
+      </section>
+    </div>
+  )
+}
+
+
 function AdChecksPage({
   jobs,
   loadAdCheckJobs,
@@ -4859,7 +5331,7 @@ function RequestsTable({
   )
 }
 
-function ModificationPage({ requests, form, updateForm, createModificationRequest, loadRequestIntoModification }) {
+function ModificationPage({ requests, form, updateForm, createModificationRequest, loadRequestIntoModification, runAdLookup, adLookupRunning }) {
   const onboardingRequests = requests.filter(request => request.type === 'onboarding' && request.status === 'completed')
   const addGroups = splitListValue(form.add_groups)
   const removeGroups = splitListValue(form.remove_groups)
@@ -4898,7 +5370,12 @@ function ModificationPage({ requests, form, updateForm, createModificationReques
 
           <div className="form-grid">
             <Field label="Login">
-              <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
+              <div className="ad-lookup-inline">
+                <input value={form.username} onChange={e => updateForm('username', e.target.value)} />
+                <button type="button" className="ad-lookup-button" onClick={runAdLookup} disabled={adLookupRunning}>
+                  {adLookupRunning ? 'Recherche...' : 'Rechercher dans AD'}
+                </button>
+              </div>
             </Field>
 
             <Field label="Nom affiché">
