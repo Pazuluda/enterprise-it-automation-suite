@@ -12,6 +12,11 @@ from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, A
 from app.core.security import require_api_key
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
+from app.services.requests import (
+    RequestNotFound,
+    get_request_by_id as service_get_request_by_id,
+    list_requests as service_list_requests,
+)
 from app.services.templates import (
     TemplatesNotFound,
     delete_department_template as service_delete_department_template,
@@ -222,24 +227,16 @@ def create_onboarding_request(payload: OnboardingRequest, api_key: None = Depend
 
 @app.get("/api/requests")
 def list_requests(api_key: None = Depends(require_api_key)):
-    return load_json(REQUESTS_FILE, [])
+    return service_list_requests(REQUESTS_FILE)
 
 
 @app.get("/api/requests/{request_id}")
 def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key)):
-    requests = load_json(REQUESTS_FILE, [])
+    try:
+        return service_get_request_by_id(REQUESTS_FILE, request_id)
+    except RequestNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for request in requests:
-        if request.get("id") == request_id:
-            return request
-
-    raise HTTPException(status_code=404, detail="Demande introuvable")
-
-
-
-
-def get_default_agent_config():
-    return service_get_default_agent_config()
 
 @app.get("/api/agent/config")
 def get_agent_config(api_key: None = Depends(require_api_key)):
