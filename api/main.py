@@ -12,6 +12,22 @@ from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, A
 from app.core.security import require_api_key
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
+from app.services.ad_jobs import (
+    ADJobsBadRequest,
+    ADJobsConflict,
+    ADJobsNotFound,
+    claim_ad_check_job as service_claim_ad_check_job,
+    claim_ad_lookup_job as service_claim_ad_lookup_job,
+    create_ad_check_job as service_create_ad_check_job,
+    create_ad_lookup_job as service_create_ad_lookup_job,
+    get_ad_check_job as service_get_ad_check_job,
+    get_ad_lookup_job as service_get_ad_lookup_job,
+    get_pending_ad_check_jobs as service_get_pending_ad_check_jobs,
+    get_pending_ad_lookup_jobs as service_get_pending_ad_lookup_jobs,
+    list_ad_check_jobs as service_list_ad_check_jobs,
+    submit_ad_check_job_result as service_submit_ad_check_job_result,
+    submit_ad_lookup_job_result as service_submit_ad_lookup_job_result,
+)
 from app.services.agent_runtime import (
     AgentRuntimeBadRequest,
     AgentRuntimeConflict,
@@ -459,381 +475,109 @@ def get_request_id_from_payload(value):
 
 @app.post("/api/ad-lookup/jobs")
 def create_ad_lookup_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
-    query = (
-        payload.get("query")
-        or payload.get("username")
-        or payload.get("sam_account_name")
-        or payload.get("sam")
-        or ""
-    )
+    try:
+        response, audit_event = service_create_ad_lookup_job(AD_LOOKUP_JOBS_FILE, payload)
+    except ADJobsBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    query = str(query).strip()
-    created_by = payload.get("created_by") or "react-admin"
-
-    if not query:
-        raise HTTPException(status_code=400, detail="query est obligatoire")
-
-    job_id = str(uuid4())
-
-    job = {
-        "id": job_id,
-        "type": "ad_lookup",
-        "status": "pending",
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "created_by": created_by,
-        "query": query,
-        "claimed_at": None,
-        "claimed_by": None,
-        "completed_at": None,
-        "success": None,
-        "message": "Recherche AD en attente agent",
-        "output": "",
-        "result": None,
-        "details": None
-    }
-
-    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
-    jobs.append(job)
-    save_json(AD_LOOKUP_JOBS_FILE, jobs)
-
-    write_audit_log(
-        action="ad_lookup_job_created",
-        request_id=job_id,
-        actor=created_by,
-        message=f"Recherche AD créée pour {query}",
-        details={
-            "job_id": job_id,
-            "query": query
-        }
-    )
-
-    return {
-        "message": "Recherche AD créée",
-        "job": job
-    }
+    write_audit_log(**audit_event)
+    return response
 
 
 @app.get("/api/ad-lookup/jobs/{job_id}")
 def get_ad_lookup_job(job_id: str, api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
-
-    for job in jobs:
-        if job.get("id") == job_id:
-            return job
-
-    raise HTTPException(status_code=404, detail="Job recherche AD introuvable")
+    try:
+        return service_get_ad_lookup_job(AD_LOOKUP_JOBS_FILE, job_id)
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @app.get("/api/agent/ad-lookup/pending")
 def get_pending_ad_lookup_jobs(api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
-
-    pending = [
-        job for job in jobs
-        if job.get("status") == "pending"
-    ]
-
-    return {
-        "count": len(pending),
-        "jobs": pending
-    }
+    return service_get_pending_ad_lookup_jobs(AD_LOOKUP_JOBS_FILE)
 
 
 @app.post("/api/agent/ad-lookup/claim/{job_id}")
 def claim_ad_lookup_job(job_id: str, payload: dict = Body(default={}), api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+    try:
+        response, audit_event = service_claim_ad_lookup_job(AD_LOOKUP_JOBS_FILE, job_id, payload)
+    except ADJobsConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for job in jobs:
-        if job.get("id") == job_id:
-            current_status = job.get("status")
-
-            if current_status != "pending":
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Job recherche AD non disponible. Statut actuel : {current_status}"
-                )
-
-            agent_name = payload.get("agent_name") or "unknown-agent"
-
-            job["status"] = "processing"
-            job["claimed_at"] = datetime.utcnow().isoformat() + "Z"
-            job["claimed_by"] = agent_name
-            job["message"] = "Recherche AD en cours sur agent"
-
-            save_json(AD_LOOKUP_JOBS_FILE, jobs)
-
-            write_audit_log(
-                action="ad_lookup_job_claimed",
-                request_id=job_id,
-                actor=agent_name,
-                message="Recherche AD prise en charge par un agent",
-                details={
-                    "job_id": job_id,
-                    "query": job.get("query"),
-                    "status": "processing"
-                }
-            )
-
-            return {
-                "message": "Job recherche AD pris en charge",
-                "job": job
-            }
-
-    raise HTTPException(status_code=404, detail="Job recherche AD introuvable")
+    write_audit_log(**audit_event)
+    return response
 
 
 @app.post("/api/agent/ad-lookup/result/{job_id}")
 def submit_ad_lookup_job_result(job_id: str, payload: dict = Body(...), api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_LOOKUP_JOBS_FILE, [])
+    try:
+        response, audit_event = service_submit_ad_lookup_job_result(AD_LOOKUP_JOBS_FILE, job_id, payload)
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for job in jobs:
-        if job.get("id") == job_id:
-            success = bool(payload.get("success"))
-
-            job["status"] = "completed" if success else "failed"
-            job["completed_at"] = datetime.utcnow().isoformat() + "Z"
-            job["success"] = success
-            job["message"] = payload.get("message") or ("Recherche AD terminée" if success else "Recherche AD en erreur")
-            job["output"] = payload.get("output") or ""
-            job["result"] = payload.get("result")
-            job["details"] = payload.get("details")
-            job["agent_name"] = payload.get("agent_name")
-
-            save_json(AD_LOOKUP_JOBS_FILE, jobs)
-
-            write_audit_log(
-                action="ad_lookup_job_completed" if success else "ad_lookup_job_failed",
-                request_id=job_id,
-                actor=payload.get("agent_name") or "agent",
-                message=job["message"],
-                details={
-                    "job_id": job_id,
-                    "query": job.get("query"),
-                    "found": (job.get("result") or {}).get("found")
-                }
-            )
-
-            return {
-                "message": "Résultat recherche AD enregistré",
-                "job_id": job_id
-            }
-
-    raise HTTPException(status_code=404, detail="Job recherche AD introuvable")
+    write_audit_log(**audit_event)
+    return response
 
 
 @app.post("/api/ad-check/jobs")
 def create_ad_check_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
-    request_ids = payload.get("request_ids") or payload.get("ids") or []
-    created_by = payload.get("created_by") or "react-admin"
+    try:
+        response, audit_event = service_create_ad_check_job(
+            AD_CHECK_JOBS_FILE,
+            REQUESTS_FILE,
+            payload,
+        )
+    except ADJobsBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    if not isinstance(request_ids, list):
-        raise HTTPException(status_code=400, detail="request_ids doit être une liste")
-
-    normalized_ids = []
-    for item in request_ids:
-        request_id = get_request_id_from_payload(item)
-        if request_id and request_id not in normalized_ids:
-            normalized_ids.append(request_id)
-
-    if not normalized_ids:
-        raise HTTPException(status_code=400, detail="Aucune demande sélectionnée")
-
-    requests = load_json(REQUESTS_FILE, [])
-    selected_requests = [
-        request for request in requests
-        if request.get("id") in normalized_ids
-    ]
-
-    if not selected_requests:
-        raise HTTPException(status_code=404, detail="Aucune demande correspondante trouvée")
-
-    found_ids = {request.get("id") for request in selected_requests}
-    missing_ids = [
-        request_id for request_id in normalized_ids
-        if request_id not in found_ids
-    ]
-
-    job_id = str(uuid4())
-    now = datetime.utcnow().isoformat() + "Z"
-
-    job = {
-        "id": job_id,
-        "type": "ad_check",
-        "status": "pending",
-        "created_at": now,
-        "created_by": created_by,
-        "requested_count": len(normalized_ids),
-        "selected_count": len(selected_requests),
-        "missing_request_ids": missing_ids,
-        "request_ids": normalized_ids,
-        "requests": selected_requests,
-        "claimed_at": None,
-        "claimed_by": None,
-        "completed_at": None,
-        "success": None,
-        "message": "Contrôle AD en attente agent",
-        "output": "",
-        "summary": None,
-        "details": None
-    }
-
-    jobs = load_json(AD_CHECK_JOBS_FILE, [])
-    jobs.append(job)
-    save_json(AD_CHECK_JOBS_FILE, jobs)
-
-    write_audit_log(
-        action="ad_check_job_created",
-        request_id=job_id,
-        actor=created_by,
-        message=f"Contrôle AD créé pour {len(selected_requests)} demande(s)",
-        details={
-            "job_id": job_id,
-            "request_ids": normalized_ids,
-            "selected_count": len(selected_requests),
-            "missing_request_ids": missing_ids
-        }
-    )
-
-    return {
-        "message": "Contrôle AD créé",
-        "job": job
-    }
-
-
+    write_audit_log(**audit_event)
+    return response
 
 
 @app.get("/api/ad-check/jobs")
 def list_ad_check_jobs(limit: int = 200, api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_CHECK_JOBS_FILE, [])
-
-    try:
-        safe_limit = int(limit)
-    except (TypeError, ValueError):
-        safe_limit = 200
-
-    safe_limit = max(1, min(safe_limit, 1000))
-
-    sorted_jobs = sorted(
-        jobs,
-        key=lambda job: job.get("created_at") or "",
-        reverse=True
-    )
-
-    selected_jobs = sorted_jobs[:safe_limit]
-
-    return {
-        "count": len(jobs),
-        "returned": len(selected_jobs),
-        "jobs": selected_jobs
-    }
+    return service_list_ad_check_jobs(AD_CHECK_JOBS_FILE, limit)
 
 
 @app.get("/api/ad-check/jobs/{job_id}")
 def get_ad_check_job(job_id: str, api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_CHECK_JOBS_FILE, [])
-
-    for job in jobs:
-        if job.get("id") == job_id:
-            return job
-
-    raise HTTPException(status_code=404, detail="Job contrôle AD introuvable")
+    try:
+        return service_get_ad_check_job(AD_CHECK_JOBS_FILE, job_id)
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
 
 @app.get("/api/agent/ad-check/pending")
 def get_pending_ad_check_jobs(api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_CHECK_JOBS_FILE, [])
-
-    pending = [
-        job for job in jobs
-        if job.get("status") == "pending"
-    ]
-
-    return {
-        "count": len(pending),
-        "jobs": pending
-    }
+    return service_get_pending_ad_check_jobs(AD_CHECK_JOBS_FILE)
 
 
 @app.post("/api/agent/ad-check/claim/{job_id}")
 def claim_ad_check_job(job_id: str, payload: dict = Body(default={}), api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_CHECK_JOBS_FILE, [])
+    try:
+        response, audit_event = service_claim_ad_check_job(AD_CHECK_JOBS_FILE, job_id, payload)
+    except ADJobsConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for job in jobs:
-        if job.get("id") == job_id:
-            current_status = job.get("status")
-
-            if current_status != "pending":
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Job contrôle AD non disponible. Statut actuel : {current_status}"
-                )
-
-            agent_name = payload.get("agent_name") or "unknown-agent"
-
-            job["status"] = "processing"
-            job["claimed_at"] = datetime.utcnow().isoformat() + "Z"
-            job["claimed_by"] = agent_name
-            job["message"] = "Contrôle AD en cours sur agent"
-
-            save_json(AD_CHECK_JOBS_FILE, jobs)
-
-            write_audit_log(
-                action="ad_check_job_claimed",
-                request_id=job_id,
-                actor=agent_name,
-                message="Contrôle AD pris en charge par un agent",
-                details={
-                    "job_id": job_id,
-                    "status": "processing"
-                }
-            )
-
-            return {
-                "message": "Job contrôle AD pris en charge",
-                "job": job
-            }
-
-    raise HTTPException(status_code=404, detail="Job contrôle AD introuvable")
+    write_audit_log(**audit_event)
+    return response
 
 
 @app.post("/api/agent/ad-check/result/{job_id}")
 def submit_ad_check_job_result(job_id: str, payload: dict = Body(...), api_key: None = Depends(require_api_key)):
-    jobs = load_json(AD_CHECK_JOBS_FILE, [])
+    try:
+        response, audit_event = service_submit_ad_check_job_result(AD_CHECK_JOBS_FILE, job_id, payload)
+    except ADJobsNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for job in jobs:
-        if job.get("id") == job_id:
-            success = bool(payload.get("success"))
-
-            job["status"] = "completed" if success else "failed"
-            job["completed_at"] = datetime.utcnow().isoformat() + "Z"
-            job["success"] = success
-            job["message"] = payload.get("message") or ("Contrôle AD terminé" if success else "Contrôle AD en erreur")
-            job["output"] = payload.get("output") or ""
-            job["summary"] = payload.get("summary")
-            job["details"] = payload.get("details")
-            job["agent_name"] = payload.get("agent_name")
-
-            save_json(AD_CHECK_JOBS_FILE, jobs)
-
-            write_audit_log(
-                action="ad_check_job_completed" if success else "ad_check_job_failed",
-                request_id=job_id,
-                actor=payload.get("agent_name") or "agent",
-                message=job["message"],
-                details={
-                    "job_id": job_id,
-                    "summary": job.get("summary")
-                }
-            )
-
-            return {
-                "message": "Résultat contrôle AD enregistré",
-                "job_id": job_id
-            }
-
-    raise HTTPException(status_code=404, detail="Job contrôle AD introuvable")
-
-
+    write_audit_log(**audit_event)
+    return response
 
 
 @app.get("/api/audit-logs")
