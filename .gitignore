@@ -5,3 +5,26 @@ api/data/agent-status.json
 # EITAS runtime agent config
 api/data/agent-config.json
 agent-windows/agent-interval.txt
+
+# EITAS runtime / local generated files
+__pycache__/
+*.pyc
+*.pyo
+
+# Local backups
+*.backup*
+*.broken*
+*.bak
+*.old
+backups/
+
+# Runtime API data
+api/data/requests.json
+api/data/requests.json.*
+api/data/requests.backup*.json
+api/data/audit.jsonl
+api/data/ad-check-jobs.json
+api/data/ad-lookup-jobs.json
+
+# Static app generated backups
+api/static/app.backup-*/
