@@ -1,0 +1,1173 @@
+/* ========================================================= */
+/* === EITAS Active Directory ============================== */
+/* ========================================================= */
+
+/* ========================================================= */
+/* === EITAS AD check terminal ============================= */
+/* ========================================================= */
+
+.ad-check-terminal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 90 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+  background: rgba(15, 23, 42, 0.55) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.ad-check-terminal-panel {
+  width: min(1100px, 96vw) !important;
+  max-height: 88vh !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+
+  border-radius: 18px !important;
+  border: 1px solid #1f2937 !important;
+  background: #020617 !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45) !important;
+}
+
+.ad-check-terminal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+
+  padding: 16px 18px !important;
+  border-bottom: 1px solid #1f2937 !important;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+.ad-check-terminal-header > div {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+
+.ad-check-terminal-header strong {
+  font-size: 16px !important;
+  font-weight: 900 !important;
+}
+
+.ad-check-terminal-header span {
+  color: #94a3b8 !important;
+  font-size: 12px !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-check-terminal-header button {
+  min-height: 34px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
+  border: 1px solid #334155 !important;
+  background: #111827 !important;
+  color: #f8fafc !important;
+  font-weight: 900 !important;
+}
+
+.ad-check-terminal-status {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  padding: 10px 18px !important;
+  border-bottom: 1px solid #1f2937 !important;
+  background: #020617 !important;
+  color: #cbd5e1 !important;
+  font-size: 13px !important;
+}
+
+.ad-check-status-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: #64748b !important;
+}
+
+.ad-check-status-dot.pending,
+.ad-check-status-dot.processing,
+.ad-check-status-dot.creating {
+  background: #f59e0b !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.7) !important;
+}
+
+.ad-check-status-dot.completed {
+  background: #22c55e !important;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.7) !important;
+}
+
+.ad-check-status-dot.failed {
+  background: #ef4444 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.7) !important;
+}
+
+.ad-check-terminal-summary {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+
+  padding: 12px 18px !important;
+  border-bottom: 1px solid #1f2937 !important;
+  background: #0f172a !important;
+}
+
+.ad-check-terminal-summary span {
+  padding: 8px 10px !important;
+  border-radius: 10px !important;
+  background: #111827 !important;
+  color: #cbd5e1 !important;
+  font-size: 12px !important;
+}
+
+.ad-check-terminal-summary strong {
+  color: #f8fafc !important;
+}
+
+.ad-check-terminal-error {
+  padding: 10px 18px !important;
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.ad-check-terminal-output {
+  flex: 1 !important;
+  min-height: 340px !important;
+  margin: 0 !important;
+  padding: 18px !important;
+
+  overflow: auto !important;
+  background: #020617 !important;
+  color: #e5e7eb !important;
+
+  font-family: Consolas, "Liberation Mono", monospace !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  white-space: pre-wrap !important;
+}
+
+.ad-check-terminal-actions {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+
+  padding: 14px 18px !important;
+  border-top: 1px solid #1f2937 !important;
+  background: #0f172a !important;
+}
+
+.ad-check-terminal-actions button {
+  min-height: 34px !important;
+  padding: 0 12px !important;
+  border-radius: 10px !important;
+  border: 1px solid #334155 !important;
+  background: #111827 !important;
+  color: #f8fafc !important;
+  font-weight: 900 !important;
+}
+
+.ad-check-terminal-actions button:hover,
+.ad-check-terminal-header button:hover {
+  background: #1e293b !important;
+  border-color: #64748b !important;
+}
+
+.ad-check-terminal-actions span {
+  color: #94a3b8 !important;
+  font-size: 12px !important;
+}
+
+/* ========================================================= */
+/* === EITAS AD check terminal - clean portal UI override === */
+/* ========================================================= */
+
+.ad-check-terminal-overlay {
+  background: rgba(15, 23, 42, 0.28) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+.ad-check-terminal-panel {
+  width: min(1120px, 96vw) !important;
+  max-height: 88vh !important;
+
+  border-radius: 22px !important;
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18) !important;
+}
+
+.ad-check-terminal-header {
+  padding: 18px 20px !important;
+
+  border-bottom: 1px solid #e5e7eb !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+}
+
+.ad-check-terminal-header strong {
+  color: #0f172a !important;
+  font-size: 18px !important;
+  letter-spacing: -0.02em !important;
+}
+
+.ad-check-terminal-header span {
+  color: #64748b !important;
+  font-size: 12px !important;
+}
+
+.ad-check-terminal-header button {
+  min-height: 36px !important;
+  padding: 0 14px !important;
+
+  border-radius: 11px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: none !important;
+}
+
+.ad-check-terminal-header button:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+.ad-check-terminal-status {
+  padding: 11px 20px !important;
+
+  border-bottom: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+}
+
+.ad-check-terminal-status strong {
+  padding: 4px 9px !important;
+  border-radius: 999px !important;
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+}
+
+.ad-check-status-dot {
+  width: 9px !important;
+  height: 9px !important;
+  background: #94a3b8 !important;
+}
+
+.ad-check-status-dot.pending,
+.ad-check-status-dot.processing,
+.ad-check-status-dot.creating {
+  background: #f59e0b !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.14) !important;
+}
+
+.ad-check-status-dot.completed {
+  background: #22c55e !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14) !important;
+}
+
+.ad-check-status-dot.failed {
+  background: #ef4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14) !important;
+}
+
+.ad-check-terminal-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+
+  padding: 14px 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: #f8fafc !important;
+}
+
+.ad-check-terminal-summary span {
+  padding: 11px 12px !important;
+
+  border-radius: 14px !important;
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  color: #64748b !important;
+
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.ad-check-terminal-summary strong {
+  color: #0f172a !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+}
+
+.ad-check-terminal-error {
+  margin: 12px 20px 0 20px !important;
+  padding: 11px 13px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #fecaca !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+
+  font-size: 13px !important;
+  font-weight: 850 !important;
+}
+
+.ad-check-terminal-output {
+  flex: 1 !important;
+  min-height: 360px !important;
+  margin: 0 !important;
+  padding: 18px 20px !important;
+
+  border-top: 0 !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-family: Consolas, "Cascadia Mono", "Liberation Mono", monospace !important;
+  font-size: 12.8px !important;
+  line-height: 1.5 !important;
+  white-space: pre-wrap !important;
+}
+
+.ad-check-terminal-output::selection {
+  background: #bfdbfe !important;
+  color: #0f172a !important;
+}
+
+.ad-check-terminal-actions {
+  padding: 14px 20px !important;
+
+  border-top: 1px solid #e5e7eb !important;
+  background: #f8fafc !important;
+}
+
+.ad-check-terminal-actions button {
+  min-height: 36px !important;
+  padding: 0 13px !important;
+
+  border-radius: 11px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: none !important;
+}
+
+.ad-check-terminal-actions button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #1e1b4b !important;
+}
+
+.ad-check-terminal-actions span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+/* ========================================================= */
+/* === EITAS AD check terminal - enterprise pro override === */
+/* ========================================================= */
+
+.ad-check-terminal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 120 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 22px !important;
+  background: rgba(15, 23, 42, 0.42) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.ad-check-terminal-panel {
+  width: min(1180px, 96vw) !important;
+  max-height: 90vh !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+
+  border-radius: 18px !important;
+  border: 1px solid #dbe3ef !important;
+  background: #f8fafc !important;
+  box-shadow:
+    0 30px 80px rgba(15, 23, 42, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset !important;
+}
+
+.ad-check-terminal-header {
+  padding: 18px 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.ad-check-terminal-header > div {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+
+.ad-check-terminal-header strong {
+  color: #0f172a !important;
+  font-size: 20px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.ad-check-terminal-header span {
+  max-width: 760px !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-check-terminal-header button {
+  min-height: 38px !important;
+  padding: 0 16px !important;
+
+  border-radius: 11px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+.ad-check-terminal-header button:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
+
+.ad-check-terminal-status {
+  padding: 12px 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+}
+
+.ad-check-status-dot {
+  width: 9px !important;
+  height: 9px !important;
+  flex: 0 0 auto !important;
+  border-radius: 999px !important;
+  background: #94a3b8 !important;
+}
+
+.ad-check-status-dot.pending,
+.ad-check-status-dot.processing,
+.ad-check-status-dot.creating {
+  background: #f59e0b !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16) !important;
+}
+
+.ad-check-status-dot.completed {
+  background: #16a34a !important;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.16) !important;
+}
+
+.ad-check-status-dot.failed {
+  background: #dc2626 !important;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16) !important;
+}
+
+.ad-check-terminal-status strong {
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  background: #dcfce7 !important;
+  color: #166534 !important;
+
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.055em !important;
+}
+
+.ad-check-terminal-status span:last-child {
+  color: #334155 !important;
+  font-weight: 750 !important;
+}
+
+.ad-check-terminal-summary {
+  padding: 16px 22px !important;
+
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+}
+
+.ad-check-terminal-summary span {
+  padding: 14px 14px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+
+  border-radius: 14px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.ad-check-terminal-summary strong {
+  color: #0f172a !important;
+  font-size: 18px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.ad-check-terminal-error {
+  margin: 14px 22px 0 22px !important;
+  padding: 12px 14px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #fecaca !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+
+  font-size: 13px !important;
+  font-weight: 850 !important;
+}
+
+.ad-check-console-card {
+  margin: 0 22px 16px 22px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  flex: 1 !important;
+
+  overflow: hidden !important;
+  border-radius: 16px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #0b1220 !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10) !important;
+}
+
+.ad-check-console-header {
+  min-height: 44px !important;
+  padding: 0 16px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
+  background: #111827 !important;
+}
+
+.ad-check-console-header span {
+  color: #e5e7eb !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.ad-check-console-header strong {
+  padding: 4px 9px !important;
+  border-radius: 999px !important;
+  background: rgba(59, 130, 246, 0.14) !important;
+  color: #bfdbfe !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.ad-check-terminal-output {
+  flex: 1 !important;
+  min-height: 390px !important;
+  max-height: 48vh !important;
+  margin: 0 !important;
+  padding: 18px 20px !important;
+
+  overflow: auto !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0)),
+    #0b1220 !important;
+  color: #dbeafe !important;
+
+  font-family: Consolas, "Cascadia Mono", "Liberation Mono", monospace !important;
+  font-size: 13px !important;
+  line-height: 1.58 !important;
+  white-space: pre-wrap !important;
+  tab-size: 2 !important;
+}
+
+.ad-check-terminal-output::selection {
+  background: #60a5fa !important;
+  color: #020617 !important;
+}
+
+.ad-check-terminal-output::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.ad-check-terminal-output::-webkit-scrollbar-thumb {
+  border-radius: 999px !important;
+  background: #475569 !important;
+}
+
+.ad-check-terminal-output::-webkit-scrollbar-track {
+  background: #111827 !important;
+}
+
+.ad-check-terminal-actions {
+  padding: 14px 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+
+  border-top: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-check-terminal-actions button {
+  min-height: 38px !important;
+  padding: 0 15px !important;
+
+  border-radius: 11px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.ad-check-terminal-actions button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #1e1b4b !important;
+}
+
+.ad-check-terminal-actions span {
+  margin-left: auto !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+}
+
+/* ========================================================= */
+/* === EITAS AD check history page ========================= */
+/* ========================================================= */
+
+.ad-check-history-page {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+}
+
+.ad-check-history-kpis {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.ad-check-history-kpis > div {
+  padding: 16px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+
+  border-radius: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.ad-check-history-kpis span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.ad-check-history-kpis strong {
+  color: #0f172a !important;
+  font-size: 22px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.03em !important;
+}
+
+.ad-check-history-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.ad-check-history-card {
+  padding: 16px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+
+  border-radius: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-check-history-card-main {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.ad-check-history-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+}
+
+.ad-check-history-title strong {
+  color: #0f172a !important;
+  font-size: 15px !important;
+  font-weight: 950 !important;
+}
+
+.ad-check-history-card p {
+  margin: 5px 0 !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 750 !important;
+}
+
+.ad-check-history-card small {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+.ad-check-history-card code {
+  max-width: 340px !important;
+  padding: 7px 9px !important;
+
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+
+  font-size: 11px !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-check-history-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: #94a3b8 !important;
+}
+
+.ad-check-history-dot.completed {
+  background: #16a34a !important;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12) !important;
+}
+
+.ad-check-history-dot.failed {
+  background: #dc2626 !important;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12) !important;
+}
+
+.ad-check-history-dot.pending,
+.ad-check-history-dot.processing {
+  background: #f59e0b !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12) !important;
+}
+
+.ad-check-history-summary {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.ad-check-history-summary span {
+  padding: 10px 12px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.ad-check-history-summary strong {
+  color: #0f172a !important;
+  font-weight: 950 !important;
+}
+
+.ad-check-history-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.ad-check-history-actions button {
+  min-height: 34px !important;
+  padding: 0 12px !important;
+
+  border-radius: 10px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.ad-check-history-actions button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #1e1b4b !important;
+}
+
+/* ========================================================= */
+/* === EITAS AD live lookup ================================ */
+/* ========================================================= */
+
+.ad-lookup-inline {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.ad-lookup-button {
+  min-height: 38px !important;
+  padding: 0 13px !important;
+
+  border-radius: 10px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #eef2ff !important;
+  color: #1e1b4b !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.ad-lookup-button:hover:not(:disabled) {
+  background: #e0e7ff !important;
+  border-color: #818cf8 !important;
+}
+
+.ad-lookup-button:disabled {
+  opacity: 0.65 !important;
+  cursor: wait !important;
+}
+
+.ad-lookup-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 125 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 22px !important;
+  background: rgba(15, 23, 42, 0.42) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+.ad-lookup-panel {
+  width: min(1120px, 96vw) !important;
+  max-height: 90vh !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+
+  border-radius: 18px !important;
+  border: 1px solid #dbe3ef !important;
+  background: #f8fafc !important;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28) !important;
+}
+
+.ad-lookup-header {
+  padding: 18px 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.ad-lookup-header > div {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+}
+
+.ad-lookup-header strong {
+  color: #0f172a !important;
+  font-size: 20px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.ad-lookup-header span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-lookup-header button {
+  min-height: 38px !important;
+  padding: 0 16px !important;
+
+  border-radius: 11px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.ad-lookup-status {
+  padding: 12px 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+}
+
+.ad-lookup-status strong {
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
+  background: #dcfce7 !important;
+  color: #166534 !important;
+
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.055em !important;
+}
+
+.ad-lookup-result-grid {
+  padding: 16px 22px !important;
+
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #f8fafc !important;
+}
+
+.ad-lookup-result-grid > div {
+  padding: 14px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+
+  border-radius: 14px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-lookup-result-grid span,
+.ad-lookup-ou-card span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.ad-lookup-result-grid strong {
+  color: #0f172a !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-lookup-ou-card {
+  margin: 14px 22px 0 22px !important;
+  padding: 13px 14px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+
+  border-radius: 14px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-lookup-ou-card code {
+  color: #0f172a !important;
+  font-size: 12px !important;
+  overflow-wrap: anywhere !important;
+}
+
+.ad-lookup-groups-card {
+  margin: 12px 22px 0 22px !important;
+  padding: 13px 14px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+
+  border-radius: 14px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-lookup-groups-card strong {
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 950 !important;
+}
+
+.ad-lookup-groups-card > div {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+}
+
+.ad-lookup-groups-card span {
+  padding: 5px 8px !important;
+
+  border-radius: 999px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #eef2ff !important;
+  color: #1e1b4b !important;
+
+  font-size: 11px !important;
+  font-weight: 850 !important;
+}
+
+.ad-lookup-not-found {
+  margin: 16px 22px 0 22px !important;
+  padding: 14px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+
+  border-radius: 14px !important;
+  border: 1px solid #fecaca !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+}
+
+.ad-lookup-not-found strong {
+  font-size: 14px !important;
+  font-weight: 950 !important;
+}
+
+.ad-lookup-not-found span {
+  font-size: 12px !important;
+  font-weight: 750 !important;
+}
+
+.ad-lookup-console {
+  margin-top: 14px !important;
+  max-height: 34vh !important;
+}
+
+.ad-lookup-actions {
+  padding: 14px 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+
+  border-top: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.ad-lookup-actions button {
+  min-height: 38px !important;
+  padding: 0 15px !important;
+
+  border-radius: 11px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.ad-lookup-actions button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #1e1b4b !important;
+}
+
+.ad-lookup-actions span {
+  margin-left: auto !important;
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+}

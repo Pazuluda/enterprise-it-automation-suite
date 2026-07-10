@@ -1,4 +1,1327 @@
-
-
 /* ========================================================= */
 /* === EITAS agent health clarity ========================== */
+
+/* ========================================================= */
+/* === EITAS agent / operations / mode ===================== */
+/* ========================================================= */
+
+/* ========================================================= */
+/* === EITAS agent operations page ========================= */
+/* ========================================================= */
+
+.agent-ops-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-ops-hero {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.agent-ops-hero.ok {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 65%);
+}
+
+.agent-ops-hero.error {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 65%);
+}
+
+.agent-ops-hero span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.agent-ops-hero h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 22px;
+}
+
+.agent-ops-hero p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-ops-hero > strong {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.agent-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.agent-ops-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.agent-ops-card span,
+.agent-ops-config span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+
+.agent-ops-card strong,
+.agent-ops-config strong {
+  color: var(--text);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.agent-ops-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.agent-ops-section {
+  overflow: hidden;
+}
+
+.agent-ops-config {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  padding: 16px;
+}
+
+.agent-ops-config div {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 11px 12px;
+}
+
+.agent-command-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.agent-command-card {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.agent-command-card strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.agent-command-card pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+}
+
+/* ========================================================= */
+/* === EITAS command copy buttons ========================== */
+/* ========================================================= */
+
+.agent-command-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.agent-command-header strong {
+  margin-bottom: 0;
+}
+
+.copy-command-button {
+  width: auto;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.copy-command-button:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+/* ========================================================= */
+/* === EITAS visible heartbeat card ======================== */
+/* ========================================================= */
+
+.agent-heartbeat-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.agent-heartbeat-card.online {
+  border-color: #86efac;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 70%);
+}
+
+.agent-heartbeat-card.offline {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 70%);
+}
+
+.agent-heartbeat-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.agent-heartbeat-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.agent-heartbeat-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-heartbeat-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.agent-heartbeat-details div {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.agent-heartbeat-details strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* ========================================================= */
+/* === EITAS agent frequency control ======================= */
+/* ========================================================= */
+
+.agent-frequency-control {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.agent-frequency-control select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.agent-frequency-control p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ========================================================= */
+/* === EITAS Windows scheduled task status ================= */
+/* ========================================================= */
+
+.agent-task-status-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.agent-task-status-card.enabled {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 70%);
+}
+
+.agent-task-status-card.disabled {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 70%);
+}
+
+.agent-task-status-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.agent-task-status-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.agent-task-status-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-task-status-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.agent-task-status-details div {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.agent-task-status-details strong {
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* ========================================================= */
+/* === EITAS readable Windows task result ================== */
+/* ========================================================= */
+
+.agent-task-result-code {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* ========================================================= */
+/* === EITAS agent pause control =========================== */
+/* ========================================================= */
+
+.agent-pause-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.agent-pause-card.active {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 70%);
+}
+
+.agent-pause-card.paused {
+  border-color: #fde68a;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 70%);
+}
+
+.agent-pause-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+
+.agent-pause-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+}
+
+.agent-pause-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pause-agent-button,
+.resume-agent-button {
+  width: auto;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pause-agent-button {
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.resume-agent-button {
+  border: 1px solid #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+/* ========================================================= */
+/* === EITAS global agent alert banner ===================== */
+/* ========================================================= */
+
+.agent-system-alerts {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.agent-system-alert {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.agent-system-alert strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.agent-system-alert span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-system-alert.warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.agent-system-alert.warning strong {
+  color: #92400e;
+}
+
+.agent-system-alert.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.agent-system-alert.error strong {
+  color: #991b1b;
+}
+
+/* ========================================================= */
+/* === EITAS agent operations history ====================== */
+/* ========================================================= */
+
+.agent-history-section {
+  overflow: hidden;
+}
+
+.agent-history-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.agent-history-row {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(160px, 0.8fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.agent-history-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-history-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.agent-history-meta,
+.agent-history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-history-meta small,
+.agent-history-details span {
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.agent-history-empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ========================================================= */
+/* === EITAS agent operations history ====================== */
+/* ========================================================= */
+
+.agent-history-section {
+  overflow: hidden;
+}
+
+.agent-history-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.agent-history-row {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) minmax(180px, 1fr) minmax(160px, 0.8fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.agent-history-row span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-history-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.agent-history-meta,
+.agent-history-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-history-meta small,
+.agent-history-details span {
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.agent-history-empty {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ========================================================= */
+/* === EITAS agent diagnostic block ======================== */
+/* ========================================================= */
+
+.agent-diagnostic-section {
+  overflow: hidden;
+}
+
+.agent-diagnostic-preview {
+  margin: 16px;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 360px;
+  overflow: auto;
+}
+
+/* ========================================================= */
+/* === EITAS compact agent summary ========================= */
+/* ========================================================= */
+
+.agent-compact-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+}
+
+.agent-compact-item {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.agent-compact-item span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.agent-compact-item strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.agent-compact-item.ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.agent-compact-item.warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.agent-compact-item.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.agent-compact-item.neutral {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+}
+
+/* ========================================================= */
+/* === EITAS professional agent page layout ================ */
+/* ========================================================= */
+
+.agent-layout-group {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-section-heading {
+  border-left: 4px solid #c7d2fe;
+  padding: 4px 0 4px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.agent-section-heading span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.agent-section-heading strong {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.agent-diagnostic-details {
+  margin: 16px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.agent-diagnostic-details summary {
+  cursor: pointer;
+  padding: 13px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.agent-diagnostic-details .agent-diagnostic-preview {
+  margin: 0;
+  border-radius: 0;
+  max-height: 320px;
+}
+
+/* ========================================================= */
+/* === EITAS collapsible PowerShell commands =============== */
+/* ========================================================= */
+
+.agent-commands-details {
+  margin: 16px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.agent-commands-details summary {
+  cursor: pointer;
+  padding: 13px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.agent-commands-details .agent-command-list {
+  padding: 14px;
+}
+
+.agent-layout-group {
+  scroll-margin-top: 80px;
+}
+
+/* ========================================================= */
+/* === EITAS agent mode page =============================== */
+/* ========================================================= */
+
+.agent-mode-page {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+}
+
+.agent-mode-hero {
+  padding: 22px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+
+  border-radius: 18px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.agent-mode-hero.production {
+  border-color: #bbf7d0 !important;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%) !important;
+}
+
+.agent-mode-hero.simulation {
+  border-color: #fed7aa !important;
+  background: linear-gradient(180deg, #fff7ed 0%, #ffffff 100%) !important;
+}
+
+.agent-mode-hero span,
+.agent-mode-card span {
+  color: #64748b !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.agent-mode-hero strong {
+  display: block !important;
+  margin-top: 6px !important;
+
+  color: #0f172a !important;
+  font-size: 34px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.05em !important;
+}
+
+.agent-mode-hero p,
+.agent-mode-card p,
+.agent-mode-note p {
+  margin: 6px 0 0 0 !important;
+  color: #475569 !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+}
+
+.agent-mode-hero button,
+.agent-mode-card button {
+  min-height: 42px !important;
+  padding: 0 16px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+
+  font-size: 13px !important;
+  font-weight: 950 !important;
+}
+
+.agent-mode-hero button:hover,
+.agent-mode-card button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+}
+
+.agent-mode-card button:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+
+.agent-mode-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.agent-mode-card {
+  padding: 20px !important;
+
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+
+  border-radius: 18px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.agent-mode-card.selected {
+  border-color: #fb923c !important;
+  box-shadow: 0 0 0 4px rgba(251, 146, 60, 0.12) !important;
+}
+
+.agent-mode-card.danger.selected {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12) !important;
+}
+
+.agent-mode-card strong {
+  display: block !important;
+  margin-top: 6px !important;
+
+  color: #0f172a !important;
+  font-size: 22px !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.agent-mode-card.danger button {
+  border-color: #bbf7d0 !important;
+  background: #f0fdf4 !important;
+  color: #166534 !important;
+}
+
+.agent-mode-card.danger button:hover {
+  border-color: #22c55e !important;
+  background: #dcfce7 !important;
+}
+
+.agent-mode-note,
+.agent-mode-error {
+  padding: 16px 18px !important;
+
+  border-radius: 16px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+}
+
+.agent-mode-note strong {
+  color: #0f172a !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+}
+
+.agent-mode-error {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  font-weight: 850 !important;
+}
+
+/* === migrated legacy agent result UI ===================== */
+
+/* ========================================================= */
+/* === EITAS agent result card ============================= */
+/* ========================================================= */
+
+.agent-result-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 14px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.agent-result-card.error {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 55%);
+}
+
+.agent-result-card.pending {
+  background: #f8fafc;
+}
+
+.agent-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.agent-result-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.agent-result-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.agent-result-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-result-status {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.agent-result-status.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.agent-result-status.ko {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.agent-result-status.waiting {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.agent-result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.agent-result-row {
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.agent-result-row.compact {
+  padding: 8px 10px;
+}
+
+.agent-result-row span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.agent-result-row strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agent-result-list-block {
+  margin-top: 14px;
+}
+
+.agent-result-list-block > strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.agent-result-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-result-chip {
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+.agent-result-chip.added {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.agent-result-chip.removed {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.agent-result-change-list {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-result-error {
+  margin-top: 14px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ========================================================= */
+/* === EITAS detailed agent result card ==================== */
+/* ========================================================= */
+
+.agent-result-card {
+  border: 1px solid #dbe3ef;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  margin-top: 14px;
+}
+
+.agent-result-card.error {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 52%);
+}
+
+.agent-result-card.pending {
+  background: #f8fafc;
+}
+
+.agent-result-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.agent-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.agent-result-top h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.agent-result-top p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.agent-status {
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.agent-status.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.agent-status.ko {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.agent-status.waiting {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.agent-badge-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agent-badge {
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 900;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.agent-badge.prod {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.agent-badge.sim {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.agent-badge.info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.agent-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.agent-info-row {
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 12px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.agent-info-row span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.agent-info-row strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agent-list-section {
+  margin-top: 14px;
+}
+
+.agent-list-section h4 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.agent-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-chip {
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+.agent-chip.added {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.agent-chip.removed {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.agent-change-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.agent-error-box {
+  margin-top: 14px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ========================================================= */
+/* === EITAS agent internal navigation ===================== */
+/* ========================================================= */
+
+.agent-jumpbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dbe3ef;
+  background: rgba(248, 250, 252, 0.94);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+}
+
+.agent-jumpbar a {
+  text-decoration: none;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.agent-jumpbar a:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+#agent-page-top {
+  scroll-margin-top: 90px;
+}

@@ -373,3 +373,315 @@
   padding: 8px 10px;
   resize: vertical;
 }
+
+/* === migrated legacy CSV / lifecycle UI ================== */
+
+.csv-file-button {
+  min-height: 40px;
+  padding: 0 14px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+  border: 1px solid #cfd8ea;
+  background: #ffffff;
+
+  color: #15192f;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.csv-file-button input {
+  display: none;
+}
+
+.csv-row-invalid {
+  background: #fff7ed;
+}
+
+.csv-status-ok,
+.csv-status-error {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.csv-status-ok {
+  color: #0f6b2b;
+  background: #f0fff4;
+  border: 1px solid #b7efc5;
+}
+
+.csv-status-error {
+  color: #9f1239;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
+
+.csv-remove-row-button {
+  min-height: 34px !important;
+  padding: 0 10px !important;
+
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: #9f1239 !important;
+  border: 1px solid #fecdd3 !important;
+  box-shadow: none !important;
+}
+
+.csv-report-list {
+  display: grid;
+  gap: 8px;
+}
+
+.csv-report-ok,
+.csv-report-error {
+  padding: 12px 14px;
+  border-radius: 12px;
+
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.csv-report-ok {
+  background: #f0fff4;
+  border: 1px solid #b7efc5;
+  color: #0f6b2b;
+}
+
+.csv-report-error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+}
+
+/* ========================================================= */
+/* === EITAS CSV warning status ============================ */
+/* ========================================================= */
+
+.csv-status-warning {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* ========================================================= */
+/* === EITAS CSV template download ========================= */
+/* ========================================================= */
+
+.csv-source-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.csv-template-button {
+  min-height: 40px !important;
+  padding: 0 14px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #b7efc5 !important;
+  background: #f0fff4 !important;
+  color: #0f6b2b !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+}
+
+/* ========================================================= */
+/* === EITAS custom CSV column mapping ===================== */
+/* ========================================================= */
+
+.csv-mapping-panel {
+  margin-top: 14px;
+  padding: 14px;
+
+  border-radius: 14px;
+  border: 1px solid #dbe3ef;
+  background: #f8fafc;
+
+  display: grid;
+  gap: 14px;
+}
+
+.csv-mapping-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.csv-mapping-header > div {
+  display: grid;
+  gap: 4px;
+}
+
+.csv-mapping-header strong {
+  color: #15192f;
+  font-size: 15px;
+}
+
+.csv-mapping-header span {
+  color: #58627e;
+  font-size: 13px;
+}
+
+.csv-mapping-header button {
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  white-space: nowrap !important;
+}
+
+.csv-mapping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.csv-mapping-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.csv-mapping-grid label span {
+  color: #58627e;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.csv-mapping-grid label.required span {
+  color: #30364f;
+}
+
+/* ========================================================= */
+/* === EITAS CSV bulk approve ============================== */
+/* ========================================================= */
+
+.csv-report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.csv-report-header h2 {
+  margin-bottom: 6px;
+}
+
+.csv-report-header p {
+  margin: 0;
+  color: #58627e;
+}
+
+.csv-bulk-approve-button {
+  min-height: 42px !important;
+  padding: 0 16px !important;
+
+  border-radius: 12px !important;
+  border: 1px solid #86efac !important;
+  background: #15803d !important;
+  color: #ffffff !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+
+  box-shadow: 0 10px 22px rgba(21, 128, 61, 0.18) !important;
+}
+
+.csv-bulk-approve-button:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.lifecycle-title-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  margin-bottom: 14px !important;
+}
+
+.lifecycle-title-row h4 {
+  margin-bottom: 4px !important;
+}
+
+.lifecycle-title-row p {
+  margin: 0 !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.lifecycle-progress-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  border: 1px solid #dbeafe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+.lifecycle-progress-pill.done {
+  border-color: #bbf7d0 !important;
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.lifecycle-progress-pill.bad {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - download report button ======== */
+/* ========================================================= */
+
+.download-report-button {
+  min-height: 36px !important;
+  padding: 0 12px !important;
+
+  border-radius: 10px !important;
+  border: 1px solid #bfdbfe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}

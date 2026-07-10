@@ -1,6 +1,12 @@
+@import './styles/00-base.css';
+@import './styles/01-layout.css';
 @import './styles/02-sidebar.css';
+@import './styles/03-forms.css';
 @import './styles/04-overview.css';
 @import './styles/05-requests.css';
 @import './styles/06-employee-lifecycle.css';
+@import './styles/07-active-directory.css';
 @import './styles/08-agent.css';
-@import './styles/99-legacy.css';
+@import './styles/09-admin.css';
+@import './styles/10-utilities.css';
+@import './styles/11-responsive.css';
