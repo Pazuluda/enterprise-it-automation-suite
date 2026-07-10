@@ -24,6 +24,13 @@ from app.services.templates import (
     upsert_department_template as service_upsert_department_template,
     upsert_role_template as service_upsert_role_template,
 )
+from app.services.employee_lifecycle import (
+    EmployeeLifecycleBadRequest,
+    create_modification_request as service_create_modification_request,
+    create_offboarding_request as service_create_offboarding_request,
+    create_onboarding_request as service_create_onboarding_request,
+)
+
 from app.services.ad_jobs import (
     ADJobsBadRequest,
     ADJobsConflict,
@@ -157,70 +164,18 @@ def get_templates():
 
 @app.post("/api/onboarding/request")
 def create_onboarding_request(payload: OnboardingRequest, api_key: None = Depends(require_api_key)):
-    templates = load_json(TEMPLATES_FILE, {"departments": {}})
-    departments = templates.get("departments", {})
+    try:
+        response, audit_event = service_create_onboarding_request(
+            REQUESTS_FILE,
+            TEMPLATES_FILE,
+            payload,
+        )
+    except EmployeeLifecycleBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    if payload.department not in departments:
-        raise HTTPException(status_code=400, detail="Département inconnu")
+    write_audit_log(**audit_event)
 
-    department_config = departments[payload.department]
-    roles = department_config.get("roles", {})
-
-    if payload.job_title not in roles:
-        raise HTTPException(status_code=400, detail="Poste inconnu pour ce département")
-
-    default_groups = department_config.get("default_groups", [])
-    role_groups = roles[payload.job_title].get("groups", [])
-    manual_groups = payload.manual_groups
-
-    all_groups = sorted(set(default_groups + role_groups + manual_groups))
-
-    request_id = str(uuid4())
-    username = generate_username(payload.first_name, payload.last_name)
-    email = generate_email(payload.first_name, payload.last_name)
-
-    request_data = {
-        "id": request_id,
-        "type": "onboarding",
-        "status": "waiting_approval",
-        "created_at": datetime.utcnow().isoformat() + "Z",
-        "input": payload.model_dump(),
-        "ad_payload": {
-            "first_name": payload.first_name,
-            "last_name": payload.last_name,
-            "display_name": f"{payload.first_name} {payload.last_name}",
-            "username": username,
-            "email": email,
-            "department": payload.department,
-            "job_title": payload.job_title,
-            "manager": payload.manager,
-            "start_date": payload.start_date,
-            "ou": department_config.get("default_ou"),
-            "groups": all_groups
-        },
-        "agent_result": None
-    }
-
-    requests = load_json(REQUESTS_FILE, [])
-    requests.append(request_data)
-    save_json(REQUESTS_FILE, requests)
-
-    write_audit_log(
-        action="request_created",
-        request_id=request_id,
-        actor="api",
-        message=f"Demande onboarding créée pour {payload.first_name} {payload.last_name}",
-        details={
-            "username": username,
-            "department": payload.department,
-            "job_title": payload.job_title
-        }
-    )
-
-    return {
-        "message": "Demande créée",
-        "request": request_data
-    }
+    return response
 
 
 @app.get("/api/requests")
@@ -676,133 +631,26 @@ def delete_role_template(department_name: str, role_name: str, api_key: None = D
 
 @app.post("/api/offboarding/request")
 def create_offboarding_request(payload: OffboardingRequest, api_key: None = Depends(require_api_key)):
-    requests = load_json(REQUESTS_FILE, [])
-
-    request_id = str(uuid4())
-    now = datetime.utcnow().isoformat() + "Z"
-
-    offboarding_payload = {
-        "username": payload.username,
-        "display_name": payload.display_name,
-        "department": payload.department,
-        "manager": payload.manager,
-        "end_date": payload.end_date,
-        "disable_account": payload.disable_account,
-        "remove_groups": payload.remove_groups,
-        "move_to_ou": payload.move_to_ou,
-        "convert_mailbox": payload.convert_mailbox,
-        "forward_to": payload.forward_to,
-        "comment": payload.comment
-    }
-
-    request = {
-        "id": request_id,
-        "type": "offboarding",
-        "status": "waiting_approval",
-        "created_at": now,
-        "approved": False,
-        "approved_by": None,
-        "approved_at": None,
-        "rejected_by": None,
-        "rejected_at": None,
-        "processing_by": None,
-        "processing_at": None,
-        "completed_at": None,
-        "failed_at": None,
-        "payload": payload.dict(),
-        "ad_payload": offboarding_payload,
-        "agent_result": None
-    }
-
-    requests.append(request)
-    save_json(REQUESTS_FILE, requests)
-
-    write_audit_log(
-        action="offboarding_request_created",
-        request_id=request_id,
-        actor="api",
-        message=f"Demande offboarding créée pour {payload.display_name}",
-        details={
-            "username": payload.username,
-            "display_name": payload.display_name,
-            "department": payload.department,
-            "end_date": payload.end_date
-        }
+    response, audit_event = service_create_offboarding_request(
+        REQUESTS_FILE,
+        payload,
     )
 
-    return {
-        "message": "Demande offboarding créée",
-        "request": request
-    }
+    write_audit_log(**audit_event)
+
+    return response
 
 
 @app.post("/api/modification/request")
 def create_modification_request(payload: ModificationRequest, api_key: None = Depends(require_api_key)):
-    requests = load_json(REQUESTS_FILE, [])
-
-    request_id = str(uuid4())
-    now = datetime.utcnow().isoformat() + "Z"
-
-    modification_payload = {
-        "username": payload.username,
-        "display_name": payload.display_name,
-        "department": payload.new_department or payload.current_department,
-        "job_title": payload.new_job_title or payload.current_job_title,
-        "current_department": payload.current_department,
-        "current_job_title": payload.current_job_title,
-        "new_department": payload.new_department,
-        "new_job_title": payload.new_job_title,
-        "manager": payload.manager,
-        "effective_date": payload.effective_date,
-        "add_groups": payload.add_groups,
-        "remove_groups": payload.remove_groups,
-        "move_to_ou": payload.move_to_ou,
-        "comment": payload.comment
-    }
-
-    request = {
-        "id": request_id,
-        "type": "modification",
-        "status": "waiting_approval",
-        "created_at": now,
-        "approved": False,
-        "approved_by": None,
-        "approved_at": None,
-        "rejected_by": None,
-        "rejected_at": None,
-        "processing_by": None,
-        "processing_at": None,
-        "completed_at": None,
-        "failed_at": None,
-        "payload": modification_payload,
-        "ad_payload": modification_payload,
-        "agent_result": None
-    }
-
-    requests.append(request)
-    save_json(REQUESTS_FILE, requests)
-
-    write_audit_log(
-        action="modification_request_created",
-        request_id=request_id,
-        actor="api",
-        message=f"Demande modification créée pour {payload.display_name}",
-        details={
-            "username": payload.username,
-            "display_name": payload.display_name,
-            "current_department": payload.current_department,
-            "current_job_title": payload.current_job_title,
-            "new_department": payload.new_department,
-            "new_job_title": payload.new_job_title,
-            "add_groups": payload.add_groups,
-            "remove_groups": payload.remove_groups
-        }
+    response, audit_event = service_create_modification_request(
+        REQUESTS_FILE,
+        payload,
     )
 
-    return {
-        "message": "Demande modification créée",
-        "request": request
-    }
+    write_audit_log(**audit_event)
+
+    return response
 
 
 # STEP176_AGENT_MODE_COMPAT_ROUTES
