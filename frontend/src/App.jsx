@@ -1296,6 +1296,16 @@ function App() {
     return [10, 20, 50].includes(savedSize) ? savedSize : 20
   })
   const [selectedRequestIds, setSelectedRequestIds] = useState([])
+  const [adCheckTerminal, setAdCheckTerminal] = useState({
+    open: false,
+    jobId: '',
+    status: '',
+    message: '',
+    output: '',
+    summary: null,
+    loading: false,
+    error: ''
+  })
 
   const [form, setForm] = useState({
     first_name: 'Emma',
@@ -2361,6 +2371,154 @@ Write-Host "============================================================"
     setMessage(`${selectedRequests.length} demande(s) exportée(s) en contrôle AD PowerShell.`)
   }
 
+  function closeAdCheckTerminal() {
+    setAdCheckTerminal({
+      open: false,
+      jobId: '',
+      status: '',
+      message: '',
+      output: '',
+      summary: null,
+      loading: false,
+      error: ''
+    })
+  }
+
+  function copyAdCheckTerminalOutput() {
+    const text = adCheckTerminal.output || ''
+    if (!text) {
+      setMessage('Aucun résultat contrôle AD à copier.')
+      return
+    }
+
+    navigator.clipboard.writeText(text)
+    setMessage('Contrôle Active Directory copié.')
+  }
+
+  function downloadAdCheckTerminalOutput() {
+    const text = adCheckTerminal.output || ''
+    if (!text) {
+      setMessage('Aucun résultat contrôle AD à télécharger.')
+      return
+    }
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-controle-ad-resultat-${adCheckTerminal.jobId || 'job'}-${timestamp}.txt`
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    setMessage('Contrôle Active Directory téléchargé.')
+  }
+
+  async function refreshAdCheckJob(jobId) {
+    const job = await apiFetch(`/api/ad-check/jobs/${jobId}`)
+
+    setAdCheckTerminal(current => ({
+      ...current,
+      open: true,
+      jobId: job.id,
+      status: job.status || '',
+      message: job.message || '',
+      output: job.output || current.output || '',
+      summary: job.summary || null,
+      loading: ['pending', 'processing'].includes(String(job.status || '').toLowerCase()),
+      error: ''
+    }))
+
+    return job
+  }
+
+  async function pollAdCheckJob(jobId) {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const job = await refreshAdCheckJob(jobId)
+      const status = String(job.status || '').toLowerCase()
+
+      if (status === 'completed' || status === 'failed') {
+        return job
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+
+    setAdCheckTerminal(current => ({
+      ...current,
+      loading: false,
+      error: 'Timeout : le contrôle AD est toujours en attente. Tu peux relancer le rafraîchissement plus tard.'
+    }))
+
+    return null
+  }
+
+  async function runSelectedAdCheckJob() {
+    if (selectedRequests.length === 0) {
+      setMessage('Aucune demande sélectionnée pour le contrôle AD.')
+      return
+    }
+
+    const requestIds = selectedRequests
+      .map(request => findRequestIdForBulkAction(request))
+      .filter(Boolean)
+
+    if (requestIds.length === 0) {
+      setMessage('Aucun ID de demande valide dans la sélection.')
+      return
+    }
+
+    setAdCheckTerminal({
+      open: true,
+      jobId: '',
+      status: 'creating',
+      message: 'Création du job contrôle AD...',
+      output: 'Création du job contrôle AD...\nEn attente de prise en charge par l’agent Windows...',
+      summary: null,
+      loading: true,
+      error: ''
+    })
+
+    try {
+      const response = await apiFetch('/api/ad-check/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          created_by: 'react-admin',
+          request_ids: requestIds
+        })
+      })
+
+      const job = response.job || response
+
+      setAdCheckTerminal(current => ({
+        ...current,
+        jobId: job.id,
+        status: job.status || 'pending',
+        message: job.message || 'Contrôle AD en attente agent',
+        output: `Job contrôle AD créé : ${job.id}\nDemandes sélectionnées : ${requestIds.length}\n\nEn attente de l’agent Windows...`,
+        summary: job.summary || null,
+        loading: true,
+        error: ''
+      }))
+
+      setMessage(`Contrôle AD lancé pour ${requestIds.length} demande(s).`)
+
+      await pollAdCheckJob(job.id)
+    } catch (error) {
+      setAdCheckTerminal(current => ({
+        ...current,
+        loading: false,
+        error: error.message || 'Erreur création contrôle AD',
+        output: `${current.output || ''}\n\nERREUR : ${error.message || 'Erreur création contrôle AD'}`
+      }))
+      setMessage(`Erreur contrôle AD : ${error.message || 'inconnue'}`)
+    }
+  }
+
   async function approveSelectedRequests() {
     if (selectedApprovableRequests.length === 0) {
       setMessage('Aucune demande sélectionnée à approuver.')
@@ -3217,7 +3375,7 @@ Write-Host "============================================================"
               approveSelectedRequests={approveSelectedRequests}
               retrySelectedRequests={retrySelectedRequests}
               exportSelectedRequestsCsv={exportSelectedRequestsCsv}
-              downloadSelectedAdCheckPowerShellFile={downloadSelectedAdCheckPowerShellFile}
+              downloadSelectedAdCheckPowerShellFile={runSelectedAdCheckJob}
               setPage={setPage}
               setSelectedRequest={setSelectedRequest}
             />
@@ -3297,7 +3455,75 @@ Write-Host "============================================================"
             />
           )}
 
-          {selectedRequest && (
+          {adCheckTerminal.open && (
+        <div className="ad-check-terminal-overlay">
+          <div className="ad-check-terminal-panel">
+            <div className="ad-check-terminal-header">
+              <div>
+                <strong>Contrôle Active Directory</strong>
+                <span>
+                  {adCheckTerminal.jobId ? `Job ${adCheckTerminal.jobId}` : 'Création du job...'}
+                </span>
+              </div>
+
+              <button type="button" onClick={closeAdCheckTerminal}>Fermer</button>
+            </div>
+
+            <div className="ad-check-terminal-status">
+              <span className={`ad-check-status-dot ${adCheckTerminal.status || 'unknown'}`} />
+              <strong>{adCheckTerminal.status || 'unknown'}</strong>
+              <span>{adCheckTerminal.message || '-'}</span>
+            </div>
+
+            {adCheckTerminal.summary && (
+              <div className="ad-check-terminal-summary">
+                <span>Contrôlées : <strong>{adCheckTerminal.summary.checked ?? '-'}</strong></span>
+                <span>Trouvés : <strong>{adCheckTerminal.summary.found ?? '-'}</strong></span>
+                <span>Introuvables : <strong>{adCheckTerminal.summary.missing ?? '-'}</strong></span>
+                <span>OU OK : <strong>{adCheckTerminal.summary.ou_ok ?? '-'}</strong></span>
+                <span>Warnings : <strong>{adCheckTerminal.summary.warnings ?? '-'}</strong></span>
+              </div>
+            )}
+
+            {adCheckTerminal.error && (
+              <div className="ad-check-terminal-error">
+                {adCheckTerminal.error}
+              </div>
+            )}
+
+            <div className="ad-check-console-card">
+              <div className="ad-check-console-header">
+                <span>Sortie agent Windows</span>
+                <strong>{adCheckTerminal.summary ? 'Rapport terminé' : 'En attente'}</strong>
+              </div>
+
+              <pre className="ad-check-terminal-output">
+{(adCheckTerminal.output || 'En attente du résultat agent...').trim()}
+              </pre>
+            </div>
+
+            <div className="ad-check-terminal-actions">
+              <button type="button" onClick={() => adCheckTerminal.jobId && refreshAdCheckJob(adCheckTerminal.jobId)}>
+                Rafraîchir
+              </button>
+
+              <button type="button" onClick={copyAdCheckTerminalOutput}>
+                Copier résultat
+              </button>
+
+              <button type="button" onClick={downloadAdCheckTerminalOutput}>
+                Télécharger TXT
+              </button>
+
+              {adCheckTerminal.loading && (
+                <span>En attente de l’agent Windows...</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedRequest && (
             <SmartRequestDrawer
               request={selectedRequest}
               auditLogs={auditLogs}
