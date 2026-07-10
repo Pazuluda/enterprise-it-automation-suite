@@ -4,7 +4,6 @@ from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from datetime import datetime
-from uuid import uuid4
 import json
 import os
 
@@ -55,7 +54,6 @@ from app.services.agent_runtime import (
     submit_agent_result as service_submit_agent_result,
     update_agent_config as service_update_agent_config,
 )
-from app.utils.naming import generate_username, generate_email
 from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest
 
 
