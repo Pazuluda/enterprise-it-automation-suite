@@ -10,6 +10,7 @@ import NewRequestPage from './components/NewRequestPage.jsx'
 import OffboardingPage from './components/OffboardingPage.jsx'
 import AgentModePage from './features/agent/AgentModePage.jsx'
 import AdChecksPage from './features/active-directory/AdChecksPage.jsx'
+import AdExplorerPage from './features/active-directory/AdExplorerPage.jsx'
 import ModificationPage from './features/employee-lifecycle/ModificationPage.jsx'
 import AgentOperationsPage from './features/agent/AgentOperationsPage.jsx'
 
@@ -84,6 +85,11 @@ const PAGES = {
   adChecks: {
     title: 'Contrôles AD',
     subtitle: 'Historique des contrôles Active Directory lancés depuis le portail.'
+  },
+
+  adExplorer: {
+    title: 'Explorateur AD',
+    subtitle: 'Parcourir les OU, groupes et utilisateurs Active Directory en lecture seule.'
   },
 
   agentMode: {
@@ -3556,6 +3562,13 @@ Write-Host "============================================================"
             >
               Contrôles AD
             </button>
+<button
+              type="button"
+              className={page === 'adExplorer' ? 'active' : ''}
+              onClick={() => setPage('adExplorer')}
+            >
+              Explorateur AD
+            </button>
 
             <button
               type="button"
@@ -3952,6 +3965,13 @@ Write-Host "============================================================"
               openAdCheckJobFromHistory={openAdCheckJobFromHistory}
               copyAdCheckJobOutput={copyAdCheckJobOutput}
               downloadAdCheckJobOutput={downloadAdCheckJobOutput}
+            />
+          )}
+
+          {page === 'adExplorer' && (
+            <AdExplorerPage
+              apiFetch={apiFetch}
+              setMessage={setMessage}
             />
           )}
 

@@ -1736,6 +1736,310 @@ function Process-PendingAdExplorerJobs {
 
 # STEP202_AD_EXPLORER_FUNCTIONS_END
 
+
+# STEP208_AD_ADMIN_FUNCTIONS_START
+
+function Send-AdAdminJobResult {
+    param(
+        [string]$JobId,
+        [bool]$Success,
+        [string]$Message,
+        [string]$Output,
+        [object]$Result,
+        [object]$Details
+    )
+
+    $Body = @{
+        success = $Success
+        agent_name = $AgentName
+        message = $Message
+        output = $Output
+        result = $Result
+        details = $Details
+    }
+
+    Invoke-EitasApi -Method "POST" -Path "/api/agent/ad-admin/result/$JobId" -Body $Body | Out-Null
+}
+
+function Claim-AdAdminJob {
+    param([string]$JobId)
+
+    $Body = @{
+        agent_name = $AgentName
+    }
+
+    Invoke-EitasApi -Method "POST" -Path "/api/agent/ad-admin/claim/$JobId" -Body $Body | Out-Null
+}
+
+function Get-PendingAdAdminJobs {
+    try {
+        $Pending = Invoke-EitasApi -Method "GET" -Path "/api/agent/ad-admin/pending"
+
+        if ($null -eq $Pending) {
+            return @()
+        }
+
+        if ($Pending.jobs) {
+            return @($Pending.jobs)
+        }
+
+        return @()
+    }
+    catch {
+        Write-Host ("[WARN] Impossible de recuperer les jobs AD Admin : {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+        return @()
+    }
+}
+
+function Test-EitasAdObjectExists {
+    param(
+        [string]$LdapFilter,
+        [string]$SearchBase
+    )
+
+    try {
+        $Params = @{
+            LDAPFilter = $LdapFilter
+            ErrorAction = "Stop"
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($SearchBase)) {
+            $Params.SearchBase = $SearchBase
+        }
+
+        $Found = @(Get-ADObject @Params | Select-Object -First 1)
+        return ($Found.Count -gt 0)
+    }
+    catch {
+        return $false
+    }
+}
+
+function Invoke-EitasAdAdminJob {
+    param($Job)
+
+    Import-Module ActiveDirectory -ErrorAction Stop
+
+    $Action = [string]$Job.action
+    $Payload = $Job.payload
+
+    if ($null -eq $Payload) {
+        throw "Payload AD Admin manquant"
+    }
+
+    $ParentDn = [string]$Payload.parent_dn
+    $Name = [string]$Payload.name
+    $Description = [string]$Payload.description
+
+    if ([string]::IsNullOrWhiteSpace($ParentDn)) {
+        throw "parent_dn manquant"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+        throw "name manquant"
+    }
+
+    if ($Mode -ne "Production") {
+        $SimulatedDn = if ($Action -eq "create_ou") {
+            "OU=$Name,$ParentDn"
+        }
+        else {
+            "CN=$Name,$ParentDn"
+        }
+
+        return @{
+            success = $true
+            message = "Simulation AD Admin terminee"
+            output = "Mode Simulation : aucune modification AD executee.`nAction : $Action`nNom : $Name`nParent : $ParentDn"
+            result = @{
+                action = $Action
+                created = $false
+                simulated = $true
+                name = $Name
+                parent_dn = $ParentDn
+                distinguished_name = $SimulatedDn
+            }
+        }
+    }
+
+    if ($Action -eq "create_ou") {
+        $EscapedName = Escape-EitasLdapFilterValue -Value $Name
+        $Exists = Test-EitasAdObjectExists -SearchBase $ParentDn -LdapFilter "(&(objectClass=organizationalUnit)(ou=$EscapedName))"
+
+        if ($Exists) {
+            throw "Une OU existe deja avec ce nom dans ce parent : $Name"
+        }
+
+        $Params = @{
+            Name = $Name
+            Path = $ParentDn
+            ProtectedFromAccidentalDeletion = $true
+            ErrorAction = "Stop"
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($Description)) {
+            $Params.Description = $Description
+        }
+
+        New-ADOrganizationalUnit @Params
+
+        $Created = Get-ADOrganizationalUnit `
+            -LDAPFilter "(&(objectClass=organizationalUnit)(ou=$EscapedName))" `
+            -SearchBase $ParentDn `
+            -Properties CanonicalName, Description, ProtectedFromAccidentalDeletion `
+            -ErrorAction Stop |
+            Select-Object -First 1
+
+        return @{
+            success = $true
+            message = "OU creee dans Active Directory"
+            output = "OU creee : $Name`nParent : $ParentDn`nDN : $($Created.DistinguishedName)"
+            result = @{
+                action = $Action
+                created = $true
+                name = $Created.Name
+                description = $Created.Description
+                canonical_name = $Created.CanonicalName
+                distinguished_name = $Created.DistinguishedName
+                protected = $Created.ProtectedFromAccidentalDeletion
+            }
+        }
+    }
+
+    if ($Action -eq "create_group") {
+        $SamAccountName = [string]$Payload.sam_account_name
+        $GroupScope = [string]$Payload.group_scope
+        $GroupCategory = [string]$Payload.group_category
+
+        if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
+            $SamAccountName = $Name
+        }
+
+        if ([string]::IsNullOrWhiteSpace($GroupScope)) {
+            $GroupScope = "Global"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($GroupCategory)) {
+            $GroupCategory = "Security"
+        }
+
+        $EscapedSam = Escape-EitasLdapFilterValue -Value $SamAccountName
+        $Exists = Test-EitasAdObjectExists -LdapFilter "(&(objectClass=group)(sAMAccountName=$EscapedSam))" -SearchBase ""
+
+        if ($Exists) {
+            throw "Un groupe existe deja avec ce SamAccountName : $SamAccountName"
+        }
+
+        $Params = @{
+            Name = $Name
+            SamAccountName = $SamAccountName
+            GroupScope = $GroupScope
+            GroupCategory = $GroupCategory
+            Path = $ParentDn
+            ErrorAction = "Stop"
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($Description)) {
+            $Params.Description = $Description
+        }
+
+        New-ADGroup @Params
+
+        $Created = Get-ADGroup `
+            -Identity $SamAccountName `
+            -Properties Description, GroupScope, GroupCategory, SamAccountName `
+            -ErrorAction Stop
+
+        return @{
+            success = $true
+            message = "Groupe cree dans Active Directory"
+            output = "Groupe cree : $Name`nSamAccountName : $SamAccountName`nParent : $ParentDn`nDN : $($Created.DistinguishedName)"
+            result = @{
+                action = $Action
+                created = $true
+                name = $Created.Name
+                sam_account_name = $Created.SamAccountName
+                description = $Created.Description
+                group_scope = [string]$Created.GroupScope
+                group_category = [string]$Created.GroupCategory
+                distinguished_name = $Created.DistinguishedName
+            }
+        }
+    }
+
+    throw "Action AD Admin non supportee par l agent : $Action"
+}
+
+function Process-PendingAdAdminJobs {
+    $Jobs = Get-PendingAdAdminJobs
+
+    if ($Jobs.Count -eq 0) {
+        Write-Host "[INFO] Aucun job AD Admin en attente."
+        return
+    }
+
+    Write-Host ("[INFO] Jobs AD Admin en attente : {0}" -f $Jobs.Count) -ForegroundColor Cyan
+
+    foreach ($Job in $Jobs) {
+        $JobId = [string]$Job.id
+
+        if ([string]::IsNullOrWhiteSpace($JobId)) {
+            continue
+        }
+
+        Write-Host ("[INFO] Traitement AD Admin {0} action={1}" -f $JobId, $Job.action) -ForegroundColor Cyan
+
+        try {
+            Claim-AdAdminJob -JobId $JobId
+            Write-Host "[OK] Job AD Admin marque en processing." -ForegroundColor Green
+
+            $Result = Invoke-EitasAdAdminJob -Job $Job
+
+            Send-AdAdminJobResult `
+                -JobId $JobId `
+                -Success ([bool]$Result.success) `
+                -Message ([string]$Result.message) `
+                -Output ([string]$Result.output) `
+                -Result $Result.result `
+                -Details @{
+                    mode = $Mode
+                    agent = $AgentName
+                    write_operation = $true
+                }
+
+            Write-Host "[OK] Resultat AD Admin envoye a l API." -ForegroundColor Green
+        }
+        catch {
+            $ErrorMessage = $_.Exception.Message
+            Write-Host ("[ERREUR] AD Admin : {0}" -f $ErrorMessage) -ForegroundColor Red
+
+            try {
+                Send-AdAdminJobResult `
+                    -JobId $JobId `
+                    -Success $false `
+                    -Message $ErrorMessage `
+                    -Output $ErrorMessage `
+                    -Result @{
+                        action = $Job.action
+                        created = $false
+                        error = $ErrorMessage
+                    } `
+                    -Details @{
+                        mode = $Mode
+                        agent = $AgentName
+                        write_operation = $true
+                        error = $ErrorMessage
+                    }
+            }
+            catch {
+                Write-Host ("[ERREUR] Impossible d envoyer le resultat AD Admin : {0}" -f $_.Exception.Message) -ForegroundColor Red
+            }
+        }
+    }
+}
+
+# STEP208_AD_ADMIN_FUNCTIONS_END
+
 # STEP162_AD_CHECK_FUNCTIONS_START
 
 function Send-AdCheckJobResult {
@@ -2170,6 +2474,15 @@ if ($env:EITAS_LOOKUP_ONLY -eq "1") {
     return
 }
 
+# STEP208_AD_ADMIN_CALL
+Process-PendingAdAdminJobs
+
+# STEP210_AD_ADMIN_ONLY_GUARD
+if ($env:EITAS_AD_ADMIN_ONLY -eq "1") {
+    Write-Host "[INFO] Mode AD-admin-only : arrêt après jobs AD Admin."
+    return
+}
+
 # STEP162_AD_CHECK_CALL
 Process-PendingAdCheckJobs
 
@@ -2253,6 +2566,8 @@ foreach ($Request in $Requests) {
         }
     }
 }
+
+
 
 
 

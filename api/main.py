@@ -58,6 +58,18 @@ from app.services.ad_explorer import (
     list_ad_explorer_jobs as service_list_ad_explorer_jobs,
     submit_ad_explorer_job_result as service_submit_ad_explorer_job_result,
 )
+from app.services.ad_admin import (
+    ADAdminBadRequest,
+    ADAdminConflict,
+    ADAdminNotFound,
+    claim_ad_admin_job as service_claim_ad_admin_job,
+    create_ad_admin_job as service_create_ad_admin_job,
+    get_ad_admin_job as service_get_ad_admin_job,
+    get_pending_ad_admin_jobs as service_get_pending_ad_admin_jobs,
+    list_ad_admin_jobs as service_list_ad_admin_jobs,
+    submit_ad_admin_job_result as service_submit_ad_admin_job_result,
+)
+
 
 from app.services.agent_runtime import (
     AgentRuntimeBadRequest,
@@ -107,6 +119,7 @@ AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 AD_CHECK_JOBS_FILE = DATA_DIR / "ad-check-jobs.json"
 AD_LOOKUP_JOBS_FILE = DATA_DIR / "ad-lookup-jobs.json"
 AD_EXPLORER_JOBS_FILE = DATA_DIR / "ad-explorer-jobs.json"
+AD_ADMIN_JOBS_FILE = DATA_DIR / "ad-admin-jobs.json"
 
 
 
@@ -600,6 +613,62 @@ def submit_ad_explorer_job_result(job_id: str, payload: dict = Body(...), api_ke
     try:
         response, audit_event = service_submit_ad_explorer_job_result(AD_EXPLORER_JOBS_FILE, job_id, payload)
     except ADExplorerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    write_audit_log(**audit_event)
+
+    return response
+
+
+@app.post("/api/ad-admin/jobs")
+def create_ad_admin_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    try:
+        response, audit_event = service_create_ad_admin_job(AD_ADMIN_JOBS_FILE, payload)
+    except ADAdminBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    write_audit_log(**audit_event)
+
+    return response
+
+
+@app.get("/api/ad-admin/jobs")
+def list_ad_admin_jobs(limit: int = 100, api_key: None = Depends(require_api_key)):
+    return service_list_ad_admin_jobs(AD_ADMIN_JOBS_FILE, limit)
+
+
+@app.get("/api/ad-admin/jobs/{job_id}")
+def get_ad_admin_job(job_id: str, api_key: None = Depends(require_api_key)):
+    try:
+        return service_get_ad_admin_job(AD_ADMIN_JOBS_FILE, job_id)
+    except ADAdminNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.get("/api/agent/ad-admin/pending")
+def get_pending_ad_admin_jobs(api_key: None = Depends(require_api_key)):
+    return service_get_pending_ad_admin_jobs(AD_ADMIN_JOBS_FILE)
+
+
+@app.post("/api/agent/ad-admin/claim/{job_id}")
+def claim_ad_admin_job(job_id: str, payload: dict = Body(default={}), api_key: None = Depends(require_api_key)):
+    try:
+        response, audit_event = service_claim_ad_admin_job(AD_ADMIN_JOBS_FILE, job_id, payload)
+    except ADAdminConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ADAdminNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    write_audit_log(**audit_event)
+
+    return response
+
+
+@app.post("/api/agent/ad-admin/result/{job_id}")
+def submit_ad_admin_job_result(job_id: str, payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    try:
+        response, audit_event = service_submit_ad_admin_job_result(AD_ADMIN_JOBS_FILE, job_id, payload)
+    except ADAdminNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
     write_audit_log(**audit_event)

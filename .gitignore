@@ -31,3 +31,6 @@ api/static/app.backup-*/
 
 # AD Explorer runtime jobs
 api/data/ad-explorer-jobs.json
+
+# AD Admin runtime jobs
+api/data/ad-admin-jobs.json

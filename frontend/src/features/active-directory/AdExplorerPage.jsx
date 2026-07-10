@@ -96,6 +96,15 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
+  const [adminModal, setAdminModal] = useState(null)
+  const [adminForm, setAdminForm] = useState({
+    name: '',
+    description: '',
+    sam_account_name: '',
+    group_scope: 'Global',
+    group_category: 'Security'
+  })
+  const [adminLoading, setAdminLoading] = useState(false)
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -243,6 +252,122 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setMessage?.('DN / identifiant copié. Propriétés détaillées à venir.')
   }
 
+
+  function openCreateOu(target = selectedNode) {
+    const parentDn = target?.distinguished_name || selectedNode?.distinguished_name || USERS_DN
+
+    setContextMenu(null)
+    setAdminForm({
+      name: '',
+      description: '',
+      sam_account_name: '',
+      group_scope: 'Global',
+      group_category: 'Security'
+    })
+    setAdminModal({
+      action: 'create_ou',
+      title: 'Créer une OU',
+      parent_dn: parentDn
+    })
+  }
+
+  function openCreateGroup(target = selectedNode) {
+    const parentDn = target?.distinguished_name || selectedNode?.distinguished_name || GROUPS_DN
+
+    setContextMenu(null)
+    setAdminForm({
+      name: '',
+      description: '',
+      sam_account_name: '',
+      group_scope: 'Global',
+      group_category: 'Security'
+    })
+    setAdminModal({
+      action: 'create_group',
+      title: 'Créer un groupe',
+      parent_dn: parentDn
+    })
+  }
+
+  async function pollAdAdminJob(jobId) {
+    for (let attempt = 0; attempt < 75; attempt += 1) {
+      const job = await apiFetch(`/api/ad-admin/jobs/${jobId}`)
+
+      if (job.status === 'completed' || job.status === 'failed') {
+        return job
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 800))
+    }
+
+    throw new Error('Job créé mais l’agent principal n’a pas encore répondu.')
+  }
+
+  async function waitForAdAdminJobInBackground(jobId) {
+    try {
+      const finalJob = await pollAdAdminJob(jobId)
+
+      if (!finalJob.success) {
+        setMessage?.(finalJob.message || finalJob.output || 'Création AD en erreur.')
+        return
+      }
+
+      setMessage?.(finalJob.message || 'Action AD terminée.')
+
+      await loadTree()
+      await loadNodeContent(selectedNode, viewType)
+    } catch (err) {
+      setMessage?.(`Job AD Admin créé, en attente de l’agent principal : ${jobId}`)
+    }
+  }
+
+  async function submitAdAdminJob(event) {
+    event.preventDefault()
+
+    if (!adminModal) return
+
+    const name = adminForm.name.trim()
+    const description = adminForm.description.trim()
+    const sam = adminForm.sam_account_name.trim() || name
+
+    if (!name) {
+      setMessage?.('Nom obligatoire.')
+      return
+    }
+
+    setAdminLoading(true)
+
+    try {
+      const payload = {
+        action: adminModal.action,
+        parent_dn: adminModal.parent_dn,
+        name,
+        description,
+        created_by: 'react-admin'
+      }
+
+      if (adminModal.action === 'create_group') {
+        payload.sam_account_name = sam
+        payload.group_scope = adminForm.group_scope
+        payload.group_category = adminForm.group_category
+      }
+
+      const created = await apiFetch('/api/ad-admin/jobs', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      })
+
+      setMessage?.(`Job AD Admin créé : ${created.job.id}. Attente de l’agent principal.`)
+      setAdminModal(null)
+      setAdminLoading(false)
+
+      waitForAdAdminJobInBackground(created.job.id)
+    } catch (err) {
+      setMessage?.(err.message || 'Erreur création AD.')
+      setAdminLoading(false)
+    }
+  }
+
   useEffect(() => {
     refreshAll()
   }, [])
@@ -334,8 +459,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           <main className="aduc-main">
             <section className="aduc-toolbar">
               <button type="button" onClick={() => actionSoon('Nouveau')}>＋ Nouveau</button>
-              <button type="button" onClick={() => actionSoon('Créer une OU')}>📁 Créer une OU</button>
-              <button type="button" onClick={() => actionSoon('Créer un groupe')}>👥 Créer un groupe</button>
+              <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
+              <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
               <button type="button" onClick={() => actionSoon('Modifier')}>✎ Modifier</button>
               <button type="button" className="danger" onClick={() => actionSoon('Supprimer')}>🗑 Supprimer</button>
               <button type="button" onClick={refreshAll}>⟳ Actualiser</button>
@@ -455,6 +580,100 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         </footer>
       </div>
 
+
+      {adminModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setAdminModal(null)}>
+          <form className="aduc-modal" onSubmit={submitAdAdminJob} onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Administration Active Directory</span>
+                <h3>{adminModal.title}</h3>
+              </div>
+
+              <button type="button" onClick={() => setAdminModal(null)}>×</button>
+            </header>
+
+            <label>
+              Emplacement cible
+              <input value={adminModal.parent_dn} readOnly />
+            </label>
+
+            <label>
+              Nom
+              <input
+                value={adminForm.name}
+                onChange={event => setAdminForm(current => ({
+                  ...current,
+                  name: event.target.value,
+                  sam_account_name: adminModal.action === 'create_group' ? event.target.value : current.sam_account_name
+                }))}
+                placeholder={adminModal.action === 'create_ou' ? 'Ex : Finance' : 'Ex : GG_Finance_RW'}
+                autoFocus
+              />
+            </label>
+
+            {adminModal.action === 'create_group' && (
+              <>
+                <label>
+                  SamAccountName
+                  <input
+                    value={adminForm.sam_account_name}
+                    onChange={event => setAdminForm(current => ({ ...current, sam_account_name: event.target.value }))}
+                    placeholder="Ex : GG_Finance_RW"
+                  />
+                </label>
+
+                <div className="aduc-modal-grid">
+                  <label>
+                    Scope
+                    <select
+                      value={adminForm.group_scope}
+                      onChange={event => setAdminForm(current => ({ ...current, group_scope: event.target.value }))}
+                    >
+                      <option value="Global">Global</option>
+                      <option value="Universal">Universal</option>
+                      <option value="DomainLocal">DomainLocal</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    Type
+                    <select
+                      value={adminForm.group_category}
+                      onChange={event => setAdminForm(current => ({ ...current, group_category: event.target.value }))}
+                    >
+                      <option value="Security">Sécurité</option>
+                      <option value="Distribution">Distribution</option>
+                    </select>
+                  </label>
+                </div>
+              </>
+            )}
+
+            <label>
+              Description
+              <textarea
+                value={adminForm.description}
+                onChange={event => setAdminForm(current => ({ ...current, description: event.target.value }))}
+                placeholder="Description optionnelle"
+              />
+            </label>
+
+            <div className="aduc-modal-warning">
+              <strong>Production AD</strong>
+              <span>Cette action sera exécutée par l’agent Windows sur SRV-DC01.</span>
+            </div>
+
+            <footer>
+              <button type="button" onClick={() => setAdminModal(null)}>Annuler</button>
+              <button type="submit" disabled={adminLoading}>
+                {adminLoading ? 'Création...' : adminModal.action === 'create_ou' ? 'Créer l’OU' : 'Créer le groupe'}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
       {contextMenu && (
         <div
           className="aduc-context-menu"
@@ -471,8 +690,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           <hr />
 
           <button type="button" onClick={() => actionSoon('Nouveau')}>＋ Nouveau ›</button>
-          <button type="button" onClick={() => actionSoon('Créer une OU')}>📁 Créer une OU</button>
-          <button type="button" onClick={() => actionSoon('Créer un groupe')}>👥 Créer un groupe</button>
+          <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
+          <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
 
           <hr />
 
