@@ -24,7 +24,8 @@
           "groups": [
             "GG_M365_Standard",
             "GG_RemoteSupport",
-            "GG_Support_RW"
+            "GG_Support_RW",
+            "GG_VPN_Users"
           ]
         }
       }

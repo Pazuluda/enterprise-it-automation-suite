@@ -11,11 +11,11 @@
 
 URL API :
 
-http://192.168.1.14:8000
+http://10.10.10.11:8000
 
 Documentation locale :
 
-http://192.168.1.14:8000/docs-local
+http://10.10.10.11:8000/docs-local
 
 ## Securite
 
