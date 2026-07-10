@@ -28,3 +28,6 @@ api/data/ad-lookup-jobs.json
 
 # Static app generated backups
 api/static/app.backup-*/
+
+# AD Explorer runtime jobs
+api/data/ad-explorer-jobs.json

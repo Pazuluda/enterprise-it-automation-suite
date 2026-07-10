@@ -47,6 +47,18 @@ from app.services.ad_jobs import (
     submit_ad_check_job_result as service_submit_ad_check_job_result,
     submit_ad_lookup_job_result as service_submit_ad_lookup_job_result,
 )
+from app.services.ad_explorer import (
+    ADExplorerBadRequest,
+    ADExplorerConflict,
+    ADExplorerNotFound,
+    claim_ad_explorer_job as service_claim_ad_explorer_job,
+    create_ad_explorer_job as service_create_ad_explorer_job,
+    get_ad_explorer_job as service_get_ad_explorer_job,
+    get_pending_ad_explorer_jobs as service_get_pending_ad_explorer_jobs,
+    list_ad_explorer_jobs as service_list_ad_explorer_jobs,
+    submit_ad_explorer_job_result as service_submit_ad_explorer_job_result,
+)
+
 from app.services.agent_runtime import (
     AgentRuntimeBadRequest,
     AgentRuntimeConflict,
@@ -94,6 +106,7 @@ AGENT_STATUS_FILE = DATA_DIR / "agent-status.json"
 AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 AD_CHECK_JOBS_FILE = DATA_DIR / "ad-check-jobs.json"
 AD_LOOKUP_JOBS_FILE = DATA_DIR / "ad-lookup-jobs.json"
+AD_EXPLORER_JOBS_FILE = DATA_DIR / "ad-explorer-jobs.json"
 
 
 
@@ -535,6 +548,62 @@ def submit_ad_check_job_result(job_id: str, payload: dict = Body(...), api_key: 
         raise HTTPException(status_code=404, detail=str(exc))
 
     write_audit_log(**audit_event)
+    return response
+
+
+@app.post("/api/ad-explorer/jobs")
+def create_ad_explorer_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    try:
+        response, audit_event = service_create_ad_explorer_job(AD_EXPLORER_JOBS_FILE, payload)
+    except ADExplorerBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    write_audit_log(**audit_event)
+
+    return response
+
+
+@app.get("/api/ad-explorer/jobs")
+def list_ad_explorer_jobs(limit: int = 100, api_key: None = Depends(require_api_key)):
+    return service_list_ad_explorer_jobs(AD_EXPLORER_JOBS_FILE, limit)
+
+
+@app.get("/api/ad-explorer/jobs/{job_id}")
+def get_ad_explorer_job(job_id: str, api_key: None = Depends(require_api_key)):
+    try:
+        return service_get_ad_explorer_job(AD_EXPLORER_JOBS_FILE, job_id)
+    except ADExplorerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.get("/api/agent/ad-explorer/pending")
+def get_pending_ad_explorer_jobs(api_key: None = Depends(require_api_key)):
+    return service_get_pending_ad_explorer_jobs(AD_EXPLORER_JOBS_FILE)
+
+
+@app.post("/api/agent/ad-explorer/claim/{job_id}")
+def claim_ad_explorer_job(job_id: str, payload: dict = Body(default={}), api_key: None = Depends(require_api_key)):
+    try:
+        response, audit_event = service_claim_ad_explorer_job(AD_EXPLORER_JOBS_FILE, job_id, payload)
+    except ADExplorerConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except ADExplorerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    write_audit_log(**audit_event)
+
+    return response
+
+
+@app.post("/api/agent/ad-explorer/result/{job_id}")
+def submit_ad_explorer_job_result(job_id: str, payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    try:
+        response, audit_event = service_submit_ad_explorer_job_result(AD_EXPLORER_JOBS_FILE, job_id, payload)
+    except ADExplorerNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    write_audit_log(**audit_event)
+
     return response
 
 
