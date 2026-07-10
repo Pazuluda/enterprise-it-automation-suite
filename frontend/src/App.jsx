@@ -1295,6 +1295,7 @@ function App() {
     const savedSize = Number(localStorage.getItem('eitas_requests_page_size') || '20')
     return [10, 20, 50].includes(savedSize) ? savedSize : 20
   })
+  const [selectedRequestIds, setSelectedRequestIds] = useState([])
 
   const [form, setForm] = useState({
     first_name: 'Emma',
@@ -1373,6 +1374,14 @@ function App() {
       setRequestPage(maxPage)
     }
   }, [filteredRequests.length, requestPage, requestPageSize])
+
+  useEffect(() => {
+    setSelectedRequestIds(currentIds =>
+      currentIds.filter(id =>
+        filteredRequests.some(request => findRequestIdForBulkAction(request) === id)
+      )
+    )
+  }, [filteredRequests])
 
 
   const stats = {
@@ -1858,7 +1867,9 @@ function App() {
     setMessage(`${filteredAuditLogs.length} audit log(s) exporté(s).`)
   }
 
-  function exportFilteredRequestsCsv() {
+  function exportFilteredRequestsCsv(sourceRequests = null) {
+    const requestsToExport = Array.isArray(sourceRequests) ? sourceRequests : filteredRequests
+
     const escapeCsv = (value) => {
       const text = String(value ?? '')
       return `"${text.replaceAll('"', '""')}"`
@@ -1934,7 +1945,7 @@ function App() {
       'Message'
     ]
 
-    const rows = filteredRequests.map((request) => {
+    const rows = requestsToExport.map((request) => {
       const requestType = pick(request, ['type', 'request_type'], ['type', 'request_type'])
       const firstName = pick(request, ['first_name', 'employee.first_name', 'payload.first_name', 'data.first_name'], ['first_name', 'firstname', 'given_name', 'prenom'])
       const lastName = pick(request, ['last_name', 'employee.last_name', 'payload.last_name', 'data.last_name'], ['last_name', 'lastname', 'surname', 'nom'])
@@ -2010,7 +2021,7 @@ function App() {
     link.remove()
     URL.revokeObjectURL(url)
 
-    setMessage(`${filteredRequests.length} demande(s) exportée(s).`)
+    setMessage(`${requestsToExport.length} demande(s) exportée(s).`)
   }
 
   function findRequestIdForBulkAction(source) {
@@ -2037,6 +2048,129 @@ function App() {
     }
 
     return ''
+  }
+
+  const selectedRequests = filteredRequests.filter(request => {
+    const requestId = findRequestIdForBulkAction(request)
+    return requestId && selectedRequestIds.includes(requestId)
+  })
+
+  const selectedApprovableRequests = selectedRequests.filter(request => {
+    const status = String(request.status || '').toLowerCase()
+    return ['waiting_approval', 'a_valider', 'à valider', 'to_approve'].includes(status)
+  })
+
+  const selectedRetryableRequests = selectedRequests.filter(request => {
+    const status = String(request.status || '').toLowerCase()
+    return ['failed', 'rejected', 'échouée', 'echouee', 'rejetée', 'rejetee'].includes(status)
+  })
+
+  function clearRequestSelection() {
+    setSelectedRequestIds([])
+  }
+
+  function exportSelectedRequestsCsv() {
+    if (selectedRequests.length === 0) {
+      setMessage('Aucune demande sélectionnée à exporter.')
+      return
+    }
+
+    exportFilteredRequestsCsv(selectedRequests)
+  }
+
+  async function approveSelectedRequests() {
+    if (selectedApprovableRequests.length === 0) {
+      setMessage('Aucune demande sélectionnée à approuver.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Approuver ${selectedApprovableRequests.length} demande(s) sélectionnée(s) ?`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    let approvedCount = 0
+    let failedCount = 0
+    const processedIds = []
+
+    for (const request of selectedApprovableRequests) {
+      const requestId = findRequestIdForBulkAction(request)
+
+      if (!requestId) {
+        failedCount += 1
+        continue
+      }
+
+      try {
+        await apiFetch(`/api/admin/requests/${requestId}/approve`, {
+          method: 'POST',
+          body: JSON.stringify({
+            approved_by: 'react-admin'
+          })
+        })
+
+        approvedCount += 1
+        processedIds.push(requestId)
+      } catch {
+        failedCount += 1
+      }
+    }
+
+    setSelectedRequestIds(current => current.filter(id => !processedIds.includes(id)))
+
+    await loadRequests(true)
+    await loadAuditLogs(true)
+
+    setMessage(`${approvedCount} demande(s) sélectionnée(s) approuvée(s), ${failedCount} erreur(s).`)
+  }
+
+  async function retrySelectedRequests() {
+    if (selectedRetryableRequests.length === 0) {
+      setMessage('Aucune demande sélectionnée à relancer.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Relancer ${selectedRetryableRequests.length} demande(s) sélectionnée(s) ?`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    let retriedCount = 0
+    let failedCount = 0
+    const processedIds = []
+
+    for (const request of selectedRetryableRequests) {
+      const requestId = findRequestIdForBulkAction(request)
+
+      if (!requestId) {
+        failedCount += 1
+        continue
+      }
+
+      try {
+        await apiFetch(`/api/admin/requests/${requestId}/retry`, {
+          method: 'POST'
+        })
+
+        retriedCount += 1
+        processedIds.push(requestId)
+      } catch {
+        failedCount += 1
+      }
+    }
+
+    setSelectedRequestIds(current => current.filter(id => !processedIds.includes(id)))
+
+    await loadRequests(true)
+    await loadAuditLogs(true)
+
+    setMessage(`${retriedCount} demande(s) sélectionnée(s) relancée(s), ${failedCount} erreur(s).`)
   }
 
   const approvableFilteredRequests = filteredRequests.filter(request => {
@@ -2791,6 +2925,15 @@ function App() {
               approveRequest={approveRequest}
               rejectRequest={rejectRequest}
               retryRequest={retryRequest}
+              selectedRequestIds={selectedRequestIds}
+              setSelectedRequestIds={setSelectedRequestIds}
+              selectedRequestCount={selectedRequests.length}
+              selectedApprovableCount={selectedApprovableRequests.length}
+              selectedRetryableCount={selectedRetryableRequests.length}
+              clearRequestSelection={clearRequestSelection}
+              approveSelectedRequests={approveSelectedRequests}
+              retrySelectedRequests={retrySelectedRequests}
+              exportSelectedRequestsCsv={exportSelectedRequestsCsv}
               setPage={setPage}
               setSelectedRequest={setSelectedRequest}
             />
@@ -3739,13 +3882,22 @@ function RequestsPage({
   approveRequest,
   rejectRequest,
   retryRequest,
+  selectedRequestIds,
+  setSelectedRequestIds,
+  selectedRequestCount,
+  selectedApprovableCount,
+  selectedRetryableCount,
+  clearRequestSelection,
+  approveSelectedRequests,
+  retrySelectedRequests,
+  exportSelectedRequestsCsv,
   setSelectedRequest
 }) {
   return (
     <section className="panel">
       <PanelHeader
         title="Liste des demandes"
-        subtitle="Recherche, filtrage et validation."
+        subtitle="Recherche, filtrage, sélection et validation."
         action={<button className="secondary" onClick={loadRequests}>Recharger</button>}
       />
 
@@ -3773,23 +3925,95 @@ function RequestsPage({
         </select>
       </div>
 
+      {selectedRequestCount > 0 && (
+        <div className="request-selection-toolbar">
+          <strong>{selectedRequestCount} sélectionnée(s)</strong>
+
+          <div>
+            {selectedApprovableCount > 0 && (
+              <button type="button" className="selection-approve-button" onClick={approveSelectedRequests}>
+                Approuver sélection ({selectedApprovableCount})
+              </button>
+            )}
+
+            {selectedRetryableCount > 0 && (
+              <button type="button" className="selection-retry-button" onClick={retrySelectedRequests}>
+                Relancer sélection ({selectedRetryableCount})
+              </button>
+            )}
+
+            <button type="button" className="selection-export-button" onClick={exportSelectedRequestsCsv}>
+              Export sélection
+            </button>
+
+            <button type="button" className="selection-clear-button" onClick={clearRequestSelection}>
+              Vider
+            </button>
+          </div>
+        </div>
+      )}
+
       <RequestsTable
         requests={requests}
         approveRequest={approveRequest}
         rejectRequest={rejectRequest}
         retryRequest={retryRequest}
+        selectedRequestIds={selectedRequestIds}
+        setSelectedRequestIds={setSelectedRequestIds}
         setSelectedRequest={setSelectedRequest}
       />
     </section>
   )
 }
 
-function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, setSelectedRequest }) {
+function RequestsTable({
+  requests,
+  approveRequest,
+  rejectRequest,
+  retryRequest,
+  selectedRequestIds,
+  setSelectedRequestIds,
+  setSelectedRequest
+}) {
+  const pageRequestIds = requests
+    .map(request => request.id || request.request_id)
+    .filter(Boolean)
+
+  const allPageSelected = pageRequestIds.length > 0 && pageRequestIds.every(id => selectedRequestIds.includes(id))
+
+  function togglePageSelection() {
+    setSelectedRequestIds(currentIds => {
+      if (allPageSelected) {
+        return currentIds.filter(id => !pageRequestIds.includes(id))
+      }
+
+      return Array.from(new Set([...currentIds, ...pageRequestIds]))
+    })
+  }
+
+  function toggleRequestSelection(requestId) {
+    setSelectedRequestIds(currentIds => {
+      if (currentIds.includes(requestId)) {
+        return currentIds.filter(id => id !== requestId)
+      }
+
+      return [...currentIds, requestId]
+    })
+  }
+
   return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
+            <th className="request-select-col">
+              <input
+                type="checkbox"
+                checked={allPageSelected}
+                onChange={togglePageSelection}
+                title="Sélectionner la page"
+              />
+            </th>
             <th>Utilisateur</th>
             <th>Type</th>
             <th>Login</th>
@@ -3804,15 +4028,26 @@ function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, 
         <tbody>
           {requests.length === 0 && (
             <tr>
-              <td colSpan="8" className="empty">Aucune demande à afficher.</td>
+              <td colSpan="9" className="empty">Aucune demande à afficher.</td>
             </tr>
           )}
 
           {requests.map(request => {
             const payload = request.ad_payload || {}
+            const requestId = request.id || request.request_id
+            const selected = selectedRequestIds.includes(requestId)
 
             return (
-              <tr key={request.id}>
+              <tr key={requestId || request.id} className={selected ? 'request-row-selected' : ''}>
+                <td className="request-select-col">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => toggleRequestSelection(requestId)}
+                    title="Sélectionner cette demande"
+                  />
+                </td>
+
                 <td>
                   <button className="link-button" onClick={() => setSelectedRequest(request)}>
                     {payload.display_name || 'Utilisateur inconnu'}
@@ -3827,12 +4062,12 @@ function RequestsTable({ requests, approveRequest, rejectRequest, retryRequest, 
                 <td>
                   {request.status === 'waiting_approval' ? (
                     <div className="row-actions">
-                      <button className="success" onClick={() => approveRequest(request.id)}>Approuver</button>
-                      <button className="danger" onClick={() => rejectRequest(request.id)}>Rejeter</button>
+                      <button className="success" onClick={() => approveRequest(requestId)}>Approuver</button>
+                      <button className="danger" onClick={() => rejectRequest(requestId)}>Rejeter</button>
                     </div>
                   ) : request.status === 'failed' || request.status === 'rejected' ? (
                     <div className="row-actions">
-                      <button onClick={() => retryRequest(request.id)}>Relancer</button>
+                      <button onClick={() => retryRequest(requestId)}>Relancer</button>
                       <button className="secondary" onClick={() => setSelectedRequest(request)}>Détail</button>
                     </div>
                   ) : (
