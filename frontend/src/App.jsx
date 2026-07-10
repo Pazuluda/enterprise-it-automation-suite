@@ -1704,7 +1704,7 @@ function App() {
 
   async function loadAuditLogs(silent = false) {
     try {
-      const data = await apiFetch('/api/audit-logs?limit=100')
+      const data = await apiFetch('/api/audit-logs?limit=5000')
       const logs = Array.isArray(data)
         ? data
         : data.logs || data.audit_logs || data.events || []
@@ -2498,7 +2498,7 @@ function App() {
     }
   }, [])
 
-  function openAuditFromRequest(requestId) {
+  async function openAuditFromRequest(requestId) {
     const id = String(requestId || '').trim()
 
     setAuditFocusId(id)
@@ -2510,6 +2510,7 @@ function App() {
     }
 
     setSelectedRequest(null)
+    await loadAuditLogs(true)
     setPage('audit')
     setMessage(`Audit logs filtrés pour la demande : ${id}`)
   }
@@ -2872,7 +2873,11 @@ function App() {
           {selectedRequest && (
             <SmartRequestDrawer
               request={selectedRequest}
+              auditLogs={auditLogs}
               onClose={() => setSelectedRequest(null)}
+              approveRequest={approveRequest}
+              rejectRequest={rejectRequest}
+              retryRequest={retryRequest}
               setPage={setPage}
               openAuditFromRequest={openAuditFromRequest}
             />

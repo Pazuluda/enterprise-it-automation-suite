@@ -6155,3 +6155,431 @@ table tbody td {
   background: #fef3c7 !important;
   border-color: #eab308 !important;
 }
+
+/* ========================================================= */
+/* === EITAS Detail drawer - lifecycle timeline V2 ========= */
+/* ========================================================= */
+
+.lifecycle-section {
+  background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
+}
+
+.lifecycle-title-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  margin-bottom: 14px !important;
+}
+
+.lifecycle-title-row h4 {
+  margin-bottom: 4px !important;
+}
+
+.lifecycle-title-row p {
+  margin: 0 !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.lifecycle-progress-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+  border: 1px solid #dbeafe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+.lifecycle-progress-pill.done {
+  border-color: #bbf7d0 !important;
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.lifecycle-progress-pill.bad {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+.lifecycle-timeline {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 10px !important;
+}
+
+.lifecycle-step {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 38px 1fr !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+}
+
+.lifecycle-step::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 18px !important;
+  top: 38px !important;
+  bottom: -10px !important;
+  width: 2px !important;
+  background: #e5e7eb !important;
+}
+
+.lifecycle-step:last-child::before {
+  display: none !important;
+}
+
+.lifecycle-dot {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 999px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: #f8fafc !important;
+  border: 1px solid #d1d5db !important;
+  color: #6b7280 !important;
+  font-weight: 900 !important;
+  z-index: 1 !important;
+}
+
+.lifecycle-step.done .lifecycle-dot {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #15803d !important;
+}
+
+.lifecycle-step.current .lifecycle-dot {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+}
+
+.lifecycle-step.bad .lifecycle-dot {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+}
+
+.lifecycle-card {
+  min-height: unset !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  padding: 12px 14px !important;
+  display: grid !important;
+  gap: 6px !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04) !important;
+}
+
+.lifecycle-step.done .lifecycle-card {
+  border-color: #bbf7d0 !important;
+}
+
+.lifecycle-step.current .lifecycle-card {
+  border-color: #bfdbfe !important;
+  background: #eff6ff !important;
+}
+
+.lifecycle-step.bad .lifecycle-card {
+  border-color: #fecaca !important;
+  background: #fef2f2 !important;
+}
+
+.lifecycle-card-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.lifecycle-card-header strong {
+  color: var(--text) !important;
+  font-size: 14px !important;
+}
+
+.lifecycle-card-header em {
+  font-style: normal !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  color: var(--muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.lifecycle-step.done .lifecycle-card-header em {
+  color: #15803d !important;
+}
+
+.lifecycle-step.current .lifecycle-card-header em {
+  color: #1d4ed8 !important;
+}
+
+.lifecycle-step.bad .lifecycle-card-header em {
+  color: #b91c1c !important;
+}
+
+.lifecycle-card span {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+.lifecycle-card p {
+  margin: 0 !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.lifecycle-card small {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 560px) {
+  .lifecycle-title-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - embedded audit logs =========== */
+/* ========================================================= */
+
+.drawer-audit-section {
+  background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
+}
+
+.drawer-audit-title-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  margin-bottom: 14px !important;
+}
+
+.drawer-audit-title-row h4 {
+  margin-bottom: 4px !important;
+}
+
+.drawer-audit-title-row p {
+  margin: 0 !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.audit-shortcut-button.compact {
+  min-height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+}
+
+.drawer-audit-list {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.drawer-audit-item {
+  display: grid !important;
+  grid-template-columns: 18px 1fr !important;
+  gap: 10px !important;
+  align-items: flex-start !important;
+}
+
+.drawer-audit-dot {
+  width: 10px !important;
+  height: 10px !important;
+  margin-top: 14px !important;
+  border-radius: 999px !important;
+  background: #2563eb !important;
+  box-shadow: 0 0 0 4px #dbeafe !important;
+}
+
+.drawer-audit-card {
+  border: 1px solid #dbe3ef !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  padding: 11px 13px !important;
+  display: grid !important;
+  gap: 6px !important;
+}
+
+.drawer-audit-card-head {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.drawer-audit-card-head strong {
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+}
+
+.drawer-audit-card-head span {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  white-space: nowrap !important;
+}
+
+.drawer-audit-card p {
+  margin: 0 !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.drawer-audit-card small {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+
+@media (max-width: 560px) {
+  .drawer-audit-title-row,
+  .drawer-audit-card-head {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - readable agent result ========= */
+/* ========================================================= */
+
+.agent-result-detail-section {
+  background: linear-gradient(180deg, #ffffff, #f8fafc) !important;
+}
+
+.agent-result-detail-section.ok {
+  border-color: #bbf7d0 !important;
+}
+
+.agent-result-detail-section.error {
+  border-color: #fecaca !important;
+  background: #fff7f7 !important;
+}
+
+.agent-result-detail-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  margin-bottom: 14px !important;
+}
+
+.agent-result-detail-header h4 {
+  margin-bottom: 4px !important;
+}
+
+.agent-result-detail-header p {
+  margin: 0 !important;
+  color: var(--muted) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.agent-result-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.agent-result-pill.ok {
+  border: 1px solid #bbf7d0 !important;
+  background: #f0fdf4 !important;
+  color: #15803d !important;
+}
+
+.agent-result-pill.error {
+  border: 1px solid #fecaca !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+.agent-result-detail-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+}
+
+.agent-result-detail-row {
+  border: 1px solid #dbe3ef !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  padding: 11px 13px !important;
+  display: grid !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+
+.agent-result-detail-row span {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+}
+
+.agent-result-detail-row strong {
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.agent-result-detail-list {
+  margin: 0 !important;
+  padding-left: 18px !important;
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.agent-result-detail-list li {
+  font-weight: 800 !important;
+}
+
+.agent-result-detail-json {
+  margin: 0 !important;
+  padding: 10px !important;
+  border-radius: 10px !important;
+  background: #0f172a !important;
+  color: #e5e7eb !important;
+  font-size: 12px !important;
+  white-space: pre-wrap !important;
+  overflow-x: auto !important;
+}
+
+@media (max-width: 760px) {
+  .agent-result-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .agent-result-detail-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}
