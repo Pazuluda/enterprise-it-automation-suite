@@ -1,3 +1,5 @@
+from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
@@ -21,6 +23,21 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None
 )
+
+# STEP176_CORS_REACT_DEV
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://10.10.10.11:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://10.10.10.11:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -190,71 +207,6 @@ def get_default_agent_config():
         "task_name": "EITAS Employee Lifecycle Agent",
         "pause_processing": False,
         "message": "Configuration agent par défaut"
-    }
-
-
-
-
-def normalize_agent_mode(value):
-    raw = str(value or "").strip().lower()
-
-    if raw == "production":
-        return "Production"
-
-    return "Simulation"
-
-
-def load_agent_config_dict():
-    config = load_json(AGENT_CONFIG_FILE, {})
-
-    if not isinstance(config, dict):
-        config = {}
-
-    config["mode"] = normalize_agent_mode(config.get("mode") or config.get("Mode") or "Simulation")
-
-    return config
-
-
-@app.get("/api/agent/mode")
-def get_agent_mode(api_key: None = Depends(require_api_key)):
-    config = load_agent_config_dict()
-
-    return {
-        "mode": config.get("mode", "Simulation"),
-        "source": "api-agent-config",
-        "config": config
-    }
-
-
-@app.post("/api/admin/agent/mode")
-def set_agent_mode(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
-    requested_mode = payload.get("mode") or payload.get("Mode")
-    mode = normalize_agent_mode(requested_mode)
-
-    config = load_agent_config_dict()
-    old_mode = config.get("mode", "Simulation")
-
-    config["mode"] = mode
-    config["updated_at"] = datetime.utcnow().isoformat() + "Z"
-    config["updated_by"] = payload.get("updated_by") or payload.get("actor") or "react-admin"
-
-    save_json(AGENT_CONFIG_FILE, config)
-
-    write_audit_log(
-        action="agent_mode_updated",
-        actor=config["updated_by"],
-        message=f"Mode agent changé : {old_mode} -> {mode}",
-        details={
-            "old_mode": old_mode,
-            "new_mode": mode,
-            "source": "portal"
-        }
-    )
-
-    return {
-        "message": f"Mode agent défini sur {mode}",
-        "mode": mode,
-        "config": config
     }
 
 
@@ -1346,4 +1298,93 @@ def create_modification_request(payload: ModificationRequest, api_key: None = De
     return {
         "message": "Demande modification créée",
         "request": request
+    }
+
+
+# STEP176_AGENT_MODE_COMPAT_ROUTES
+def _eitas_agent_mode_config_file():
+    if "AGENT_CONFIG_FILE" in globals():
+        return AGENT_CONFIG_FILE
+
+    if "DATA_DIR" in globals():
+        return DATA_DIR / "agent_config.json"
+
+    return Path(__file__).resolve().parent.parent / "data" / "agent_config.json"
+
+
+def _eitas_agent_mode_load_config():
+    path = _eitas_agent_mode_config_file()
+
+    try:
+        if path.exists():
+            with path.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        return {}
+
+    return {}
+
+
+def _eitas_agent_mode_save_config(config):
+    path = _eitas_agent_mode_config_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2, ensure_ascii=False)
+
+
+def _eitas_agent_mode_normalize(value):
+    text = str(value or "Simulation").strip().lower()
+
+    if text in {"production", "prod", "reel", "réel", "real"}:
+        return "Production"
+
+    return "Simulation"
+
+
+@app.get("/api/agent/mode")
+def eitas_get_agent_mode_compat():
+    config = _eitas_agent_mode_load_config()
+    mode = _eitas_agent_mode_normalize(
+        config.get("mode") or
+        config.get("Mode") or
+        "Simulation"
+    )
+
+    return {
+        "mode": mode,
+        "source": "agent_config"
+    }
+
+
+@app.post("/api/admin/agent/mode")
+def eitas_update_agent_mode_compat(payload: dict = Body(...)):
+    wanted_mode = _eitas_agent_mode_normalize(payload.get("mode") if isinstance(payload, dict) else None)
+    updated_by = payload.get("updated_by") if isinstance(payload, dict) else None
+
+    config = _eitas_agent_mode_load_config()
+    config["mode"] = wanted_mode
+    config["Mode"] = wanted_mode
+    config["updated_by"] = updated_by or "react-admin"
+    config["updated_at"] = now_iso() if "now_iso" in globals() else ""
+
+    _eitas_agent_mode_save_config(config)
+
+    if "write_audit_log" in globals():
+        try:
+            write_audit_log(
+                "agent_mode_updated",
+                actor=updated_by or "react-admin",
+                details={"mode": wanted_mode},
+                message=f"Mode agent mis à jour : {wanted_mode}"
+            )
+        except Exception:
+            pass
+
+    return {
+        "mode": wanted_mode,
+        "message": f"Mode agent mis à jour : {wanted_mode}"
     }

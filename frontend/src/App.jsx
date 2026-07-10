@@ -8,10 +8,15 @@ import AuditPage from './components/AuditPage.jsx'
 import SettingsPage from './components/SettingsPage.jsx'
 import NewRequestPage from './components/NewRequestPage.jsx'
 import OffboardingPage from './components/OffboardingPage.jsx'
-import AgentModePage from './pages/AgentModePage.jsx'
-import AdChecksPage from './pages/AdChecksPage.jsx'
-import ModificationPage from './pages/ModificationPage.jsx'
-import AgentOperationsPage from './pages/AgentOperationsPage.jsx'
+import AgentModePage from './features/agent/AgentModePage.jsx'
+import AdChecksPage from './features/active-directory/AdChecksPage.jsx'
+import ModificationPage from './features/employee-lifecycle/ModificationPage.jsx'
+import AgentOperationsPage from './features/agent/AgentOperationsPage.jsx'
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  `${window.location.protocol}//${window.location.hostname}:8000`
+
 
 const STATUS_LABELS = {
   waiting_approval: 'À valider',
@@ -1466,19 +1471,44 @@ function App() {
   }, [form, templates])
 
   async function apiFetch(path, options = {}) {
-    const response = await fetch(path, {
+    const url = path.startsWith('http')
+      ? path
+      : `${API_BASE}${path}`
+
+    const cleanApiKey = String(apiKey || '').trim()
+
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
+        ...(cleanApiKey ? { 'X-API-Key': cleanApiKey } : {}),
         ...(options.headers || {})
       }
     })
 
-    const data = await response.json().catch(() => null)
+    const rawText = await response.text()
+
+    let data = null
+
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText)
+      } catch {
+        data = rawText
+      }
+    }
 
     if (!response.ok) {
-      throw new Error(data?.detail || JSON.stringify(data, null, 2) || 'Erreur API')
+      const detail =
+        data?.detail ||
+        data?.message ||
+        data?.error ||
+        (typeof data === 'string' ? data : '') ||
+        rawText ||
+        response.statusText ||
+        'Erreur API sans détail'
+
+      throw new Error(`${response.status} ${response.statusText || ''} · ${detail}`.trim())
     }
 
     return data
@@ -1606,18 +1636,32 @@ function App() {
 
 
   function saveConfig() {
-    localStorage.setItem('eitas_api_key', apiKey)
+    localStorage.setItem('eitas_api_key', String(apiKey || '').trim())
     setMessage('Clé API enregistrée dans ce navigateur.')
   }
 
   async function testApi(silent = false) {
     try {
       const data = await apiFetch('/api/agent/pending')
-      setApiStatus(`Connecté · ${data.count} en attente agent`)
-      if (!silent) setMessage('Connexion API opérationnelle.')
+      const count = data.count ?? data.length ?? 0
+
+      setApiStatus(`Connecté · ${count} en attente agent`)
+
+      if (!silent) {
+        setMessage('Connexion API OK.')
+      }
+
+      return true
     } catch (error) {
-      setApiStatus('Erreur API')
-      if (!silent) setMessage(error.message)
+      const message = error?.message || 'Erreur inconnue'
+
+      setApiStatus(`Erreur API · ${message}`)
+
+      if (!silent) {
+        setMessage(`Erreur API : ${message}`)
+      }
+
+      return false
     }
   }
 
@@ -3412,6 +3456,7 @@ Write-Host "============================================================"
       loadTemplates()
       loadRequests()
       loadAuditLogs()
+      loadAgentMode(true)
       loadAdCheckJobs(true)
     }
   }, [])
@@ -4141,7 +4186,9 @@ Write-Host "============================================================"
 
 
 function AgentHealthCard({ requests, agentStatus, agentModeControl }) {
-  const completedWithAgent = (requests || [])
+  const safeRequests = Array.isArray(requests) ? requests : []
+
+  const completedWithAgent = safeRequests
     .filter(request => request.agent_result || request.processing_by || request.completed_at)
     .sort((a, b) => {
       const dateA = new Date(a.completed_at || a.updated_at || a.created_at || 0).getTime()
@@ -4151,9 +4198,21 @@ function AgentHealthCard({ requests, agentStatus, agentModeControl }) {
 
   const last = completedWithAgent[0]
 
-  const pendingCount = (requests || []).filter(request => {
+  const pendingCount = safeRequests.filter(request => {
     return ['approved', 'pending', 'processing'].includes(request.status)
   }).length
+
+  const currentMode =
+    agentModeControl?.mode ||
+    agentStatus?.mode ||
+    '-'
+
+  const currentModeClass = currentMode === 'Production' ? 'production' : 'simulation'
+  const currentAgent =
+    agentStatus?.agent_name ||
+    agentStatus?.computer_name ||
+    last?.processing_by ||
+    '-'
 
   if (!last) {
     return (
@@ -4163,7 +4222,22 @@ function AgentHealthCard({ requests, agentStatus, agentModeControl }) {
             <span>Agent automatique</span>
             <h3>Aucun passage détecté</h3>
           </div>
-          <strong>Inconnu</strong>
+
+          <strong className={`agent-current-mode-pill ${currentModeClass}`}>
+            Mode actuel : {currentMode}
+          </strong>
+        </div>
+
+        <div className="agent-health-grid">
+          <div>
+            <span>Agent actuel</span>
+            <strong>{currentAgent}</strong>
+          </div>
+
+          <div>
+            <span>En attente agent</span>
+            <strong>{pendingCount}</strong>
+          </div>
         </div>
 
         <p>Aucune demande traitée par l’agent Windows pour le moment.</p>
@@ -4174,11 +4248,28 @@ function AgentHealthCard({ requests, agentStatus, agentModeControl }) {
   const result = last.agent_result || {}
   const details = result.details || {}
   const success = result.success !== false
-  const lastRunMode = details.mode || '-'
-  const currentMode = agentModeControl?.mode || agentStatus?.mode || lastRunMode || '-'
-  const agent = agentStatus?.agent_name || agentStatus?.computer_name || details.agent || last.processing_by || '-'
+
+  const lastRunMode =
+    details.mode ||
+    result.mode ||
+    '-'
+
+  const agent =
+    agentStatus?.agent_name ||
+    agentStatus?.computer_name ||
+    details.agent ||
+    last.processing_by ||
+    '-'
+
   const completedAt = last.completed_at || last.updated_at || last.created_at
   const requestType = details.request_type || last.type || last.request_type || '-'
+
+  const hasModeMismatch =
+    currentMode &&
+    lastRunMode &&
+    currentMode !== '-' &&
+    lastRunMode !== '-' &&
+    currentMode !== lastRunMode
 
   return (
     <section className={`agent-health-card ${success ? 'ok' : 'error'}`}>
@@ -4188,12 +4279,14 @@ function AgentHealthCard({ requests, agentStatus, agentModeControl }) {
           <h3>{success ? 'Dernier passage OK' : 'Dernier passage en erreur'}</h3>
         </div>
 
-        <strong>{currentMode}</strong>
+        <strong className={`agent-current-mode-pill ${currentModeClass}`}>
+          Mode actuel : {currentMode}
+        </strong>
       </div>
 
-      <div className="agent-health-grid">
+      <div className="agent-health-grid agent-health-grid-extended">
         <div>
-          <span>Dernier agent</span>
+          <span>Agent actuel</span>
           <strong>{agent}</strong>
         </div>
 
@@ -4211,21 +4304,30 @@ function AgentHealthCard({ requests, agentStatus, agentModeControl }) {
           <span>En attente agent</span>
           <strong>{pendingCount}</strong>
         </div>
+
+        <div>
+          <span>Dernier mode utilisé</span>
+          <strong>{lastRunMode}</strong>
+        </div>
+
+        <div>
+          <span>Statut agent</span>
+          <strong>{agentStatus?.online === true ? 'Connecté' : agentStatus?.online === false ? 'Hors ligne' : 'Inconnu'}</strong>
+        </div>
       </div>
 
       <p>
         {result.message || 'Dernier résultat agent récupéré depuis les demandes.'}
-        {lastRunMode && currentMode && lastRunMode !== currentMode && (
+
+        {hasModeMismatch && (
           <small className="agent-mode-mismatch">
-            Dernier traitement enregistré en {lastRunMode}, mode actuel {currentMode}.
+            Info : le dernier traitement a été enregistré en {lastRunMode}, mais le mode actuel est {currentMode}.
           </small>
         )}
       </p>
     </section>
   )
 }
-
-
 
 
 function LiveRefreshFloatingBadge({ page, liveRefreshEnabled, setLiveRefreshEnabled, lastLiveRefreshAt }) {
@@ -5026,9 +5128,6 @@ function formatDate(value) {
   }
 }
 
-
-export default App
-
 function DashboardInsights({ requests, setPage }) {
   const safeRequests = Array.isArray(requests) ? requests : []
 
@@ -5230,4 +5329,4 @@ function MiniStatus({ label, value }) {
   )
 }
 
-
+export default App
