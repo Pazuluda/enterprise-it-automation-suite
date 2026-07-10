@@ -369,6 +369,303 @@ export default function SmartRequestDrawer({
     )
   }
 
+  function reportValue(value) {
+    if (value === true) return 'Oui'
+    if (value === false) return 'Non'
+    if (value === null || value === undefined || value === '') return '-'
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '-'
+      return value.map(item => `  - ${String(item)}`).join('\n')
+    }
+
+    if (typeof value === 'object') {
+      return JSON.stringify(value, null, 2)
+    }
+
+    return String(value)
+  }
+
+  function reportLine(label, value) {
+    const rendered = reportValue(value)
+
+    if (rendered.includes('\n')) {
+      return `${label} :\n${rendered}`
+    }
+
+    return `${label} : ${rendered}`
+  }
+
+  function buildRequestReportText() {
+    const resultRows = getResultDetailRows()
+    const auditRows = relatedAuditLogs.slice(-12)
+
+    const lines = [
+      '=== RAPPORT DEMANDE EITAS ===',
+      '',
+      reportLine('Titre', titleForType()),
+      reportLine('ID demande', requestId),
+      reportLine('Type', type),
+      reportLine('Statut', request.status),
+      '',
+      '--- Identité ---',
+      reportLine('Nom', payload.display_name),
+      reportLine('Login', payload.username),
+      reportLine('Email', payload.email),
+      reportLine('Service', payload.department || payload.current_department || payload.new_department),
+      reportLine('Poste', payload.job_title || payload.current_job_title || payload.new_job_title),
+      reportLine('Manager', payload.manager),
+      '',
+      '--- Données demande ---',
+      reportLine('Date arrivée', payload.start_date),
+      reportLine('Date départ', payload.end_date),
+      reportLine('Date effet', payload.effective_date),
+      reportLine('OU cible', payload.ou || payload.move_to_ou),
+      reportLine('Nouveau service', payload.new_department),
+      reportLine('Nouveau poste', payload.new_job_title),
+      reportLine('Groupes prévus', listValue(payload.groups)),
+      reportLine('Groupes à ajouter', listValue(payload.add_groups)),
+      reportLine('Groupes à retirer', listValue(payload.remove_groups)),
+      reportLine('Commentaire', payload.comment),
+      '',
+      '--- Suivi ---',
+      reportLine('Créée le', request.created_at),
+      reportLine('Approuvée par', request.approved_by),
+      reportLine('Approuvée le', request.approved_at),
+      reportLine('Rejetée par', request.rejected_by),
+      reportLine('Rejetée le', request.rejected_at),
+      reportLine('Agent', request.processing_by || details.agent),
+      reportLine('Traitement le', request.processing_at),
+      reportLine('Terminée le', request.completed_at),
+      reportLine('Échec le', request.failed_at),
+      '',
+      '--- Résultat agent ---'
+    ]
+
+    if (resultRows.length === 0) {
+      lines.push('Aucun détail agent disponible.')
+    } else {
+      resultRows.forEach(([label, value]) => {
+        lines.push(reportLine(label, value))
+      })
+    }
+
+    lines.push('')
+    lines.push('--- Audit logs liés ---')
+
+    if (auditRows.length === 0) {
+      lines.push('Aucun audit log lié chargé.')
+    } else {
+      auditRows.forEach(log => {
+        const action = auditActionLabels[log.action] || log.action || 'Événement audit'
+        const date = formatDate(getAuditDate(log))
+        const actor = log.actor || log.user || log.source || 'Système'
+        const summary = renderAuditLogSummary(log)
+
+        lines.push(`- ${date} | ${action} | ${actor} | ${summary}`)
+      })
+    }
+
+    lines.push('')
+    lines.push('--- Rapport généré depuis EITAS React Admin ---')
+
+    return lines.join('\n')
+  }
+
+  function sanitizeReportFileName(value) {
+    return String(value || 'demande')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'demande'
+  }
+
+  function downloadRequestReportText() {
+    const content = buildRequestReportText()
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const employeeName = payload.display_name || payload.username || requestId || 'demande'
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-rapport-${sanitizeReportFileName(employeeName)}-${timestamp}.txt`
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function escapePowerShellString(value) {
+    return String(value || '')
+      .replace(/'/g, "''")
+  }
+
+  function buildAdCheckPowerShellCommand() {
+    const username = payload.username || details.username || ''
+    const displayName = payload.display_name || details.display_name || username || 'Utilisateur'
+    const expectedOu = payload.ou || payload.move_to_ou || details.ou || details.target_ou || details.moved_to_ou || details.move_to_ou || ''
+    const requestType = type || details.request_type || 'onboarding'
+    const expectedSimulation =
+      details.simulated === true ||
+      String(details.mode || '').toLowerCase().includes('simulation')
+
+    const typeLabel = requestType === 'offboarding'
+      ? 'Contrôle départ / offboarding'
+      : requestType === 'modification'
+        ? 'Contrôle modification utilisateur'
+        : 'Contrôle création utilisateur'
+
+    const lines = [
+      '# ============================================================',
+      `# EITAS - ${typeLabel}`,
+      `# Demande : ${requestId}`,
+      `# Utilisateur : ${displayName}`,
+      '# À lancer sur SRV-DC01 en PowerShell administrateur',
+      '# ============================================================',
+      '',
+      'Import-Module ActiveDirectory',
+      '',
+      `$Sam = '${escapePowerShellString(username)}'`,
+      `$DisplayName = '${escapePowerShellString(displayName)}'`,
+      `$ExpectedOu = '${escapePowerShellString(expectedOu)}'`,
+      `$RequestType = '${escapePowerShellString(requestType)}'`,
+      `$ExpectedSimulation = ${expectedSimulation ? '$true' : '$false'}`,
+      '',
+      '$Properties = @(',
+      "  'DisplayName',",
+      "  'Enabled',",
+      "  'mail',",
+      "  'Department',",
+      "  'Title',",
+      "  'Description',",
+      "  'Manager',",
+      "  'DistinguishedName',",
+      "  'WhenCreated',",
+      "  'WhenChanged',",
+      "  'LastLogonDate'",
+      ')',
+      '',
+      'Write-Host ""',
+      'Write-Host "=== RECHERCHE UTILISATEUR AD ===" -ForegroundColor Cyan',
+      'Write-Host "SamAccountName attendu : $Sam"',
+      'Write-Host "Nom attendu            : $DisplayName"',
+      '',
+      '$User = $null',
+      '$FoundBy = $null',
+      '',
+      'try {',
+      '  $User = Get-ADUser -Identity $Sam -Properties $Properties -ErrorAction Stop',
+      "  $FoundBy = 'Identity'",
+      '} catch {',
+      '  Write-Host "Introuvable par Identity, recherche alternative..." -ForegroundColor Yellow',
+      '}',
+      '',
+      'if (-not $User) {',
+      "  $FilterSam = $Sam -replace \"'\", \"''\"",
+      "  $FilterName = $DisplayName -replace \"'\", \"''\"",
+      `  $Filter = "SamAccountName -eq '$FilterSam' -or UserPrincipalName -like '$FilterSam*' -or DisplayName -eq '$FilterName' -or Name -eq '$FilterName'"`,
+      '  $User = Get-ADUser -Filter $Filter -Properties $Properties | Select-Object -First 1',
+      "  if ($User) { $FoundBy = 'Filter' }",
+      '}',
+      '',
+      'if (-not $User) {',
+      '  Write-Host ""',
+      '  Write-Host "UTILISATEUR AD INTROUVABLE" -ForegroundColor Red',
+      '  Write-Host "Aucun objet AD trouve pour : $Sam / $DisplayName" -ForegroundColor Red',
+      '',
+      '  if ($ExpectedSimulation) {',
+      '    Write-Host ""',
+      '    Write-Host "INFO : cette demande etait en Simulation." -ForegroundColor Yellow',
+      '    Write-Host "Donc aucun changement AD reel nest attendu pour cette demande." -ForegroundColor Yellow',
+      '  }',
+      '',
+      '  Write-Host ""',
+      '  Write-Host "Ca peut aussi arriver si le compte a ete supprime, renomme, ou si la demande est historique." -ForegroundColor DarkYellow',
+      '} else {',
+      '  Write-Host ""',
+      '  Write-Host "=== UTILISATEUR AD ===" -ForegroundColor Cyan',
+      '  Write-Host "Trouve via : $FoundBy" -ForegroundColor Green',
+      '  $User | Select-Object SamAccountName,DisplayName,Enabled,mail,Department,Title,Description,DistinguishedName,WhenCreated,WhenChanged,LastLogonDate | Format-List',
+      '',
+      '  Write-Host ""',
+      '  Write-Host "=== GROUPES AD ===" -ForegroundColor Cyan',
+      '  Get-ADPrincipalGroupMembership -Identity $User.DistinguishedName | Select-Object Name | Sort-Object Name | Format-Table -AutoSize',
+      '',
+      '  Write-Host ""',
+      '  Write-Host "=== CONTROLE OU ===" -ForegroundColor Cyan',
+      '  Write-Host "OU attendue : $ExpectedOu"',
+      '  Write-Host "DN actuel   : $($User.DistinguishedName)"',
+      '',
+      '  if ($ExpectedOu -and $User.DistinguishedName -like "*,$ExpectedOu") {',
+      '    Write-Host "OK : utilisateur dans OU attendue" -ForegroundColor Green',
+      '  } elseif ($ExpectedOu) {',
+      '    Write-Host "ATTENTION : utilisateur pas dans OU attendue" -ForegroundColor Yellow',
+      '  } else {',
+      '    Write-Host "Aucune OU attendue fournie par la demande" -ForegroundColor DarkYellow',
+      '  }',
+      '',
+      '  Write-Host ""',
+      '  Write-Host "=== CONTROLE ETAT COMPTE ===" -ForegroundColor Cyan',
+      '  if ($RequestType -eq "offboarding") {',
+      '    if ($User.Enabled -eq $false) {',
+      '      Write-Host "OK : compte desactive" -ForegroundColor Green',
+      '    } else {',
+      '      Write-Host "ATTENTION : compte encore actif" -ForegroundColor Red',
+      '    }',
+      '  } elseif ($RequestType -eq "onboarding") {',
+      '    if ($User.Enabled -eq $true) {',
+      '      Write-Host "OK : compte actif" -ForegroundColor Green',
+      '    } else {',
+      '      Write-Host "ATTENTION : compte cree mais desactive" -ForegroundColor Yellow',
+      '    }',
+      '  } else {',
+      '    Write-Host "Etat actuel Enabled : $($User.Enabled)"',
+      '  }',
+      ''
+    ]
+
+    if (requestType === 'modification') {
+      lines.push(
+        '  Write-Host ""',
+        '  Write-Host "=== CONTROLE MODIFICATION ===" -ForegroundColor Cyan',
+        '  Write-Host "Departement actuel : $($User.Department)"',
+        '  Write-Host "Titre actuel       : $($User.Title)"',
+        '  Write-Host "Description        : $($User.Description)"',
+        ''
+      )
+    }
+
+    lines.push(
+      '}',
+      '',
+      'Write-Host ""',
+      'Write-Host "=== FIN CONTROLE EITAS ===" -ForegroundColor Cyan'
+    )
+
+    return lines.join('\n')
+  }
+
+  function downloadAdCheckPowerShellFile() {
+    const content = buildAdCheckPowerShellCommand()
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const employeeName = payload.display_name || payload.username || details.display_name || details.username || requestId || 'demande'
+    const timestamp = new Date().toISOString().slice(0, 19).replaceAll(':', '-')
+
+    link.href = url
+    link.download = `eitas-controle-ad-${sanitizeReportFileName(employeeName)}-${timestamp}.ps1`
+
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   function goToAuditLogs() {
     if (typeof openAuditFromRequest === 'function') {
       openAuditFromRequest(requestId)
@@ -394,6 +691,14 @@ export default function SmartRequestDrawer({
           </div>
 
           <div className="drawer-header-actions">
+            <CopyTextButton text={buildRequestReportText()} label="Copier rapport" copiedLabel="Rapport copié" />
+            <button type="button" className="download-report-button" onClick={downloadRequestReportText}>
+              Télécharger rapport
+            </button>
+            <CopyTextButton text={buildAdCheckPowerShellCommand()} label="Copier contrôle AD" copiedLabel="Contrôle AD copié" />
+            <button type="button" className="download-ad-check-button" onClick={downloadAdCheckPowerShellFile}>
+              Télécharger contrôle AD
+            </button>
             <CopyTextButton text={requestId} label="Copier ID" copiedLabel="ID copié" />
             <button type="button" className="audit-shortcut-button" onClick={goToAuditLogs}>Voir audit</button>
             <button className="ghost-button" onClick={onClose}>Fermer</button>

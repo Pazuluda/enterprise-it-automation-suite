@@ -6583,3 +6583,195 @@ table tbody td {
     align-items: flex-start !important;
   }
 }
+
+/* ========================================================= */
+/* === EITAS Detail drawer - full report copy ============== */
+/* ========================================================= */
+
+.drawer-header-actions {
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+}
+
+.drawer-header-actions .copy-button {
+  white-space: nowrap !important;
+}
+
+@media (max-width: 760px) {
+  .drawer-header-actions {
+    justify-content: flex-start !important;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - download report button ======== */
+/* ========================================================= */
+
+.download-report-button {
+  min-height: 36px !important;
+  padding: 0 12px !important;
+
+  border-radius: 10px !important;
+  border: 1px solid #bfdbfe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.download-report-button:hover {
+  background: #dbeafe !important;
+  border-color: #93c5fd !important;
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - AD check copy button ========== */
+/* ========================================================= */
+
+.drawer-header-actions .copy-button {
+  min-height: 36px !important;
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - clean action toolbar ========== */
+/* ========================================================= */
+
+.request-drawer .drawer-header {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 14px !important;
+}
+
+.request-drawer .drawer-header > div:first-child {
+  min-width: 0 !important;
+}
+
+.request-drawer .drawer-header h3 {
+  max-width: 100% !important;
+  margin: 0 0 6px 0 !important;
+  line-height: 1.25 !important;
+  word-break: normal !important;
+}
+
+.request-drawer .drawer-header p {
+  margin: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.request-drawer .drawer-header-actions {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
+}
+
+.request-drawer .drawer-header-actions button,
+.request-drawer .drawer-header-actions .copy-button,
+.request-drawer .download-report-button,
+.request-drawer .download-ad-check-button,
+.request-drawer .audit-shortcut-button,
+.request-drawer .ghost-button {
+  width: 100% !important;
+  min-height: 38px !important;
+  justify-content: center !important;
+  text-align: center !important;
+  white-space: normal !important;
+  line-height: 1.15 !important;
+  padding: 8px 10px !important;
+  font-size: 12.5px !important;
+}
+
+.request-drawer {
+  overflow-x: hidden !important;
+}
+
+@media (max-width: 820px) {
+  .request-drawer .drawer-header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .request-drawer .drawer-header-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ========================================================= */
+/* === EITAS Detail drawer - unified clean header buttons === */
+/* ========================================================= */
+
+.request-drawer .drawer-header-actions {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+
+.request-drawer .drawer-header-actions button,
+.request-drawer .drawer-header-actions .copy-button,
+.request-drawer .drawer-header-actions .download-report-button,
+.request-drawer .drawer-header-actions .download-ad-check-button,
+.request-drawer .drawer-header-actions .audit-shortcut-button,
+.request-drawer .drawer-header-actions .ghost-button {
+  width: 100% !important;
+  min-height: 38px !important;
+  padding: 8px 12px !important;
+
+  border-radius: 10px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #f8fafc !important;
+  color: #111827 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+  white-space: normal !important;
+
+  box-shadow: none !important;
+}
+
+.request-drawer .drawer-header-actions button:hover,
+.request-drawer .drawer-header-actions .copy-button:hover,
+.request-drawer .drawer-header-actions .download-report-button:hover,
+.request-drawer .drawer-header-actions .download-ad-check-button:hover,
+.request-drawer .drawer-header-actions .audit-shortcut-button:hover,
+.request-drawer .drawer-header-actions .ghost-button:hover {
+  background: #eef2ff !important;
+  border-color: #818cf8 !important;
+  color: #1e1b4b !important;
+}
+
+.request-drawer .drawer-header-actions .download-report-button,
+.request-drawer .drawer-header-actions .audit-shortcut-button {
+  color: #3730a3 !important;
+}
+
+.request-drawer .drawer-header-actions .download-ad-check-button {
+  background: #f8fafc !important;
+  color: #111827 !important;
+  border-color: #c7d2fe !important;
+}
+
+.request-drawer .drawer-header-actions .ghost-button {
+  border-color: #d1d5db !important;
+  color: #374151 !important;
+}
+
+@media (max-width: 820px) {
+  .request-drawer .drawer-header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .request-drawer .drawer-header-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
