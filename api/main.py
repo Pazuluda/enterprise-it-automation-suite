@@ -12,6 +12,20 @@ from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, A
 from app.core.security import require_api_key
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
+from app.services.agent_runtime import (
+    AgentRuntimeBadRequest,
+    AgentRuntimeConflict,
+    AgentRuntimeNotFound,
+    AgentRuntimeStorageError,
+    claim_request as service_claim_request,
+    get_agent_config as service_get_agent_config,
+    get_agent_status as service_get_agent_status,
+    get_default_agent_config as service_get_default_agent_config,
+    get_pending_requests as service_get_pending_requests,
+    receive_agent_heartbeat as service_receive_agent_heartbeat,
+    submit_agent_result as service_submit_agent_result,
+    update_agent_config as service_update_agent_config,
+)
 from app.utils.naming import generate_username, generate_email
 from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest
 
@@ -201,260 +215,75 @@ def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key))
 
 
 def get_default_agent_config():
-    return {
-        "interval_minutes": 2,
-        "allowed_intervals": [1, 2, 5, 10, 15, 30],
-        "task_name": "EITAS Employee Lifecycle Agent",
-        "pause_processing": False,
-        "message": "Configuration agent par défaut"
-    }
-
+    return service_get_default_agent_config()
 
 @app.get("/api/agent/config")
 def get_agent_config(api_key: None = Depends(require_api_key)):
-    config = get_default_agent_config()
-
-    if AGENT_CONFIG_FILE.exists():
-        try:
-            saved = json.loads(AGENT_CONFIG_FILE.read_text(encoding="utf-8"))
-            if isinstance(saved, dict):
-                config.update(saved)
-        except Exception:
-            raise HTTPException(status_code=500, detail="Impossible de lire la configuration agent")
-
-    if config.get("interval_minutes") not in config["allowed_intervals"]:
-        config["interval_minutes"] = 2
-
-    return config
-
+    try:
+        return service_get_agent_config(AGENT_CONFIG_FILE)
+    except AgentRuntimeStorageError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 @app.post("/api/agent/config")
 def update_agent_config(payload: dict, api_key: None = Depends(require_api_key)):
-    config = get_default_agent_config()
-
     try:
-        interval_minutes = int(payload.get("interval_minutes"))
-    except Exception:
-        raise HTTPException(status_code=400, detail="interval_minutes invalide")
+        response, audit_event = service_update_agent_config(AGENT_CONFIG_FILE, payload)
+    except AgentRuntimeBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except AgentRuntimeStorageError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
-    if interval_minutes not in config["allowed_intervals"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Fréquence non autorisée. Valeurs possibles : {config['allowed_intervals']}"
-        )
+    if audit_event:
+        write_audit_log(**audit_event)
 
-    config["interval_minutes"] = interval_minutes
-
-    if "pause_processing" in payload:
-        config["pause_processing"] = bool(payload.get("pause_processing"))
-
-    if config.get("pause_processing"):
-        config["message"] = f"Agent en pause. Fréquence conservée à {interval_minutes} minute(s)"
-    else:
-        config["message"] = f"Fréquence agent configurée à {interval_minutes} minute(s)"
-
-    config["updated_at"] = datetime.utcnow().isoformat() + "Z"
-
-    previous_config = get_agent_config()
-
-    save_json(AGENT_CONFIG_FILE, config)
-
-    changed_fields = {}
-
-    if previous_config.get("interval_minutes") != config.get("interval_minutes"):
-        changed_fields["interval_minutes"] = {
-            "old": previous_config.get("interval_minutes"),
-            "new": config.get("interval_minutes")
-        }
-
-    if previous_config.get("pause_processing") != config.get("pause_processing"):
-        changed_fields["pause_processing"] = {
-            "old": previous_config.get("pause_processing"),
-            "new": config.get("pause_processing")
-        }
-
-    if changed_fields:
-        if "pause_processing" in changed_fields:
-            action = "agent_processing_paused" if config.get("pause_processing") else "agent_processing_resumed"
-            message = "Traitement agent mis en pause" if config.get("pause_processing") else "Traitement agent repris"
-        else:
-            action = "agent_interval_updated"
-            message = f"Fréquence agent mise à jour : {config.get('interval_minutes')} minute(s)"
-
-        write_audit_log(
-            action=action,
-            request_id=None,
-            actor="react-admin",
-            message=message,
-            details={
-                "changed_fields": changed_fields,
-                "interval_minutes": config.get("interval_minutes"),
-                "pause_processing": config.get("pause_processing"),
-                "task_name": config.get("task_name")
-            }
-        )
-
-    return {
-        "ok": True,
-        "message": "Configuration agent enregistrée",
-        "config": config
-    }
-
+    return response
 
 @app.post("/api/agent/heartbeat")
 def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_key)):
-    now = datetime.utcnow()
-
-    status = {
-        "online": True,
-        "agent_name": payload.get("agent_name") or payload.get("agent") or "unknown",
-        "computer_name": payload.get("computer_name") or "",
-        "mode": payload.get("mode") or "unknown",
-        "script": payload.get("script") or "",
-        "status": payload.get("status") or "running",
-        "message": payload.get("message") or "Heartbeat reçu",
-        "received_at": now.isoformat() + "Z",
-        "api_base_url": payload.get("api_base_url") or "",
-        "version": payload.get("version") or "0.1.0",
-        "schedule_interval_minutes": payload.get("schedule_interval_minutes"),
-        "pause_processing": bool(payload.get("pause_processing")),
-        "task": payload.get("task") or {}
-    }
-
-    save_json(AGENT_STATUS_FILE, status)
-
-    return {
-        "ok": True,
-        "message": "Heartbeat agent enregistré",
-        "status": status
-    }
-
+    return service_receive_agent_heartbeat(AGENT_STATUS_FILE, payload)
 
 @app.get("/api/agent/status")
 def get_agent_status(api_key: None = Depends(require_api_key)):
-    if not AGENT_STATUS_FILE.exists():
-        return {
-            "online": False,
-            "message": "Aucun heartbeat agent reçu",
-            "received_at": None,
-            "seconds_since_seen": None
-        }
-
     try:
-        status = json.loads(AGENT_STATUS_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Impossible de lire le statut agent")
-
-    received_at_raw = status.get("received_at")
-    seconds_since_seen = None
-    online = False
-
-    if received_at_raw:
-        try:
-            received_at = datetime.fromisoformat(str(received_at_raw).replace("Z", ""))
-            seconds_since_seen = int((datetime.utcnow() - received_at).total_seconds())
-            online = seconds_since_seen <= 300
-        except Exception:
-            seconds_since_seen = None
-            online = False
-
-    status["online"] = online
-    status["seconds_since_seen"] = seconds_since_seen
-
-    if online:
-        status["message"] = status.get("message") or "Agent actif"
-    else:
-        status["message"] = "Agent non vu depuis plus de 5 minutes"
-
-    return status
-
+        return service_get_agent_status(AGENT_STATUS_FILE)
+    except AgentRuntimeStorageError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 @app.get("/api/agent/pending")
 def get_pending_requests(api_key: None = Depends(require_api_key)):
-    requests = load_json(REQUESTS_FILE, [])
-
-    pending = [
-        request for request in requests
-        if request.get("status") == "pending"
-    ]
-
-    return {
-        "count": len(pending),
-        "requests": pending
-    }
-
+    return service_get_pending_requests(REQUESTS_FILE)
 
 @app.post("/api/agent/claim/{request_id}")
 def claim_request(request_id: str, payload: ClaimRequestPayload, api_key: None = Depends(require_api_key)):
-    requests = load_json(REQUESTS_FILE, [])
+    try:
+        response, audit_event = service_claim_request(
+            REQUESTS_FILE,
+            request_id,
+            payload.agent_name or "unknown-agent",
+        )
+    except AgentRuntimeConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except AgentRuntimeNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for request in requests:
-        if request.get("id") == request_id:
-            current_status = request.get("status")
+    write_audit_log(**audit_event)
 
-            if current_status != "pending":
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Demande non disponible. Statut actuel : {current_status}"
-                )
-
-            request["status"] = "processing"
-            request["processing_at"] = datetime.utcnow().isoformat() + "Z"
-            request["processing_by"] = payload.agent_name or "unknown-agent"
-
-            save_json(REQUESTS_FILE, requests)
-
-            write_audit_log(
-                action="request_claimed",
-                request_id=request_id,
-                actor=payload.agent_name or "unknown-agent",
-                message="Demande prise en charge par un agent",
-                details={
-                    "status": "processing"
-                }
-            )
-
-            return {
-                "message": "Demande prise en charge",
-                "request_id": request_id,
-                "status": "processing",
-                "request": request
-            }
-
-    raise HTTPException(status_code=404, detail="Demande introuvable")
-
+    return response
 
 @app.post("/api/agent/result/{request_id}")
 def submit_agent_result(request_id: str, result: AgentResult, api_key: None = Depends(require_api_key)):
-    requests = load_json(REQUESTS_FILE, [])
-    found = False
+    try:
+        response, audit_event = service_submit_agent_result(
+            REQUESTS_FILE,
+            request_id,
+            result.model_dump(),
+        )
+    except AgentRuntimeNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
 
-    for request in requests:
-        if request.get("id") == request_id:
-            found = True
-            request["status"] = "completed" if result.success else "failed"
-            request["completed_at"] = datetime.utcnow().isoformat() + "Z"
-            request["agent_result"] = result.model_dump()
-            break
+    write_audit_log(**audit_event)
 
-    if not found:
-        raise HTTPException(status_code=404, detail="Demande introuvable")
-
-    save_json(REQUESTS_FILE, requests)
-
-    write_audit_log(
-        action="request_completed" if result.success else "request_failed",
-        request_id=request_id,
-        actor=result.details.get("server", "agent") if isinstance(result.details, dict) else "agent",
-        message=result.message,
-        details=result.details
-    )
-
-    return {
-        "message": "Résultat agent enregistré",
-        "request_id": request_id
-    }
-
+    return response
 
 @app.post("/api/admin/requests/reset")
 def reset_requests(payload: ResetRequestsPayload, api_key: None = Depends(require_api_key)):
