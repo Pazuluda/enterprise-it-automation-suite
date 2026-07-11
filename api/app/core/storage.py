@@ -79,6 +79,73 @@ def _recover_json_values(raw: str, default: Any) -> Any:
     return values[-1]
 
 
+
+def _is_jobs_list_path(path: Path) -> bool:
+    return path.name.endswith("-jobs.json")
+
+
+def _job_status_rank(job: dict[str, Any]) -> int:
+    status = str(job.get("status") or "").lower()
+
+    return {
+        "created": 0,
+        "pending": 1,
+        "processing": 2,
+        "completed": 3,
+        "failed": 3,
+    }.get(status, 0)
+
+
+def _job_timestamp(job: dict[str, Any]) -> str:
+    return str(
+        job.get("completed_at")
+        or job.get("claimed_at")
+        or job.get("created_at")
+        or ""
+    )
+
+
+def _pick_newer_job(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    existing_rank = _job_status_rank(existing)
+    incoming_rank = _job_status_rank(incoming)
+
+    if incoming_rank > existing_rank:
+        return incoming
+
+    if incoming_rank < existing_rank:
+        return existing
+
+    if _job_timestamp(incoming) >= _job_timestamp(existing):
+        return incoming
+
+    return existing
+
+
+def _merge_job_lists(existing: Any, incoming: Any) -> Any:
+    if not isinstance(existing, list) or not isinstance(incoming, list):
+        return incoming
+
+    merged: dict[str, dict[str, Any]] = {}
+    passthrough: list[Any] = []
+
+    for item in existing:
+        if isinstance(item, dict) and item.get("id"):
+            merged[item["id"]] = item
+        else:
+            passthrough.append(item)
+
+    for item in incoming:
+        if isinstance(item, dict) and item.get("id"):
+            job_id = item["id"]
+            if job_id in merged:
+                merged[job_id] = _pick_newer_job(merged[job_id], item)
+            else:
+                merged[job_id] = item
+        else:
+            passthrough.append(item)
+
+    return passthrough + list(merged.values())
+
 def load_json(path: str | Path, default: Any) -> Any:
     target = Path(path)
 
@@ -114,6 +181,14 @@ def save_json(path: str | Path, data: Any) -> None:
         tmp = target.with_name(
             f".{target.name}.{os.getpid()}.{threading.get_ident()}.tmp"
         )
+
+        if _is_jobs_list_path(target) and isinstance(data, list) and target.exists():
+            try:
+                existing_raw = target.read_text(encoding="utf-8-sig", errors="replace")
+                existing_data = json.loads(existing_raw) if existing_raw.strip() else []
+                data = _merge_job_lists(existing_data, data)
+            except json.JSONDecodeError:
+                data = _merge_job_lists(_recover_json_values(existing_raw, []), data)
 
         payload = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
 

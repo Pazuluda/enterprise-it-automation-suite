@@ -311,6 +311,11 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [membersError, setMembersError] = useState('')
   const [memberModal, setMemberModal] = useState(null)
   const [memberIdentity, setMemberIdentity] = useState('')
+  const [memberSearchResults, setMemberSearchResults] = useState([])
+  const [memberSearchLoading, setMemberSearchLoading] = useState(false)
+  const [memberSearchError, setMemberSearchError] = useState('')
+  const [selectedMemberCandidate, setSelectedMemberCandidate] = useState(null)
+  const [memberSubmitError, setMemberSubmitError] = useState('')
   const [memberActionLoading, setMemberActionLoading] = useState(false)
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
@@ -443,7 +448,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     }
   }
 
-  async function loadGroupMembers(target = selectedObject) {
+  async function loadGroupMembers(target = selectedObject, options = {}) {
     if (!target || !isGroupObject(target)) return
 
     const identity = target.sam_account_name || target.name || getObjectDn(target)
@@ -466,7 +471,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       })
 
       setObjectMembers(members)
-      setMessage?.(`Membres chargés pour ${target.name || identity}.`)
+      if (!options.silent) setMessage?.(`Membres chargés pour ${target.name || identity}.`)
     } catch (err) {
       setObjectMembers([])
       setMembersError(err.message || 'Impossible de charger les membres du groupe.')
@@ -612,16 +617,120 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       return
     }
 
-    setMemberIdentity('')
+    resetMemberPicker()
     setMemberModal(group)
   }
+
+
+  function resetMemberPicker() {
+    setMemberIdentity('')
+    setMemberSearchResults([])
+    setMemberSearchLoading(false)
+    setMemberSearchError('')
+    setSelectedMemberCandidate(null)
+    setMemberSubmitError('')
+  }
+
+  function closeMemberModal() {
+    setMemberModal(null)
+    resetMemberPicker()
+  }
+
+  function getMemberCandidateIdentity(candidate) {
+    return String(
+      candidate?.sam_account_name ||
+      candidate?.samAccountName ||
+      candidate?.user_principal_name ||
+      candidate?.upn ||
+      candidate?.name ||
+      candidate?.distinguished_name ||
+      candidate?.dn ||
+      ''
+    )
+  }
+
+  function getMemberCandidateTitle(candidate) {
+    return String(candidate?.display_name || candidate?.name || candidate?.sam_account_name || 'Utilisateur')
+  }
+
+  function getMemberCandidateSubtitle(candidate) {
+    const parts = [
+      candidate?.sam_account_name,
+      candidate?.user_principal_name || candidate?.upn,
+      candidate?.distinguished_name || candidate?.dn
+    ].filter(Boolean)
+
+    return parts.join(' • ')
+  }
+
+  function cleanAdAdminMessage(value) {
+    return String(value || '')
+      .replaceAll('dÃ©jÃ ', 'déjà')
+      .replaceAll('Ã©', 'é')
+      .replaceAll('Ã¨', 'è')
+      .replaceAll('Ãª', 'ê')
+      .replaceAll('Ã ', 'à')
+      .replaceAll('Ã§', 'ç')
+      .replaceAll('Ã´', 'ô')
+      .replaceAll('Ã»', 'û')
+  }
+
+  function selectMemberCandidate(candidate) {
+    const identity = getMemberCandidateIdentity(candidate)
+
+    setSelectedMemberCandidate(candidate)
+    setMemberIdentity(identity)
+    setMemberSearchError('')
+  }
+
+  async function searchMemberCandidates() {
+    const query = memberIdentity.trim()
+
+    setSelectedMemberCandidate(null)
+    setMemberSearchError('')
+
+    if (query.length < 2) {
+      setMemberSearchResults([])
+      setMemberSearchError('Tape au moins 2 caractères pour rechercher un utilisateur.')
+      return
+    }
+
+    setMemberSearchLoading(true)
+
+    try {
+      const users = await runJob('search_users', {
+        query,
+        baseDn: 'OU=Users,OU=EITAS,DC=API,DC=LOCAL',
+        limit: 50,
+        recursive: true
+      })
+
+      setMemberSearchResults(users)
+
+      if (!users.length) {
+        setMemberSearchError('Aucun utilisateur trouvé.')
+      }
+    } catch (error) {
+      setMemberSearchResults([])
+      setMemberSearchError(error.message || 'Recherche utilisateur impossible.')
+    } finally {
+      setMemberSearchLoading(false)
+    }
+  }
+
 
   async function submitAddMember(event) {
     event.preventDefault()
 
     if (!memberModal) return
 
-    const identity = memberIdentity.trim()
+    const identity = selectedMemberCandidate ? getMemberCandidateIdentity(selectedMemberCandidate).trim() : memberIdentity.trim()
+
+    if (memberSearchResults.length > 0 && !selectedMemberCandidate) {
+      setMemberSearchError('Sélectionne un utilisateur exact dans la liste avant d’ajouter.')
+      setMessage?.('Sélectionne un utilisateur exact dans la liste avant d’ajouter.')
+      return
+    }
 
     if (!identity) {
       setMessage?.('Identifiant membre obligatoire.')
@@ -631,16 +740,27 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setMemberActionLoading(true)
 
     try {
-      await runAdAdminJob({
+      const job = await runAdAdminJob({
         action: 'add_group_member',
         group_identity: memberModal.sam_account_name || memberModal.name || getObjectDn(memberModal),
         member_identity: identity
       })
 
-      setMessage?.(`Membre ${identity} ajouté à ${memberModal.name}.`)
-      setMemberModal(null)
-      setMemberIdentity('')
-      await loadGroupMembers(memberModal)
+      const output = job?.output || {}
+      const groupName = output.group || memberModal.sam_account_name || memberModal.name || getObjectDn(memberModal)
+      const memberName = output.member || (selectedMemberCandidate ? getMemberCandidateTitle(selectedMemberCandidate) : identity)
+      const rawMessage = cleanAdAdminMessage(output.message || job?.message || '')
+
+      await loadGroupMembers(memberModal, { silent: true })
+
+      if (output.already_member || rawMessage.toLowerCase().includes('déjà')) {
+        setMemberSubmitError(`${memberName} est déjà membre de ${groupName}.`)
+        setMessage?.(`${memberName} est déjà membre de ${groupName}.`)
+        return
+      }
+
+      setMessage?.(`${memberName} ajouté à ${groupName}.`)
+      closeMemberModal()
     } catch (err) {
       setMessage?.(err.message || 'Impossible d’ajouter le membre.')
     } finally {
@@ -1046,7 +1166,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       )}
 
       {memberModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setMemberModal(null)}>
+        <div className="aduc-modal-backdrop" onClick={closeMemberModal}>
           <form className="aduc-modal aduc-member-modal" onSubmit={submitAddMember} onClick={event => event.stopPropagation()}>
             <header>
               <div>
@@ -1054,7 +1174,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 <h3>Ajouter un membre</h3>
               </div>
 
-              <button type="button" onClick={() => setMemberModal(null)}>×</button>
+              <button type="button" onClick={closeMemberModal}>×</button>
             </header>
 
             <label>
@@ -1063,22 +1183,71 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
             </label>
 
             <label>
-              Utilisateur ou groupe à ajouter
-              <input
-                value={memberIdentity}
-                onChange={event => setMemberIdentity(event.target.value)}
-                placeholder="Ex : l.ve, p.nom, GG_Support_RW..."
-                autoFocus
-              />
+              Utilisateur à ajouter
+              <div className="aduc-member-picker-row">
+                <input
+                  value={memberIdentity}
+                  onChange={event => {
+                    setMemberIdentity(event.target.value)
+                    setSelectedMemberCandidate(null)
+                    setMemberSearchError('')
+                    setMemberSubmitError('')
+                  }}
+                  placeholder="Ex : l.ve, liam, p.nom..."
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  className="aduc-member-search-button"
+                  onClick={searchMemberCandidates}
+                  disabled={memberSearchLoading || memberIdentity.trim().length < 2}
+                >
+                  {memberSearchLoading ? 'Recherche...' : 'Rechercher'}
+                </button>
+              </div>
             </label>
+
+            {memberSearchError && (
+              <div className="aduc-member-search-error">
+                {memberSearchError}
+              </div>
+            )}
+
+            {memberSearchResults.length > 0 && (
+              <div className="aduc-member-search-results">
+                {memberSearchResults.map(candidate => {
+                  const identity = getMemberCandidateIdentity(candidate)
+                  const selected = selectedMemberCandidate && getMemberCandidateIdentity(selectedMemberCandidate) === identity
+
+                  return (
+                    <button
+                      type="button"
+                      key={identity}
+                      className={selected ? 'is-selected' : ''}
+                      onClick={() => selectMemberCandidate(candidate)}
+                    >
+                      <strong>{getMemberCandidateTitle(candidate)}</strong>
+                      <small>{getMemberCandidateSubtitle(candidate)}</small>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
             <div className="aduc-modal-warning">
               <strong>Production AD</strong>
-              <span>Cette action ajoutera le membre dans le groupe via l’agent Windows.</span>
+              <span>Cette action ajoutera l’utilisateur sélectionné dans le groupe via l’agent Windows.</span>
             </div>
 
+            {memberSubmitError && (
+              <div className="aduc-member-submit-error">
+                <strong>Impossible d’ajouter ce membre</strong>
+                <span>{memberSubmitError}</span>
+              </div>
+            )}
+
             <footer>
-              <button type="button" onClick={() => setMemberModal(null)}>Annuler</button>
+              <button type="button" onClick={closeMemberModal}>Annuler</button>
               <button type="submit" disabled={memberActionLoading}>
                 {memberActionLoading ? 'Ajout...' : 'Ajouter le membre'}
               </button>
