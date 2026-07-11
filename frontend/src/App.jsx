@@ -1294,6 +1294,7 @@ function App() {
   const [message, setMessage] = useState('')
   const [requests, setRequests] = useState([])
   const [agentStatus, setAgentStatus] = useState(null)
+  const [workerStatus, setWorkerStatus] = useState(null)
   const [agentConfig, setAgentConfig] = useState(null)
   const [agentHistory, setAgentHistory] = useState([])
   const [liveRefreshEnabled, setLiveRefreshEnabled] = useState(() => {
@@ -1535,6 +1536,7 @@ function App() {
       testApi(true)
       loadRequests(true)
       loadAgentStatus()
+      loadWorkerStatus()
       loadAgentConfig()
 
       if (page === 'audit' || page === 'agentOps' || page === 'adChecks') {
@@ -1694,6 +1696,16 @@ function App() {
     }
     catch {
       setAgentStatus(null)
+    }
+  }
+
+  async function loadWorkerStatus() {
+    try {
+      const data = await apiFetch('/api/admin/worker-status')
+      setWorkerStatus(data)
+    }
+    catch {
+      setWorkerStatus(null)
     }
   }
 
@@ -1867,6 +1879,7 @@ function App() {
 
       if (typeof loadAgentStatus === 'function') {
         loadAgentStatus()
+        loadWorkerStatus()
       }
     } catch (error) {
       setAgentModeControl(current => ({
@@ -3112,6 +3125,7 @@ Write-Host "============================================================"
     await loadTemplates()
     await loadRequests()
     loadAgentStatus()
+    loadWorkerStatus()
     await loadAuditLogs()
     await loadAdCheckJobs(true)
     await testApi()
@@ -3657,6 +3671,21 @@ Write-Host "============================================================"
                 {apiStatus}
               </span>
             )}
+
+            {page === 'overview' && (
+              <button
+                type="button"
+                className={`worker-overview-badge ${workerStatus?.summary && Number(workerStatus.summary.stale || 0) === 0 && Number(workerStatus.summary.errors || 0) === 0 ? 'online' : 'warning'}`}
+                onClick={() => setPage('workers')}
+                title="Voir la santé détaillée des workers Windows"
+              >
+                {workerStatus?.summary
+                  ? Number(workerStatus.summary.stale || 0) === 0 && Number(workerStatus.summary.errors || 0) === 0
+                    ? `Workers · ${workerStatus.summary.healthy}/${workerStatus.summary.total} OK`
+                    : `Workers · ${Number(workerStatus.summary.stale || 0) + Number(workerStatus.summary.errors || 0)} alerte(s)`
+                  : 'Workers inconnus'}
+              </button>
+            )}
             <button
             type="button"
             className={`live-refresh-pill ${['overview', 'dashboard'].includes(page) ? 'visible' : 'hidden'} ${liveRefreshEnabled ? 'active' : 'paused'}`}
@@ -3665,7 +3694,7 @@ Write-Host "============================================================"
           >
             {liveRefreshEnabled ? 'Temps réel actif' : 'Temps réel en pause'}
             {lastLiveRefreshAt && (
-              <small>Dernière synchro {lastLiveRefreshAt.toLocaleTimeString('fr-FR')}</small>
+              <small>Synchro {lastLiveRefreshAt.toLocaleTimeString('fr-FR')}</small>
             )}
           </button>
 
@@ -3871,6 +3900,7 @@ Write-Host "============================================================"
               stats={stats}
               requests={requests}
               agentStatus={agentStatus}
+              workerStatus={workerStatus}
               agentModeControl={agentModeControl}
               setPage={setPage}
               setSelectedRequest={setSelectedRequest}
@@ -4450,7 +4480,43 @@ function AgentSystemBanner({ agentStatus, agentConfig }) {
 }
 
 
-function OverviewPage({ requests, agentStatus, agentModeControl, setPage }) {
+
+function WorkerOverviewAlert({ workerStatus, setPage }) {
+  if (!workerStatus?.summary) {
+    return null
+  }
+
+  const summary = workerStatus.summary || {}
+  const workers = Array.isArray(workerStatus.workers) ? workerStatus.workers : []
+  const alertCount = Number(summary.stale || 0) + Number(summary.errors || 0)
+
+  if (alertCount <= 0) {
+    return null
+  }
+
+  const badWorkers = workers.filter(worker => {
+    return worker?.is_stale || worker?.healthy === false || ['error', 'failed', 'stopped', 'dead'].includes(String(worker?.status || '').toLowerCase())
+  })
+
+  return (
+    <div className="worker-overview-alert warning">
+      <div>
+        <span className="worker-overview-alert-kicker">Supervision workers</span>
+        <strong>Workers à vérifier</strong>
+        <p>
+          {summary.stale || 0} worker(s) silencieux, {summary.errors || 0} erreur(s).
+          {badWorkers.length > 0 && ` Concerné(s) : ${badWorkers.map(worker => worker.worker_name || worker.worker_id).join(', ')}.`}
+        </p>
+      </div>
+
+      <button type="button" onClick={() => setPage('workers')}>
+        Voir Santé workers
+      </button>
+    </div>
+  )
+}
+
+function OverviewPage({ requests, agentStatus, workerStatus, agentModeControl, setPage }) {
   const safeRequests = Array.isArray(requests) ? requests : []
 
   const waitingApproval = safeRequests.filter(request => request.status === 'waiting_approval').length
@@ -4488,6 +4554,8 @@ function OverviewPage({ requests, agentStatus, agentModeControl, setPage }) {
           <strong>{issues}</strong>
         </div>
       </div>
+
+      <WorkerOverviewAlert workerStatus={workerStatus} setPage={setPage} />
 
       <div className="content-grid">
         <section className="panel">
