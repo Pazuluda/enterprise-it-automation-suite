@@ -2668,3 +2668,153 @@
 .aduc-admin-history-row.processing > span {
   background: #f59e0b;
 }
+
+
+/* STEP 256.1B - Fix clickable AD admin history rows */
+button.aduc-admin-history-row {
+  width: 100% !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  color: inherit !important;
+  font: inherit !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  box-shadow: none !important;
+}
+
+button.aduc-admin-history-row:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(124, 58, 237, 0.25) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07) !important;
+}
+
+button.aduc-admin-history-row.success {
+  background: #ffffff !important;
+  border-color: rgba(34, 197, 94, 0.2) !important;
+}
+
+button.aduc-admin-history-row.failed {
+  background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+button.aduc-admin-history-row.processing {
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+button.aduc-admin-history-row strong {
+  color: #111827 !important;
+}
+
+button.aduc-admin-history-row small {
+  color: #64748b !important;
+}
+
+button.aduc-admin-history-row em {
+  color: #475569 !important;
+}
+
+button.aduc-admin-history-row > span {
+  flex: none !important;
+  width: 0.7rem !important;
+  height: 0.7rem !important;
+  min-width: 0.7rem !important;
+  min-height: 0.7rem !important;
+  padding: 0 !important;
+  margin-top: 0.3rem !important;
+  border-radius: 999px !important;
+  background: #94a3b8 !important;
+}
+
+button.aduc-admin-history-row.success > span {
+  background: #22c55e !important;
+}
+
+button.aduc-admin-history-row.failed > span {
+  background: #ef4444 !important;
+}
+
+button.aduc-admin-history-row.processing > span {
+  background: #f59e0b !important;
+}
+
+
+/* STEP 256.4 - AD Admin history detail modal */
+.aduc-history-detail-modal {
+  width: min(760px, calc(100vw - 2rem)) !important;
+  max-height: calc(100vh - 3rem) !important;
+  overflow-y: auto !important;
+}
+
+.aduc-history-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.aduc-history-detail-grid > div,
+.aduc-history-detail-message {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 1rem;
+  background: #f8fafc;
+  padding: 0.85rem 0.95rem;
+}
+
+.aduc-history-detail-grid span,
+.aduc-history-detail-message span {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.aduc-history-detail-grid strong,
+.aduc-history-detail-message strong {
+  display: block;
+  color: #111827;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.aduc-history-detail-message {
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.aduc-history-detail-json {
+  margin-top: 1rem;
+}
+
+.aduc-history-detail-json h4 {
+  margin: 0 0 0.55rem;
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.aduc-history-detail-json pre {
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  border-radius: 0.95rem;
+  background: #17172f;
+  color: #f8fafc;
+  padding: 1rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .aduc-history-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

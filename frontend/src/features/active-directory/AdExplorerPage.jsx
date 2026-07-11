@@ -153,7 +153,8 @@ function getParentDn(dn) {
 function cleanAdHistoryText(value) {
   return String(value || '')
     .replaceAll('dÃ©jÃ ', 'déjà')
-    .replaceAll('dÃ©jÃ ', 'déjà')
+    .replaceAll('dÃ©jÃ', 'déjà')
+    .replaceAll('dÃ©jÃ ', 'déjà ')
     .replaceAll('ajoutÃ©', 'ajouté')
     .replaceAll('retirÃ©', 'retiré')
     .replaceAll('crÃ©Ã©', 'créé')
@@ -163,6 +164,10 @@ function cleanAdHistoryText(value) {
     .replaceAll('Ã ', 'à')
     .replaceAll('Ã ', 'à')
     .replaceAll('Ã§', 'ç')
+    .replaceAll(' deja ', ' déjà ')
+    .replaceAll(' deja  ', ' déjà ')
+    .replaceAll('deja', 'déjà')
+    .replace(/\s{2,}/g, ' ')
 }
 
 function formatAdHistoryAction(action) {
@@ -172,6 +177,22 @@ function formatAdHistoryAction(action) {
     add_group_member: 'Ajout membre',
     remove_group_member: 'Retrait membre'
   }[action] || action || 'Action AD'
+}
+
+function formatAdHistoryDate(value) {
+  if (!value) return '—'
+
+  try {
+    return new Date(value).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return value
+  }
 }
 
 function formatAdHistoryStatus(job) {
@@ -212,7 +233,11 @@ function formatAdHistoryMessage(job) {
 }
 
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers, onOpenAddMember, onRemoveMember }) {
+function formatAdHistoryJson(value) {
+  return cleanAdHistoryText(JSON.stringify(value || {}, null, 2))
+}
+
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers, onOpenAddMember, onRemoveMember }) {
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
@@ -381,14 +406,19 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             ) : (
               <div className="aduc-admin-history-list">
                 {filteredHistory.slice(0, 8).map(job => (
-                  <div className={`aduc-admin-history-row ${job.success ? 'success' : 'failed'}`} key={job.id}>
+                  <button
+                    type="button"
+                    className={`aduc-admin-history-row ${job.success ? 'success' : 'failed'}`}
+                    key={job.id}
+                    onClick={() => onOpenHistoryJob(job)}
+                  >
                     <span />
                     <div>
                       <strong>{formatAdHistoryAction(job.action)}</strong>
                       <small>{job.agent_name || job.claimed_by || 'Agent non assigné'} • {formatAdHistoryStatus(job)}</small>
                       <em>{formatAdHistoryMessage(job)}</em>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -457,6 +487,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [adAdminHistoryLoading, setAdAdminHistoryLoading] = useState(false)
   const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
   const [adAdminHistoryFilter, setAdAdminHistoryFilter] = useState('all')
+  const [selectedAdAdminHistoryJob, setSelectedAdAdminHistoryJob] = useState(null)
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -1240,6 +1271,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 historyError={adAdminHistoryError}
                 historyFilter={adAdminHistoryFilter}
                 onHistoryFilterChange={setAdAdminHistoryFilter}
+                onOpenHistoryJob={setSelectedAdAdminHistoryJob}
                 onLoadHistory={() => loadAdAdminHistory()}
                 onCopyDn={target => copyText(getObjectDn(target)).then(() => setMessage?.('DN copié.'))}
                 onExplore={target => loadNodeContent(target, getNodeKind(target))}
@@ -1260,6 +1292,59 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         </footer>
       </div>
 
+
+
+      {selectedAdAdminHistoryJob && (
+        <div className="aduc-modal-backdrop" onClick={() => setSelectedAdAdminHistoryJob(null)}>
+          <div className="aduc-modal aduc-history-detail-modal" onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Historique AD Admin</span>
+                <h3>{formatAdHistoryAction(selectedAdAdminHistoryJob.action)}</h3>
+              </div>
+
+              <button type="button" onClick={() => setSelectedAdAdminHistoryJob(null)}>×</button>
+            </header>
+
+            <div className="aduc-history-detail-grid">
+              <div>
+                <span>Statut</span>
+                <strong>{formatAdHistoryStatus(selectedAdAdminHistoryJob)}</strong>
+              </div>
+
+              <div>
+                <span>Agent</span>
+                <strong>{selectedAdAdminHistoryJob.agent_name || selectedAdAdminHistoryJob.claimed_by || 'Agent non assigné'}</strong>
+              </div>
+
+              <div>
+                <span>Créée le</span>
+                <strong>{formatAdHistoryDate(selectedAdAdminHistoryJob.created_at)}</strong>
+              </div>
+
+              <div>
+                <span>Terminée le</span>
+                <strong>{formatAdHistoryDate(selectedAdAdminHistoryJob.completed_at)}</strong>
+              </div>
+            </div>
+
+            <div className="aduc-history-detail-message">
+              <span>Résultat</span>
+              <strong>{formatAdHistoryMessage(selectedAdAdminHistoryJob)}</strong>
+            </div>
+
+            <div className="aduc-history-detail-json">
+              <h4>Payload envoyé</h4>
+              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.payload || {})}</pre>
+            </div>
+
+            <div className="aduc-history-detail-json">
+              <h4>Output agent Windows</h4>
+              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})}</pre>
+            </div>
+          </div>
+        </div>
+      )}
 
       {adminModal && (
         <div className="aduc-modal-backdrop" onClick={() => setAdminModal(null)}>
