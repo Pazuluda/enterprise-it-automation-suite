@@ -236,6 +236,15 @@ function formatAdHistoryMessage(job) {
 }
 
 
+function formatAdHistorySummary(job) {
+  return [
+    `Action : ${formatAdHistoryAction(job?.action)}`,
+    `Statut : ${formatAdHistoryStatus(job)}`,
+    `Agent : ${job?.agent_name || job?.claimed_by || 'Agent non assigné'}`,
+    `Résultat : ${formatAdHistoryMessage(job)}`
+  ].join('\n')
+}
+
 function formatAdHistoryJson(value) {
   return cleanAdHistoryText(JSON.stringify(value || {}, null, 2))
 }
@@ -1367,7 +1376,16 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
             </div>
 
             <div className="aduc-history-detail-message">
-              <span>Résultat</span>
+              <div className="aduc-history-detail-message-head">
+                <span>Résultat</span>
+                <button
+                  type="button"
+                  onClick={() => copyText(formatAdHistorySummary(selectedAdAdminHistoryJob)).then(() => setMessage?.('Résumé copié.'))}
+                >
+                  Copier résumé
+                </button>
+              </div>
+
               <strong>{formatAdHistoryMessage(selectedAdAdminHistoryJob)}</strong>
             </div>
 

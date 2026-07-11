@@ -2849,3 +2849,35 @@ button.aduc-admin-history-row.processing > span {
   color: #ffffff;
   transform: translateY(-1px);
 }
+
+
+/* STEP 258.2 - AD Admin history summary copy */
+.aduc-history-detail-message-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.aduc-history-detail-message-head span {
+  margin-bottom: 0 !important;
+}
+
+.aduc-history-detail-message-head button {
+  border: 1px solid rgba(124, 58, 237, 0.24);
+  background: #f5f3ff;
+  color: #4c1d95;
+  border-radius: 999px;
+  padding: 0.42rem 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 950;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aduc-history-detail-message-head button:hover {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
