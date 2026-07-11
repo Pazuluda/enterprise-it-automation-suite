@@ -447,7 +447,42 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
 
 async function copyText(value) {
-  await navigator.clipboard.writeText(String(value || ''))
+  const text = String(value ?? '')
+
+  if (navigator?.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Fallback below
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '0'
+  document.body.appendChild(textarea)
+
+  textarea.focus()
+  textarea.select()
+  textarea.setSelectionRange(0, textarea.value.length)
+
+  try {
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+
+    if (!ok) {
+      throw new Error('Copie refusée par le navigateur')
+    }
+
+    return true
+  } catch (err) {
+    document.body.removeChild(textarea)
+    throw err
+  }
 }
 
 export default function AdExplorerPage({ apiFetch, setMessage }) {
@@ -1337,12 +1372,28 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
             </div>
 
             <div className="aduc-history-detail-json">
-              <h4>Payload envoyé</h4>
+              <div className="aduc-history-detail-json-title">
+                <h4>Payload envoyé</h4>
+                <button
+                  type="button"
+                  onClick={() => copyText(formatAdHistoryJson(selectedAdAdminHistoryJob.payload || {})).then(() => setMessage?.('Payload copié.'))}
+                >
+                  Copier
+                </button>
+              </div>
               <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.payload || {})}</pre>
             </div>
 
             <div className="aduc-history-detail-json">
-              <h4>Output agent Windows</h4>
+              <div className="aduc-history-detail-json-title">
+                <h4>Output agent Windows</h4>
+                <button
+                  type="button"
+                  onClick={() => copyText(formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})).then(() => setMessage?.('Output agent copié.'))}
+                >
+                  Copier
+                </button>
+              </div>
               <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})}</pre>
             </div>
           </div>

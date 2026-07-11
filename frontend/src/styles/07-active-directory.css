@@ -2818,3 +2818,34 @@ button.aduc-admin-history-row.processing > span {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* STEP 257.2 - AD Admin history copy buttons */
+.aduc-history-detail-json-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.aduc-history-detail-json-title h4 {
+  margin: 0;
+}
+
+.aduc-history-detail-json-title button {
+  border: 1px solid rgba(124, 58, 237, 0.24);
+  background: #f5f3ff;
+  color: #4c1d95;
+  border-radius: 999px;
+  padding: 0.42rem 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.aduc-history-detail-json-title button:hover {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
