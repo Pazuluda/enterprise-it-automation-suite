@@ -167,6 +167,7 @@ function cleanAdHistoryText(value) {
     .replaceAll(' deja ', ' déjà ')
     .replaceAll(' deja  ', ' déjà ')
     .replaceAll('deja', 'déjà')
+    .replace(/déjà\s+dans/g, 'déjà dans')
     .replaceAll('déjà    dans', 'déjà dans')
     .replaceAll('déjà   dans', 'déjà dans')
     .replaceAll('déjà  dans', 'déjà dans')
