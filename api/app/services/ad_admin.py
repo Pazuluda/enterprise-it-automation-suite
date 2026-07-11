@@ -26,6 +26,8 @@ class ADAdminConflict(ADAdminError):
 ALLOWED_ACTIONS = {
     "create_ou",
     "create_group",
+    "add_group_member",
+    "remove_group_member",
 }
 
 
@@ -81,33 +83,84 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
     if action not in ALLOWED_ACTIONS:
         raise ADAdminBadRequest(f"Action AD Admin inconnue : {action}")
 
-    parent_dn = validate_dn(payload.get("parent_dn"), "parent_dn")
-    name = validate_name(payload.get("name"), "name")
-    description = clean_string(payload.get("description"))
-
-    job_payload = {
-        "parent_dn": parent_dn,
-        "name": name,
-        "description": description,
+    job_payload = {}
+    audit_details = {
+        "action": action,
     }
 
-    if action == "create_group":
-        group_scope = clean_string(payload.get("group_scope")) or "Global"
-        group_category = clean_string(payload.get("group_category")) or "Security"
-        sam_account_name = clean_string(payload.get("sam_account_name")) or name
+    if action in {"create_ou", "create_group"}:
+        parent_dn = validate_dn(payload.get("parent_dn"), "parent_dn")
+        name = validate_name(payload.get("name"), "name")
+        description = clean_string(payload.get("description"))
 
-        if group_scope not in ["Global", "Universal", "DomainLocal"]:
-            raise ADAdminBadRequest("group_scope doit être Global, Universal ou DomainLocal")
+        job_payload = {
+            "parent_dn": parent_dn,
+            "name": name,
+            "description": description,
+        }
 
-        if group_category not in ["Security", "Distribution"]:
-            raise ADAdminBadRequest("group_category doit être Security ou Distribution")
+        audit_details.update({
+            "parent_dn": parent_dn,
+            "name": name,
+        })
 
-        sam_account_name = validate_name(sam_account_name, "sam_account_name")
+        if action == "create_group":
+            group_scope = clean_string(payload.get("group_scope")) or "Global"
+            group_category = clean_string(payload.get("group_category")) or "Security"
+            sam_account_name = clean_string(payload.get("sam_account_name")) or name
 
-        job_payload.update({
-            "sam_account_name": sam_account_name,
-            "group_scope": group_scope,
-            "group_category": group_category,
+            if group_scope not in ["Global", "Universal", "DomainLocal"]:
+                raise ADAdminBadRequest("group_scope doit être Global, Universal ou DomainLocal")
+
+            if group_category not in ["Security", "Distribution"]:
+                raise ADAdminBadRequest("group_category doit être Security ou Distribution")
+
+            sam_account_name = validate_name(sam_account_name, "sam_account_name")
+
+            job_payload.update({
+                "sam_account_name": sam_account_name,
+                "group_scope": group_scope,
+                "group_category": group_category,
+            })
+
+            audit_details.update({
+                "sam_account_name": sam_account_name,
+                "group_scope": group_scope,
+                "group_category": group_category,
+            })
+
+    elif action in {"add_group_member", "remove_group_member"}:
+        group_identity = clean_string(
+            payload.get("group_identity")
+            or payload.get("group_dn")
+            or payload.get("group_name")
+            or payload.get("group")
+        )
+
+        member_identity = clean_string(
+            payload.get("member_identity")
+            or payload.get("member_dn")
+            or payload.get("member_name")
+            or payload.get("member")
+            or payload.get("user_identity")
+            or payload.get("username")
+            or payload.get("sam_account_name")
+        )
+
+        if not group_identity:
+            raise ADAdminBadRequest("group_identity est obligatoire")
+
+        if not member_identity:
+            raise ADAdminBadRequest("member_identity est obligatoire")
+
+        job_payload = {
+            "group_identity": group_identity,
+            "member_identity": member_identity,
+        }
+
+        audit_details.update({
+            "group_identity": group_identity,
+            "member_identity": member_identity,
         })
 
     job_id = str(uuid4())
@@ -134,17 +187,14 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
     jobs.append(job)
     save_json(jobs_file, jobs)
 
+    audit_details["job_id"] = job_id
+
     audit_event = {
         "action": "ad_admin_job_created",
         "request_id": job_id,
         "actor": created_by,
         "message": f"Job AD Admin créé : {action}",
-        "details": {
-            "job_id": job_id,
-            "action": action,
-            "parent_dn": parent_dn,
-            "name": name,
-        },
+        "details": audit_details,
     }
 
     return {

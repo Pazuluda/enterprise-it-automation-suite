@@ -1963,3 +1963,34 @@
   font-weight: 700;
   word-break: break-word;
 }
+
+/* STEP248 AD group member actions */
+
+.aduc-members-buttons {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.aduc-member-row {
+  grid-template-columns: auto 1fr auto;
+}
+
+.aduc-member-remove {
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  color: #991b1b;
+  background: rgba(254, 242, 242, 0.85);
+  border-radius: 0.65rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.aduc-member-remove:hover:not(:disabled) {
+  background: rgba(254, 226, 226, 0.95);
+  border-color: rgba(220, 38, 38, 0.34);
+}
+
+.aduc-member-modal {
+  max-width: 34rem;
+}

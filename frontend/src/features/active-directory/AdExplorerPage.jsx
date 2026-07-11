@@ -149,7 +149,7 @@ function getParentDn(dn) {
   return value.slice(index + 1)
 }
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers, onOpenAddMember, onRemoveMember }) {
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
@@ -220,13 +220,25 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                   <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onLoadMembers(displayed)}
-                  disabled={membersLoading}
-                >
-                  ⟳
-                </button>
+                <div className="aduc-members-buttons">
+                  <button
+                    type="button"
+                    onClick={() => onOpenAddMember(displayed)}
+                    disabled={membersLoading}
+                    title="Ajouter un membre"
+                  >
+                    ＋
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onLoadMembers(displayed)}
+                    disabled={membersLoading}
+                    title="Actualiser les membres"
+                  >
+                    ⟳
+                  </button>
+                </div>
               </div>
 
               {membersError ? (
@@ -244,6 +256,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                         <strong>{member.name || member.sam_account_name || 'Membre AD'}</strong>
                         <small>{member.sam_account_name || member.distinguished_name || '—'}</small>
                       </div>
+                      <button
+                        type="button"
+                        className="aduc-member-remove"
+                        onClick={() => onRemoveMember(displayed, member)}
+                        disabled={membersLoading}
+                        title="Retirer du groupe"
+                      >
+                        Retirer
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -288,6 +309,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [objectMembers, setObjectMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState('')
+  const [memberModal, setMemberModal] = useState(null)
+  const [memberIdentity, setMemberIdentity] = useState('')
+  const [memberActionLoading, setMemberActionLoading] = useState(false)
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
   const [loading, setLoading] = useState(false)
@@ -532,6 +556,24 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     })
   }
 
+  async function runAdAdminJob(payload) {
+    const created = await apiFetch('/api/ad-admin/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        created_by: 'react-admin'
+      })
+    })
+
+    const job = await pollAdAdminJob(created.job.id)
+
+    if (!job.success) {
+      throw new Error(job.message || 'Action AD Admin en erreur.')
+    }
+
+    return job
+  }
+
   async function pollAdAdminJob(jobId) {
     for (let attempt = 0; attempt < 75; attempt += 1) {
       const job = await apiFetch(`/api/ad-admin/jobs/${jobId}`)
@@ -561,6 +603,76 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       await loadNodeContent(selectedNode, viewType)
     } catch (err) {
       setMessage?.(`Job AD Admin créé, en attente de l’agent principal : ${jobId}`)
+    }
+  }
+
+  function openAddMemberModal(group) {
+    if (!group || !isGroupObject(group)) {
+      setMessage?.('Sélectionne un groupe avant d’ajouter un membre.')
+      return
+    }
+
+    setMemberIdentity('')
+    setMemberModal(group)
+  }
+
+  async function submitAddMember(event) {
+    event.preventDefault()
+
+    if (!memberModal) return
+
+    const identity = memberIdentity.trim()
+
+    if (!identity) {
+      setMessage?.('Identifiant membre obligatoire.')
+      return
+    }
+
+    setMemberActionLoading(true)
+
+    try {
+      await runAdAdminJob({
+        action: 'add_group_member',
+        group_identity: memberModal.sam_account_name || memberModal.name || getObjectDn(memberModal),
+        member_identity: identity
+      })
+
+      setMessage?.(`Membre ${identity} ajouté à ${memberModal.name}.`)
+      setMemberModal(null)
+      setMemberIdentity('')
+      await loadGroupMembers(memberModal)
+    } catch (err) {
+      setMessage?.(err.message || 'Impossible d’ajouter le membre.')
+    } finally {
+      setMemberActionLoading(false)
+    }
+  }
+
+  async function removeGroupMember(group, member) {
+    if (!group || !member) return
+
+    const memberLabel = member.sam_account_name || member.name || getObjectDn(member)
+    const groupLabel = group.sam_account_name || group.name || getObjectDn(group)
+
+    if (!window.confirm(`Retirer ${memberLabel} du groupe ${groupLabel} ?`)) {
+      return
+    }
+
+    setMemberActionLoading(true)
+
+    try {
+      await runAdAdminJob({
+        action: 'remove_group_member',
+        group_identity: groupLabel,
+        member_identity: memberLabel
+      })
+
+      setMessage?.(`Membre ${memberLabel} retiré de ${groupLabel}.`)
+      await loadGroupMembers(group)
+    } catch (err) {
+      setMessage?.(err.message || 'Impossible de retirer le membre.')
+    } finally {
+      setMemberActionLoading(false)
     }
   }
 
@@ -825,6 +937,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 onCreateOu={target => openCreateOu(target)}
                 onCreateGroup={target => openCreateGroup(target)}
                 onLoadMembers={target => loadGroupMembers(target)}
+                onOpenAddMember={target => openAddMemberModal(target)}
+                onRemoveMember={(group, member) => removeGroupMember(group, member)}
               />
             </section>
           </main>
@@ -925,6 +1039,48 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
               <button type="button" onClick={() => setAdminModal(null)}>Annuler</button>
               <button type="submit" disabled={adminLoading}>
                 {adminLoading ? 'Création...' : adminModal.action === 'create_ou' ? 'Créer l’OU' : 'Créer le groupe'}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
+      {memberModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setMemberModal(null)}>
+          <form className="aduc-modal aduc-member-modal" onSubmit={submitAddMember} onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Administration Active Directory</span>
+                <h3>Ajouter un membre</h3>
+              </div>
+
+              <button type="button" onClick={() => setMemberModal(null)}>×</button>
+            </header>
+
+            <label>
+              Groupe cible
+              <input value={memberModal.sam_account_name || memberModal.name || getObjectDn(memberModal)} readOnly />
+            </label>
+
+            <label>
+              Utilisateur ou groupe à ajouter
+              <input
+                value={memberIdentity}
+                onChange={event => setMemberIdentity(event.target.value)}
+                placeholder="Ex : l.ve, p.nom, GG_Support_RW..."
+                autoFocus
+              />
+            </label>
+
+            <div className="aduc-modal-warning">
+              <strong>Production AD</strong>
+              <span>Cette action ajoutera le membre dans le groupe via l’agent Windows.</span>
+            </div>
+
+            <footer>
+              <button type="button" onClick={() => setMemberModal(null)}>Annuler</button>
+              <button type="submit" disabled={memberActionLoading}>
+                {memberActionLoading ? 'Ajout...' : 'Ajouter le membre'}
               </button>
             </footer>
           </form>
