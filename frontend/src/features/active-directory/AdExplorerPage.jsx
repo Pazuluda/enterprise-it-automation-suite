@@ -77,6 +77,199 @@ function getObjectType(item) {
   return item?.type || 'Objet AD'
 }
 
+
+function getObjectDn(item) {
+  return item?.distinguished_name || item?.dn || ''
+}
+
+function isOuObject(item) {
+  const dn = String(getObjectDn(item)).toUpperCase()
+  return item?.type === 'ou' || dn.startsWith('OU=')
+}
+
+function formatAdValue(value) {
+  if (value === null || value === undefined || value === '') return '—'
+  if (typeof value === 'boolean') return value ? 'Oui' : 'Non'
+  return String(value)
+}
+
+function formatGroupScope(value) {
+  const map = {
+    0: 'DomainLocal',
+    1: 'Global',
+    2: 'Universal',
+    DomainLocal: 'DomainLocal',
+    Global: 'Global',
+    Universal: 'Universal'
+  }
+
+  return map[value] || value
+}
+
+function formatGroupCategory(value) {
+  const map = {
+    0: 'Distribution',
+    1: 'Security',
+    Distribution: 'Distribution',
+    Security: 'Security'
+  }
+
+  return map[value] || value
+}
+
+function getObjectMetaRows(item) {
+  if (!item) return []
+
+  const rows = [
+    { label: 'Nom', value: getObjectName(item) },
+    { label: 'Type', value: getObjectType(item) },
+    { label: 'SamAccountName', value: item?.sam_account_name },
+    { label: 'UPN', value: item?.user_principal_name },
+    { label: 'Scope', value: item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
+    { label: 'Catégorie', value: item?.group_category !== undefined ? formatGroupCategory(item.group_category) : '' },
+    { label: 'Description', value: item?.description },
+    { label: 'DN', value: getObjectDn(item), long: true }
+  ]
+
+  return rows.filter(row => row.value !== undefined && row.value !== null && row.value !== '')
+}
+
+
+function isGroupObject(item) {
+  const type = getObjectType(item)
+  return item?.type === 'group' || type.includes('Groupe')
+}
+
+function getParentDn(dn) {
+  const value = String(dn || '')
+  const index = value.indexOf(',')
+
+  if (index === -1) return ''
+
+  return value.slice(index + 1)
+}
+
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers }) {
+  const displayed = object || selectedNode
+  const hasObject = Boolean(displayed)
+  const rows = getObjectMetaRows(displayed)
+  const dn = getObjectDn(displayed)
+  const type = getObjectType(displayed)
+  const isOu = isOuObject(displayed)
+  const isGroup = isGroupObject(displayed)
+  const members = Array.isArray(memberItems) ? memberItems : []
+
+  return (
+    <aside className="aduc-details-pane">
+      <div className="aduc-details-header">
+        <span className={`aduc-object-avatar ${isOu ? 'ou' : isGroup ? 'group' : type.includes('Utilisateur') ? 'user' : ''}`}>
+          {isOu ? '📁' : isGroup ? '👥' : type.includes('Utilisateur') ? '👤' : 'ⓘ'}
+        </span>
+
+        <div>
+          <h3>{hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'}</h3>
+          <p>{hasObject ? type : 'Clique un objet pour afficher ses propriétés.'}</p>
+        </div>
+      </div>
+
+      {hasObject ? (
+        <>
+          <div className="aduc-details-actions">
+            <button
+              type="button"
+              onClick={() => onCopyDn(displayed)}
+              disabled={!dn}
+            >
+              Copier DN
+            </button>
+
+            {isGroup && (
+              <button
+                type="button"
+                onClick={() => onLoadMembers(displayed)}
+                disabled={membersLoading}
+              >
+                {membersLoading ? 'Chargement...' : 'Voir membres'}
+              </button>
+            )}
+
+            {isOu && (
+              <button
+                type="button"
+                onClick={() => onExplore(displayed)}
+              >
+                Explorer cette OU
+              </button>
+            )}
+          </div>
+
+          <div className="aduc-details-grid">
+            {rows.map(row => (
+              <div className={row.long ? 'long' : ''} key={row.label}>
+                <span>{row.label}</span>
+                <strong>{formatAdValue(row.value)}</strong>
+              </div>
+            ))}
+          </div>
+
+          {isGroup && (
+            <div className="aduc-members-card">
+              <div className="aduc-members-head">
+                <div>
+                  <h4>Membres du groupe</h4>
+                  <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onLoadMembers(displayed)}
+                  disabled={membersLoading}
+                >
+                  ⟳
+                </button>
+              </div>
+
+              {membersError ? (
+                <p className="aduc-members-error">{membersError}</p>
+              ) : membersLoading ? (
+                <p className="aduc-members-empty">Chargement des membres depuis SRV-DC01...</p>
+              ) : members.length === 0 ? (
+                <p className="aduc-members-empty">Aucun membre dans ce groupe.</p>
+              ) : (
+                <div className="aduc-members-list">
+                  {members.map((member, index) => (
+                    <div className="aduc-member-row" key={member.distinguished_name || member.sam_account_name || index}>
+                      <span>{member.type === 'group' ? '👥' : member.type === 'user' ? '👤' : 'ⓘ'}</span>
+                      <div>
+                        <strong>{member.name || member.sam_account_name || 'Membre AD'}</strong>
+                        <small>{member.sam_account_name || member.distinguished_name || '—'}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="aduc-details-quick">
+            <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>
+              ＋ OU ici
+            </button>
+            <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>
+              ＋ Groupe ici
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="aduc-details-empty">
+          Sélectionne une OU, un utilisateur ou un groupe dans la liste centrale.
+        </div>
+      )}
+    </aside>
+  )
+}
+
+
 async function copyText(value) {
   await navigator.clipboard.writeText(String(value || ''))
 }
@@ -91,6 +284,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   })
 
   const [viewType, setViewType] = useState('groups')
+  const [selectedObject, setSelectedObject] = useState(null)
+  const [objectMembers, setObjectMembers] = useState([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [membersError, setMembersError] = useState('')
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
   const [loading, setLoading] = useState(false)
@@ -172,6 +369,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
     try {
       setSelectedNode(node)
+      setSelectedObject(null)
+      setObjectMembers([])
+      setMembersError('')
       setViewType(kind)
 
       let items = []
@@ -216,6 +416,49 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setMessage?.(err.message || 'Erreur Active Directory')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadGroupMembers(target = selectedObject) {
+    if (!target || !isGroupObject(target)) return
+
+    const identity = target.sam_account_name || target.name || getObjectDn(target)
+
+    if (!identity) {
+      setMembersError('Identité groupe introuvable.')
+      return
+    }
+
+    setMembersLoading(true)
+    setMembersError('')
+
+    try {
+      const parentDn = getParentDn(getObjectDn(target)) || GROUPS_DN
+
+      const members = await runJob('get_group_members', {
+        query: identity,
+        baseDn: parentDn,
+        limit: 500
+      })
+
+      setObjectMembers(members)
+      setMessage?.(`Membres chargés pour ${target.name || identity}.`)
+    } catch (err) {
+      setObjectMembers([])
+      setMembersError(err.message || 'Impossible de charger les membres du groupe.')
+      setMessage?.(err.message || 'Impossible de charger les membres du groupe.')
+    } finally {
+      setMembersLoading(false)
+    }
+  }
+
+  function selectObject(item) {
+    setSelectedObject(item)
+    setObjectMembers([])
+    setMembersError('')
+
+    if (isGroupObject(item)) {
+      loadGroupMembers(item)
     }
   }
 
@@ -545,7 +788,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                     filteredViewItems.map((item, index) => (
                       <div
                         key={item.distinguished_name || item.sam_account_name || index}
-                        className="aduc-table-row"
+                        className={`aduc-table-row ${getObjectDn(selectedObject) && getObjectDn(selectedObject) === getObjectDn(item) ? 'selected-object' : ''}`}
+                        onClick={() => selectObject(item)}
                         onDoubleClick={() => {
                           if (getObjectType(item).includes('Groupe')) {
                             loadNodeContent(item, 'groups')
@@ -569,6 +813,19 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                   <span>Affichage 1 - {filteredViewItems.length} sur {filteredViewItems.length}</span>
                 </footer>
               </div>
+
+              <ObjectDetailsPanel
+                object={selectedObject}
+                selectedNode={selectedNode}
+                memberItems={objectMembers}
+                membersLoading={membersLoading}
+                membersError={membersError}
+                onCopyDn={target => copyText(getObjectDn(target)).then(() => setMessage?.('DN copié.'))}
+                onExplore={target => loadNodeContent(target, getNodeKind(target))}
+                onCreateOu={target => openCreateOu(target)}
+                onCreateGroup={target => openCreateGroup(target)}
+                onLoadMembers={target => loadGroupMembers(target)}
+              />
             </section>
           </main>
         </div>
