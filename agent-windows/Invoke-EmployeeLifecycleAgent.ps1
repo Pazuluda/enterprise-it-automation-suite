@@ -2462,30 +2462,13 @@ if ($Mode -eq "Production") {
     Test-ProductionPrerequisites
 }
 
-# STEP164_AD_LOOKUP_CALL
-Process-PendingAdLookupJobs
+# STEP219_SPECIALIZED_WORKERS_REMOVED
+# AD Lookup / AD Explorer sont maintenant traités par Run-AdLookupWorker.ps1.
+# AD Admin est maintenant traité par Run-AdAdminWorker.ps1.
+# Le script Invoke-EmployeeLifecycleAgent.ps1 ne lance plus ces workers spécialisés.
 
-# STEP202_AD_EXPLORER_CALL
-Process-PendingAdExplorerJobs
-
-# STEP165_LOOKUP_ONLY_GUARD
-if ($env:EITAS_LOOKUP_ONLY -eq "1") {
-    Write-Host "[INFO] Mode lookup-only : arrêt après recherche AD."
-    return
-}
-
-# STEP208_AD_ADMIN_CALL
-Process-PendingAdAdminJobs
-
-# STEP210_AD_ADMIN_ONLY_GUARD
-if ($env:EITAS_AD_ADMIN_ONLY -eq "1") {
-    Write-Host "[INFO] Mode AD-admin-only : arrêt après jobs AD Admin."
-    return
-}
-
-# STEP162_AD_CHECK_CALL
-Process-PendingAdCheckJobs
-
+# STEP220_AD_CHECK_WORKER_REMOVED
+# AD Check est maintenant traité par Run-AdCheckWorker.ps1.
 $Requests = Get-PendingRequests
 
 Write-Host ""
@@ -2566,6 +2549,9 @@ foreach ($Request in $Requests) {
         }
     }
 }
+
+
+
 
 
 
