@@ -7,7 +7,7 @@ Set-Location $Root
 . (Join-Path $Root "modules\EitasApi.ps1")
 
 $Config = Get-EitasAgentConfig
-$Mode = "Production"
+$Mode = Get-EitasResolvedAgentMode -Config $Config
 
 Send-EitasWorkerHeartbeat `
     -Config $Config `
@@ -45,3 +45,4 @@ catch {
 
     throw
 }
+

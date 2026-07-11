@@ -74,7 +74,6 @@ function Test-EitasApiConnectivity {
     }
 }
 
-
 function Send-EitasWorkerHeartbeat {
     param(
         [object]$Config,
@@ -130,4 +129,63 @@ function Send-EitasWorkerHeartbeat {
         Write-Warning ("Impossible d'envoyer le heartbeat worker {0} : {1}" -f $WorkerId, $_.Exception.Message)
         return $false
     }
+}
+
+function Get-EitasResolvedAgentMode {
+    param(
+        [object]$Config
+    )
+
+    $Mode = ""
+
+    try {
+        $Response = Get-EitasAgentMode -Config $Config
+
+        if ($Response -is [string]) {
+            $Mode = [string]$Response
+        }
+        elseif ($null -ne $Response) {
+            foreach ($Name in @("mode", "agent_mode", "current_mode", "value")) {
+                if ($Response.PSObject.Properties.Name -contains $Name -and $Response.$Name) {
+                    $Mode = [string]$Response.$Name
+                    break
+                }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($Mode) -and $Response.PSObject.Properties.Name -contains "config" -and $Response.config) {
+                foreach ($Name in @("mode", "agent_mode", "current_mode", "value")) {
+                    if ($Response.config.PSObject.Properties.Name -contains $Name -and $Response.config.$Name) {
+                        $Mode = [string]$Response.config.$Name
+                        break
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $Mode = ""
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Mode) -and $null -ne $Config) {
+        foreach ($Name in @("Mode", "mode", "AgentMode", "agent_mode")) {
+            if ($Config.PSObject.Properties.Name -contains $Name -and $Config.$Name) {
+                $Mode = [string]$Config.$Name
+                break
+            }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Mode)) {
+        $Mode = "Simulation"
+    }
+
+    if ($Mode -match "prod") {
+        return "Production"
+    }
+
+    if ($Mode -match "sim") {
+        return "Simulation"
+    }
+
+    return $Mode
 }

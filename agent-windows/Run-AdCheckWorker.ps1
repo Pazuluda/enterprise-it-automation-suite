@@ -16,19 +16,7 @@ Set-Location $Root
 
 $Config = Get-EitasAgentConfig
 $AgentName = Get-EitasAgentName -Config $Config
-
-try {
-    $ModeResponse = Get-EitasAgentMode -Config $Config
-    $Mode = [string]$ModeResponse.mode
-}
-catch {
-    $Mode = [string]$Config.Mode
-}
-
-if ([string]::IsNullOrWhiteSpace($Mode)) {
-    $Mode = "Simulation"
-}
-
+$Mode = Get-EitasResolvedAgentMode -Config $Config
 . (Join-Path $Root "modules\EitasAdCheck.ps1")
 
 $NextHeartbeat = Get-Date
@@ -43,6 +31,7 @@ while ($true) {
         if ($Now -ge $NextHeartbeat) {
             Write-EitasLog -Name "ad-check-worker-light.log" -Level "INFO" -Message "Worker AD Check actif, attente de jobs."
             $NextHeartbeat = $Now.AddSeconds($HeartbeatSeconds)
+            $Mode = Get-EitasResolvedAgentMode -Config $Config
             Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-check-worker" -WorkerName "AD Check Worker" -Role "ad-check" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdCheckWorker.ps1"; phase = "loop" } | Out-Null
         }
 
@@ -58,4 +47,6 @@ while ($true) {
 
     Start-Sleep -Seconds $IntervalSeconds
 }
+
+
 

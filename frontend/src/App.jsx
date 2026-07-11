@@ -13,6 +13,7 @@ import AdChecksPage from './features/active-directory/AdChecksPage.jsx'
 import AdExplorerPage from './features/active-directory/AdExplorerPage.jsx'
 import ModificationPage from './features/employee-lifecycle/ModificationPage.jsx'
 import AgentOperationsPage from './features/agent/AgentOperationsPage.jsx'
+import WorkerStatusPage from './features/agent/WorkerStatusPage.jsx'
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -95,6 +96,11 @@ const PAGES = {
   agentMode: {
     title: 'Mode agent',
     subtitle: 'Choisir si l’agent Windows travaille en simulation ou en production.'
+  },
+
+  workers: {
+    title: 'Santé workers',
+    subtitle: 'Supervision des workers Windows et de leurs derniers heartbeats.'
   },
 
   settings: {
@@ -3609,6 +3615,15 @@ Write-Host "============================================================"
               Exploitation agent
             </button>
 
+              <button
+                type="button"
+                className={page === 'workers' ? 'active' : ''}
+                onClick={() => setPage('workers')}
+              >
+                Santé workers
+              </button>
+
+
             <button
               type="button"
               className={page === 'settings' ? 'active' : ''}
@@ -3982,6 +3997,14 @@ Write-Host "============================================================"
               updateAgentMode={updateAgentMode}
             />
           )}
+          {page === 'workers' && (
+            <WorkerStatusPage
+              apiFetch={apiFetch}
+              setMessage={setMessage}
+            />
+          )}
+
+
 
           {page === 'settings' && (
             <SettingsPage

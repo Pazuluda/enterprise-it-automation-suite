@@ -17,6 +17,7 @@ Set-Location $Root
 
 $Config = Get-EitasAgentConfig
 $AgentName = Get-EitasAgentName -Config $Config
+$Mode = Get-EitasResolvedAgentMode -Config $Config
 $NextHeartbeat = Get-Date
 Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-lookup-worker" -WorkerName "AD Lookup Explorer Worker" -Role "ad-read" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdLookupWorker.ps1"; phase = "startup" } | Out-Null
 
@@ -30,6 +31,7 @@ while ($true) {
         if ($Now -ge $NextHeartbeat) {
             Write-EitasLog -Name "ad-lookup-worker-light.log" -Level "INFO" -Message "Worker AD Lookup/Explorer actif, attente de jobs."
             $NextHeartbeat = $Now.AddSeconds($HeartbeatSeconds)
+            $Mode = Get-EitasResolvedAgentMode -Config $Config
             Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-lookup-worker" -WorkerName "AD Lookup Explorer Worker" -Role "ad-read" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdLookupWorker.ps1"; phase = "loop" } | Out-Null
             $SilentWhenEmpty = $false
         }
@@ -47,4 +49,6 @@ while ($true) {
 
     Start-Sleep -Seconds $IntervalSeconds
 }
+
+
 
