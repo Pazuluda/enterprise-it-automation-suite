@@ -532,6 +532,110 @@ function Resolve-EitasAdAdminObject {
     return $Object
 }
 
+
+function Invoke-EitasAdAdminRenameObject {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $ObjectIdentity = Get-EitasObjectValue -Object $Payload -Names @(
+        "object_identity",
+        "objectIdentity",
+        "object_dn",
+        "objectDn",
+        "distinguished_name",
+        "distinguishedName",
+        "dn",
+        "sam_account_name",
+        "samAccountName",
+        "name"
+    )
+
+    $NewName = Get-EitasObjectValue -Object $Payload -Names @(
+        "new_name",
+        "newName",
+        "target_name",
+        "targetName"
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectIdentity)) {
+        throw "Identité objet AD manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($NewName)) {
+        throw "Nouveau nom manquant"
+    }
+
+    $NewName = ([string]$NewName).Trim()
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "rename_object"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            new_name = $NewName
+            message = "Simulation renommage objet AD"
+        }
+    }
+
+    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
+
+    $ObjectDn = [string]$Object.DistinguishedName
+    $CommaIndex = $ObjectDn.IndexOf(",")
+
+    if ($CommaIndex -lt 1) {
+        throw "DN objet invalide : $ObjectDn"
+    }
+
+    $CurrentRdn = $ObjectDn.Substring(0, $CommaIndex)
+    $CurrentParentDn = $ObjectDn.Substring($CommaIndex + 1)
+    $RdnPrefix = $CurrentRdn.Split("=")[0]
+    $CurrentName = $CurrentRdn.Substring($RdnPrefix.Length + 1)
+    $NewDn = "$RdnPrefix=$NewName,$CurrentParentDn"
+
+    if ($CurrentName -ieq $NewName) {
+        return [pscustomobject]@{
+            action = "rename_object"
+            simulated = $false
+            already_named = $true
+            object = $Object.Name
+            object_type = $Object.ObjectClass
+            object_dn = $ObjectDn
+            old_name = $CurrentName
+            new_name = $NewName
+            new_dn = $ObjectDn
+            message = "L’objet porte déjà ce nom"
+        }
+    }
+
+    Rename-ADObject `
+        -Identity $ObjectDn `
+        -NewName $NewName `
+        -ErrorAction Stop
+
+    $RenamedObject = Get-ADObject `
+        -Identity $NewDn `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "rename_object"
+        simulated = $false
+        already_named = $false
+        object = $Object.Name
+        object_type = $Object.ObjectClass
+        object_dn = $ObjectDn
+        old_name = $CurrentName
+        new_name = $NewName
+        new_dn = $RenamedObject.DistinguishedName
+        renamed_object = Convert-EitasAdAdminObjectItem -Object $RenamedObject
+        message = "Objet AD renommé"
+    }
+}
+
+
 function Invoke-EitasAdAdminMoveObject {
     param(
         [object]$Config,
@@ -674,6 +778,10 @@ function Invoke-EitasAdAdminJob {
 
         "move_object" {
             return Invoke-EitasAdAdminMoveObject -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "rename_object" {
+            return Invoke-EitasAdAdminRenameObject -Config $Config -Payload $Payload -Mode $Mode
         }
 
         default {

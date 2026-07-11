@@ -29,6 +29,7 @@ ALLOWED_ACTIONS = {
     "add_group_member",
     "remove_group_member",
     "move_object",
+    "rename_object",
 }
 
 
@@ -129,6 +130,33 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 "group_scope": group_scope,
                 "group_category": group_category,
             })
+
+    elif action == "rename_object":
+        object_identity = clean_string(
+            payload.get("object_identity")
+            or payload.get("object_dn")
+            or payload.get("distinguished_name")
+            or payload.get("dn")
+            or payload.get("sam_account_name")
+            or payload.get("name")
+        )
+
+        new_name = validate_name(
+            payload.get("new_name")
+            or payload.get("newName")
+            or payload.get("target_name")
+            or payload.get("targetName"),
+            "new_name"
+        )
+
+        if not object_identity:
+            raise ValueError("object_identity est obligatoire")
+
+        job_payload = {
+            "action": action,
+            "object_identity": object_identity,
+            "new_name": new_name,
+        }
 
     elif action == "move_object":
         object_identity = clean_string(

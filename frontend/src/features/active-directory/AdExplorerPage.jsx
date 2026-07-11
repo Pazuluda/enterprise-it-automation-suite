@@ -148,6 +148,10 @@ function isGroupObject(item) {
   return item?.type === 'group' || type.includes('Groupe')
 }
 
+function getRenameDefaultName(item) {
+  return item?.name || item?.sam_account_name || ''
+}
+
 function getParentDn(dn) {
   const value = String(dn || '')
   const index = value.indexOf(',')
@@ -187,7 +191,8 @@ function formatAdHistoryAction(action) {
     create_group: 'Création groupe',
     add_group_member: 'Ajout membre',
     remove_group_member: 'Retrait membre',
-    move_object: 'Déplacement objet'
+    move_object: 'Déplacement objet',
+    rename_object: 'Renommage objet'
   }[action] || action || 'Action AD'
 }
 
@@ -552,6 +557,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   })
   const [adminLoading, setAdminLoading] = useState(false)
   const [moveModal, setMoveModal] = useState(null)
+  const [renameModal, setRenameModal] = useState(null)
+  const [renameNewName, setRenameNewName] = useState('')
   const [moveTargetDn, setMoveTargetDn] = useState('')
   const [globalAdSearch, setGlobalAdSearch] = useState('')
   const [globalAdSearchLoading, setGlobalAdSearchLoading] = useState(false)
@@ -883,6 +890,76 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setStatus(err.message || 'Recherche globale AD impossible.')
     } finally {
       setGlobalAdSearchLoading(false)
+    }
+  }
+
+  function openRenameObject(target) {
+    if (!target) {
+      setStatus('Aucun objet sélectionné pour le renommage.')
+      return
+    }
+
+    const dn = getObjectDn(target)
+
+    if (!dn) {
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    setContextMenu(null)
+    setRenameModal(target)
+    setRenameNewName(getRenameDefaultName(target))
+  }
+
+  async function submitRenameObject(event) {
+    event.preventDefault()
+
+    if (!renameModal) return
+
+    const objectDn = getObjectDn(renameModal)
+    const newName = renameNewName.trim()
+
+    if (!objectDn) {
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    if (!newName) {
+      setStatus('Le nouveau nom est obligatoire.')
+      return
+    }
+
+    if (newName === getRenameDefaultName(renameModal)) {
+      setStatus('Le nouveau nom est identique au nom actuel.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const job = await runAdAdminJob({
+        action: 'rename_object',
+        object_identity: objectDn,
+        new_name: newName,
+        created_by: 'react-admin'
+      })
+
+      const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Objet AD renommé')
+      setStatus(message)
+      setRenameModal(null)
+      setRenameNewName('')
+
+      await loadTree()
+
+      if (selectedNode) {
+        await loadNodeContent(selectedNode, viewType)
+      }
+
+      await loadAdAdminHistory()
+    } catch (err) {
+      setStatus(err.message || 'Erreur pendant le renommage AD.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1643,6 +1720,48 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         </div>
       )}
 
+      {renameModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setRenameModal(null)}>
+          <form className="aduc-rename-object-modal" onSubmit={submitRenameObject} onClick={event => event.stopPropagation()}>
+            <div className="aduc-modal-header">
+              <div>
+                <h3>Renommer objet AD</h3>
+                <p>{getObjectDn(renameModal)}</p>
+              </div>
+              <button type="button" onClick={() => setRenameModal(null)}>×</button>
+            </div>
+
+            <label>
+              Nouveau nom
+              <input
+                value={renameNewName}
+                onChange={event => setRenameNewName(event.target.value)}
+                placeholder="Exemple : GG_MOVE_TEST_RENAMED"
+                autoFocus
+              />
+            </label>
+
+            {renameNewName.trim() === getRenameDefaultName(renameModal) && (
+              <div className="aduc-rename-warning">
+                Le nouveau nom est identique au nom actuel.
+              </div>
+            )}
+
+            <div className="aduc-modal-actions">
+              <button type="button" onClick={() => setRenameModal(null)}>
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={!renameNewName.trim() || renameNewName.trim() === getRenameDefaultName(renameModal)}
+              >
+                Renommer
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {moveModal && (
         <div className="aduc-modal-backdrop" onClick={() => setMoveModal(null)}>
           <form className="aduc-modal aduc-move-object-modal" onSubmit={submitMoveObject} onClick={event => event.stopPropagation()}>
@@ -1932,7 +2051,15 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           <hr />
 
           <button type="button" onClick={() => actionSoon('Modifier')}>✎ Modifier</button>
-          <button type="button" onClick={() => actionSoon('Renommer')}>A↕ Renommer</button>
+          <button
+            type="button"
+            onClick={() => {
+              setContextMenu(null)
+              openRenameObject(contextMenu.target || selectedObject || selectedNode)
+            }}
+          >
+            A↕ Renommer
+          </button>
           <button type="button" className="danger" onClick={() => actionSoon('Supprimer')}>🗑 Supprimer</button>
           <button type="button" onClick={() => loadNodeContent(selectedNode, viewType)}>⟳ Actualiser</button>
           <button type="button" onClick={() => copyText(contextMenu.target?.distinguished_name || '').then(() => setMessage?.('DN copié.'))}>⎙ Exporter / Copier DN</button>

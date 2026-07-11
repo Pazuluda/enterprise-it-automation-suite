@@ -3013,3 +3013,40 @@ button.aduc-admin-history-row.processing > span {
   padding: 0.75rem 0.85rem;
   font-weight: 850;
 }
+
+.aduc-rename-object-modal {
+  width: min(620px, calc(100vw - 40px));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.aduc-rename-object-modal label {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.aduc-rename-object-modal input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.aduc-rename-warning {
+  margin-top: 12px;
+  border: 1px solid rgba(245, 158, 11, .35);
+  background: rgba(245, 158, 11, .08);
+  color: #fbbf24;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
