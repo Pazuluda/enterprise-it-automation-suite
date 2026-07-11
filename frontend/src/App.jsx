@@ -1599,6 +1599,10 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem('eitas_last_page', page)
+
+    if (page === 'overview' || page === 'workers') {
+      loadWorkerStatus()
+    }
   }, [page])
 
 
@@ -3630,12 +3634,28 @@ Write-Host "============================================================"
             </button>
 
               <button
-                type="button"
-                className={page === 'workers' ? 'active' : ''}
-                onClick={() => setPage('workers')}
-              >
-                Santé workers
-              </button>
+  type="button"
+  className={page === 'workers' ? 'active nav-worker-health' : 'nav-worker-health'}
+  onClick={() => setPage('workers')}
+>
+  <span>Santé workers</span>
+  <span
+    className={`nav-worker-dot ${
+      workerStatus?.summary
+        ? Number(workerStatus.summary.stale || 0) > 0 || Number(workerStatus.summary.errors || 0) > 0
+          ? 'warning'
+          : 'ok'
+        : 'unknown'
+    }`}
+    title={
+      workerStatus?.summary
+        ? Number(workerStatus.summary.stale || 0) > 0 || Number(workerStatus.summary.errors || 0) > 0
+          ? `${Number(workerStatus.summary.stale || 0) + Number(workerStatus.summary.errors || 0)} alerte(s) worker`
+          : `${workerStatus.summary.healthy}/${workerStatus.summary.total} workers OK`
+        : 'État workers inconnu'
+    }
+  />
+</button>
 
 
             <button
