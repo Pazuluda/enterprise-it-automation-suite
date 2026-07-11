@@ -62,6 +62,14 @@ function getNodeKind(item) {
   return 'ou'
 }
 
+function extractExplorerItems(value) {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.items)) return value.items
+  if (Array.isArray(value?.result?.items)) return value.result.items
+  if (Array.isArray(value?.output?.items)) return value.output.items
+  return []
+}
+
 function getObjectName(item) {
   return item?.name || item?.display_name || item?.sam_account_name || '-'
 }
@@ -178,7 +186,8 @@ function formatAdHistoryAction(action) {
     create_ou: 'Création OU',
     create_group: 'Création groupe',
     add_group_member: 'Ajout membre',
-    remove_group_member: 'Retrait membre'
+    remove_group_member: 'Retrait membre',
+    move_object: 'Déplacement objet'
   }[action] || action || 'Action AD'
 }
 
@@ -223,6 +232,12 @@ function formatAdHistoryMessage(job) {
   if (job?.action === 'remove_group_member') {
     return `${member} retiré du groupe ${group}`
   }
+  if (job?.action === 'move_object') {
+    const objectName = output.object || payload.object_identity || 'Objet AD'
+    const target = output.target_parent_dn || payload.target_parent_dn || 'destination'
+    return `${objectName} déplacé vers ${target}`
+  }
+
 
   if (job?.action === 'create_group') {
     return `Groupe ${payload.name || output.name || group} créé`
@@ -249,7 +264,7 @@ function formatAdHistoryJson(value) {
   return cleanAdHistoryText(JSON.stringify(value || {}, null, 2))
 }
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers, onOpenAddMember, onRemoveMember }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onLoadMembers, onOpenAddMember, onRemoveMember }) {
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
@@ -443,6 +458,12 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>
               ＋ Groupe ici
             </button>
+
+            {object && (
+              <button type="button" onClick={() => onOpenMoveObject(displayed)}>
+                ↪ Déplacer
+              </button>
+            )}
           </div>
         </>
       ) : (
@@ -530,6 +551,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     group_category: 'Security'
   })
   const [adminLoading, setAdminLoading] = useState(false)
+  const [moveModal, setMoveModal] = useState(null)
+  const [moveTargetDn, setMoveTargetDn] = useState('')
+  const [globalAdSearch, setGlobalAdSearch] = useState('')
+  const [globalAdSearchLoading, setGlobalAdSearchLoading] = useState(false)
   const [adAdminHistory, setAdAdminHistory] = useState([])
   const [adAdminHistoryLoading, setAdAdminHistoryLoading] = useState(false)
   const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
@@ -563,7 +588,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       body: JSON.stringify({
         action,
         query: options.query || '',
-        base_dn: normalizeBaseDn(options.baseDn || ''),
+        base_dn: normalizeBaseDn(options.baseDn || options.base_dn || options.baseDN || ''),
         limit: options.limit || 200,
         recursive: options.recursive || false,
         include_disabled: true,
@@ -597,6 +622,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
   async function loadNodeContent(node = selectedNode, kind = getNodeKind(node)) {
+    if (!node) return
+
+    const baseDn = getObjectDn(node)
+
     setLoading(true)
     setContextMenu(null)
 
@@ -607,27 +636,57 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setMembersError('')
       setViewType(kind)
 
-      let items = []
-
-      if (kind === 'groups') {
-        items = await runJob('list_groups', {
-          baseDn: node.distinguished_name,
-          limit: 500
-        })
-      } else if (kind === 'users') {
-        items = await runJob('search_users', {
-          query: '',
-          baseDn: node.distinguished_name,
-          limit: 500
-        })
-      } else {
-        items = await runJob('list_ous', {
-          baseDn: node.distinguished_name,
-          limit: 500
-        })
+      if (!baseDn) {
+        setViewItems([])
+        setStatus('DN introuvable pour cet objet AD.')
+        return
       }
 
-      setViewItems(items)
+      const [ousResult, groupsResult, usersResult] = await Promise.allSettled([
+        runJob('list_ous', {
+          baseDn,
+          recursive: false,
+          limit: 500
+        }),
+        runJob('list_groups', {
+          baseDn,
+          recursive: false,
+          limit: 500
+        }),
+        runJob('search_users', {
+          query: '',
+          baseDn,
+          recursive: false,
+          limit: 500
+        })
+      ])
+
+      const items = []
+
+      if (ousResult.status === 'fulfilled') {
+        items.push(...extractExplorerItems(ousResult.value))
+      }
+
+      if (groupsResult.status === 'fulfilled') {
+        items.push(...extractExplorerItems(groupsResult.value))
+      }
+
+      if (usersResult.status === 'fulfilled') {
+        items.push(...extractExplorerItems(usersResult.value))
+      }
+
+      const seen = new Set()
+      const uniqueItems = items.filter(item => {
+        const key = getObjectDn(item) || item?.sam_account_name || item?.name
+
+        if (!key) return true
+        if (seen.has(key)) return false
+
+        seen.add(key)
+        return true
+      })
+
+      setViewItems(uniqueItems)
       setStatus(`Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL`)
     } catch (err) {
       setViewItems([])
@@ -742,6 +801,102 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setMessage?.('DN / identifiant copié. Propriétés détaillées à venir.')
   }
 
+
+  async function runGlobalAdSearch(event) {
+    event?.preventDefault?.()
+
+    const query = globalAdSearch.trim()
+
+    if (!query) {
+      setStatus('Recherche AD vide.')
+      return
+    }
+
+    setGlobalAdSearchLoading(true)
+    setStatus(`Recherche globale AD : ${query}...`)
+
+    try {
+      const baseDn = 'OU=EITAS,DC=API,DC=LOCAL'
+      const lowered = query.toLowerCase()
+
+      const [usersResult, groupsResult] = await Promise.allSettled([
+        runJob('search_users', {
+          query,
+          baseDn,
+          recursive: true,
+          limit: 100
+        }),
+        runJob('list_groups', {
+          baseDn,
+          recursive: true,
+          limit: 500
+        })
+      ])
+
+      const results = []
+
+      if (usersResult.status === 'fulfilled') {
+        results.push(...extractExplorerItems(usersResult.value))
+      }
+
+      if (groupsResult.status === 'fulfilled') {
+        const groups = extractExplorerItems(groupsResult.value)
+
+        results.push(...groups.filter(group => [
+          group?.name,
+          group?.sam_account_name,
+          group?.description,
+          group?.distinguished_name,
+          group?.dn
+        ]
+          .filter(Boolean)
+          .some(value => String(value).toLowerCase().includes(lowered))
+        ))
+      }
+
+      const seen = new Set()
+      const uniqueResults = results.filter(item => {
+        const key = getObjectDn(item) || item?.sam_account_name || item?.name
+
+        if (!key) return true
+        if (seen.has(key)) return false
+
+        seen.add(key)
+        return true
+      })
+
+      setSelectedNode({
+        name: `Recherche globale : ${query}`,
+        type: 'search',
+        distinguished_name: baseDn,
+        dn: baseDn
+      })
+
+      setViewType('search')
+      setViewItems(uniqueResults)
+      setSelectedObject(null)
+      setObjectMembers([])
+      setMembersError('')
+
+      setStatus(`${uniqueResults.length} résultat(s) pour ${query}`)
+    } catch (err) {
+      setStatus(err.message || 'Recherche globale AD impossible.')
+    } finally {
+      setGlobalAdSearchLoading(false)
+    }
+  }
+
+  function openMoveObject(target) {
+    const dn = getObjectDn(target)
+
+    if (!target || !dn) {
+      setStatus('Aucun objet AD valide à déplacer.')
+      return
+    }
+
+    setMoveModal(target)
+    setMoveTargetDn('')
+  }
 
   function openCreateOu(target = selectedNode) {
     const parentDn = target?.distinguished_name || selectedNode?.distinguished_name || USERS_DN
@@ -1056,6 +1211,57 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     }
   }
 
+  async function submitMoveObject(event) {
+    event.preventDefault()
+
+    if (!moveModal) {
+      return
+    }
+
+    const objectDn = getObjectDn(moveModal)
+    const targetParentDn = moveTargetDn.trim()
+
+    if (!objectDn) {
+      setStatus('Objet AD invalide.')
+      return
+    }
+
+    if (!targetParentDn) {
+      setStatus('DN de destination obligatoire.')
+      return
+    }
+
+    setAdminLoading(true)
+    setStatus('')
+
+    try {
+      const job = await runAdAdminJob({
+        action: 'move_object',
+        object_identity: objectDn,
+        target_parent_dn: targetParentDn,
+        created_by: 'react-admin'
+      })
+
+      const output = job?.output || {}
+      setMessage?.(cleanAdHistoryText(output.message || job?.message || 'Objet AD déplacé.'))
+
+      setMoveModal(null)
+      setMoveTargetDn('')
+
+      await loadTree()
+
+      if (selectedNode) {
+        await loadNodeContent(selectedNode, viewType)
+      }
+
+      await loadAdAdminHistory()
+    } catch (err) {
+      setStatus(err.message || 'Impossible de déplacer cet objet AD.')
+    } finally {
+      setAdminLoading(false)
+    }
+  }
+
   async function submitAdAdminJob(event) {
     event.preventDefault()
 
@@ -1213,6 +1419,24 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                   />
                 </div>
 
+          <form className="aduc-global-search-panel" onSubmit={runGlobalAdSearch}>
+            <div>
+              <strong>Recherche globale AD</strong>
+              <span>Cherche dans les groupes et utilisateurs de OU=EITAS.</span>
+            </div>
+
+            <input
+              value={globalAdSearch}
+              onChange={event => setGlobalAdSearch(event.target.value)}
+              placeholder="Ex : GG_MOVE_TEST, Liam, VPN..."
+            />
+
+            <button type="submit" disabled={globalAdSearchLoading || !globalAdSearch.trim()}>
+              {globalAdSearchLoading ? 'Recherche...' : 'Rechercher dans AD'}
+            </button>
+          </form>
+
+
                 <div className="aduc-tree">
                   <button
                     type="button"
@@ -1324,6 +1548,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 onExplore={target => loadNodeContent(target, getNodeKind(target))}
                 onCreateOu={target => openCreateOu(target)}
                 onCreateGroup={target => openCreateGroup(target)}
+                onOpenMoveObject={target => openMoveObject(target)}
                 onLoadMembers={target => loadGroupMembers(target)}
                 onOpenAddMember={target => openAddMemberModal(target)}
                 onRemoveMember={(group, member) => removeGroupMember(group, member)}
@@ -1415,6 +1640,80 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
               <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})}</pre>
             </div>
           </div>
+        </div>
+      )}
+
+      {moveModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setMoveModal(null)}>
+          <form className="aduc-modal aduc-move-object-modal" onSubmit={submitMoveObject} onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Explorateur Active Directory</span>
+                <h3>Déplacer un objet AD</h3>
+              </div>
+
+              <button type="button" onClick={() => setMoveModal(null)}>×</button>
+            </header>
+
+            <label>
+              Objet à déplacer
+              <input value={getObjectName(moveModal)} readOnly />
+            </label>
+
+            <label>
+              DN actuel
+              <textarea value={getObjectDn(moveModal)} readOnly rows={3} />
+            </label>
+
+            <label>
+              DN de la destination
+              <input
+                value={moveTargetDn}
+                onChange={event => setMoveTargetDn(event.target.value)}
+                placeholder="OU=Groups,OU=EITAS,DC=API,DC=LOCAL"
+                autoFocus
+              />
+            </label>
+
+            <div className="aduc-move-quick-targets">
+              <button type="button" onClick={() => setMoveTargetDn('OU=Groups,OU=EITAS,DC=API,DC=LOCAL')}>
+                Groups
+              </button>
+              <button type="button" onClick={() => setMoveTargetDn('OU=Users,OU=EITAS,DC=API,DC=LOCAL')}>
+                Users
+              </button>
+              <button type="button" onClick={() => setMoveTargetDn('OU=MoveTest,OU=EITAS,DC=API,DC=LOCAL')}>
+                MoveTest
+              </button>
+            </div>
+
+            {moveTargetDn.trim() && moveTargetDn.trim().toLowerCase() === getParentDn(getObjectDn(moveModal)).toLowerCase() && (
+              <p className="aduc-move-warning">
+                La destination choisie est déjà l’emplacement actuel de cet objet.
+              </p>
+            )}
+
+            <p className="aduc-move-help">
+              Indique le DN du conteneur ou de l’OU de destination. L’objet sera déplacé avec Move-ADObject côté SRV-DC01.
+            </p>
+
+            <footer>
+              <button type="button" onClick={() => setMoveModal(null)}>
+                Annuler
+              </button>
+
+              <button
+                type="submit"
+                disabled={
+                  adminLoading ||
+                  !moveTargetDn.trim() ||
+                  moveTargetDn.trim().toLowerCase() === getParentDn(getObjectDn(moveModal)).toLowerCase()
+                }
+              >
+                {adminLoading ? 'Déplacement...' : 'Déplacer'}
+              </button>
+            </footer>
+          </form>
         </div>
       )}
 
@@ -1613,7 +1912,15 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           onClick={event => event.stopPropagation()}
         >
           <button type="button" onClick={() => actionSoon('Délégation de contrôle')}>👥 Délégation de contrôle...</button>
-          <button type="button" onClick={() => actionSoon('Déplacer')}>📂 Déplacer...</button>
+          <button
+              type="button"
+              onClick={() => {
+                setContextMenu(null)
+                openMoveObject(contextMenu?.target || contextMenu?.item || contextMenu?.object || selectedObject || selectedNode)
+              }}
+            >
+              📁 Déplacer...
+            </button>
           <button type="button" onClick={() => setMessage?.('Recherche dans cette OU à venir.')}>🔎 Rechercher...</button>
 
           <hr />

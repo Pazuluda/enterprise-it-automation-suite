@@ -341,10 +341,24 @@ function Invoke-EitasAdExplorerListGroups {
 
     Assert-EitasDnSafe -DistinguishedName $BaseDn -Config $Config | Out-Null
 
+    $RecursiveValue = Get-EitasLookupValue -Object $Payload -Names @("recursive", "Recursive", "recurse", "include_children", "includeChildren")
+    $Recursive = $false
+
+    if ($null -ne $RecursiveValue) {
+        if ($RecursiveValue -is [bool]) {
+            $Recursive = $RecursiveValue
+        }
+        else {
+            $Recursive = @("1", "true", "yes", "oui", "subtree") -contains ([string]$RecursiveValue).Trim().ToLowerInvariant()
+        }
+    }
+
+    $SearchScope = if ($Recursive) { "Subtree" } else { "OneLevel" }
+
     $Items = Get-ADGroup `
         -Filter * `
         -SearchBase $BaseDn `
-        -SearchScope OneLevel `
+        -SearchScope $SearchScope `
         -Properties Description `
         -ErrorAction Stop |
         Sort-Object Name |
@@ -353,6 +367,8 @@ function Invoke-EitasAdExplorerListGroups {
     return [pscustomobject]@{
         action = "list_groups"
         base_dn = $BaseDn
+        recursive = $Recursive
+        search_scope = $SearchScope
         count = @($Items).Count
         items = @($Items)
         message = "Groupes chargés"

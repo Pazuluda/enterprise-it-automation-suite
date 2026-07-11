@@ -2881,3 +2881,135 @@ button.aduc-admin-history-row.processing > span {
   color: #ffffff;
   transform: translateY(-1px);
 }
+
+/* STEP 261.2 - Global AD search panel */
+.aduc-global-search-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(260px, 1.4fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  margin: 0.8rem 0 1rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
+}
+
+.aduc-global-search-panel strong {
+  display: block;
+  color: #111827;
+  font-size: 0.92rem;
+}
+
+.aduc-global-search-panel span {
+  display: block;
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.aduc-global-search-panel input {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  font-weight: 800;
+}
+
+.aduc-global-search-panel button {
+  border: 0;
+  border-radius: 0.85rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.aduc-global-search-panel button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1100px) {
+  .aduc-global-search-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* STEP 261.4 - Compact global AD search inside explorer left pane */
+.aduc-tree-pane .aduc-global-search-panel,
+.aduc-global-search-panel {
+  grid-template-columns: 1fr !important;
+  gap: 0.55rem !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0.75rem 0 1rem !important;
+  padding: 0.85rem !important;
+  overflow: hidden !important;
+}
+
+.aduc-global-search-panel strong {
+  font-size: 0.9rem !important;
+}
+
+.aduc-global-search-panel span {
+  font-size: 0.75rem !important;
+  line-height: 1.35 !important;
+}
+
+.aduc-global-search-panel input {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0.65rem 0.75rem !important;
+  font-size: 0.82rem !important;
+}
+
+.aduc-global-search-panel button {
+  width: 100% !important;
+  padding: 0.65rem 0.75rem !important;
+  font-size: 0.82rem !important;
+  white-space: normal !important;
+  line-height: 1.15 !important;
+}
+
+.aduc-global-search-panel input::placeholder {
+  font-size: 0.78rem !important;
+}
+
+/* STEP 262.2 - Safer move object modal */
+.aduc-move-quick-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: -0.25rem 0 0.75rem;
+}
+
+.aduc-move-quick-targets button {
+  border: 1px solid rgba(124, 58, 237, 0.22);
+  background: #f5f3ff;
+  color: #4c1d95;
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aduc-move-quick-targets button:hover {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+}
+
+.aduc-move-warning {
+  margin: 0.35rem 0 0.75rem;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  font-weight: 850;
+}

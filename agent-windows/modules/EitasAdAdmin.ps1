@@ -482,6 +482,165 @@ function Invoke-EitasAdAdminRemoveGroupMember {
 }
 
 
+
+function Resolve-EitasAdAdminObject {
+    param(
+        [object]$Config,
+        [string]$Identity
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Identity)) {
+        throw "Identité objet AD manquante"
+    }
+
+    $Object = $null
+
+    try {
+        $Object = Get-ADObject `
+            -Identity $Identity `
+            -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description `
+            -ErrorAction Stop
+    }
+    catch {
+        $Object = $null
+    }
+
+    if ($null -eq $Object) {
+        $SearchBase = Get-EitasObjectValue -Object $Config -Names @("AdBaseDn", "BaseDn", "DomainDn")
+        $SafeIdentity = $Identity.Replace("\", "\5c").Replace("*", "\2a").Replace("(", "\28").Replace(")", "\29")
+
+        $Matches = @(Get-ADObject `
+            -LDAPFilter "(|(name=$SafeIdentity)(sAMAccountName=$SafeIdentity)(displayName=$SafeIdentity))" `
+            -SearchBase $SearchBase `
+            -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description `
+            -ResultSetSize 5 `
+            -ErrorAction Stop)
+
+        if ($Matches.Count -eq 0) {
+            throw "Objet AD introuvable : $Identity"
+        }
+
+        if ($Matches.Count -gt 1) {
+            throw "Plusieurs objets AD correspondent à : $Identity"
+        }
+
+        $Object = $Matches[0]
+    }
+
+    Assert-EitasDnSafe -DistinguishedName $Object.DistinguishedName -Config $Config | Out-Null
+
+    return $Object
+}
+
+function Invoke-EitasAdAdminMoveObject {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $ObjectIdentity = Get-EitasObjectValue -Object $Payload -Names @(
+        "object_identity",
+        "objectIdentity",
+        "object_dn",
+        "objectDn",
+        "distinguished_name",
+        "distinguishedName",
+        "dn",
+        "sam_account_name",
+        "samAccountName",
+        "name"
+    )
+
+    $TargetParentDn = Get-EitasObjectValue -Object $Payload -Names @(
+        "target_parent_dn",
+        "targetParentDn",
+        "target_ou_dn",
+        "targetOuDn",
+        "target_dn",
+        "targetDn"
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectIdentity)) {
+        throw "Identité objet AD manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($TargetParentDn)) {
+        throw "DN destination manquant"
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "move_object"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            target_parent_dn = $TargetParentDn
+            message = "Simulation déplacement objet AD"
+        }
+    }
+
+    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
+
+    Assert-EitasDnSafe -DistinguishedName $TargetParentDn -Config $Config | Out-Null
+
+    $TargetParent = Get-ADObject `
+        -Identity $TargetParentDn `
+        -Properties objectClass, distinguishedName, name `
+        -ErrorAction Stop
+
+    Assert-EitasDnSafe -DistinguishedName $TargetParent.DistinguishedName -Config $Config | Out-Null
+
+    $ObjectDn = [string]$Object.DistinguishedName
+    $TargetDn = [string]$TargetParent.DistinguishedName
+
+    if ($TargetDn -ieq $ObjectDn -or $TargetDn.ToLowerInvariant().EndsWith("," + $ObjectDn.ToLowerInvariant())) {
+        throw "Déplacement impossible : la destination est l’objet lui-même ou un de ses enfants"
+    }
+
+    $CommaIndex = $ObjectDn.IndexOf(",")
+    if ($CommaIndex -lt 1) {
+        throw "DN objet invalide : $ObjectDn"
+    }
+
+    $ObjectRdn = $ObjectDn.Substring(0, $CommaIndex)
+    $CurrentParentDn = $ObjectDn.Substring($CommaIndex + 1)
+    $NewDn = "$ObjectRdn,$TargetDn"
+
+    if ($CurrentParentDn -ieq $TargetDn) {
+        return [pscustomobject]@{
+            action = "move_object"
+            simulated = $false
+            already_in_target = $true
+            object = $Object.Name
+            object_type = $Object.ObjectClass
+            object_dn = $ObjectDn
+            old_parent_dn = $CurrentParentDn
+            target_parent_dn = $TargetDn
+            new_dn = $ObjectDn
+            message = "L’objet est déjà dans cette destination"
+        }
+    }
+
+    Move-ADObject `
+        -Identity $ObjectDn `
+        -TargetPath $TargetDn `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "move_object"
+        simulated = $false
+        already_in_target = $false
+        object = $Object.Name
+        object_type = $Object.ObjectClass
+        object_dn = $ObjectDn
+        old_parent_dn = $CurrentParentDn
+        target_parent_dn = $TargetDn
+        new_dn = $NewDn
+        message = "Objet AD déplacé"
+    }
+}
+
+
 function Invoke-EitasAdAdminJob {
     param(
         [object]$Config,
@@ -511,6 +670,10 @@ function Invoke-EitasAdAdminJob {
 
         "remove_group_member" {
             return Invoke-EitasAdAdminRemoveGroupMember -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "move_object" {
+            return Invoke-EitasAdAdminMoveObject -Config $Config -Payload $Payload -Mode $Mode
         }
 
         default {
