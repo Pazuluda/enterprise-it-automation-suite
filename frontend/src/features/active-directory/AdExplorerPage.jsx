@@ -636,6 +636,20 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     resetMemberPicker()
   }
 
+  function decorateMemberCandidate(candidate, kind) {
+    return {
+      ...candidate,
+      _member_candidate_kind: kind,
+      _member_candidate_label: kind === 'group' ? 'Groupe AD' : 'Utilisateur AD'
+    }
+  }
+
+  function getMemberCandidateKindLabel(candidate) {
+    return candidate?._member_candidate_label || (
+      isGroupObject(candidate) ? 'Groupe AD' : 'Utilisateur AD'
+    )
+  }
+
   function getMemberCandidateIdentity(candidate) {
     return String(
       candidate?.sam_account_name ||
@@ -688,31 +702,59 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
     setSelectedMemberCandidate(null)
     setMemberSearchError('')
+    setMemberSubmitError('')
 
     if (query.length < 2) {
       setMemberSearchResults([])
-      setMemberSearchError('Tape au moins 2 caractères pour rechercher un utilisateur.')
+      setMemberSearchError('Tape au moins 2 caractères pour rechercher un utilisateur ou un groupe.')
       return
     }
 
     setMemberSearchLoading(true)
 
     try {
-      const users = await runJob('search_users', {
-        query,
-        baseDn: 'OU=Users,OU=EITAS,DC=API,DC=LOCAL',
-        limit: 50,
-        recursive: true
-      })
+      const [users, groups] = await Promise.all([
+        runJob('search_users', {
+          query,
+          baseDn: 'OU=Users,OU=EITAS,DC=API,DC=LOCAL',
+          limit: 50,
+          recursive: true
+        }),
+        runJob('list_groups', {
+          baseDn: 'OU=Groups,OU=EITAS,DC=API,DC=LOCAL',
+          limit: 500,
+          recursive: true
+        })
+      ])
 
-      setMemberSearchResults(users)
+      const normalizedQuery = query.toLowerCase()
 
-      if (!users.length) {
-        setMemberSearchError('Aucun utilisateur trouvé.')
+      const matchingGroups = groups.filter(group =>
+        [
+          group?.name,
+          group?.sam_account_name,
+          group?.samAccountName,
+          group?.description,
+          group?.distinguished_name,
+          group?.dn
+        ]
+          .filter(Boolean)
+          .some(value => String(value).toLowerCase().includes(normalizedQuery))
+      )
+
+      const decoratedUsers = users.map(user => decorateMemberCandidate(user, 'user'))
+      const decoratedGroups = matchingGroups.map(group => decorateMemberCandidate(group, 'group'))
+
+      const results = [...decoratedUsers, ...decoratedGroups]
+
+      setMemberSearchResults(results)
+
+      if (!results.length) {
+        setMemberSearchError('Aucun utilisateur ou groupe trouvé.')
       }
     } catch (error) {
       setMemberSearchResults([])
-      setMemberSearchError(error.message || 'Recherche utilisateur impossible.')
+      setMemberSearchError(error.message || 'Recherche utilisateur/groupe impossible.')
     } finally {
       setMemberSearchLoading(false)
     }
@@ -727,13 +769,13 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     const identity = selectedMemberCandidate ? getMemberCandidateIdentity(selectedMemberCandidate).trim() : memberIdentity.trim()
 
     if (memberSearchResults.length > 0 && !selectedMemberCandidate) {
-      setMemberSearchError('Sélectionne un utilisateur exact dans la liste avant d’ajouter.')
-      setMessage?.('Sélectionne un utilisateur exact dans la liste avant d’ajouter.')
+      setMemberSearchError('Sélectionne un utilisateur ou un groupe exact dans la liste avant d’ajouter.')
+      setMessage?.('Sélectionne un utilisateur ou un groupe exact dans la liste avant d’ajouter.')
       return
     }
 
     if (!identity) {
-      setMessage?.('Identifiant membre obligatoire.')
+      setMessage?.('Identifiant utilisateur ou groupe obligatoire.')
       return
     }
 
@@ -1183,7 +1225,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
             </label>
 
             <label>
-              Utilisateur à ajouter
+              Utilisateur ou groupe à ajouter
               <div className="aduc-member-picker-row">
                 <input
                   value={memberIdentity}
@@ -1193,7 +1235,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                     setMemberSearchError('')
                     setMemberSubmitError('')
                   }}
-                  placeholder="Ex : l.ve, liam, p.nom..."
+                  placeholder="Ex : l.ve, liam, GG_Support_RW..."
                   autoFocus
                 />
                 <button
@@ -1223,6 +1265,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                     <button
                       type="button"
                       key={identity}
+                      data-kind-label={getMemberCandidateKindLabel(candidate)}
                       className={selected ? 'is-selected' : ''}
                       onClick={() => selectMemberCandidate(candidate)}
                     >
@@ -1236,7 +1279,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
             <div className="aduc-modal-warning">
               <strong>Production AD</strong>
-              <span>Cette action ajoutera l’utilisateur sélectionné dans le groupe via l’agent Windows.</span>
+              <span>Cette action ajoutera l’utilisateur ou le groupe sélectionné dans le groupe via l’agent Windows.</span>
             </div>
 
             {memberSubmitError && (
