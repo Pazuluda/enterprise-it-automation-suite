@@ -149,7 +149,70 @@ function getParentDn(dn) {
   return value.slice(index + 1)
 }
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers, onOpenAddMember, onRemoveMember }) {
+
+function cleanAdHistoryText(value) {
+  return String(value || '')
+    .replaceAll('dÃ©jÃ ', 'déjà')
+    .replaceAll('dÃ©jÃ ', 'déjà')
+    .replaceAll('ajoutÃ©', 'ajouté')
+    .replaceAll('retirÃ©', 'retiré')
+    .replaceAll('crÃ©Ã©', 'créé')
+    .replaceAll('Ã©', 'é')
+    .replaceAll('Ã¨', 'è')
+    .replaceAll('Ãª', 'ê')
+    .replaceAll('Ã ', 'à')
+    .replaceAll('Ã ', 'à')
+    .replaceAll('Ã§', 'ç')
+}
+
+function formatAdHistoryAction(action) {
+  return {
+    create_ou: 'Création OU',
+    create_group: 'Création groupe',
+    add_group_member: 'Ajout membre',
+    remove_group_member: 'Retrait membre'
+  }[action] || action || 'Action AD'
+}
+
+function formatAdHistoryStatus(job) {
+  if (job?.status === 'completed' && job?.success) return 'terminé'
+  if (job?.status === 'failed' || job?.success === false) return 'échec'
+  if (job?.status === 'processing') return 'en cours'
+  if (job?.status === 'pending') return 'en attente'
+  return job?.status || 'statut inconnu'
+}
+
+function formatAdHistoryMessage(job) {
+  const output = job?.output || {}
+  const payload = job?.payload || {}
+  const group = output.group || payload.group_identity || 'groupe'
+  const member = output.member || payload.member_identity || 'membre'
+
+  if (job?.action === 'add_group_member' && output.already_member) {
+    return `${member} est déjà membre de ${group}`
+  }
+
+  if (job?.action === 'add_group_member') {
+    return `${member} ajouté au groupe ${group}`
+  }
+
+  if (job?.action === 'remove_group_member') {
+    return `${member} retiré du groupe ${group}`
+  }
+
+  if (job?.action === 'create_group') {
+    return `Groupe ${payload.name || output.name || group} créé`
+  }
+
+  if (job?.action === 'create_ou') {
+    return `OU ${payload.name || output.name || 'AD'} créée`
+  }
+
+  return cleanAdHistoryText(output.message || job?.message || '—')
+}
+
+
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onLoadMembers, onOpenAddMember, onRemoveMember }) {
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
@@ -158,6 +221,14 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   const isOu = isOuObject(displayed)
   const isGroup = isGroupObject(displayed)
   const members = Array.isArray(memberItems) ? memberItems : []
+  const history = Array.isArray(historyItems) ? historyItems : []
+  const filteredHistory = history.filter(job => {
+    if (historyFilter === 'all') return true
+    if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
+    if (historyFilter === 'create') return ['create_ou', 'create_group'].includes(job.action)
+    if (historyFilter === 'failed') return job.status === 'failed' || job.success === false
+    return true
+  })
 
   return (
     <aside className="aduc-details-pane">
@@ -272,6 +343,57 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             </div>
           )}
 
+
+          <div className="aduc-admin-history-card">
+            <div className="aduc-admin-history-head">
+              <div>
+                <h4>Historique AD Admin</h4>
+                <span>{historyLoading ? 'Chargement...' : `${filteredHistory.length}/${history.length} action(s)`}</span>
+              </div>
+
+              <button type="button" onClick={onLoadHistory} disabled={historyLoading}>
+                ⟳ Actualiser
+              </button>
+            </div>
+
+            <div className="aduc-admin-history-filters">
+              {[
+                ['all', 'Tout'],
+                ['members', 'Membres'],
+                ['create', 'Créations'],
+                ['failed', 'Échecs']
+              ].map(([value, label]) => (
+                <button
+                  type="button"
+                  key={value}
+                  className={historyFilter === value ? 'active' : ''}
+                  onClick={() => onHistoryFilterChange(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {historyError ? (
+              <p className="aduc-admin-history-error">{historyError}</p>
+            ) : filteredHistory.length === 0 ? (
+              <p className="aduc-admin-history-empty">Aucune action AD Admin récente.</p>
+            ) : (
+              <div className="aduc-admin-history-list">
+                {filteredHistory.slice(0, 8).map(job => (
+                  <div className={`aduc-admin-history-row ${job.success ? 'success' : 'failed'}`} key={job.id}>
+                    <span />
+                    <div>
+                      <strong>{formatAdHistoryAction(job.action)}</strong>
+                      <small>{job.agent_name || job.claimed_by || 'Agent non assigné'} • {formatAdHistoryStatus(job)}</small>
+                      <em>{formatAdHistoryMessage(job)}</em>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="aduc-details-quick">
             <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>
               ＋ OU ici
@@ -331,6 +453,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     group_category: 'Security'
   })
   const [adminLoading, setAdminLoading] = useState(false)
+  const [adAdminHistory, setAdAdminHistory] = useState([])
+  const [adAdminHistoryLoading, setAdAdminHistoryLoading] = useState(false)
+  const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
+  const [adAdminHistoryFilter, setAdAdminHistoryFilter] = useState('all')
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -431,6 +557,20 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setMessage?.(err.message || 'Erreur Active Directory')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadAdAdminHistory() {
+    setAdAdminHistoryLoading(true)
+    setAdAdminHistoryError('')
+
+    try {
+      const data = await apiFetch('/api/ad-admin/jobs?limit=20')
+      setAdAdminHistory(Array.isArray(data.jobs) ? data.jobs : [])
+    } catch (err) {
+      setAdAdminHistoryError(err.message || 'Impossible de charger l’historique AD Admin.')
+    } finally {
+      setAdAdminHistoryLoading(false)
     }
   }
 
@@ -887,6 +1027,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
   useEffect(() => {
     refreshAll()
+    loadAdAdminHistory()
   }, [])
 
   return (
@@ -1094,6 +1235,12 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 memberItems={objectMembers}
                 membersLoading={membersLoading}
                 membersError={membersError}
+                historyItems={adAdminHistory}
+                historyLoading={adAdminHistoryLoading}
+                historyError={adAdminHistoryError}
+                historyFilter={adAdminHistoryFilter}
+                onHistoryFilterChange={setAdAdminHistoryFilter}
+                onLoadHistory={() => loadAdAdminHistory()}
                 onCopyDn={target => copyText(getObjectDn(target)).then(() => setMessage?.('DN copié.'))}
                 onExplore={target => loadNodeContent(target, getNodeKind(target))}
                 onCreateOu={target => openCreateOu(target)}

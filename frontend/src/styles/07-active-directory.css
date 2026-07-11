@@ -2504,3 +2504,167 @@
   color: #065f46 !important;
 }
 
+
+
+/* STEP 255.3 - AD Admin history UI */
+.aduc-admin-history-card {
+  margin-top: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 1.15rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 1rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.aduc-admin-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.aduc-admin-history-head h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.aduc-admin-history-head span {
+  display: block;
+  margin-top: 0.25rem;
+  color: #64748b;
+  font-weight: 850;
+}
+
+.aduc-admin-history-head button {
+  border: 1px solid rgba(79, 70, 229, 0.22);
+  background: #f5f3ff;
+  color: #4c1d95;
+  border-radius: 999px;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aduc-admin-history-list {
+  display: grid;
+  gap: 0.6rem;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.aduc-admin-history-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 1rem;
+  background: #ffffff;
+  padding: 0.75rem 0.85rem;
+}
+
+.aduc-admin-history-row > span {
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-top: 0.3rem;
+  border-radius: 999px;
+  background: #ef4444;
+}
+
+.aduc-admin-history-row.success > span {
+  background: #22c55e;
+}
+
+.aduc-admin-history-row strong {
+  display: block;
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+.aduc-admin-history-row small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-weight: 750;
+}
+
+.aduc-admin-history-row em {
+  display: block;
+  margin-top: 0.25rem;
+  color: #475569;
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+.aduc-admin-history-empty,
+.aduc-admin-history-error {
+  margin: 0;
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  font-weight: 800;
+}
+
+.aduc-admin-history-empty {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.aduc-admin-history-error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+
+/* STEP 255.6 - AD Admin history filters */
+.aduc-admin-history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: -0.25rem 0 0.85rem;
+}
+
+.aduc-admin-history-filters button {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: #ffffff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 0.42rem 0.7rem;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.aduc-admin-history-filters button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124, 58, 237, 0.35);
+  background: #faf5ff;
+  color: #4c1d95;
+}
+
+.aduc-admin-history-filters button.active {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.22);
+}
+
+.aduc-admin-history-row.failed {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+}
+
+.aduc-admin-history-row.success {
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+.aduc-admin-history-row.processing {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+}
+
+.aduc-admin-history-row.processing > span {
+  background: #f59e0b;
+}
