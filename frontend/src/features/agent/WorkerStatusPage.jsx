@@ -110,12 +110,77 @@ function WorkerCard({ worker }) {
   )
 }
 
+function WorkerEventsTimeline({ events }) {
+  const safeEvents = Array.isArray(events) ? events : []
+
+  return (
+    <section className="worker-events-panel">
+      <div className="worker-events-header">
+        <div>
+          <h2>Historique workers</h2>
+          <p>Derniers changements d’état détectés par les heartbeats.</p>
+        </div>
+
+        <span>{safeEvents.length} événement(s)</span>
+      </div>
+
+      {safeEvents.length === 0 ? (
+        <p className="worker-events-empty">Aucun événement worker enregistré pour le moment.</p>
+      ) : (
+        <div className="worker-events-list">
+          {safeEvents.map(event => {
+            const state = event.current_state || 'unknown'
+
+            return (
+              <article className={`worker-event-item ${state}`} key={event.id || `${event.worker_id}-${event.created_at}`}>
+                <div className="worker-event-dot" />
+
+                <div className="worker-event-body">
+                  <div className="worker-event-title">
+                    <strong>{event.worker_name || event.worker_id || 'Worker inconnu'}</strong>
+                    <span>{formatDate(event.created_at)}</span>
+                  </div>
+
+                  <p>
+                    {event.message || `${event.previous_state_label || event.previous_state} → ${event.current_state_label || event.current_state}`}
+                  </p>
+
+                  <small>
+                    {event.previous_state_label || event.previous_state || 'Inconnu'} → {event.current_state_label || event.current_state || 'Inconnu'}
+                    {event.mode ? ` · ${event.mode}` : ''}
+                    {event.agent_name ? ` · ${event.agent_name}` : ''}
+                  </small>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export default function WorkerStatusPage({ apiFetch, setMessage }) {
   const [status, setStatus] = useState(null)
+  const [workerEvents, setWorkerEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [lastRefresh, setLastRefresh] = useState('')
+
+  async function loadWorkerEvents(silent = false) {
+    try {
+      const data = await apiFetch('/api/admin/worker-events?limit=30')
+      setWorkerEvents(Array.isArray(data?.events) ? data.events : [])
+    }
+    catch (err) {
+      setWorkerEvents([])
+
+      if (!silent && setMessage) {
+        setMessage(err?.message || 'Impossible de charger l’historique workers.')
+      }
+    }
+  }
 
   async function loadWorkerStatus(silent = false) {
     setLoading(true)
@@ -125,6 +190,8 @@ export default function WorkerStatusPage({ apiFetch, setMessage }) {
       const data = await apiFetch('/api/admin/worker-status')
       setStatus(data)
       setLastRefresh(new Date().toLocaleTimeString('fr-FR'))
+
+      await loadWorkerEvents(true)
 
       if (!silent && setMessage) {
         setMessage('Santé workers rechargée.')
@@ -152,9 +219,26 @@ export default function WorkerStatusPage({ apiFetch, setMessage }) {
 
     const timer = window.setInterval(() => {
       loadWorkerStatus(true)
-    }, 10000)
+    }, 5000)
 
-    return () => window.clearInterval(timer)
+    function refreshOnFocus() {
+      loadWorkerStatus(true)
+    }
+
+    function refreshOnVisibility() {
+      if (document.visibilityState === 'visible') {
+        loadWorkerStatus(true)
+      }
+    }
+
+    window.addEventListener('focus', refreshOnFocus)
+    document.addEventListener('visibilitychange', refreshOnVisibility)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshOnFocus)
+      document.removeEventListener('visibilitychange', refreshOnVisibility)
+    }
   }, [autoRefresh])
 
   const workers = useMemo(() => {
@@ -236,6 +320,8 @@ export default function WorkerStatusPage({ apiFetch, setMessage }) {
           ))}
         </div>
       )}
+
+      <WorkerEventsTimeline events={workerEvents} />
     </section>
   )
 }

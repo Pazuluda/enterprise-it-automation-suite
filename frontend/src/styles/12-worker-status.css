@@ -451,3 +451,113 @@
   background: #d97706 !important;
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.24) !important;
 }
+
+
+/* === Step 239 - Worker events timeline ==================== */
+
+.worker-events-panel {
+  margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem;
+}
+
+.worker-events-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.worker-events-header h2 {
+  margin: 0;
+}
+
+.worker-events-header p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.worker-events-header > span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.worker-events-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.worker-events-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.worker-event-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 0.85rem;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.worker-event-dot {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  margin-top: 0.35rem;
+  background: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.16);
+}
+
+.worker-event-item.healthy .worker-event-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
+.worker-event-item.stale .worker-event-dot,
+.worker-event-item.error .worker-event-dot {
+  background: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.20);
+}
+
+.worker-event-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.worker-event-title span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.worker-event-body p {
+  margin: 0.3rem 0;
+}
+
+.worker-event-body small {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .worker-events-header,
+  .worker-event-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

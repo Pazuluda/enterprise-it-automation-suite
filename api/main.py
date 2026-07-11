@@ -74,6 +74,7 @@ from app.services.ad_admin import (
 from app.services.worker_status import (
     WorkerStatusBadRequest,
     get_worker_status as service_get_worker_status,
+    get_worker_events as service_get_worker_events,
     receive_worker_heartbeat as service_receive_worker_heartbeat,
 )
 from app.services.agent_runtime import (
@@ -121,6 +122,7 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 AGENT_STATUS_FILE = DATA_DIR / "agent-status.json"
 WORKER_STATUS_FILE = DATA_DIR / "worker-status.json"
+WORKER_EVENTS_FILE = DATA_DIR / "worker-events.jsonl"
 AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 AD_CHECK_JOBS_FILE = DATA_DIR / "ad-check-jobs.json"
 AD_LOOKUP_JOBS_FILE = DATA_DIR / "ad-lookup-jobs.json"
@@ -259,14 +261,19 @@ def get_agent_status(api_key: None = Depends(require_api_key)):
 @app.post("/api/agent/worker-heartbeat")
 def receive_worker_heartbeat(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
     try:
-        return service_receive_worker_heartbeat(WORKER_STATUS_FILE, payload)
+        return service_receive_worker_heartbeat(WORKER_STATUS_FILE, payload, WORKER_EVENTS_FILE)
     except WorkerStatusBadRequest as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.get("/api/admin/worker-status")
 def get_worker_status(api_key: None = Depends(require_api_key)):
-    return service_get_worker_status(WORKER_STATUS_FILE)
+    return service_get_worker_status(WORKER_STATUS_FILE, WORKER_EVENTS_FILE)
+
+
+@app.get("/api/admin/worker-events")
+def get_worker_events(limit: int = 100, api_key: None = Depends(require_api_key)):
+    return service_get_worker_events(WORKER_EVENTS_FILE, limit=limit)
 
 @app.get("/api/agent/pending")
 def get_pending_requests(api_key: None = Depends(require_api_key)):
