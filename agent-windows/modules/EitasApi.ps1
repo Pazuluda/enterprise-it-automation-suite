@@ -73,3 +73,61 @@ function Test-EitasApiConnectivity {
         }
     }
 }
+
+
+function Send-EitasWorkerHeartbeat {
+    param(
+        [object]$Config,
+        [string]$WorkerId,
+        [string]$WorkerName,
+        [string]$Role,
+        [string]$Status = "running",
+        [string]$Mode = "",
+        [int]$StaleAfterSeconds = 180,
+        [object]$Details = @{}
+    )
+
+    if ($null -eq $Config) {
+        $Config = Get-EitasAgentConfig
+    }
+
+    $AgentName = Get-EitasAgentName -Config $Config
+
+    if ([string]::IsNullOrWhiteSpace($WorkerId)) {
+        throw "WorkerId manquant"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($WorkerName)) {
+        $WorkerName = $WorkerId
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Role)) {
+        $Role = $WorkerId
+    }
+
+    $Body = @{
+        worker_id = $WorkerId
+        worker_name = $WorkerName
+        agent_name = $AgentName
+        role = $Role
+        status = $Status
+        mode = $Mode
+        pid = $PID
+        stale_after_seconds = $StaleAfterSeconds
+        details = $Details
+    }
+
+    try {
+        Invoke-EitasApiRequest `
+            -Method "POST" `
+            -Path "/api/agent/worker-heartbeat" `
+            -Body $Body `
+            -Config $Config | Out-Null
+
+        return $true
+    }
+    catch {
+        Write-Warning ("Impossible d'envoyer le heartbeat worker {0} : {1}" -f $WorkerId, $_.Exception.Message)
+        return $false
+    }
+}
