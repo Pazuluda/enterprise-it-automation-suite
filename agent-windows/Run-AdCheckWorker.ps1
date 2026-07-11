@@ -32,6 +32,7 @@ if ([string]::IsNullOrWhiteSpace($Mode)) {
 . (Join-Path $Root "modules\EitasAdCheck.ps1")
 
 $NextHeartbeat = Get-Date
+Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-check-worker" -WorkerName "AD Check Worker" -Role "ad-check" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdCheckWorker.ps1"; phase = "startup" } | Out-Null
 
 Write-EitasLog -Name "ad-check-worker-light.log" -Level "OK" -Message "EITAS AD Check Worker léger démarré sur $AgentName en mode $Mode" -Console
 
@@ -42,6 +43,7 @@ while ($true) {
         if ($Now -ge $NextHeartbeat) {
             Write-EitasLog -Name "ad-check-worker-light.log" -Level "INFO" -Message "Worker AD Check actif, attente de jobs."
             $NextHeartbeat = $Now.AddSeconds($HeartbeatSeconds)
+            Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-check-worker" -WorkerName "AD Check Worker" -Role "ad-check" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdCheckWorker.ps1"; phase = "loop" } | Out-Null
         }
 
         Process-PendingAdCheckJobs
@@ -56,3 +58,4 @@ while ($true) {
 
     Start-Sleep -Seconds $IntervalSeconds
 }
+

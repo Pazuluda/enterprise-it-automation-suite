@@ -71,6 +71,11 @@ from app.services.ad_admin import (
 )
 
 
+from app.services.worker_status import (
+    WorkerStatusBadRequest,
+    get_worker_status as service_get_worker_status,
+    receive_worker_heartbeat as service_receive_worker_heartbeat,
+)
 from app.services.agent_runtime import (
     AgentRuntimeBadRequest,
     AgentRuntimeConflict,
@@ -115,6 +120,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 AGENT_STATUS_FILE = DATA_DIR / "agent-status.json"
+WORKER_STATUS_FILE = DATA_DIR / "worker-status.json"
 AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 AD_CHECK_JOBS_FILE = DATA_DIR / "ad-check-jobs.json"
 AD_LOOKUP_JOBS_FILE = DATA_DIR / "ad-lookup-jobs.json"
@@ -248,6 +254,19 @@ def get_agent_status(api_key: None = Depends(require_api_key)):
         return service_get_agent_status(AGENT_STATUS_FILE)
     except AgentRuntimeStorageError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/agent/worker-heartbeat")
+def receive_worker_heartbeat(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+    try:
+        return service_receive_worker_heartbeat(WORKER_STATUS_FILE, payload)
+    except WorkerStatusBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/admin/worker-status")
+def get_worker_status(api_key: None = Depends(require_api_key)):
+    return service_get_worker_status(WORKER_STATUS_FILE)
 
 @app.get("/api/agent/pending")
 def get_pending_requests(api_key: None = Depends(require_api_key)):

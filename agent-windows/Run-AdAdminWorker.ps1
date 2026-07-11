@@ -18,6 +18,7 @@ Set-Location $Root
 $Config = Get-EitasAgentConfig
 $AgentName = Get-EitasAgentName -Config $Config
 $NextHeartbeat = Get-Date
+Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-admin-worker" -WorkerName "AD Admin Worker" -Role "ad-admin" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdAdminWorker.ps1"; phase = "startup" } | Out-Null
 
 Write-EitasLog -Name "ad-admin-worker-light.log" -Level "OK" -Message "EITAS AD Admin Worker léger démarré sur $AgentName" -Console
 
@@ -29,6 +30,7 @@ while ($true) {
         if ($Now -ge $NextHeartbeat) {
             Write-EitasLog -Name "ad-admin-worker-light.log" -Level "INFO" -Message "Worker AD Admin actif, attente de jobs."
             $NextHeartbeat = $Now.AddSeconds($HeartbeatSeconds)
+            Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-admin-worker" -WorkerName "AD Admin Worker" -Role "ad-admin" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdAdminWorker.ps1"; phase = "loop" } | Out-Null
             $SilentWhenEmpty = $false
         }
 
@@ -44,3 +46,4 @@ while ($true) {
 
     Start-Sleep -Seconds $IntervalSeconds
 }
+

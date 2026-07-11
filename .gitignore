@@ -34,3 +34,4 @@ api/data/ad-explorer-jobs.json
 
 # AD Admin runtime jobs
 api/data/ad-admin-jobs.json
+api/data/worker-status.json
