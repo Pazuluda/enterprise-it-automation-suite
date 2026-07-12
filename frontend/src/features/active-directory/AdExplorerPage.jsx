@@ -556,6 +556,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [adminModal, setAdminModal] = useState(null)
   const [createUserModal, setCreateUserModal] = useState(null)
   const [createUserLoading, setCreateUserLoading] = useState(false)
+  const [createUserOuOptions, setCreateUserOuOptions] = useState([])
+  const [createUserOuLoading, setCreateUserOuLoading] = useState(false)
   const [createUserForm, setCreateUserForm] = useState({
     first_name: '',
     last_name: '',
@@ -1438,6 +1440,279 @@ function getAdAttributeValue(item, ...names) {
     return raw || 'Erreur inconnue pendant la création utilisateur.'
   }
 
+  function splitLdapDn(dn) {
+    return String(dn || '')
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+  }
+
+  function isOuDn(dn) {
+    return /^OU=/i.test(String(dn || '').trim())
+  }
+
+  function getOuNameFromRdn(rdn) {
+    return String(rdn || '').replace(/^OU=/i, '')
+  }
+
+  function getDomainSuffixFromDn(dn) {
+    const parts = splitLdapDn(dn)
+    const firstDcIndex = parts.findIndex(part => /^DC=/i.test(part))
+
+    if (firstDcIndex === -1) {
+      return ''
+    }
+
+    return parts.slice(firstDcIndex).join(',')
+  }
+
+  function getCreateUserSearchBaseDn(dn) {
+    const parts = splitLdapDn(dn)
+    const firstDcIndex = parts.findIndex(part => /^DC=/i.test(part))
+
+    if (firstDcIndex === -1) {
+      return String(dn || '').trim()
+    }
+
+    const domainSuffix = parts.slice(firstDcIndex).join(',')
+    const beforeDc = parts.slice(0, firstDcIndex)
+    const ouParts = beforeDc.filter(part => /^OU=/i.test(part))
+
+    if (ouParts.length > 0) {
+      return `${ouParts[ouParts.length - 1]},${domainSuffix}`
+    }
+
+    return domainSuffix
+  }
+
+  function getOuLabelFromDn(dn) {
+    const cleanDn = String(dn || '').trim()
+
+    if (!cleanDn) {
+      return 'OU inconnue'
+    }
+
+    const firstOuMatch = cleanDn.match(/^OU=([^,]+)/i)
+    return firstOuMatch ? firstOuMatch[1] : cleanDn
+  }
+
+  function getOuPathLabelFromDn(dn, baseDn = '') {
+    const dnOuParts = splitLdapDn(dn).filter(part => /^OU=/i.test(part))
+    const baseOuParts = splitLdapDn(baseDn).filter(part => /^OU=/i.test(part))
+
+    if (dnOuParts.length === 0) {
+      return getOuLabelFromDn(dn)
+    }
+
+    let labelParts = [...dnOuParts]
+
+    while (
+      labelParts.length > 0
+      && baseOuParts.length > 0
+      && labelParts[labelParts.length - 1].toUpperCase() === baseOuParts[baseOuParts.length - 1].toUpperCase()
+    ) {
+      labelParts.pop()
+      baseOuParts.pop()
+    }
+
+    const names = labelParts
+      .reverse()
+      .map(getOuNameFromRdn)
+      .filter(Boolean)
+
+    if (names.length === 0) {
+      return getOuLabelFromDn(dn)
+    }
+
+    return names.join(' / ')
+  }
+
+  function getFallbackCreateUserOuOptions(baseDn = '') {
+    const fallbackDn = baseDn || getCreateUserSearchBaseDn(getObjectDn(selectedNode))
+
+    if (!fallbackDn) {
+      return []
+    }
+
+    return [{
+      dn: fallbackDn,
+      label: isOuDn(fallbackDn) ? getOuLabelFromDn(fallbackDn) : fallbackDn
+    }]
+  }
+
+  function getCreateUserOuItemsFromJob(job) {
+    const output = job?.output || job?.result || job?.details || job || {}
+
+    if (Array.isArray(output)) return output
+    if (Array.isArray(output.items)) return output.items
+    if (Array.isArray(output.objects)) return output.objects
+    if (Array.isArray(output.ous)) return output.ous
+    if (Array.isArray(output.organizational_units)) return output.organizational_units
+    if (Array.isArray(output.data)) return output.data
+
+    return []
+  }
+
+  function dedupeCreateUserOuOptions(options) {
+    const seen = new Set()
+    const result = []
+
+    for (const option of options) {
+      const dn = String(option?.dn || option?.distinguished_name || option?.distinguishedName || '').trim()
+
+      if (!dn) {
+        continue
+      }
+
+      const key = dn.toUpperCase()
+
+      if (seen.has(key)) {
+        continue
+      }
+
+      seen.add(key)
+
+      result.push({
+        dn,
+        label: option?.label || option?.name || option?.Name || getOuLabelFromDn(dn)
+      })
+    }
+
+    return result
+  }
+
+  function sortCreateUserOuOptions(options) {
+    return [...options].sort((a, b) => {
+      const aUsers = /(^|,)OU=Users,/i.test(a.dn)
+      const bUsers = /(^|,)OU=Users,/i.test(b.dn)
+
+      if (aUsers !== bUsers) {
+        return aUsers ? -1 : 1
+      }
+
+      return String(a.label || '').localeCompare(String(b.label || ''), 'fr', { sensitivity: 'base' })
+    })
+  }
+
+  async function waitForAdExplorerJob(jobId) {
+    for (let index = 0; index < 24; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const job = await apiFetch(`/api/ad-explorer/jobs/${jobId}`)
+
+      if (job?.status === 'completed') {
+        return job
+      }
+
+      if (job?.status === 'failed') {
+        throw new Error(job?.message || 'Job AD Explorer échoué')
+      }
+    }
+
+    throw new Error('Job AD Explorer trop long')
+  }
+
+  async function listOuChildrenForCreateUser(baseDn) {
+    const created = await apiFetch('/api/ad-explorer/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'list_ous',
+        base_dn: baseDn,
+        baseDn,
+        parent_dn: baseDn,
+        created_by: 'react-create-user-ou-loader'
+      })
+    })
+
+    const jobId = created?.job?.id
+
+    if (!jobId) {
+      throw new Error('Job list_ous introuvable')
+    }
+
+    const completedJob = await waitForAdExplorerJob(jobId)
+    return getCreateUserOuItemsFromJob(completedJob)
+  }
+
+  async function loadCreateUserOuOptions(initialDn = '') {
+    const searchBaseDn = getCreateUserSearchBaseDn(
+      initialDn
+      || createUserForm.target_ou_dn
+      || getObjectDn(createUserModal?.target)
+      || getObjectDn(selectedNode)
+    )
+
+    if (!searchBaseDn) {
+      setCreateUserOuOptions([])
+      return
+    }
+
+    setCreateUserOuLoading(true)
+
+    try {
+      const created = await apiFetch('/api/ad-explorer/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'list_ou_tree',
+          base_dn: searchBaseDn,
+          baseDn: searchBaseDn,
+          created_by: 'react-create-user-ou-tree'
+        })
+      })
+
+      const jobId = created?.job?.id
+
+      if (!jobId) {
+        throw new Error('Job list_ou_tree introuvable')
+      }
+
+      const completedJob = await waitForAdExplorerJob(jobId)
+      const items = getCreateUserOuItemsFromJob(completedJob)
+
+      const options = sortCreateUserOuOptions(dedupeCreateUserOuOptions(
+        items
+          .map(item => {
+            const dn = getObjectDn(item)
+
+            return {
+              dn,
+              label: item?.path_label || item?.pathLabel || item?.label || item?.name || item?.Name || getOuLabelFromDn(dn)
+            }
+          })
+          .filter(option => option.dn)
+      ))
+
+      setCreateUserOuOptions(options.length ? options : getFallbackCreateUserOuOptions(searchBaseDn))
+
+      const preferred = options.find(option => /(^| \/ )Users( \/ |$)/i.test(option.label))
+        || options.find(option => /^Users$/i.test(getOuLabelFromDn(option.dn)))
+        || options[0]
+
+      if (preferred) {
+        setCreateUserForm(current => {
+          const currentDn = String(current.target_ou_dn || '').trim()
+          const exists = options.some(option => option.dn.toUpperCase() === currentDn.toUpperCase())
+
+          const currentIsSearchBase = currentDn && currentDn.toUpperCase() === searchBaseDn.toUpperCase()
+
+          if (exists && currentDn && !currentIsSearchBase) {
+            return current
+          }
+
+          return {
+            ...current,
+            target_ou_dn: preferred.dn
+          }
+        })
+      }
+    } catch (error) {
+      console.warn('Impossible de charger l’arbre OU AD', error)
+      setCreateUserOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
+    } finally {
+      setCreateUserOuLoading(false)
+    }
+  }
+
   function openCreateUser(target = selectedNode) {
     const base = target || selectedNode
     const targetDn = getObjectDn(base)
@@ -1447,9 +1722,7 @@ function getAdAttributeValue(item, ...names) {
       return
     }
 
-    const defaultUserOuDn = targetDn.includes('OU=Users,OU=EITAS,DC=API,DC=LOCAL')
-      ? targetDn
-      : 'OU=Users,OU=EITAS,DC=API,DC=LOCAL'
+    const defaultUserOuDn = getCreateUserSearchBaseDn(targetDn) || targetDn
 
     setCreateUserForm({
       first_name: '',
@@ -1463,8 +1736,13 @@ function getAdAttributeValue(item, ...names) {
 
     setCreateUserModal({
       target: base,
-      target_ou_dn: targetDn
+      target_ou_dn: defaultUserOuDn
     })
+
+    setCreateUserOuOptions(getFallbackCreateUserOuOptions())
+    window.setTimeout(() => {
+      loadCreateUserOuOptions(defaultUserOuDn)
+    }, 0)
   }
 
   async function submitCreateUser(event) {
@@ -2776,14 +3054,28 @@ function getAdAttributeValue(item, ...names) {
             <label>
               OU de destination
               <select
+                key={createUserOuOptions.map(option => option.dn).join('|') || 'loading-ou-tree'}
                 value={createUserForm.target_ou_dn}
+                disabled={createUserOuLoading}
                 onChange={event => setCreateUserForm(current => ({ ...current, target_ou_dn: event.target.value }))}
               >
-                <option value="OU=Users,OU=EITAS,DC=API,DC=LOCAL">Users — racine utilisateurs</option>
-                <option value="OU=Comptabilite,OU=Users,OU=EITAS,DC=API,DC=LOCAL">Comptabilité</option>
-                <option value="OU=IT,OU=Users,OU=EITAS,DC=API,DC=LOCAL">IT</option>
-                <option value="OU=RH,OU=Users,OU=EITAS,DC=API,DC=LOCAL">RH</option>
-                <option value="OU=Support,OU=Users,OU=EITAS,DC=API,DC=LOCAL">Support</option>
+                {createUserOuLoading && (
+                  <option value={createUserForm.target_ou_dn}>
+                    Chargement de l’arbre Active Directory...
+                  </option>
+                )}
+
+                {!createUserOuLoading && !dedupeCreateUserOuOptions(createUserOuOptions.length ? createUserOuOptions : getFallbackCreateUserOuOptions()).some(option => option.dn === createUserForm.target_ou_dn) && (
+                  <option value={createUserForm.target_ou_dn}>
+                    {getOuLabelFromDn(createUserForm.target_ou_dn)} — personnalisé
+                  </option>
+                )}
+
+                {!createUserOuLoading && dedupeCreateUserOuOptions(createUserOuOptions.length ? createUserOuOptions : getFallbackCreateUserOuOptions()).map(option => (
+                  <option key={option.dn} value={option.dn}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
 
@@ -2797,7 +3089,9 @@ function getAdAttributeValue(item, ...names) {
             </details>
 
             <p className="aduc-create-user-ou-hint">
-              Choisis l’OU métier où le compte utilisateur sera créé.
+              {createUserOuLoading
+                ? 'Chargement de l’arbre des OU depuis Active Directory...'
+                : `${createUserOuOptions.length} OU détectée${createUserOuOptions.length > 1 ? 's' : ''} dans l’arbre AD.`}
             </p>
 
             <label>

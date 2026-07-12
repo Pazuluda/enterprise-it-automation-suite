@@ -325,6 +325,122 @@ function Invoke-EitasAdExplorerListOus {
     }
 }
 
+function Get-EitasOuParentDn {
+    param([string]$DistinguishedName)
+
+    $Parts = @(([string]$DistinguishedName).Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
+    if ($Parts.Count -le 1) {
+        return ""
+    }
+
+    return ($Parts[1..($Parts.Count - 1)] -join ",")
+}
+
+function Get-EitasOuPathLabel {
+    param(
+        [string]$DistinguishedName
+    )
+
+    $OuParts = @(([string]$DistinguishedName).Split(",") | Where-Object { $_ -match "^OU=" })
+
+    if ($OuParts.Count -eq 0) {
+        return $DistinguishedName
+    }
+
+    $Names = @($OuParts | ForEach-Object { ($_ -replace "^OU=", "").Trim() })
+    [array]::Reverse($Names)
+
+    return ($Names -join " / ")
+}
+
+function Get-EitasOuDepth {
+    param([string]$DistinguishedName)
+
+    return @(([string]$DistinguishedName).Split(",") | Where-Object { $_ -match "^OU=" }).Count - 1
+}
+
+function Convert-EitasAdOuTreeItem {
+    param([object]$Ou)
+
+    return [pscustomobject]@{
+        type = "ou"
+        name = $Ou.Name
+        distinguished_name = $Ou.DistinguishedName
+        dn = $Ou.DistinguishedName
+        parent_dn = Get-EitasOuParentDn -DistinguishedName $Ou.DistinguishedName
+        path_label = Get-EitasOuPathLabel -DistinguishedName $Ou.DistinguishedName
+        depth = Get-EitasOuDepth -DistinguishedName $Ou.DistinguishedName
+        description = $Ou.Description
+    }
+}
+
+function Invoke-EitasAdExplorerListOuTree {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $BaseDn = Get-EitasLookupValue -Object $Payload -Names @("base_dn", "baseDn", "search_base", "searchBase", "target_dn", "targetDn", "dn")
+
+    if ([string]::IsNullOrWhiteSpace($BaseDn)) {
+        $BaseDn = Get-EitasAllowedBaseDn -Config $Config
+    }
+
+    Assert-EitasDnSafe -DistinguishedName $BaseDn -Config $Config -AllowDomainRoot | Out-Null
+
+    $AllOus = @()
+
+    if ($BaseDn -match "^OU=") {
+        try {
+            $BaseOu = Get-ADOrganizationalUnit `
+                -Identity $BaseDn `
+                -Properties Description `
+                -ErrorAction Stop
+
+            $AllOus += $BaseOu
+        }
+        catch {
+            Write-EitasLog -Name "ad-lookup-worker-light.log" -Level "WARN" -Message "OU base non chargee directement : $BaseDn / $($_.Exception.Message)"
+        }
+    }
+
+    $ChildOus = Get-ADOrganizationalUnit `
+        -Filter * `
+        -SearchBase $BaseDn `
+        -SearchScope Subtree `
+        -Properties Description `
+        -ErrorAction Stop
+
+    $AllOus += @($ChildOus)
+
+    $Seen = @{}
+    $Items = @()
+
+    foreach ($Ou in $AllOus) {
+        $Key = ([string]$Ou.DistinguishedName).ToUpperInvariant()
+
+        if (-not $Seen.ContainsKey($Key)) {
+            $Seen[$Key] = $true
+            $Items += Convert-EitasAdOuTreeItem -Ou $Ou
+        }
+    }
+
+    $Items = @($Items | Sort-Object path_label)
+
+    return [pscustomobject]@{
+        action = "list_ou_tree"
+        base_dn = $BaseDn
+        count = @($Items).Count
+        items = @($Items)
+        message = "Arbre des OU chargé"
+    }
+}
+
+
+
 function Invoke-EitasAdExplorerListGroups {
     param(
         [object]$Config,
@@ -495,7 +611,12 @@ function Invoke-EitasAdExplorerJob {
             return Invoke-EitasAdExplorerListOus -Config $Config -Payload $Payload
         }
 
-        "list_groups" {
+        
+        "list_ou_tree" {
+            return Invoke-EitasAdExplorerListOuTree -Config $Config -Payload $Payload
+        }
+
+"list_groups" {
             return Invoke-EitasAdExplorerListGroups -Config $Config -Payload $Payload
         }
 

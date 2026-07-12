@@ -25,6 +25,7 @@ class ADExplorerConflict(ADExplorerError):
 
 ALLOWED_ACTIONS = {
     "list_ous",
+    "list_ou_tree",
     "list_groups",
     "search_users",
     "get_user",
