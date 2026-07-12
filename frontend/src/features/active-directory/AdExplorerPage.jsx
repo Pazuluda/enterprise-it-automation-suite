@@ -596,6 +596,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [testCleanupError, setTestCleanupError] = useState('')
   const [testCleanupDeletingDn, setTestCleanupDeletingDn] = useState('')
   const [testCleanupResults, setTestCleanupResults] = useState({})
+  const [testCleanupBulkRunning, setTestCleanupBulkRunning] = useState(false)
   const [adAdminHistory, setAdAdminHistory] = useState([])
   const [adAdminHistoryLoading, setAdAdminHistoryLoading] = useState(false)
   const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
@@ -2762,6 +2763,53 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  async function runBulkTestCleanup() {
+    if (testCleanupItems.length < 1) {
+      setTestCleanupError('Aucun objet de test à traiter.')
+      return
+    }
+
+    const modeData = await apiFetch('/api/agent/mode')
+    const currentMode = modeData?.mode || adAgentMode || 'Inconnu'
+    const isProduction = String(currentMode).toLowerCase() === 'production'
+
+    setAdAgentMode(currentMode)
+
+    if (isProduction) {
+      const names = testCleanupItems
+        .map(item => `- ${getTestCleanupIdentity(item) || item?.name || getObjectDn(item)}`)
+        .join('\n')
+
+      const ok = window.confirm(
+        `ATTENTION : mode Production AD.\n\nTu vas supprimer ${testCleanupItems.length} objet(s) de test détecté(s).\n\n${names}\n\nLes OU seront vérifiées vides avant suppression.\n\nContinuer ?`
+      )
+
+      if (!ok) {
+        setTestCleanupError('Nettoyage global annulé.')
+        return
+      }
+    }
+
+    setTestCleanupBulkRunning(true)
+    setTestCleanupError('')
+
+    try {
+      const snapshot = [...testCleanupItems]
+
+      for (const item of snapshot) {
+        await deleteTestCleanupObject(item)
+      }
+
+      if (isProduction) {
+        await scanTestCleanupObjects()
+      }
+    } catch (error) {
+      setTestCleanupError(error?.message || 'Nettoyage global interrompu.')
+    } finally {
+      setTestCleanupBulkRunning(false)
+    }
+  }
+
   function openTestCleanupScanner() {
     loadAdAgentMode()
     setTestCleanupModal(true)
@@ -3757,7 +3805,20 @@ function getAdAttributeValue(item, ...names) {
 
             <footer className="aduc-modal-actions">
               <button type="button" onClick={() => setTestCleanupModal(false)}>Fermer</button>
-              <button type="button" onClick={scanTestCleanupObjects} disabled={testCleanupLoading}>
+              {testCleanupItems.length > 0 && (
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={runBulkTestCleanup}
+                  disabled={testCleanupLoading || testCleanupBulkRunning || Boolean(testCleanupDeletingDn)}
+                >
+                  {testCleanupBulkRunning
+                    ? 'Nettoyage...'
+                    : isAdProductionMode() ? 'Tout supprimer' : 'Tout simuler'}
+                </button>
+              )}
+
+              <button type="button" onClick={scanTestCleanupObjects} disabled={testCleanupLoading || testCleanupBulkRunning}>
                 {testCleanupLoading ? 'Scan...' : 'Relancer le scan'}
               </button>
             </footer>
