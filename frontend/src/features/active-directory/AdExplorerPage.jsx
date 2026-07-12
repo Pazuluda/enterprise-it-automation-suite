@@ -1743,7 +1743,7 @@ function getAdAttributeValue(item, ...names) {
     return String(adAgentMode || '').toLowerCase() === 'production'
   }
 
-  function confirmProductionAdAction(actionLabel, targetLabel = '') {
+  async function confirmProductionAdAction(actionLabel, targetLabel = '') {
     if (!isAdProductionMode()) {
       return true
     }
@@ -1751,7 +1751,7 @@ function getAdAttributeValue(item, ...names) {
     const details = targetLabel ? `\n\nCible : ${targetLabel}` : ''
 
     return window.confirm(
-      `ATTENTION : mode Production AD.\n\n${actionLabel} sera exécuté réellement dans Active Directory.${details}\n\nContinuer ?`
+      `ATTENTION : mode Production AD.\n\n${actionLabel} sera exécutée réellement dans Active Directory.${details}\n\nContinuer ?`
     )
   }
 
@@ -1813,7 +1813,7 @@ function getAdAttributeValue(item, ...names) {
       return
     }
 
-    if (!confirmProductionAdAction('La création utilisateur', `${firstName} ${lastName} (${samAccountName}) dans ${targetOuDn}`)) {
+    if (!(await confirmProductionAdAction('La création utilisateur', `${firstName} ${lastName} (${samAccountName}) dans ${targetOuDn}`))) {
       return
     }
 
@@ -2394,7 +2394,7 @@ function getAdAttributeValue(item, ...names) {
       ? 'La création de l’OU'
       : 'La création du groupe'
 
-    if (!confirmProductionAdAction(actionLabel, `${name} dans ${parentDn}`)) {
+    if (!(await confirmProductionAdAction(actionLabel, `${name} dans ${parentDn}`))) {
       return
     }
 
