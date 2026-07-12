@@ -3467,3 +3467,156 @@ button.aduc-admin-history-row.processing > span {
   border-radius: 12px;
   padding: 0 16px;
 }
+
+/* Step 267.1 — New object menu */
+.aduc-new-object-modal {
+  width: min(720px, calc(100vw - 40px));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.aduc-new-object-modal .aduc-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.aduc-new-object-modal .aduc-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.aduc-new-object-modal .aduc-modal-header p {
+  margin: 8px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.aduc-new-object-modal .aduc-modal-header > button {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.aduc-new-object-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.aduc-new-object-grid button {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  min-height: 82px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 14px;
+  cursor: pointer;
+}
+
+.aduc-new-object-grid button:hover:not(:disabled) {
+  border-color: rgba(124, 58, 237, .45);
+  background: rgba(124, 58, 237, .08);
+}
+
+.aduc-new-object-grid button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.aduc-new-object-grid strong {
+  font-size: 15px;
+}
+
+.aduc-new-object-grid span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.aduc-create-user-ou-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -6px;
+  margin-bottom: 8px;
+}
+
+.aduc-create-user-ou-shortcuts button {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aduc-create-user-ou-shortcuts button:hover {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.aduc-create-user-ou-hint {
+  margin: -6px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  border-radius: 14px;
+  background: rgba(99, 102, 241, 0.06);
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.aduc-modal select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+}
+
+.aduc-modal select:focus {
+  border-color: rgba(99, 102, 241, 0.72);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.aduc-create-user-advanced-dn {
+  margin-top: -4px;
+  margin-bottom: 10px;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.aduc-create-user-advanced-dn summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+  user-select: none;
+}
+
+.aduc-create-user-advanced-dn input {
+  margin-top: 10px;
+}

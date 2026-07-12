@@ -27,6 +27,7 @@ class ADAdminConflict(ADAdminError):
 ALLOWED_ACTIONS = {
     "create_ou",
     "create_group",
+    "create_user",
     "add_group_member",
     "remove_group_member",
     "move_object",
@@ -133,6 +134,72 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 "group_scope": group_scope,
                 "group_category": group_category,
             })
+
+    elif action == "create_user":
+        first_name = validate_name(
+            payload.get("first_name")
+            or payload.get("firstName")
+            or payload.get("given_name")
+            or payload.get("givenName"),
+            "first_name"
+        )
+
+        last_name = validate_name(
+            payload.get("last_name")
+            or payload.get("lastName")
+            or payload.get("surname")
+            or payload.get("sn"),
+            "last_name"
+        )
+
+        sam_account_name = validate_name(
+            payload.get("sam_account_name")
+            or payload.get("samAccountName")
+            or payload.get("username")
+            or payload.get("login"),
+            "sam_account_name"
+        )
+
+        target_ou_dn = validate_dn(
+            payload.get("target_ou_dn")
+            or payload.get("targetOuDn")
+            or payload.get("target_parent_dn")
+            or payload.get("targetParentDn")
+            or payload.get("ou_dn")
+            or payload.get("ouDn"),
+            "target_ou_dn"
+        )
+
+        temporary_password = clean_string(
+            payload.get("temporary_password")
+            or payload.get("temporaryPassword")
+            or payload.get("password")
+        )
+
+        description = clean_string(payload.get("description") or "")
+        enabled = bool(payload.get("enabled", True))
+
+        if not temporary_password:
+            raise ADAdminBadRequest("temporary_password est obligatoire")
+
+        job_payload = {
+            "action": action,
+            "first_name": first_name,
+            "last_name": last_name,
+            "sam_account_name": sam_account_name,
+            "target_ou_dn": target_ou_dn,
+            "temporary_password": temporary_password,
+            "description": description,
+            "enabled": enabled,
+        }
+
+        audit_details.update({
+            "target_ou_dn": target_ou_dn,
+            "sam_account_name": sam_account_name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "enabled": enabled,
+        })
 
     elif action == "update_object_properties":
         object_identity = clean_string(

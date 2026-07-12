@@ -533,6 +533,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
   const [viewType, setViewType] = useState('groups')
   const [selectedObject, setSelectedObject] = useState(null)
+  const [newObjectModal, setNewObjectModal] = useState(null)
   const [propertiesModal, setPropertiesModal] = useState(null)
   const [searchOuModal, setSearchOuModal] = useState(null)
   const [searchOuQuery, setSearchOuQuery] = useState('')
@@ -553,6 +554,17 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
   const [adminModal, setAdminModal] = useState(null)
+  const [createUserModal, setCreateUserModal] = useState(null)
+  const [createUserLoading, setCreateUserLoading] = useState(false)
+  const [createUserForm, setCreateUserForm] = useState({
+    first_name: '',
+    last_name: '',
+    sam_account_name: '',
+    temporary_password: 'TempP@ssw0rd!2026',
+    description: '',
+    target_ou_dn: '',
+    enabled: false
+  })
   const [adminForm, setAdminForm] = useState({
     name: '',
     description: '',
@@ -805,6 +817,18 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
   function closeContextMenu() {
     setContextMenu(null)
+  }
+
+  function openNewObjectMenu(target) {
+    const base = target || selectedNode
+
+    if (!getObjectDn(base)) {
+      setStatus('DN introuvable pour créer un nouvel objet.')
+      return
+    }
+
+    setContextMenu(null)
+    setNewObjectModal(base)
   }
 
   function actionSoon(label) {
@@ -1304,6 +1328,215 @@ function getAdAttributeValue(item, ...names) {
 
     setMoveModal(target)
     setMoveTargetDn('')
+  }
+
+  function normalizeCreateUserPart(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.+|\.+$/g, '')
+  }
+
+  function getSuggestedSamAccountName(firstName, lastName) {
+    const first = normalizeCreateUserPart(firstName)
+    const last = normalizeCreateUserPart(lastName)
+
+    if (!first || !last) {
+      return ''
+    }
+
+    return `${first}.${last}`.slice(0, 20)
+  }
+
+  function validateCreateUserForm(form) {
+    const errors = []
+    const firstName = form.first_name.trim()
+    const lastName = form.last_name.trim()
+    const sam = form.sam_account_name.trim()
+    const password = form.temporary_password.trim()
+
+    if (!firstName) errors.push('Le prénom est obligatoire.')
+    if (!lastName) errors.push('Le nom est obligatoire.')
+
+    if (!sam) {
+      errors.push('L’identifiant est obligatoire. Format conseillé : prenom.nom')
+    } else {
+      if (sam.length > 20) {
+        errors.push('L’identifiant AD ne doit pas dépasser 20 caractères.')
+      }
+
+      if (!/^[a-zA-Z0-9._-]+$/.test(sam)) {
+        errors.push('L’identifiant ne doit contenir que lettres, chiffres, point, tiret ou underscore. Pas d’espace, pas d’accent.')
+      }
+
+      const expected = getSuggestedSamAccountName(firstName, lastName)
+
+      if (expected && sam.toLowerCase() !== expected.toLowerCase()) {
+        errors.push(`Format conseillé pour cet utilisateur : ${expected}`)
+      }
+    }
+
+    if (!password) {
+      errors.push('Le mot de passe temporaire est obligatoire.')
+    } else {
+      if (password.length < 12) {
+        errors.push('Le mot de passe doit faire au moins 12 caractères.')
+      }
+
+      if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^a-zA-Z0-9]/.test(password)) {
+        errors.push('Le mot de passe doit contenir minuscule, majuscule, chiffre et caractère spécial.')
+      }
+
+      const lowerPassword = password.toLowerCase()
+      if (
+        firstName && lowerPassword.includes(firstName.toLowerCase())
+        || lastName && lowerPassword.includes(lastName.toLowerCase())
+        || sam && lowerPassword.includes(sam.toLowerCase())
+      ) {
+        errors.push('Le mot de passe ne doit pas contenir le prénom, le nom ou l’identifiant.')
+      }
+    }
+
+    return errors
+  }
+
+  function getCreateUserFriendlyError(message) {
+    const raw = String(message || '')
+    const lower = raw.toLowerCase()
+
+    if (lower.includes('spécifications de longueur') || lower.includes('specifications de longueur') || lower.includes('complexité') || lower.includes('complexite') || lower.includes('historique du domaine')) {
+      return [
+        'Mot de passe refusé par la stratégie du domaine.',
+        '',
+        'Utilise un mot de passe temporaire plus fort :',
+        '- minimum 12 caractères',
+        '- une majuscule',
+        '- une minuscule',
+        '- un chiffre',
+        '- un caractère spécial',
+        '- ne pas reprendre le prénom, le nom ou l’identifiant',
+        '',
+        'Exemple de format : Temp!2026-User'
+      ].join('\n')
+    }
+
+    if (lower.includes('nom déjà utilisé') || lower.includes('nom deja utilise') || lower.includes('already exists') || lower.includes('deja existant') || lower.includes('déjà existant')) {
+      return [
+        'Impossible de créer cet utilisateur : un objet AD existe déjà avec ce nom ou cet identifiant.',
+        '',
+        'Essaie avec un identifiant unique au format prénom.nom.',
+        'Exemple : test.reactou2'
+      ].join('\n')
+    }
+
+    if (lower.includes('ou cible')) {
+      return 'OU cible invalide ou introuvable. Choisis une OU existante dans la liste.'
+    }
+
+    return raw || 'Erreur inconnue pendant la création utilisateur.'
+  }
+
+  function openCreateUser(target = selectedNode) {
+    const base = target || selectedNode
+    const targetDn = getObjectDn(base)
+
+    if (!targetDn) {
+      window.alert('OU cible introuvable.')
+      return
+    }
+
+    const defaultUserOuDn = targetDn.includes('OU=Users,OU=EITAS,DC=API,DC=LOCAL')
+      ? targetDn
+      : 'OU=Users,OU=EITAS,DC=API,DC=LOCAL'
+
+    setCreateUserForm({
+      first_name: '',
+      last_name: '',
+      sam_account_name: '',
+      temporary_password: 'TempP@ssw0rd!2026',
+      description: '',
+      target_ou_dn: defaultUserOuDn,
+      enabled: false
+    })
+
+    setCreateUserModal({
+      target: base,
+      target_ou_dn: targetDn
+    })
+  }
+
+  async function submitCreateUser(event) {
+    event.preventDefault()
+
+    if (!createUserModal) {
+      return
+    }
+
+    const firstName = createUserForm.first_name.trim()
+    const lastName = createUserForm.last_name.trim()
+    const samAccountName = createUserForm.sam_account_name.trim()
+    const temporaryPassword = createUserForm.temporary_password.trim()
+    const targetOuDn = createUserForm.target_ou_dn.trim() || createUserModal.target_ou_dn || getObjectDn(createUserModal.target)
+
+    const validationErrors = validateCreateUserForm(createUserForm)
+
+    if (!targetOuDn) {
+      validationErrors.push('OU cible obligatoire.')
+    }
+
+    if (validationErrors.length > 0) {
+      window.alert(`Création utilisateur impossible :\n\n${validationErrors.join('\n')}`)
+      return
+    }
+
+    setCreateUserLoading(true)
+
+    try {
+      const created = await apiFetch('/api/ad-admin/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'create_user',
+          first_name: firstName,
+          last_name: lastName,
+          sam_account_name: samAccountName,
+          target_ou_dn: targetOuDn,
+          temporary_password: temporaryPassword,
+          description: createUserForm.description.trim(),
+          enabled: Boolean(createUserForm.enabled),
+          created_by: 'react-ad-explorer'
+        })
+      })
+
+      const jobId = created?.job?.id
+
+      if (!jobId) {
+        throw new Error('Job création utilisateur introuvable.')
+      }
+
+      for (let index = 0; index < 30; index += 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const job = await apiFetch(`/api/ad-admin/jobs/${jobId}`)
+
+        if (job?.status === 'completed') {
+          setCreateUserModal(null)
+          window.alert(job?.message || 'Création utilisateur terminée.')
+          return
+        }
+
+        if (job?.status === 'failed') {
+          throw new Error(job?.message || 'Création utilisateur échouée.')
+        }
+      }
+
+      throw new Error('Création utilisateur trop longue, vérifie l’historique des jobs.')
+    } catch (error) {
+      window.alert(getCreateUserFriendlyError(error?.message || 'Erreur pendant la création utilisateur.'))
+    } finally {
+      setCreateUserLoading(false)
+    }
   }
 
   function openCreateOu(target = selectedNode) {
@@ -1808,7 +2041,7 @@ function getAdAttributeValue(item, ...names) {
 
           <main className="aduc-main">
             <section className="aduc-toolbar">
-              <button type="button" onClick={() => actionSoon('Nouveau')}>＋ Nouveau</button>
+              <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
               <button type="button" onClick={() => {
@@ -2052,6 +2285,70 @@ function getAdAttributeValue(item, ...names) {
                 </button>
               </div>
               <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})}</pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {newObjectModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setNewObjectModal(null)
+            }
+          }}
+        >
+          <div
+            className="aduc-new-object-modal"
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+          >
+            <div className="aduc-modal-header">
+              <div>
+                <h3>Nouvel objet AD</h3>
+                <p>{getObjectDn(newObjectModal)}</p>
+              </div>
+              <button type="button" onClick={() => setNewObjectModal(null)}>×</button>
+            </div>
+
+            <div className="aduc-new-object-grid">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = newObjectModal
+                  setNewObjectModal(null)
+                  openCreateOu(target)
+                }}
+              >
+                <strong>📁 Créer une OU</strong>
+                <span>Ajouter une unité d’organisation sous cette OU.</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const target = newObjectModal
+                  setNewObjectModal(null)
+                  openCreateGroup(target)
+                }}
+              >
+                <strong>👥 Créer un groupe</strong>
+                <span>Créer un groupe de sécurité dans cette OU.</span>
+              </button>
+
+              <button
+                type="button"
+                className="aduc-new-object-card"
+                onClick={() => {
+                  const target = newObjectModal
+                  setNewObjectModal(null)
+                  openCreateUser(target)
+                }}
+              >
+                <strong>👤 Créer un utilisateur</strong>
+                <span>Créer un compte utilisateur dans cette OU.</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2432,6 +2729,116 @@ function getAdAttributeValue(item, ...names) {
         </div>
       )}
 
+      {createUserModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setCreateUserModal(null)}>
+          <form
+            className="aduc-modal"
+            onSubmit={submitCreateUser}
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+          >
+            <header className="aduc-modal-header">
+              <div>
+                <strong>👤 Créer un utilisateur</strong>
+                <p>{createUserModal.target_ou_dn}</p>
+              </div>
+              <button type="button" onClick={() => setCreateUserModal(null)}>×</button>
+            </header>
+
+            <label>
+              Prénom
+              <input
+                value={createUserForm.first_name}
+                onChange={event => setCreateUserForm(current => ({ ...current, first_name: event.target.value }))}
+                placeholder="Ex : Liam"
+                autoFocus
+              />
+            </label>
+
+            <label>
+              Nom
+              <input
+                value={createUserForm.last_name}
+                onChange={event => setCreateUserForm(current => ({ ...current, last_name: event.target.value }))}
+                placeholder="Ex : Test"
+              />
+            </label>
+
+            <label>
+              Identifiant
+              <input
+                value={createUserForm.sam_account_name}
+                onChange={event => setCreateUserForm(current => ({ ...current, sam_account_name: event.target.value }))}
+                placeholder="Ex : liam.test"
+              />
+            </label>
+
+            <label>
+              OU de destination
+              <select
+                value={createUserForm.target_ou_dn}
+                onChange={event => setCreateUserForm(current => ({ ...current, target_ou_dn: event.target.value }))}
+              >
+                <option value="OU=Users,OU=EITAS,DC=API,DC=LOCAL">Users — racine utilisateurs</option>
+                <option value="OU=Comptabilite,OU=Users,OU=EITAS,DC=API,DC=LOCAL">Comptabilité</option>
+                <option value="OU=IT,OU=Users,OU=EITAS,DC=API,DC=LOCAL">IT</option>
+                <option value="OU=RH,OU=Users,OU=EITAS,DC=API,DC=LOCAL">RH</option>
+                <option value="OU=Support,OU=Users,OU=EITAS,DC=API,DC=LOCAL">Support</option>
+              </select>
+            </label>
+
+            <details className="aduc-create-user-advanced-dn">
+              <summary>DN personnalisé / avancé</summary>
+              <input
+                value={createUserForm.target_ou_dn}
+                onChange={event => setCreateUserForm(current => ({ ...current, target_ou_dn: event.target.value }))}
+                placeholder="OU=Support,OU=Users,OU=EITAS,DC=API,DC=LOCAL"
+              />
+            </details>
+
+            <p className="aduc-create-user-ou-hint">
+              Choisis l’OU métier où le compte utilisateur sera créé.
+            </p>
+
+            <label>
+              Mot de passe temporaire
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={createUserForm.temporary_password}
+                onChange={event => setCreateUserForm(current => ({ ...current, temporary_password: event.target.value }))}
+              />
+            </label>
+
+            <label>
+              Description
+              <textarea
+                rows={3}
+                value={createUserForm.description}
+                onChange={event => setCreateUserForm(current => ({ ...current, description: event.target.value }))}
+                placeholder="Description optionnelle"
+              />
+            </label>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={createUserForm.enabled}
+                onChange={event => setCreateUserForm(current => ({ ...current, enabled: event.target.checked }))}
+              />
+              {' '}Activer le compte directement
+            </label>
+
+            <footer className="aduc-modal-actions">
+              <button type="button" onClick={() => setCreateUserModal(null)}>Annuler</button>
+              <button type="submit" disabled={createUserLoading}>
+                {createUserLoading ? 'Création...' : 'Créer utilisateur'}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
       {adminModal && (
         <div className="aduc-modal-backdrop" onClick={() => setAdminModal(null)}>
           <form className="aduc-modal" onSubmit={submitAdAdminJob} onClick={event => event.stopPropagation()}>
@@ -2645,7 +3052,7 @@ function getAdAttributeValue(item, ...names) {
 
           <hr />
 
-          <button type="button" onClick={() => actionSoon('Nouveau')}>＋ Nouveau ›</button>
+          <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau ›</button>
           <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
           <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
 

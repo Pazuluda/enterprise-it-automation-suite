@@ -270,6 +270,133 @@ function Invoke-EitasAdAdminCreateGroup {
     }
 }
 
+function Invoke-EitasAdAdminCreateUser {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $FirstName = Get-EitasObjectValue -Object $Payload -Names @("first_name", "firstName", "given_name", "givenName")
+    $LastName = Get-EitasObjectValue -Object $Payload -Names @("last_name", "lastName", "surname", "sn")
+    $SamAccountName = Get-EitasObjectValue -Object $Payload -Names @("sam_account_name", "samAccountName", "username", "login")
+    $TargetOuDn = Get-EitasObjectValue -Object $Payload -Names @("target_ou_dn", "targetOuDn", "target_parent_dn", "targetParentDn", "ou_dn", "ouDn")
+    $TemporaryPassword = Get-EitasObjectValue -Object $Payload -Names @("temporary_password", "temporaryPassword", "password")
+    $Description = Get-EitasObjectValue -Object $Payload -Names @("description", "Description")
+    $EnabledValue = Get-EitasObjectValue -Object $Payload -Names @("enabled", "Enabled")
+
+    if ([string]::IsNullOrWhiteSpace($FirstName)) {
+        throw "Prenom utilisateur manquant"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($LastName)) {
+        throw "Nom utilisateur manquant"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
+        throw "Identifiant utilisateur manquant"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($TargetOuDn)) {
+        throw "OU cible manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($TemporaryPassword)) {
+        throw "Mot de passe temporaire manquant"
+    }
+
+    $FirstName = ([string]$FirstName).Trim()
+    $LastName = ([string]$LastName).Trim()
+    $SamAccountName = ([string]$SamAccountName).Trim()
+    $TargetOuDn = ([string]$TargetOuDn).Trim()
+    $Description = ([string]$Description).Trim()
+
+    $DisplayName = "$FirstName $LastName"
+    $Name = $DisplayName
+
+    $Enabled = $true
+
+    if ($null -ne $EnabledValue) {
+        if ($EnabledValue -is [bool]) {
+            $Enabled = [bool]$EnabledValue
+        } else {
+            $EnabledText = ([string]$EnabledValue).Trim().ToLowerInvariant()
+            $Enabled = @("1", "true", "yes", "oui", "enabled", "active") -contains $EnabledText
+        }
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "create_user"
+            simulated = $true
+            first_name = $FirstName
+            last_name = $LastName
+            display_name = $DisplayName
+            sam_account_name = $SamAccountName
+            target_ou_dn = $TargetOuDn
+            enabled = $Enabled
+            description = $Description
+            message = "Simulation creation utilisateur AD"
+        }
+    }
+
+    Get-ADOrganizationalUnit `
+        -Identity $TargetOuDn `
+        -ErrorAction Stop | Out-Null
+
+    $EscapedSam = $SamAccountName.Replace("'", "''")
+
+    $ExistingUser = Get-ADUser `
+        -Filter "SamAccountName -eq '$EscapedSam'" `
+        -ErrorAction SilentlyContinue
+
+    if ($ExistingUser) {
+        throw "Utilisateur deja existant : $SamAccountName"
+    }
+
+    $SecurePassword = ConvertTo-SecureString `
+        -String ([string]$TemporaryPassword) `
+        -AsPlainText `
+        -Force
+
+    $NewUserParams = @{
+        Name = $Name
+        GivenName = $FirstName
+        Surname = $LastName
+        DisplayName = $DisplayName
+        SamAccountName = $SamAccountName
+        Path = $TargetOuDn
+        AccountPassword = $SecurePassword
+        Enabled = $Enabled
+        ChangePasswordAtLogon = $true
+        ErrorAction = "Stop"
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Description)) {
+        $NewUserParams.Description = $Description
+    }
+
+    New-ADUser @NewUserParams
+
+    $CreatedUser = Get-ADUser `
+        -Identity $SamAccountName `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, mail, title, department, company, telephoneNumber, physicalDeliveryOfficeName, Enabled `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "create_user"
+        simulated = $false
+        user = $CreatedUser.Name
+        sam_account_name = $CreatedUser.SamAccountName
+        distinguished_name = $CreatedUser.DistinguishedName
+        target_ou_dn = $TargetOuDn
+        enabled = $CreatedUser.Enabled
+        created_user = Convert-EitasAdAdminObjectItem -Object $CreatedUser
+        message = "Utilisateur AD cree"
+    }
+}
+
+
 
 function Resolve-EitasAdAdminGroup {
     param(
@@ -997,7 +1124,12 @@ function Invoke-EitasAdAdminJob {
             return Invoke-EitasAdAdminCreateGroup -Config $Config -Payload $Payload -Mode $Mode
         }
 
-        "add_group_member" {
+        
+        "create_user" {
+            return Invoke-EitasAdAdminCreateUser -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+"add_group_member" {
             return Invoke-EitasAdAdminAddGroupMember -Config $Config -Payload $Payload -Mode $Mode
         }
 
