@@ -533,6 +533,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
   const [viewType, setViewType] = useState('groups')
   const [selectedObject, setSelectedObject] = useState(null)
+  const [propertiesModal, setPropertiesModal] = useState(null)
+  const [searchOuModal, setSearchOuModal] = useState(null)
+  const [searchOuQuery, setSearchOuQuery] = useState('')
   const [objectMembers, setObjectMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState('')
@@ -809,10 +812,159 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setMessage?.(`${label} : prochaine étape, création/modification AD sécurisée via job agent.`)
   }
 
+
+  function getPropertiesRows(target) {
+    if (!target) return []
+
+    return [
+      ['Nom', target.name],
+      ['Type', getObjectType(target)],
+      ['SAM', target.sam_account_name || target.samAccountName],
+      ['UPN', target.user_principal_name || target.userPrincipalName],
+      ['Display Name', target.displayName || target.display_name],
+      ['Description', target.description],
+      ['Mail', target.mail || target.email],
+      ['Poste', target.title || target.job_title],
+      ['Département', target.department],
+      ['Société', target.company],
+      ['Téléphone', target.telephoneNumber || target.telephone_number || target.phone],
+      ['Bureau', target.physicalDeliveryOfficeName || target.office],
+      ['DN', getObjectDn(target)],
+      ['Canonical Name', target.canonical_name || target.canonicalName],
+    ].filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+  }
+
+
+  function itemMatchesOuSearch(item, query) {
+    const q = query.toLowerCase()
+
+    return [
+      item?.name,
+      item?.sam_account_name,
+      item?.samAccountName,
+      item?.description,
+      item?.displayName,
+      item?.display_name,
+      item?.mail,
+      item?.email,
+      item?.distinguished_name,
+      item?.dn,
+      item?.canonical_name
+    ]
+      .filter(Boolean)
+      .some(value => String(value).toLowerCase().includes(q))
+  }
+
+  function openSearchOuModal(target) {
+    const base = target || selectedNode
+    const baseDn = getObjectDn(base)
+
+    if (!baseDn) {
+      setStatus('DN introuvable pour cette recherche.')
+      return
+    }
+
+    setContextMenu(null)
+    setSearchOuModal(base)
+    setSearchOuQuery('')
+  }
+
+  async function submitSearchOuModal(event) {
+    event.preventDefault()
+
+    if (!searchOuQuery.trim()) {
+      setStatus('Saisis un texte à rechercher.')
+      return
+    }
+
+    await searchInOuSimple(searchOuModal || selectedNode, searchOuQuery.trim())
+    setSearchOuModal(null)
+    setSearchOuQuery('')
+  }
+
+  async function searchInOuSimple(target, forcedQuery = '') {
+    const base = target || selectedNode
+    const baseDn = getObjectDn(base)
+
+    if (!baseDn) {
+      setStatus('DN introuvable pour cette recherche.')
+      return
+    }
+
+    const query = forcedQuery || window.prompt(`Rechercher dans :\n${baseDn}`)
+
+    if (!query || !query.trim()) {
+      return
+    }
+
+    const search = query.trim()
+
+    setContextMenu(null)
+    setLoading(true)
+
+    try {
+      const jobs = await Promise.allSettled([
+        runJob('list_ous', { baseDn, recursive: true, limit: 500 }),
+        runJob('list_groups', { baseDn, recursive: true, limit: 1000 }),
+        runJob('search_users', { query: search, baseDn, recursive: true, limit: 500 })
+      ])
+
+      const collected = []
+
+      jobs.forEach((result, index) => {
+        if (result.status !== 'fulfilled') return
+
+        const items = extractExplorerItems(result.value)
+
+        if (index === 2) {
+          collected.push(...items)
+        } else {
+          collected.push(...items.filter(item => itemMatchesOuSearch(item, search)))
+        }
+      })
+
+      const seen = new Set()
+      const uniqueResults = collected.filter(item => {
+        const key = getObjectDn(item) || item?.sam_account_name || item?.name
+
+        if (!key) return true
+        if (seen.has(key)) return false
+
+        seen.add(key)
+        return true
+      })
+
+      setSelectedNode({
+        name: `Recherche : ${search}`,
+        type: 'search',
+        distinguished_name: baseDn,
+        dn: baseDn,
+        canonical_name: `Recherche dans ${baseDn}`
+      })
+
+      setViewType('search')
+      setViewItems(uniqueResults)
+      setSelectedObject(null)
+      setObjectMembers([])
+      setMembersError('')
+      setStatus(`${uniqueResults.length} résultat(s) trouvé(s)`)
+    } catch (err) {
+      setStatus(err.message || 'Erreur pendant la recherche AD.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function openProperties(target) {
     setContextMenu(null)
-    await copyText(target.distinguished_name || target.sam_account_name || target.name)
-    setMessage?.('DN / identifiant copié. Propriétés détaillées à venir.')
+
+    if (!target) {
+      setStatus('Aucun objet sélectionné.')
+      return
+    }
+
+    setSelectedObject(target)
+    setPropertiesModal(target)
   }
 
 
@@ -1905,6 +2057,107 @@ function getAdAttributeValue(item, ...names) {
         </div>
       )}
 
+      {searchOuModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setSearchOuModal(null)
+            }
+          }}
+        >
+          <form
+            className="aduc-search-ou-modal"
+            onSubmit={submitSearchOuModal}
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+          >
+            <div className="aduc-modal-header">
+              <div>
+                <h3>Rechercher dans cette OU</h3>
+                <p>{getObjectDn(searchOuModal)}</p>
+              </div>
+              <button type="button" onClick={() => setSearchOuModal(null)}>×</button>
+            </div>
+
+            <label>
+              Recherche
+              <input
+                value={searchOuQuery}
+                onChange={event => setSearchOuQuery(event.target.value)}
+                placeholder="Nom, groupe, utilisateur, description, DN..."
+                autoFocus
+              />
+            </label>
+
+            <div className="aduc-modal-actions">
+              <button type="button" onClick={() => setSearchOuModal(null)}>
+                Annuler
+              </button>
+              <button type="submit" disabled={!searchOuQuery.trim()}>
+                Rechercher
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {propertiesModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setPropertiesModal(null)
+            }
+          }}
+        >
+          <div
+            className="aduc-properties-modal"
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+          >
+            <div className="aduc-modal-header">
+              <div>
+                <h3>Propriétés AD</h3>
+                <p>{getObjectDn(propertiesModal)}</p>
+              </div>
+              <button type="button" onClick={() => setPropertiesModal(null)}>×</button>
+            </div>
+
+            <div className="aduc-properties-summary">
+              <div className="aduc-properties-icon">ⓘ</div>
+              <div>
+                <strong>{propertiesModal.name || propertiesModal.sam_account_name || 'Objet AD'}</strong>
+                <span>{getObjectType(propertiesModal)}</span>
+              </div>
+            </div>
+
+            <div className="aduc-properties-actions">
+              <button type="button" onClick={() => copyText(getObjectDn(propertiesModal)).then(() => setMessage?.('DN copié.'))}>
+                Copier DN
+              </button>
+              <button type="button" onClick={() => copyText(JSON.stringify(propertiesModal, null, 2)).then(() => setMessage?.('JSON copié.'))}>
+                Copier JSON
+              </button>
+            </div>
+
+            <div className="aduc-properties-grid">
+              {getPropertiesRows(propertiesModal).map(([label, value]) => (
+                <div className="aduc-properties-row" key={label}>
+                  <span>{label}</span>
+                  <strong>{String(value)}</strong>
+                </div>
+              ))}
+            </div>
+
+            <details className="aduc-properties-raw">
+              <summary>JSON brut</summary>
+              <pre>{JSON.stringify(propertiesModal, null, 2)}</pre>
+            </details>
+          </div>
+        </div>
+      )}
+
       {updateModal && (
         <div
           className="aduc-modal-backdrop"
@@ -2383,7 +2636,12 @@ function getAdAttributeValue(item, ...names) {
             >
               📁 Déplacer...
             </button>
-          <button type="button" onClick={() => setMessage?.('Recherche dans cette OU à venir.')}>🔎 Rechercher...</button>
+          <button
+            type="button"
+            onClick={() => openSearchOuModal(contextMenu?.target || selectedObject || selectedNode)}
+          >
+            🔎 Rechercher...
+          </button>
 
           <hr />
 
