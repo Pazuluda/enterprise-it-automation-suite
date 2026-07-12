@@ -3630,3 +3630,136 @@ button.aduc-admin-history-row.processing > span {
 .aduc-modal-warning-safe strong {
   color: #14532d;
 }
+
+.aduc-test-cleanup-modal {
+  width: min(780px, calc(100vw - 32px));
+}
+
+.aduc-test-cleanup-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+.aduc-test-cleanup-summary strong {
+  color: #312e81;
+}
+
+.aduc-test-cleanup-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.aduc-test-cleanup-list {
+  display: grid;
+  gap: 10px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.aduc-test-cleanup-item {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.aduc-test-cleanup-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: rgba(99, 102, 241, 0.11);
+}
+
+.aduc-test-cleanup-item strong {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.aduc-test-cleanup-item span {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.aduc-test-cleanup-item code {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.05);
+  color: #334155;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.aduc-test-cleanup-item {
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+}
+
+.aduc-test-cleanup-delete {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.11);
+  color: #991b1b;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aduc-test-cleanup-delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.aduc-test-cleanup-delete:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.aduc-test-cleanup-result {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.aduc-test-cleanup-result.pending {
+  background: rgba(99, 102, 241, 0.10);
+  color: #3730a3;
+}
+
+.aduc-test-cleanup-result.success {
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+}
+
+.aduc-test-cleanup-result.error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #991b1b;
+}
+
+.aduc-test-cleanup-result.muted {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+}

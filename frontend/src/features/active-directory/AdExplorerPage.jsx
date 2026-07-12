@@ -590,6 +590,12 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [moveTargetDn, setMoveTargetDn] = useState('')
   const [globalAdSearch, setGlobalAdSearch] = useState('')
   const [globalAdSearchLoading, setGlobalAdSearchLoading] = useState(false)
+  const [testCleanupModal, setTestCleanupModal] = useState(false)
+  const [testCleanupLoading, setTestCleanupLoading] = useState(false)
+  const [testCleanupItems, setTestCleanupItems] = useState([])
+  const [testCleanupError, setTestCleanupError] = useState('')
+  const [testCleanupDeletingDn, setTestCleanupDeletingDn] = useState('')
+  const [testCleanupResults, setTestCleanupResults] = useState({})
   const [adAdminHistory, setAdAdminHistory] = useState([])
   const [adAdminHistoryLoading, setAdAdminHistoryLoading] = useState(false)
   const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
@@ -2431,6 +2437,251 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  function getTestCleanupIdentity(item) {
+    return String(
+      item?.sam_account_name
+      || item?.samAccountName
+      || item?.name
+      || item?.display_name
+      || item?.displayName
+      || ''
+    ).trim()
+  }
+
+  function getTestCleanupReason(item) {
+    const identity = getTestCleanupIdentity(item)
+    const dn = getObjectDn(item)
+    const combined = `${identity} ${dn}`.toLowerCase()
+
+    if (/^gg_tmp_/i.test(identity)) return 'Groupe temporaire GG_TMP_*'
+    if (/^tmp_/i.test(identity)) return 'Objet temporaire TMP_*'
+    if (/^test_/i.test(identity)) return 'Objet test TEST_*'
+    if (/^test[._-]/i.test(identity)) return 'Identifiant test.*'
+    if (/(^|,)(cn|ou)=tmp_/i.test(dn)) return 'DN temporaire TMP_*'
+    if (/(^|,)(cn|ou)=test_/i.test(dn)) return 'DN test TEST_*'
+    if (combined.includes('tmp_react_dest')) return 'Objet créé pendant les tests React'
+
+    return 'Objet détecté comme test'
+  }
+
+  function isPotentialTestCleanupObject(item) {
+    const identity = getTestCleanupIdentity(item)
+    const dn = getObjectDn(item)
+    const combined = `${identity} ${dn}`
+
+    return (
+      /^gg_tmp_/i.test(identity)
+      || /^tmp_/i.test(identity)
+      || /^test_/i.test(identity)
+      || /^test[._-]/i.test(identity)
+      || /(^|,)(cn|ou)=tmp_/i.test(dn)
+      || /(^|,)(cn|ou)=test_/i.test(dn)
+      || /tmp_react_dest/i.test(combined)
+    )
+  }
+
+  async function runTestCleanupExplorerJob(action, payload = {}) {
+    const created = await apiFetch('/api/ad-explorer/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        action,
+        ...payload,
+        created_by: 'react-test-cleanup-scanner'
+      })
+    })
+
+    const jobId = created?.job?.id
+
+    if (!jobId) {
+      throw new Error(`Job ${action} introuvable`)
+    }
+
+    const completedJob = await waitForAdExplorerJob(jobId)
+    return getCreateUserOuItemsFromJob(completedJob)
+  }
+
+  async function scanTestCleanupObjects() {
+    const selectedDn = getObjectDn(selectedNode)
+    const baseDn = getCreateUserSearchBaseDn(selectedDn || DOMAIN_DN) || selectedDn || DOMAIN_DN
+
+    setTestCleanupLoading(true)
+    setTestCleanupError('')
+    setTestCleanupResults({})
+
+    try {
+      const jobs = await Promise.allSettled([
+        runTestCleanupExplorerJob('list_ou_tree', {
+          base_dn: baseDn,
+          baseDn,
+          limit: 2000
+        }),
+        runTestCleanupExplorerJob('list_groups', {
+          base_dn: baseDn,
+          baseDn,
+          recursive: true,
+          limit: 2000
+        }),
+        runTestCleanupExplorerJob('search_users', {
+          query: 'test',
+          base_dn: baseDn,
+          baseDn,
+          recursive: true,
+          limit: 1000
+        }),
+        runTestCleanupExplorerJob('search_users', {
+          query: 'tmp',
+          base_dn: baseDn,
+          baseDn,
+          recursive: true,
+          limit: 1000
+        })
+      ])
+
+      const rawItems = []
+
+      for (const job of jobs) {
+        if (job.status === 'fulfilled' && Array.isArray(job.value)) {
+          rawItems.push(...job.value)
+        }
+      }
+
+      const seen = new Set()
+      const filtered = rawItems
+        .filter(isPotentialTestCleanupObject)
+        .filter(item => {
+          const key = (getObjectDn(item) || getTestCleanupIdentity(item)).toUpperCase()
+
+          if (!key) return false
+          if (seen.has(key)) return false
+
+          seen.add(key)
+          return true
+        })
+        .map(item => ({
+          ...item,
+          cleanup_reason: getTestCleanupReason(item)
+        }))
+        .sort((a, b) => {
+          const typeA = String(a?.type || a?.objectClass || '').localeCompare(String(b?.type || b?.objectClass || ''), 'fr')
+          if (typeA !== 0) return typeA
+
+          return getTestCleanupIdentity(a).localeCompare(getTestCleanupIdentity(b), 'fr', { sensitivity: 'base' })
+        })
+
+      setTestCleanupItems(filtered)
+      setStatus(`${filtered.length} objet(s) de test détecté(s).`)
+    } catch (error) {
+      setTestCleanupItems([])
+      setTestCleanupError(error?.message || 'Scan des objets de test impossible.')
+    } finally {
+      setTestCleanupLoading(false)
+    }
+  }
+
+  function isTestCleanupOu(item) {
+    const dn = getObjectDn(item)
+    const type = String(item?.type || item?.objectClass || '').toLowerCase()
+
+    return type === 'ou'
+      || type.includes('organizational')
+      || /^OU=/i.test(String(dn || '').trim())
+  }
+
+  async function deleteTestCleanupObject(item) {
+    const dn = getObjectDn(item)
+    const identity = getTestCleanupIdentity(item) || item?.name || 'Objet AD'
+
+    if (!dn) {
+      setTestCleanupError('DN introuvable pour cet objet.')
+      return
+    }
+
+    setTestCleanupDeletingDn(dn)
+    setTestCleanupError('')
+    setTestCleanupResults(current => ({
+      ...current,
+      [dn]: {
+        type: 'pending',
+        message: 'Action en cours...'
+      }
+    }))
+
+    try {
+      const modeData = await apiFetch('/api/agent/mode')
+      const currentMode = modeData?.mode || adAgentMode || 'Inconnu'
+      const isProduction = String(currentMode).toLowerCase() === 'production'
+
+      setAdAgentMode(currentMode)
+
+      if (isProduction) {
+        const isOu = isTestCleanupOu(item)
+
+        const warning = isOu
+          ? `ATTENTION : mode Production AD.\n\nTu vas supprimer une OU réelle :\n${identity}\n\n${dn}\n\nImportant : l’OU doit être vide. Si elle contient des utilisateurs, groupes ou sous-OU, la suppression sera refusée.\n\nContinuer ?`
+          : `ATTENTION : mode Production AD.\n\nSuppression réelle de l’objet :\n${identity}\n\n${dn}\n\nContinuer ?`
+
+        const ok = window.confirm(warning)
+
+        if (!ok) {
+          setTestCleanupResults(current => ({
+            ...current,
+            [dn]: {
+              type: 'muted',
+              message: 'Action annulée.'
+            }
+          }))
+          return
+        }
+      }
+
+      const job = await runAdAdminJob({
+        action: 'delete_object',
+        object_identity: dn,
+        confirm_dn: dn
+      })
+
+      const message = isProduction
+        ? 'Suppression Production OK.'
+        : 'Simulation OK — aucun objet AD réel n’a été supprimé.'
+
+      setStatus(job?.message || message)
+
+      setTestCleanupResults(current => ({
+        ...current,
+        [dn]: {
+          type: 'success',
+          message
+        }
+      }))
+
+      if (isProduction) {
+        setTestCleanupItems(current => current.filter(entry => getObjectDn(entry) !== dn))
+      }
+    } catch (error) {
+      const message = error?.message || `Suppression impossible : ${identity}`
+
+      setTestCleanupResults(current => ({
+        ...current,
+        [dn]: {
+          type: 'error',
+          message
+        }
+      }))
+
+      setTestCleanupError(message)
+    } finally {
+      setTestCleanupDeletingDn('')
+    }
+  }
+
+  function openTestCleanupScanner() {
+    loadAdAgentMode()
+    setTestCleanupModal(true)
+    setTestCleanupItems([])
+    setTestCleanupError('')
+    scanTestCleanupObjects()
+  }
+
   useEffect(() => {
     refreshAll()
     loadAdAdminHistory()
@@ -2533,6 +2784,7 @@ function getAdAttributeValue(item, ...names) {
               setContextMenu(null)
               openDeleteObject(contextMenu?.target || selectedObject || selectedNode)
             }}>🗑 Supprimer</button>
+              <button type="button" onClick={openTestCleanupScanner}>🧹 Nettoyage tests</button>
               <button type="button" onClick={refreshAll}>⟳ Actualiser</button>
             </section>
 
@@ -3348,6 +3600,80 @@ function getAdAttributeValue(item, ...names) {
               </button>
             </footer>
           </form>
+        </div>
+      )}
+
+      {testCleanupModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setTestCleanupModal(false)}>
+          <section className="aduc-modal aduc-test-cleanup-modal" onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Maintenance Active Directory</span>
+                <h3>Nettoyage des objets de test</h3>
+              </div>
+
+              <button type="button" onClick={() => setTestCleanupModal(false)}>×</button>
+            </header>
+
+            <div className="aduc-test-cleanup-summary">
+              <strong>{testCleanupLoading ? 'Scan en cours...' : `${testCleanupItems.length} objet(s) détecté(s)`}</strong>
+              <span>Patterns : TMP_*, TEST_*, GG_TMP_*, test.*</span>
+            </div>
+
+            {testCleanupError && (
+              <div className="aduc-member-submit-error">
+                {testCleanupError}
+              </div>
+            )}
+
+            {!testCleanupLoading && !testCleanupError && testCleanupItems.length === 0 && (
+              <div className="aduc-empty-state">
+                Aucun objet de test détecté dans l’arbre AD courant.
+              </div>
+            )}
+
+            {testCleanupItems.length > 0 && (
+              <div className="aduc-test-cleanup-list">
+                {testCleanupItems.map((item, index) => (
+                  <article key={getObjectDn(item) || `${getTestCleanupIdentity(item)}-${index}`} className="aduc-test-cleanup-item">
+                    <div className="aduc-test-cleanup-icon">{objectIcon(item)}</div>
+
+                    <div>
+                      <strong>{getTestCleanupIdentity(item) || item?.name || 'Objet AD'}</strong>
+                      <span>{item?.type || item?.objectClass || 'objet'} · {item.cleanup_reason}</span>
+                      <code>{getObjectDn(item)}</code>
+
+                      {testCleanupResults[getObjectDn(item)] && (
+                        <em className={`aduc-test-cleanup-result ${testCleanupResults[getObjectDn(item)].type}`}>
+                          {testCleanupResults[getObjectDn(item)].message}
+                        </em>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="aduc-test-cleanup-delete"
+                      disabled={testCleanupDeletingDn === getObjectDn(item)}
+                      onClick={() => deleteTestCleanupObject(item)}
+                    >
+                      {testCleanupDeletingDn === getObjectDn(item)
+                        ? 'Suppression...'
+                        : isAdProductionMode()
+                          ? isTestCleanupOu(item) ? 'Supprimer OU' : 'Supprimer'
+                          : 'Simuler'}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            <footer className="aduc-modal-actions">
+              <button type="button" onClick={() => setTestCleanupModal(false)}>Fermer</button>
+              <button type="button" onClick={scanTestCleanupObjects} disabled={testCleanupLoading}>
+                {testCleanupLoading ? 'Scan...' : 'Relancer le scan'}
+              </button>
+            </footer>
+          </section>
         </div>
       )}
 
