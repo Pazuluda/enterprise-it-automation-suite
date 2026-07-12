@@ -3620,3 +3620,13 @@ button.aduc-admin-history-row.processing > span {
 .aduc-create-user-advanced-dn input {
   margin-top: 10px;
 }
+
+.aduc-modal-warning-safe {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.08);
+  color: #166534;
+}
+
+.aduc-modal-warning-safe strong {
+  color: #14532d;
+}

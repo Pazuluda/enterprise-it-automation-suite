@@ -554,6 +554,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
   const [adminModal, setAdminModal] = useState(null)
+  const [adAgentMode, setAdAgentMode] = useState('Inconnu')
+  const [adAgentModeLoading, setAdAgentModeLoading] = useState(false)
   const [adminOuOptions, setAdminOuOptions] = useState([])
   const [adminOuLoading, setAdminOuLoading] = useState(false)
   const [createUserModal, setCreateUserModal] = useState(null)
@@ -1715,7 +1717,47 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  async function loadAdAgentMode() {
+    setAdAgentModeLoading(true)
+
+    try {
+      const data = await apiFetch('/api/agent/mode')
+      setAdAgentMode(data?.mode || 'Inconnu')
+    } catch (error) {
+      console.warn('Impossible de charger le mode agent', error)
+      setAdAgentMode('Inconnu')
+    } finally {
+      setAdAgentModeLoading(false)
+    }
+  }
+
+  function getAdAgentModeLabel() {
+    if (adAgentModeLoading) {
+      return 'Chargement du mode agent...'
+    }
+
+    return `Mode agent : ${adAgentMode || 'Inconnu'}`
+  }
+
+  function isAdProductionMode() {
+    return String(adAgentMode || '').toLowerCase() === 'production'
+  }
+
+  function confirmProductionAdAction(actionLabel, targetLabel = '') {
+    if (!isAdProductionMode()) {
+      return true
+    }
+
+    const details = targetLabel ? `\n\nCible : ${targetLabel}` : ''
+
+    return window.confirm(
+      `ATTENTION : mode Production AD.\n\n${actionLabel} sera exécuté réellement dans Active Directory.${details}\n\nContinuer ?`
+    )
+  }
+
+
   function openCreateUser(target = selectedNode) {
+    loadAdAgentMode()
     const base = target || selectedNode
     const targetDn = getObjectDn(base)
 
@@ -1768,6 +1810,10 @@ function getAdAttributeValue(item, ...names) {
 
     if (validationErrors.length > 0) {
       window.alert(`Création utilisateur impossible :\n\n${validationErrors.join('\n')}`)
+      return
+    }
+
+    if (!confirmProductionAdAction('La création utilisateur', `${firstName} ${lastName} (${samAccountName}) dans ${targetOuDn}`)) {
       return
     }
 
@@ -1839,6 +1885,31 @@ function getAdAttributeValue(item, ...names) {
     return parts.slice(1).join(',')
   }
 
+  function getPreferredOuForAction(options, action, currentDn = '') {
+    const safeOptions = Array.isArray(options) ? options : []
+    const wantedDn = String(currentDn || '').trim()
+
+    const exactCurrent = safeOptions.find(option =>
+      String(option.dn || '').toUpperCase() === wantedDn.toUpperCase()
+    )
+
+    if (action === 'create_group') {
+      return safeOptions.find(option => /(^| \/ )Groups( \/ |$)/i.test(option.label))
+        || safeOptions.find(option => /(^|,)OU=Groups,/i.test(option.dn))
+        || exactCurrent
+        || safeOptions[0]
+    }
+
+    if (action === 'create_user') {
+      return safeOptions.find(option => /(^| \/ )Users( \/ |$)/i.test(option.label))
+        || safeOptions.find(option => /(^|,)OU=Users,/i.test(option.dn))
+        || exactCurrent
+        || safeOptions[0]
+    }
+
+    return exactCurrent || safeOptions[0]
+  }
+
   async function loadAdminOuOptions(parentDn = '') {
     const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
 
@@ -1894,8 +1965,7 @@ function getAdAttributeValue(item, ...names) {
           return current
         }
 
-        const preferred = finalOptions.find(option => option.dn.toUpperCase() === String(parentDn || '').toUpperCase())
-          || finalOptions[0]
+        const preferred = getPreferredOuForAction(finalOptions, adminModal?.action, parentDn)
 
         return {
           ...current,
@@ -1911,6 +1981,7 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openCreateOu(target = selectedNode) {
+    loadAdAgentMode()
     const parentDn = getCreateAdminParentDn(target)
 
     if (!parentDn) {
@@ -1941,6 +2012,7 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openCreateGroup(target = selectedNode) {
+    loadAdAgentMode()
     const parentDn = getCreateAdminParentDn(target)
 
     if (!parentDn) {
@@ -2315,6 +2387,14 @@ function getAdAttributeValue(item, ...names) {
 
     if (!parentDn) {
       setMessage?.('Emplacement de création obligatoire.')
+      return
+    }
+
+    const actionLabel = adminModal.action === 'create_ou'
+      ? 'La création de l’OU'
+      : 'La création du groupe'
+
+    if (!confirmProductionAdAction(actionLabel, `${name} dans ${parentDn}`)) {
       return
     }
 
@@ -3246,10 +3326,25 @@ function getAdAttributeValue(item, ...names) {
               {' '}Activer le compte directement
             </label>
 
+            <div className={isAdProductionMode() ? "aduc-modal-warning" : "aduc-modal-warning aduc-modal-warning-safe"}>
+              <strong>{getAdAgentModeLabel()}</strong>
+              <span>
+                {isAdProductionMode()
+                  ? "Cette création utilisateur modifiera réellement Active Directory."
+                  : "Cette création utilisateur sera simulée, aucun compte AD réel ne sera créé."}
+              </span>
+            </div>
+
             <footer className="aduc-modal-actions">
               <button type="button" onClick={() => setCreateUserModal(null)}>Annuler</button>
-              <button type="submit" disabled={createUserLoading}>
-                {createUserLoading ? 'Création...' : 'Créer utilisateur'}
+              <button type="submit" disabled={createUserLoading || createUserOuLoading || adAgentModeLoading}>
+                {createUserLoading
+                  ? 'Création...'
+                  : createUserOuLoading
+                    ? 'Chargement des OU...'
+                    : adAgentModeLoading
+                      ? 'Vérification mode...'
+                      : 'Créer utilisateur'}
               </button>
             </footer>
           </form>
@@ -3372,15 +3467,25 @@ function getAdAttributeValue(item, ...names) {
               />
             </label>
 
-            <div className="aduc-modal-warning">
-              <strong>Production AD</strong>
-              <span>Cette action sera exécutée par l’agent Windows sur SRV-DC01.</span>
+            <div className={isAdProductionMode() ? "aduc-modal-warning" : "aduc-modal-warning aduc-modal-warning-safe"}>
+              <strong>{getAdAgentModeLabel()}</strong>
+              <span>
+                {isAdProductionMode()
+                  ? "Cette action modifiera réellement Active Directory via l’agent Windows."
+                  : "Cette action sera simulée, aucun objet AD réel ne sera créé ou modifié."}
+              </span>
             </div>
 
             <footer>
               <button type="button" onClick={() => setAdminModal(null)}>Annuler</button>
-              <button type="submit" disabled={adminLoading}>
-                {adminLoading ? 'Création...' : adminModal.action === 'create_ou' ? 'Créer l’OU' : 'Créer le groupe'}
+              <button type="submit" disabled={adminLoading || adminOuLoading || adAgentModeLoading}>
+                {adminLoading
+                  ? 'Création...'
+                  : adminOuLoading
+                    ? 'Chargement des OU...'
+                    : adAgentModeLoading
+                      ? 'Vérification mode...'
+                      : adminModal.action === 'create_ou' ? 'Créer l’OU' : 'Créer le groupe'}
               </button>
             </footer>
           </form>
