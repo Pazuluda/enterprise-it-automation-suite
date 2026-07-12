@@ -554,6 +554,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
   const [adminModal, setAdminModal] = useState(null)
+  const [adminOuOptions, setAdminOuOptions] = useState([])
+  const [adminOuLoading, setAdminOuLoading] = useState(false)
   const [createUserModal, setCreateUserModal] = useState(null)
   const [createUserLoading, setCreateUserLoading] = useState(false)
   const [createUserOuOptions, setCreateUserOuOptions] = useState([])
@@ -1817,8 +1819,106 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  function getCreateAdminParentDn(target = selectedNode) {
+    const targetDn = getObjectDn(target)
+
+    if (!targetDn) {
+      return ''
+    }
+
+    const parts = splitLdapDn(targetDn)
+
+    if (parts.length === 0) {
+      return ''
+    }
+
+    if (/^OU=/i.test(parts[0])) {
+      return targetDn
+    }
+
+    return parts.slice(1).join(',')
+  }
+
+  async function loadAdminOuOptions(parentDn = '') {
+    const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
+
+    if (!searchBaseDn) {
+      setAdminOuOptions([])
+      return
+    }
+
+    setAdminOuLoading(true)
+
+    try {
+      const created = await apiFetch('/api/ad-explorer/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'list_ou_tree',
+          base_dn: searchBaseDn,
+          baseDn: searchBaseDn,
+          created_by: 'react-admin-create-ou-tree'
+        })
+      })
+
+      const jobId = created?.job?.id
+
+      if (!jobId) {
+        throw new Error('Job list_ou_tree introuvable')
+      }
+
+      const completedJob = await waitForAdExplorerJob(jobId)
+      const items = getCreateUserOuItemsFromJob(completedJob)
+
+      const options = sortCreateUserOuOptions(dedupeCreateUserOuOptions(
+        items
+          .map(item => {
+            const dn = getObjectDn(item)
+
+            return {
+              dn,
+              label: item?.path_label || item?.pathLabel || item?.label || item?.name || item?.Name || getOuLabelFromDn(dn)
+            }
+          })
+          .filter(option => option.dn)
+      ))
+
+      const finalOptions = options.length ? options : getFallbackCreateUserOuOptions(searchBaseDn)
+
+      setAdminOuOptions(finalOptions)
+
+      setAdminForm(current => {
+        const currentDn = String(current.parent_dn || '').trim()
+        const exists = finalOptions.some(option => option.dn.toUpperCase() === currentDn.toUpperCase())
+
+        if (exists && currentDn) {
+          return current
+        }
+
+        const preferred = finalOptions.find(option => option.dn.toUpperCase() === String(parentDn || '').toUpperCase())
+          || finalOptions[0]
+
+        return {
+          ...current,
+          parent_dn: preferred?.dn || parentDn
+        }
+      })
+    } catch (error) {
+      console.warn('Impossible de charger l’arbre OU AD pour création OU/groupe', error)
+      setAdminOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
+    } finally {
+      setAdminOuLoading(false)
+    }
+  }
+
   function openCreateOu(target = selectedNode) {
-    const parentDn = target?.distinguished_name || selectedNode?.distinguished_name || USERS_DN
+    const parentDn = getCreateAdminParentDn(target)
+
+    if (!parentDn) {
+      setMessage?.('Sélectionne une OU de destination avant de créer une OU.')
+      return
+    }
+
+    const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
 
     setContextMenu(null)
     setAdminForm({
@@ -1826,17 +1926,29 @@ function getAdAttributeValue(item, ...names) {
       description: '',
       sam_account_name: '',
       group_scope: 'Global',
-      group_category: 'Security'
+      group_category: 'Security',
+      parent_dn: parentDn
     })
     setAdminModal({
       action: 'create_ou',
       title: 'Créer une OU',
-      parent_dn: parentDn
+      parent_dn: parentDn,
+      search_base_dn: searchBaseDn
     })
+
+    setAdminOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
+    window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
   }
 
   function openCreateGroup(target = selectedNode) {
-    const parentDn = target?.distinguished_name || selectedNode?.distinguished_name || GROUPS_DN
+    const parentDn = getCreateAdminParentDn(target)
+
+    if (!parentDn) {
+      setMessage?.('Sélectionne une OU de destination avant de créer un groupe.')
+      return
+    }
+
+    const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
 
     setContextMenu(null)
     setAdminForm({
@@ -1844,13 +1956,18 @@ function getAdAttributeValue(item, ...names) {
       description: '',
       sam_account_name: '',
       group_scope: 'Global',
-      group_category: 'Security'
+      group_category: 'Security',
+      parent_dn: parentDn
     })
     setAdminModal({
       action: 'create_group',
       title: 'Créer un groupe',
-      parent_dn: parentDn
+      parent_dn: parentDn,
+      search_base_dn: searchBaseDn
     })
+
+    setAdminOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
+    window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
   }
 
   async function runAdAdminJob(payload) {
@@ -2189,9 +2306,15 @@ function getAdAttributeValue(item, ...names) {
     const name = adminForm.name.trim()
     const description = adminForm.description.trim()
     const sam = adminForm.sam_account_name.trim() || name
+    const parentDn = String(adminForm.parent_dn || adminModal.parent_dn || '').trim()
 
     if (!name) {
       setMessage?.('Nom obligatoire.')
+      return
+    }
+
+    if (!parentDn) {
+      setMessage?.('Emplacement de création obligatoire.')
       return
     }
 
@@ -2200,7 +2323,7 @@ function getAdAttributeValue(item, ...names) {
     try {
       const payload = {
         action: adminModal.action,
-        parent_dn: adminModal.parent_dn,
+        parent_dn: parentDn,
         name,
         description,
         created_by: 'react-admin'
@@ -3146,9 +3269,47 @@ function getAdAttributeValue(item, ...names) {
             </header>
 
             <label>
-              Emplacement cible
-              <input value={adminModal.parent_dn} readOnly />
+              Emplacement de création
+              <select
+                key={adminOuOptions.map(option => option.dn).join('|') || 'admin-ou-loading'}
+                value={adminForm.parent_dn || adminModal.parent_dn}
+                disabled={adminOuLoading}
+                onChange={event => setAdminForm(current => ({ ...current, parent_dn: event.target.value }))}
+              >
+                {adminOuLoading && (
+                  <option value={adminForm.parent_dn || adminModal.parent_dn}>
+                    Chargement de l’arbre Active Directory...
+                  </option>
+                )}
+
+                {!adminOuLoading && !adminOuOptions.some(option => option.dn === (adminForm.parent_dn || adminModal.parent_dn)) && (
+                  <option value={adminForm.parent_dn || adminModal.parent_dn}>
+                    {getOuLabelFromDn(adminForm.parent_dn || adminModal.parent_dn)} — personnalisé
+                  </option>
+                )}
+
+                {!adminOuLoading && adminOuOptions.map(option => (
+                  <option key={option.dn} value={option.dn}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
+
+            <details className="aduc-create-user-advanced-dn">
+              <summary>DN personnalisé / avancé</summary>
+              <input
+                value={adminForm.parent_dn || ''}
+                onChange={event => setAdminForm(current => ({ ...current, parent_dn: event.target.value }))}
+                placeholder="OU=Groups,OU=EITAS,DC=API,DC=LOCAL"
+              />
+            </details>
+
+            <p className="aduc-create-user-ou-hint">
+              {adminOuLoading
+                ? 'Chargement de l’arbre des OU depuis Active Directory...'
+                : `${adminOuOptions.length} OU détectée${adminOuOptions.length > 1 ? 's' : ''} dans l’arbre AD.`}
+            </p>
 
             <label>
               Nom
