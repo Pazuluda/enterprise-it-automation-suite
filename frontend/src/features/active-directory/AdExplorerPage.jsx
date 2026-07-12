@@ -284,7 +284,10 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   const filteredHistory = history.filter(job => {
     if (historyFilter === 'all') return true
     if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
-    if (historyFilter === 'create') return ['create_ou', 'create_group'].includes(job.action)
+    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
+    if (historyFilter === 'delete') return job.action === 'delete_object'
+    if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
+    if (historyFilter === 'move') return job.action === 'move_object'
     if (historyFilter === 'failed') return job.status === 'failed' || job.success === false
     return true
   })
@@ -420,6 +423,9 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                 ['all', 'Tout'],
                 ['members', 'Membres'],
                 ['create', 'Créations'],
+                ['delete', 'Suppressions'],
+                ['edit', 'Modifs'],
+                ['move', 'Déplacements'],
                 ['failed', 'Échecs']
               ].map(([value, label]) => (
                 <button
@@ -753,12 +759,23 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     }
   }
 
+  async function refreshAdAdminHistoryQuietly() {
+    try {
+      const data = await apiFetch('/api/ad-admin/jobs?limit=20')
+      setAdAdminHistory(Array.isArray(data.jobs) ? data.jobs : [])
+      setAdAdminHistoryError('')
+    } catch {
+      // Historique non bloquant.
+    }
+  }
+
   async function refreshAll() {
     setLoading(true)
 
     try {
       await loadTree()
       await loadNodeContent(selectedNode, viewType)
+      await refreshAdAdminHistoryQuietly()
     } catch (err) {
       setStatus(err.message || 'Erreur Active Directory')
       setMessage?.(err.message || 'Erreur Active Directory')
@@ -2059,6 +2076,7 @@ function getAdAttributeValue(item, ...names) {
     })
 
     const job = await pollAdAdminJob(created.job.id)
+    await refreshAdAdminHistoryQuietly()
 
     if (!job.success) {
       throw new Error(job.message || 'Action AD Admin en erreur.')
@@ -2084,6 +2102,7 @@ function getAdAttributeValue(item, ...names) {
   async function waitForAdAdminJobInBackground(jobId) {
     try {
       const finalJob = await pollAdAdminJob(jobId)
+      await refreshAdAdminHistoryQuietly()
 
       if (!finalJob.success) {
         setMessage?.(finalJob.message || finalJob.output || 'Création AD en erreur.')
