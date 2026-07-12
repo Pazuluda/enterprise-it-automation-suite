@@ -1,4 +1,5 @@
 from __future__ import annotations
+from fastapi import HTTPException
 
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,8 @@ ALLOWED_ACTIONS = {
     "remove_group_member",
     "move_object",
     "rename_object",
+    "delete_object",
+    "update_object_properties",
 }
 
 
@@ -130,6 +133,93 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 "group_scope": group_scope,
                 "group_category": group_category,
             })
+
+    elif action == "update_object_properties":
+        object_identity = clean_string(
+            payload.get("object_identity")
+            or payload.get("object_dn")
+            or payload.get("distinguished_name")
+            or payload.get("dn")
+            or payload.get("sam_account_name")
+            or payload.get("name")
+        )
+
+        raw_properties = payload.get("properties") or {}
+
+        if not isinstance(raw_properties, dict):
+            raise HTTPException(status_code=400, detail="properties doit être un objet JSON")
+
+        allowed_properties = {
+            "description",
+            "displayName",
+            "display_name",
+            "mail",
+            "title",
+            "department",
+            "company",
+            "telephoneNumber",
+            "telephone_number",
+            "office",
+            "physicalDeliveryOfficeName",
+        }
+
+        normalized_properties = {}
+
+        property_aliases = {
+            "display_name": "displayName",
+            "telephone_number": "telephoneNumber",
+            "office": "physicalDeliveryOfficeName",
+        }
+
+        for key, value in raw_properties.items():
+            if key not in allowed_properties:
+                raise HTTPException(status_code=400, detail=f"Attribut non autorisé : {key}")
+
+            normalized_key = property_aliases.get(key, key)
+
+            if value is None:
+                normalized_properties[normalized_key] = None
+            else:
+                normalized_properties[normalized_key] = clean_string(str(value))
+
+        if not object_identity:
+            raise HTTPException(status_code=400, detail="object_identity est obligatoire")
+
+        if not normalized_properties:
+            raise HTTPException(status_code=400, detail="Aucune propriété à modifier")
+
+        job_payload = {
+            "action": action,
+            "object_identity": object_identity,
+            "properties": normalized_properties,
+        }
+
+    elif action == "delete_object":
+        object_identity = clean_string(
+            payload.get("object_identity")
+            or payload.get("object_dn")
+            or payload.get("distinguished_name")
+            or payload.get("dn")
+            or payload.get("sam_account_name")
+            or payload.get("name")
+        )
+
+        confirm_dn = validate_dn(
+            payload.get("confirm_dn")
+            or payload.get("confirmDn")
+            or payload.get("confirmation_dn")
+            or payload.get("confirmationDn"),
+            "confirm_dn"
+        )
+
+        if not object_identity:
+            raise ValueError("object_identity est obligatoire")
+
+        job_payload = {
+            "action": action,
+            "object_identity": object_identity,
+            "confirm_dn": confirm_dn,
+        }
 
     elif action == "rename_object":
         object_identity = clean_string(

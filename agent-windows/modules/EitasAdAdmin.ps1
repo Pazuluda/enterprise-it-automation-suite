@@ -1,4 +1,4 @@
-function Get-EitasObjectValue {
+﻿function Get-EitasObjectValue {
     param(
         [object]$Object,
         [string[]]$Names
@@ -533,6 +533,235 @@ function Resolve-EitasAdAdminObject {
 }
 
 
+
+
+
+function Repair-EitasTextEncoding {
+    param(
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $Text = [string]$Value
+
+    # Corrige les textes UTF-8 lus comme Windows-1252 :
+    # exemple : modifiÃ©e -> modifiée
+    if ($Text.IndexOf([char]0x00C3) -ge 0 -or $Text.IndexOf([char]0x00C2) -ge 0) {
+        try {
+            $Bytes = [System.Text.Encoding]::GetEncoding(1252).GetBytes($Text)
+            return [System.Text.Encoding]::UTF8.GetString($Bytes)
+        } catch {
+            return $Text
+        }
+    }
+
+    return $Text
+}
+
+
+function Invoke-EitasAdAdminUpdateObjectProperties {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $ObjectIdentity = Get-EitasObjectValue -Object $Payload -Names @(
+        "object_identity",
+        "objectIdentity",
+        "object_dn",
+        "objectDn",
+        "distinguished_name",
+        "distinguishedName",
+        "dn",
+        "sam_account_name",
+        "samAccountName",
+        "name"
+    )
+
+    $PropertiesObject = Get-EitasObjectValue -Object $Payload -Names @(
+        "properties",
+        "Properties"
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectIdentity)) {
+        throw "Identité objet AD manquante"
+    }
+
+    if ($null -eq $PropertiesObject) {
+        throw "Propriétés à modifier manquantes"
+    }
+
+    $AllowedProperties = @(
+        "description",
+        "displayName",
+        "mail",
+        "title",
+        "department",
+        "company",
+        "telephoneNumber",
+        "physicalDeliveryOfficeName"
+    )
+
+    $Properties = @{}
+
+    if ($PropertiesObject -is [System.Collections.IDictionary]) {
+        foreach ($Key in $PropertiesObject.Keys) {
+            $Properties[[string]$Key] = $PropertiesObject[$Key]
+        }
+    } else {
+        foreach ($Property in $PropertiesObject.PSObject.Properties) {
+            $Properties[[string]$Property.Name] = $Property.Value
+        }
+    }
+
+    if ($Properties.Count -lt 1) {
+        throw "Aucune propriété à modifier"
+    }
+
+    foreach ($Key in $Properties.Keys) {
+        if ($AllowedProperties -notcontains $Key) {
+            throw "Attribut non autorisé côté agent : $Key"
+        }
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "update_object_properties"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            properties = $Properties
+            message = "Simulation modification propriétés objet AD"
+        }
+    }
+
+    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
+    $ObjectDn = ([string]$Object.DistinguishedName).Trim()
+
+    $Replace = @{}
+    $Clear = @()
+
+    foreach ($Key in $Properties.Keys) {
+        $Value = Repair-EitasTextEncoding -Value $Properties[$Key]
+
+        if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+            $Clear += $Key
+        } else {
+            $Replace[$Key] = [string]$Value
+        }
+    }
+
+    if ($Replace.Count -gt 0) {
+        Set-ADObject `
+            -Identity $ObjectDn `
+            -Replace $Replace `
+            -ErrorAction Stop
+    }
+
+    if ($Clear.Count -gt 0) {
+        Set-ADObject `
+            -Identity $ObjectDn `
+            -Clear $Clear `
+            -ErrorAction Stop
+    }
+
+    $UpdatedObject = Get-ADObject `
+        -Identity $ObjectDn `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, mail, title, department, company, telephoneNumber, physicalDeliveryOfficeName `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "update_object_properties"
+        simulated = $false
+        object = $Object.Name
+        object_type = $Object.ObjectClass
+        object_dn = $ObjectDn
+        replaced = $Replace
+        cleared = $Clear
+        updated_object = Convert-EitasAdAdminObjectItem -Object $UpdatedObject
+        message = "Propriétés objet AD modifiées"
+    }
+}
+
+
+function Invoke-EitasAdAdminDeleteObject {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $ObjectIdentity = Get-EitasObjectValue -Object $Payload -Names @(
+        "object_identity",
+        "objectIdentity",
+        "object_dn",
+        "objectDn",
+        "distinguished_name",
+        "distinguishedName",
+        "dn",
+        "sam_account_name",
+        "samAccountName",
+        "name"
+    )
+
+    $ConfirmDn = Get-EitasObjectValue -Object $Payload -Names @(
+        "confirm_dn",
+        "confirmDn",
+        "confirmation_dn",
+        "confirmationDn"
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectIdentity)) {
+        throw "Identité objet AD manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ConfirmDn)) {
+        throw "DN de confirmation manquant"
+    }
+
+    $ConfirmDn = ([string]$ConfirmDn).Trim()
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "delete_object"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            confirm_dn = $ConfirmDn
+            message = "Simulation suppression objet AD"
+        }
+    }
+
+    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
+
+    $ObjectDn = ([string]$Object.DistinguishedName).Trim()
+
+    if ($ObjectDn -ine $ConfirmDn) {
+        throw "Confirmation DN invalide. DN réel : $ObjectDn"
+    }
+
+    $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
+
+    Remove-ADObject `
+        -Identity $ObjectDn `
+        -Confirm:$false `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "delete_object"
+        simulated = $false
+        object = $Object.Name
+        object_type = $Object.ObjectClass
+        object_dn = $ObjectDn
+        confirm_dn = $ConfirmDn
+        deleted_object = $DeletedObject
+        message = "Objet AD supprimé"
+    }
+}
+
+
 function Invoke-EitasAdAdminRenameObject {
     param(
         [object]$Config,
@@ -782,6 +1011,14 @@ function Invoke-EitasAdAdminJob {
 
         "rename_object" {
             return Invoke-EitasAdAdminRenameObject -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "delete_object" {
+            return Invoke-EitasAdAdminDeleteObject -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "update_object_properties" {
+            return Invoke-EitasAdAdminUpdateObjectProperties -Config $Config -Payload $Payload -Mode $Mode
         }
 
         default {

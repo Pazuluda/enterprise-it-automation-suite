@@ -192,7 +192,9 @@ function formatAdHistoryAction(action) {
     add_group_member: 'Ajout membre',
     remove_group_member: 'Retrait membre',
     move_object: 'Déplacement objet',
-    rename_object: 'Renommage objet'
+    rename_object: 'Renommage objet',
+    delete_object: 'Suppression objet',
+    update_object_properties: 'Modification propriétés'
   }[action] || action || 'Action AD'
 }
 
@@ -558,6 +560,11 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [adminLoading, setAdminLoading] = useState(false)
   const [moveModal, setMoveModal] = useState(null)
   const [renameModal, setRenameModal] = useState(null)
+  const [deleteModal, setDeleteModal] = useState(null)
+  const [updateModal, setUpdateModal] = useState(null)
+  const [updateForm, setUpdateForm] = useState({ description: '' })
+  const [updateOriginalForm, setUpdateOriginalForm] = useState({ description: '' })
+  const [deleteConfirmDn, setDeleteConfirmDn] = useState('')
   const [renameNewName, setRenameNewName] = useState('')
   const [moveTargetDn, setMoveTargetDn] = useState('')
   const [globalAdSearch, setGlobalAdSearch] = useState('')
@@ -890,6 +897,178 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setStatus(err.message || 'Recherche globale AD impossible.')
     } finally {
       setGlobalAdSearchLoading(false)
+    }
+  }
+
+  
+
+function getAdAttributeValue(item, ...names) {
+    for (const name of names) {
+      const value = item?.[name]
+
+      if (value !== undefined && value !== null) {
+        return String(value)
+      }
+    }
+
+    return ''
+  }
+
+  function openUpdateObject(target) {
+    if (!target) {
+      setStatus('Aucun objet sélectionné pour la modification.')
+      return
+    }
+
+    const dn = getObjectDn(target)
+
+    if (!dn) {
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    const form = {
+      description: getAdAttributeValue(target, 'description'),
+      displayName: getAdAttributeValue(target, 'displayName', 'display_name', 'display_name_value'),
+      mail: getAdAttributeValue(target, 'mail', 'email'),
+      title: getAdAttributeValue(target, 'title', 'job_title'),
+      department: getAdAttributeValue(target, 'department'),
+      company: getAdAttributeValue(target, 'company'),
+      telephoneNumber: getAdAttributeValue(target, 'telephoneNumber', 'telephone_number', 'phone'),
+      physicalDeliveryOfficeName: getAdAttributeValue(target, 'physicalDeliveryOfficeName', 'office')
+    }
+
+    setContextMenu(null)
+    setUpdateModal(target)
+    setUpdateForm(form)
+    setUpdateOriginalForm(form)
+  }
+
+  function updateObjectFormField(name, value) {
+    setUpdateForm(previous => ({
+      ...previous,
+      [name]: value
+    }))
+  }
+
+  async function submitUpdateObject(event) {
+    event.preventDefault()
+
+    if (!updateModal) return
+
+    const objectDn = getObjectDn(updateModal)
+
+    if (!objectDn) {
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    const properties = {}
+
+    Object.entries(updateForm).forEach(([key, value]) => {
+      const currentValue = value || ''
+      const originalValue = updateOriginalForm?.[key] || ''
+
+      if (currentValue !== originalValue) {
+        properties[key] = currentValue
+      }
+    })
+
+    if (Object.keys(properties).length === 0) {
+      setStatus('Aucune modification à enregistrer.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const job = await runAdAdminJob({
+        action: 'update_object_properties',
+        object_identity: objectDn,
+        properties,
+        created_by: 'react-admin'
+      })
+
+      const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Propriétés objet AD modifiées')
+      setStatus(message)
+      setUpdateModal(null)
+
+      await loadTree()
+
+      if (selectedNode) {
+        await loadNodeContent(selectedNode, viewType)
+      }
+
+      await loadAdAdminHistory()
+    } catch (err) {
+      setStatus(err.message || 'Erreur pendant la modification AD.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function openDeleteObject(target) {
+    if (!target) {
+      setStatus('Aucun objet sélectionné pour la suppression.')
+      return
+    }
+
+    const dn = getObjectDn(target)
+
+    if (!dn) {
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    setContextMenu(null)
+    setDeleteModal(target)
+    setDeleteConfirmDn(dn)
+  }
+
+  async function submitDeleteObject(event) {
+    event.preventDefault()
+
+    if (!deleteModal) return
+
+    const objectDn = getObjectDn(deleteModal)
+    const confirmDn = deleteConfirmDn.trim()
+
+    if (!objectDn) {
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    if (confirmDn !== objectDn) {
+      setStatus('Confirmation DN incorrecte. Suppression annulée.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const job = await runAdAdminJob({
+        action: 'delete_object',
+        object_identity: objectDn,
+        confirm_dn: confirmDn,
+        created_by: 'react-admin'
+      })
+
+      const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Objet AD supprimé')
+      setStatus(message)
+      setDeleteModal(null)
+      setDeleteConfirmDn('')
+
+      await loadTree()
+
+      if (selectedNode) {
+        await loadNodeContent(selectedNode, viewType)
+      }
+
+      await loadAdAdminHistory()
+    } catch (err) {
+      setStatus(err.message || 'Erreur pendant la suppression AD.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1480,8 +1659,14 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
               <button type="button" onClick={() => actionSoon('Nouveau')}>＋ Nouveau</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
-              <button type="button" onClick={() => actionSoon('Modifier')}>✎ Modifier</button>
-              <button type="button" className="danger" onClick={() => actionSoon('Supprimer')}>🗑 Supprimer</button>
+              <button type="button" onClick={() => {
+              setContextMenu(null)
+              openUpdateObject(contextMenu?.target || selectedObject || selectedNode)
+            }}>✎ Modifier</button>
+              <button type="button" className="danger" onClick={() => {
+              setContextMenu(null)
+              openDeleteObject(contextMenu?.target || selectedObject || selectedNode)
+            }}>🗑 Supprimer</button>
               <button type="button" onClick={refreshAll}>⟳ Actualiser</button>
             </section>
 
@@ -1717,6 +1902,164 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
               <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})}</pre>
             </div>
           </div>
+        </div>
+      )}
+
+      {updateModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setUpdateModal(null)
+            }
+          }}
+        >
+          <form
+            className="aduc-update-object-modal"
+            onSubmit={submitUpdateObject}
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+          >
+            <div className="aduc-modal-header">
+              <div>
+                <h3>Modifier objet AD</h3>
+                <p>{getObjectDn(updateModal)}</p>
+              </div>
+              <button type="button" onClick={() => setUpdateModal(null)}>×</button>
+            </div>
+
+            <div className="aduc-update-grid">
+              <label className="aduc-update-full">
+                Description
+                <textarea
+                  value={updateForm.description || ''}
+                  onChange={event => updateObjectFormField('description', event.target.value)}
+                  placeholder="Description de l’objet AD"
+                  rows={4}
+                  autoFocus
+                />
+              </label>
+
+              <label>
+                Nom affiché
+                <input
+                  value={updateForm.displayName || ''}
+                  onChange={event => updateObjectFormField('displayName', event.target.value)}
+                  placeholder="displayName"
+                />
+              </label>
+
+              <label>
+                Mail
+                <input
+                  value={updateForm.mail || ''}
+                  onChange={event => updateObjectFormField('mail', event.target.value)}
+                  placeholder="utilisateur@domaine.local"
+                />
+              </label>
+
+              <label>
+                Poste
+                <input
+                  value={updateForm.title || ''}
+                  onChange={event => updateObjectFormField('title', event.target.value)}
+                  placeholder="Technicien support"
+                />
+              </label>
+
+              <label>
+                Département
+                <input
+                  value={updateForm.department || ''}
+                  onChange={event => updateObjectFormField('department', event.target.value)}
+                  placeholder="Support"
+                />
+              </label>
+
+              <label>
+                Société
+                <input
+                  value={updateForm.company || ''}
+                  onChange={event => updateObjectFormField('company', event.target.value)}
+                  placeholder="Entreprise"
+                />
+              </label>
+
+              <label>
+                Téléphone
+                <input
+                  value={updateForm.telephoneNumber || ''}
+                  onChange={event => updateObjectFormField('telephoneNumber', event.target.value)}
+                  placeholder="+33..."
+                />
+              </label>
+
+              <label>
+                Bureau
+                <input
+                  value={updateForm.physicalDeliveryOfficeName || ''}
+                  onChange={event => updateObjectFormField('physicalDeliveryOfficeName', event.target.value)}
+                  placeholder="Pau / Bureau 1"
+                />
+              </label>
+            </div>
+
+            <div className="aduc-modal-actions">
+              <button type="button" onClick={() => setUpdateModal(null)}>
+                Annuler
+              </button>
+              <button type="submit">
+                Enregistrer
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {deleteModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setDeleteModal(null)}>
+          <form className="aduc-delete-object-modal" onSubmit={submitDeleteObject} onClick={event => event.stopPropagation()}>
+            <div className="aduc-modal-header">
+              <div>
+                <h3>Supprimer objet AD</h3>
+                <p>{getObjectDn(deleteModal)}</p>
+              </div>
+              <button type="button" onClick={() => setDeleteModal(null)}>×</button>
+            </div>
+
+            <div className="aduc-delete-danger">
+              Suppression réelle dans Active Directory. Le DN est pré-rempli automatiquement, vérifie simplement qu’il correspond bien à l’objet ciblé.
+            </div>
+
+            <label>
+              DN confirmé
+              <input
+                value={deleteConfirmDn}
+                onChange={event => setDeleteConfirmDn(event.target.value)}
+                placeholder="DN complet de l’objet AD"
+                autoFocus
+              />
+            </label>
+
+            {deleteConfirmDn.trim() && deleteConfirmDn.trim() !== getObjectDn(deleteModal) && (
+              <div className="aduc-delete-warning">
+                Le DN saisi ne correspond pas. La suppression sera bloquée.
+              </div>
+            )}
+
+            <div className="aduc-modal-actions">
+              <button type="button" onClick={() => setDeleteModal(null)}>
+                Annuler
+              </button>
+              <button
+                type="submit"
+                className="danger"
+                disabled={deleteConfirmDn.trim() !== getObjectDn(deleteModal)}
+              >
+                Supprimer définitivement
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -2050,7 +2393,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
           <hr />
 
-          <button type="button" onClick={() => actionSoon('Modifier')}>✎ Modifier</button>
+          <button type="button" onClick={() => {
+              setContextMenu(null)
+              openUpdateObject(contextMenu?.target || selectedObject || selectedNode)
+            }}>✎ Modifier</button>
           <button
             type="button"
             onClick={() => {
@@ -2060,7 +2406,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           >
             A↕ Renommer
           </button>
-          <button type="button" className="danger" onClick={() => actionSoon('Supprimer')}>🗑 Supprimer</button>
+          <button type="button" className="danger" onClick={() => {
+              setContextMenu(null)
+              openDeleteObject(contextMenu?.target || selectedObject || selectedNode)
+            }}>🗑 Supprimer</button>
           <button type="button" onClick={() => loadNodeContent(selectedNode, viewType)}>⟳ Actualiser</button>
           <button type="button" onClick={() => copyText(contextMenu.target?.distinguished_name || '').then(() => setMessage?.('DN copié.'))}>⎙ Exporter / Copier DN</button>
 

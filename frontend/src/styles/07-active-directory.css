@@ -3050,3 +3050,192 @@ button.aduc-admin-history-row.processing > span {
   padding: 10px 12px;
   font-size: 13px;
 }
+
+.aduc-delete-object-modal {
+  width: min(760px, calc(100vw - 40px));
+  background: var(--panel);
+  border: 1px solid rgba(239, 68, 68, .35);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.aduc-delete-object-modal label {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.aduc-delete-object-modal input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, .35);
+  background: var(--input);
+  color: var(--text);
+  padding: 0 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.aduc-delete-danger {
+  margin-top: 12px;
+  border: 1px solid rgba(239, 68, 68, .4);
+  background: rgba(239, 68, 68, .1);
+  color: #fca5a5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.aduc-delete-warning {
+  margin-top: 12px;
+  border: 1px solid rgba(245, 158, 11, .35);
+  background: rgba(245, 158, 11, .08);
+  color: #fbbf24;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+/* Step 264.10 — Delete modal polish */
+.aduc-delete-object-modal {
+  width: min(720px, calc(100vw - 40px));
+  padding: 22px;
+}
+
+.aduc-delete-object-modal .aduc-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.aduc-delete-object-modal .aduc-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.aduc-delete-object-modal .aduc-modal-header p {
+  margin: 8px 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.aduc-delete-object-modal .aduc-modal-header > button {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.aduc-delete-object-modal .aduc-modal-header > button:hover {
+  background: rgba(239, 68, 68, .12);
+  border-color: rgba(239, 68, 68, .35);
+}
+
+.aduc-delete-danger {
+  color: #fecaca;
+  font-weight: 600;
+}
+
+.aduc-delete-object-modal input {
+  min-height: 48px;
+  font-size: 12px;
+}
+
+.aduc-delete-object-modal .aduc-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.aduc-delete-object-modal .aduc-modal-actions button {
+  min-height: 42px;
+  border-radius: 12px;
+  padding: 0 16px;
+}
+
+/* Step 265.7 — Update object modal */
+.aduc-update-object-modal {
+  width: min(680px, calc(100vw - 40px));
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.aduc-update-object-modal label {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.aduc-update-object-modal textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.aduc-update-object-modal .aduc-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.aduc-update-object-modal .aduc-modal-actions button {
+  min-height: 42px;
+  border-radius: 12px;
+  padding: 0 16px;
+}
+
+/* Step 265.10 — Update modal multi fields */
+.aduc-update-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.aduc-update-grid .aduc-update-full {
+  grid-column: 1 / -1;
+}
+
+.aduc-update-object-modal input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--input);
+  color: var(--text);
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .aduc-update-grid {
+    grid-template-columns: 1fr;
+  }
+}
