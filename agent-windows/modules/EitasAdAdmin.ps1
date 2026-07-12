@@ -870,6 +870,40 @@ function Invoke-EitasAdAdminDeleteObject {
     }
 
     $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
+    $IsOu = ([string]$Object.ObjectClass -ieq "organizationalUnit")
+    $OuEmptyVerified = $false
+    $OuProtectionDisabled = $false
+
+    if ($IsOu) {
+        $Children = @(
+            Get-ADObject `
+                -SearchBase $ObjectDn `
+                -SearchScope OneLevel `
+                -Filter * `
+                -ResultSetSize 1 `
+                -ErrorAction Stop
+        )
+
+        if ($Children.Count -gt 0) {
+            throw "Suppression OU refusée : l'OU contient encore $($Children.Count) objet(s) enfant(s)"
+        }
+
+        $OuEmptyVerified = $true
+
+        $Ou = Get-ADOrganizationalUnit `
+            -Identity $ObjectDn `
+            -Properties ProtectedFromAccidentalDeletion `
+            -ErrorAction Stop
+
+        if ([bool]$Ou.ProtectedFromAccidentalDeletion) {
+            Set-ADOrganizationalUnit `
+                -Identity $ObjectDn `
+                -ProtectedFromAccidentalDeletion $false `
+                -ErrorAction Stop
+
+            $OuProtectionDisabled = $true
+        }
+    }
 
     Remove-ADObject `
         -Identity $ObjectDn `
@@ -884,6 +918,8 @@ function Invoke-EitasAdAdminDeleteObject {
         object_dn = $ObjectDn
         confirm_dn = $ConfirmDn
         deleted_object = $DeletedObject
+        ou_empty_verified = $OuEmptyVerified
+        ou_protection_disabled = $OuProtectionDisabled
         message = "Objet AD supprimé"
     }
 }

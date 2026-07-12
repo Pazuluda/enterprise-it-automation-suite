@@ -439,6 +439,80 @@ function Invoke-EitasAdExplorerListOuTree {
     }
 }
 
+function Convert-EitasOuChildItem {
+    param([object]$Object)
+
+    return [pscustomobject]@{
+        type = $Object.ObjectClass
+        name = $Object.Name
+        distinguished_name = $Object.DistinguishedName
+        dn = $Object.DistinguishedName
+    }
+}
+
+function Invoke-EitasAdExplorerCheckOuEmpty {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $OuDn = Get-EitasLookupValue -Object $Payload -Names @("ou_dn", "ouDn", "base_dn", "baseDn", "dn", "distinguished_name", "distinguishedName")
+
+    if ([string]::IsNullOrWhiteSpace($OuDn)) {
+        throw "DN de l'OU manquant"
+    }
+
+    $OuDn = ([string]$OuDn).Trim()
+
+    if ($OuDn -notmatch "^OU=") {
+        throw "La cible n'est pas une OU : $OuDn"
+    }
+
+    Assert-EitasDnSafe -DistinguishedName $OuDn -Config $Config -AllowDomainRoot | Out-Null
+
+    Get-ADOrganizationalUnit `
+        -Identity $OuDn `
+        -ErrorAction Stop | Out-Null
+
+    $Children = @(
+        Get-ADObject `
+            -SearchBase $OuDn `
+            -SearchScope OneLevel `
+            -Filter * `
+            -Properties objectClass, distinguishedName, name `
+            -ErrorAction Stop
+    )
+
+    $Items = @(
+        $Children |
+            Select-Object -First 50 |
+            ForEach-Object {
+                Convert-EitasOuChildItem -Object $_
+            }
+    )
+
+    $IsEmpty = (@($Children).Count -eq 0)
+
+    if ($IsEmpty) {
+        $Message = "OU vide"
+    } else {
+        $Message = "OU non vide"
+    }
+
+    return [pscustomobject]@{
+        action = "check_ou_empty"
+        ou_dn = $OuDn
+        is_empty = $IsEmpty
+        child_count = @($Children).Count
+        children = @($Items)
+        message = $Message
+    }
+}
+
+
+
 
 
 function Invoke-EitasAdExplorerListGroups {
@@ -614,6 +688,11 @@ function Invoke-EitasAdExplorerJob {
         
         "list_ou_tree" {
             return Invoke-EitasAdExplorerListOuTree -Config $Config -Payload $Payload
+        }
+
+
+        "check_ou_empty" {
+            return Invoke-EitasAdExplorerCheckOuEmpty -Config $Config -Payload $Payload
         }
 
 "list_groups" {

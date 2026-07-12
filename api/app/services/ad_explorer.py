@@ -26,6 +26,7 @@ class ADExplorerConflict(ADExplorerError):
 ALLOWED_ACTIONS = {
     "list_ous",
     "list_ou_tree",
+    "check_ou_empty",
     "list_groups",
     "search_users",
     "get_user",
@@ -57,7 +58,18 @@ def create_ad_explorer_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
 
     action = str(payload.get("action") or "").strip()
     query = str(payload.get("query") or "").strip()
-    base_dn = str(payload.get("base_dn") or "").strip()
+    base_dn = str(payload.get("base_dn") or payload.get("baseDn") or "").strip()
+
+    if action == "check_ou_empty":
+        base_dn = str(
+            payload.get("ou_dn")
+            or payload.get("ouDn")
+            or payload.get("dn")
+            or payload.get("distinguished_name")
+            or payload.get("distinguishedName")
+            or base_dn
+            or ""
+        ).strip()
     created_by = payload.get("created_by") or "react-admin"
 
     if not action:

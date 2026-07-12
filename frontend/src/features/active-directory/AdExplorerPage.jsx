@@ -2587,6 +2587,58 @@ function getAdAttributeValue(item, ...names) {
       || /^OU=/i.test(String(dn || '').trim())
   }
 
+  function normalizeOuEmptyCheckOutput(job) {
+    const raw = job?.output || job?.result || job?.data || {}
+
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return { message: raw }
+      }
+    }
+
+    return raw
+  }
+
+  async function checkTestCleanupOuEmpty(item) {
+    const dn = getObjectDn(item)
+
+    if (!dn) {
+      throw new Error('DN introuvable pour cette OU.')
+    }
+
+    const created = await apiFetch('/api/ad-explorer/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'check_ou_empty',
+        ou_dn: dn,
+        base_dn: dn,
+        created_by: 'react-test-cleanup-ou-check'
+      })
+    })
+
+    const jobId = created?.job?.id
+
+    if (!jobId) {
+      throw new Error('Job check_ou_empty introuvable.')
+    }
+
+    const job = await waitForAdExplorerJob(jobId)
+    const output = normalizeOuEmptyCheckOutput(job)
+
+    if (!job.success) {
+      throw new Error(output?.error || job.message || 'Verification de l OU impossible.')
+    }
+
+    return {
+      isEmpty: Boolean(output?.is_empty ?? output?.isEmpty),
+      childCount: Number(output?.child_count ?? output?.childCount ?? 0),
+      children: Array.isArray(output?.children) ? output.children : [],
+      message: output?.message || job.message || ''
+    }
+  }
+
   async function deleteTestCleanupObject(item) {
     const dn = getObjectDn(item)
     const identity = getTestCleanupIdentity(item) || item?.name || 'Objet AD'
@@ -2610,15 +2662,49 @@ function getAdAttributeValue(item, ...names) {
       const modeData = await apiFetch('/api/agent/mode')
       const currentMode = modeData?.mode || adAgentMode || 'Inconnu'
       const isProduction = String(currentMode).toLowerCase() === 'production'
+      const isOu = isTestCleanupOu(item)
 
       setAdAgentMode(currentMode)
 
-      if (isProduction) {
-        const isOu = isTestCleanupOu(item)
+      if (isOu) {
+        setTestCleanupResults(current => ({
+          ...current,
+          [dn]: {
+            type: 'pending',
+            message: 'Verification que l OU est vide...'
+          }
+        }))
 
+        const check = await checkTestCleanupOuEmpty(item)
+
+        if (!check.isEmpty) {
+          const message = `OU non vide : ${check.childCount} objet(s) enfant(s). Suppression bloquee.`
+
+          setTestCleanupResults(current => ({
+            ...current,
+            [dn]: {
+              type: 'error',
+              message
+            }
+          }))
+
+          setTestCleanupError(message)
+          return
+        }
+
+        setTestCleanupResults(current => ({
+          ...current,
+          [dn]: {
+            type: 'pending',
+            message: 'OU vide verifiee. Suppression possible.'
+          }
+        }))
+      }
+
+      if (isProduction) {
         const warning = isOu
-          ? `ATTENTION : mode Production AD.\n\nTu vas supprimer une OU réelle :\n${identity}\n\n${dn}\n\nImportant : l’OU doit être vide. Si elle contient des utilisateurs, groupes ou sous-OU, la suppression sera refusée.\n\nContinuer ?`
-          : `ATTENTION : mode Production AD.\n\nSuppression réelle de l’objet :\n${identity}\n\n${dn}\n\nContinuer ?`
+          ? `ATTENTION : mode Production AD.\n\nOU vide verifiee.\n\nSuppression reelle de l OU :\n${identity}\n\n${dn}\n\nContinuer ?`
+          : `ATTENTION : mode Production AD.\n\nSuppression reelle de l objet :\n${identity}\n\n${dn}\n\nContinuer ?`
 
         const ok = window.confirm(warning)
 
@@ -2627,7 +2713,7 @@ function getAdAttributeValue(item, ...names) {
             ...current,
             [dn]: {
               type: 'muted',
-              message: 'Action annulée.'
+              message: 'Action annulee.'
             }
           }))
           return
@@ -2642,7 +2728,9 @@ function getAdAttributeValue(item, ...names) {
 
       const message = isProduction
         ? 'Suppression Production OK.'
-        : 'Simulation OK — aucun objet AD réel n’a été supprimé.'
+        : isOu
+          ? 'OU vide verifiee. Simulation OK — aucun objet AD reel n a ete supprime.'
+          : 'Simulation OK — aucun objet AD reel n a ete supprime.'
 
       setStatus(job?.message || message)
 
