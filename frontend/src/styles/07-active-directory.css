@@ -3763,3 +3763,158 @@ button.aduc-admin-history-row.processing > span {
   background: rgba(100, 116, 139, 0.12);
   color: #475569;
 }
+
+/* BLOC276 - AD Admin history v2 */
+.aduc-admin-history-filters {
+  flex-wrap: wrap;
+}
+
+.aduc-admin-history-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.aduc-admin-history-filters button span {
+  line-height: 1;
+}
+
+.aduc-admin-history-filters button small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.aduc-admin-history-filters button.active small {
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+
+button.aduc-admin-history-row.completed,
+button.aduc-admin-history-row.success {
+  border-color: rgba(34, 197, 94, 0.32);
+  background: rgba(240, 253, 244, 0.88);
+}
+
+button.aduc-admin-history-row.failed {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: rgba(254, 242, 242, 0.9);
+}
+
+button.aduc-admin-history-row.processing,
+button.aduc-admin-history-row.pending {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(238, 242, 255, 0.9);
+}
+
+button.aduc-admin-history-row.completed > span,
+button.aduc-admin-history-row.success > span {
+  background: #22c55e;
+}
+
+button.aduc-admin-history-row.failed > span {
+  background: #ef4444;
+}
+
+button.aduc-admin-history-row.processing > span,
+button.aduc-admin-history-row.pending > span {
+  background: #6366f1;
+}
+
+/* BLOC276 - AD Admin history v2 */
+.aduc-admin-history-filters {
+  flex-wrap: wrap;
+}
+
+.aduc-admin-history-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.aduc-admin-history-filters button span {
+  line-height: 1;
+}
+
+.aduc-admin-history-filters button small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.aduc-admin-history-filters button.active small {
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+
+button.aduc-admin-history-row.completed,
+button.aduc-admin-history-row.success {
+  border-color: rgba(34, 197, 94, 0.32);
+  background: rgba(240, 253, 244, 0.88);
+}
+
+button.aduc-admin-history-row.failed {
+  border-color: rgba(239, 68, 68, 0.34);
+  background: rgba(254, 242, 242, 0.9);
+}
+
+button.aduc-admin-history-row.processing,
+button.aduc-admin-history-row.pending {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(238, 242, 255, 0.9);
+}
+
+button.aduc-admin-history-row.completed > span,
+button.aduc-admin-history-row.success > span {
+  background: #22c55e;
+}
+
+button.aduc-admin-history-row.failed > span {
+  background: #ef4444;
+}
+
+button.aduc-admin-history-row.processing > span,
+button.aduc-admin-history-row.pending > span {
+  background: #6366f1;
+}
+
+/* FIX - couleurs pastilles historique AD Admin */
+.aduc-admin-history-row.completed > span,
+button.aduc-admin-history-row.completed > span,
+.aduc-admin-history-row.success > span,
+button.aduc-admin-history-row.success > span {
+  background: #22c55e !important;
+}
+
+.aduc-admin-history-row.failed > span,
+button.aduc-admin-history-row.failed > span {
+  background: #ef4444 !important;
+}
+
+.aduc-admin-history-row.processing > span,
+button.aduc-admin-history-row.processing > span,
+.aduc-admin-history-row.pending > span,
+button.aduc-admin-history-row.pending > span {
+  background: #6366f1 !important;
+}
+
+.aduc-admin-history-row.unknown > span,
+button.aduc-admin-history-row.unknown > span {
+  background: #94a3b8 !important;
+}

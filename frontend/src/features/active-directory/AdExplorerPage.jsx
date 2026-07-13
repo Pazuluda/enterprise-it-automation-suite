@@ -282,15 +282,72 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   const members = Array.isArray(memberItems) ? memberItems : []
   const history = Array.isArray(historyItems) ? historyItems : []
   const filteredHistory = history.filter(job => {
+    const status = getHistoryStatus(job)
+
     if (historyFilter === 'all') return true
+    if (historyFilter === 'success') return status === 'completed'
+    if (historyFilter === 'running') return status === 'processing' || status === 'pending'
+    if (historyFilter === 'failed') return status === 'failed'
     if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
     if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
     if (historyFilter === 'delete') return job.action === 'delete_object'
     if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
     if (historyFilter === 'move') return job.action === 'move_object'
-    if (historyFilter === 'failed') return job.status === 'failed' || job.success === false
     return true
   })
+
+  function getHistoryStatus(job) {
+    if (job?.status === 'failed' || job?.success === false) return 'failed'
+    if (job?.status === 'processing') return 'processing'
+    if (job?.status === 'pending') return 'pending'
+    if (job?.status === 'completed' || job?.success === true) return 'completed'
+    return job?.status || 'unknown'
+  }
+
+  function getHistoryStatusLabel(job) {
+    const status = getHistoryStatus(job)
+
+    if (status === 'completed') return 'terminé'
+    if (status === 'failed') return 'échec'
+    if (status === 'processing') return 'en cours'
+    if (status === 'pending') return 'en attente'
+
+    return status
+  }
+
+  function getHistoryCounter(filterValue) {
+    return history.filter(job => {
+      const status = getHistoryStatus(job)
+
+      if (filterValue === 'all') return true
+      if (filterValue === 'success') return status === 'completed'
+      if (filterValue === 'running') return status === 'processing' || status === 'pending'
+      if (filterValue === 'failed') return status === 'failed'
+      if (filterValue === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
+      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
+      if (filterValue === 'delete') return job.action === 'delete_object'
+      if (filterValue === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
+      if (filterValue === 'move') return job.action === 'move_object'
+
+      return true
+    }).length
+  }
+
+  const historyFilterOptions = [
+    ['all', 'Tout'],
+    ['success', 'Succès'],
+    ['running', 'En cours'],
+    ['failed', 'Échecs'],
+    ['create', 'Créations'],
+    ['delete', 'Suppressions'],
+    ['edit', 'Modifs'],
+    ['move', 'Déplacements'],
+    ['members', 'Membres']
+  ].map(([value, label]) => ({
+    value,
+    label,
+    count: getHistoryCounter(value)
+  }))
 
   return (
     <aside className="aduc-details-pane">
@@ -419,22 +476,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             </div>
 
             <div className="aduc-admin-history-filters">
-              {[
-                ['all', 'Tout'],
-                ['members', 'Membres'],
-                ['create', 'Créations'],
-                ['delete', 'Suppressions'],
-                ['edit', 'Modifs'],
-                ['move', 'Déplacements'],
-                ['failed', 'Échecs']
-              ].map(([value, label]) => (
+              {historyFilterOptions.map(({ value, label, count }) => (
                 <button
                   type="button"
                   key={value}
                   className={historyFilter === value ? 'active' : ''}
                   onClick={() => onHistoryFilterChange(value)}
                 >
-                  {label}
+                  <span>{label}</span>
+                  <small>{count}</small>
                 </button>
               ))}
             </div>
@@ -448,7 +498,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                 {filteredHistory.slice(0, 8).map(job => (
                   <button
                     type="button"
-                    className={`aduc-admin-history-row ${job.success ? 'success' : 'failed'}`}
+                    className={`aduc-admin-history-row ${getHistoryStatus(job)}`}
                     key={job.id}
                     onClick={() => onOpenHistoryJob(job)}
                   >
@@ -750,7 +800,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setAdAdminHistoryError('')
 
     try {
-      const data = await apiFetch('/api/ad-admin/jobs?limit=20')
+      const data = await apiFetch('/api/ad-admin/jobs?limit=50')
       setAdAdminHistory(Array.isArray(data.jobs) ? data.jobs : [])
     } catch (err) {
       setAdAdminHistoryError(err.message || 'Impossible de charger l’historique AD Admin.')
@@ -761,7 +811,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
   async function refreshAdAdminHistoryQuietly() {
     try {
-      const data = await apiFetch('/api/ad-admin/jobs?limit=20')
+      const data = await apiFetch('/api/ad-admin/jobs?limit=50')
       setAdAdminHistory(Array.isArray(data.jobs) ? data.jobs : [])
       setAdAdminHistoryError('')
     } catch {
