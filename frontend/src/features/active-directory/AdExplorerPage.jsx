@@ -492,7 +492,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             {historyError ? (
               <p className="aduc-admin-history-error">{historyError}</p>
             ) : filteredHistory.length === 0 ? (
-              <p className="aduc-admin-history-empty">Aucune action AD Admin récente.</p>
+              <p className="aduc-admin-history-empty">Aucune action ne correspond aux filtres actuels.</p>
             ) : (
               <div className="aduc-admin-history-list">
                 {filteredHistory.slice(0, 8).map(job => (
@@ -659,6 +659,11 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [adAdminHistoryFilter, setAdAdminHistoryFilter] = useState('all')
   const [selectedAdAdminHistoryJob, setSelectedAdAdminHistoryJob] = useState(null)
   const [adActivityModal, setAdActivityModal] = useState(false)
+  const [adActivitySearch, setAdActivitySearch] = useState('')
+  const [adActivityScope, setAdActivityScope] = useState('all')
+  const [adActivityShowSimulations, setAdActivityShowSimulations] = useState(true)
+  const [adActivityTimeRange, setAdActivityTimeRange] = useState('all')
+  const [adActivitySortOrder, setAdActivitySortOrder] = useState('newest')
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -698,6 +703,137 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     if (status === 'pending') return 'en attente'
 
     return status
+  }
+
+  function getAdHistoryDetailSummary(job) {
+    if (!job) return ''
+
+    return [
+      `Action : ${getAdActivityActionLabel(job.action)}`,
+      `Statut : ${getAdActivityStatusLabel(job)}`,
+      `Agent : ${job.claimed_by || job.created_by || '—'}`,
+      `Date : ${formatAdActivityDate(getAdActivityDate(job))}`,
+      `Message : ${getAdActivityMessage(job)}`,
+      `Simulation : ${isAdActivitySimulation(job) ? 'oui' : 'non'}`,
+      `ID : ${job.id || job.job_id || '—'}`
+    ].join('\n')
+  }
+
+  function copyAdHistoryDetailSummary(job) {
+    copyText(getAdHistoryDetailSummary(job))
+  }
+
+  function copyAdHistoryDetailJson(job) {
+    copyText(JSON.stringify(job || {}, null, 2))
+  }
+
+  function getAdActivityResult(job) {
+    const raw = job?.result || job?.output || {}
+
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return { message: raw }
+      }
+    }
+
+    return raw || {}
+  }
+
+  function getAdActivityPayload(job) {
+    const raw = job?.payload || {}
+
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        return {}
+      }
+    }
+
+    return raw || {}
+  }
+
+  function pickAdActivityValue(...values) {
+    for (const value of values) {
+      if (value !== null && value !== undefined && String(value).trim()) {
+        return String(value).trim()
+      }
+    }
+
+    return ''
+  }
+
+  function getAdActivityTargetDn(job) {
+    const result = getAdActivityResult(job)
+    const payload = getAdActivityPayload(job)
+
+    return pickAdActivityValue(
+      result?.object_dn,
+      result?.distinguished_name,
+      result?.dn,
+      result?.confirm_dn,
+      result?.target_ou_dn,
+      result?.target_parent_dn,
+      result?.parent_dn,
+      result?.group_dn,
+      result?.member_dn,
+      result?.new_dn,
+      result?.old_parent_dn,
+      result?.deleted_object?.dn,
+      result?.deleted_object?.distinguished_name,
+      result?.updated_object?.dn,
+      result?.updated_object?.distinguished_name,
+      result?.renamed_object?.dn,
+      result?.renamed_object?.distinguished_name,
+      result?.created_user?.dn,
+      result?.created_user?.distinguished_name,
+      payload?.object_identity,
+      payload?.object_dn,
+      payload?.distinguished_name,
+      payload?.dn,
+      payload?.confirm_dn,
+      payload?.target_ou_dn,
+      payload?.target_parent_dn,
+      payload?.parent_dn,
+      payload?.group_dn,
+      payload?.member_dn
+    )
+  }
+
+  function getAdActivityTargetNameFromDn(dn) {
+    if (!dn) return ''
+
+    const first = String(dn).split(',')[0] || ''
+    const idx = first.indexOf('=')
+
+    return idx >= 0 ? first.slice(idx + 1) : first
+  }
+
+  function getAdActivityTargetLabel(job) {
+    const result = getAdActivityResult(job)
+    const payload = getAdActivityPayload(job)
+    const dn = getAdActivityTargetDn(job)
+
+    return pickAdActivityValue(
+      result?.object,
+      result?.name,
+      result?.user,
+      result?.group,
+      result?.member,
+      result?.sam_account_name,
+      result?.deleted_object?.name,
+      result?.updated_object?.name,
+      result?.renamed_object?.name,
+      result?.created_user?.name,
+      payload?.name,
+      payload?.sam_account_name,
+      payload?.object_identity,
+      payload?.group_identity,
+      payload?.member_identity,
+      getAdActivityTargetNameFromDn(dn)
+    )
   }
 
   function getAdActivityActionLabel(action) {
@@ -785,12 +921,250 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     ]
   }
 
+  function getAdActivitySearchText(job) {
+    const result = getAdActivityResult(job)
+    const payload = getAdActivityPayload(job)
+
+    return [
+      job?.id,
+      job?.job_id,
+      job?.action,
+      job?.status,
+      job?.success,
+      job?.created_by,
+      job?.claimed_by,
+      job?.message,
+      getAdActivityActionLabel(job?.action),
+      getAdActivityStatusLabel(job),
+      getAdActivityMessage(job),
+      getAdActivityTargetLabel(job),
+      getAdActivityTargetDn(job),
+      JSON.stringify(payload),
+      JSON.stringify(result),
+      JSON.stringify(job)
+    ].filter(Boolean).join(' ').toLowerCase()
+  }
+
+  function isAdActivitySimulation(job) {
+    const result = getAdActivityResult(job)
+    const message = getAdActivityMessage(job)
+
+    return result?.simulated === true
+      || result?.simulation === true
+      || String(message || '').toLowerCase().includes('simulation')
+  }
+
+  function isAdActivityInsideTimeRange(job) {
+    if (adActivityTimeRange === 'all') return true
+
+    const dateValue = getAdActivityDate(job) || job?.created_at
+
+    if (!dateValue) return true
+
+    const timestamp = new Date(dateValue).getTime()
+
+    if (!Number.isFinite(timestamp)) return true
+
+    const ageMs = Date.now() - timestamp
+
+    if (adActivityTimeRange === '24h') return ageMs <= 24 * 60 * 60 * 1000
+    if (adActivityTimeRange === '7d') return ageMs <= 7 * 24 * 60 * 60 * 1000
+
+    return true
+  }
+
+  function sortAdActivityJobs(jobs) {
+    return [...jobs].sort((a, b) => {
+      const dateA = new Date(getAdActivityDate(a) || a?.created_at || 0).getTime() || 0
+      const dateB = new Date(getAdActivityDate(b) || b?.created_at || 0).getTime() || 0
+
+      return adActivitySortOrder === 'oldest'
+        ? dateA - dateB
+        : dateB - dateA
+    })
+  }
+
+  function getAdActivityFilteredJobs() {
+    const query = adActivitySearch.trim().toLowerCase()
+
+    const filtered = getAdActivityJobs().filter(job => {
+      const status = getAdActivityJobStatus(job)
+
+      if (adActivityScope === 'critical' && !isAdActivityCritical(job)) return false
+      if (adActivityScope === 'failed' && status !== 'failed') return false
+      if (!adActivityShowSimulations && isAdActivitySimulation(job)) return false
+      if (!isAdActivityInsideTimeRange(job)) return false
+      if (query && !getAdActivitySearchText(job).includes(query)) return false
+
+      return true
+    })
+
+    return sortAdActivityJobs(filtered)
+  }
+
+  function getAdActivityExportRows() {
+    return getAdActivityFilteredJobs().map(job => ({
+      id: job?.id || job?.job_id || '',
+      action: job?.action || '',
+      action_label: getAdActivityActionLabel(job?.action),
+      status: getAdActivityJobStatus(job),
+      status_label: getAdActivityStatusLabel(job),
+      success: job?.success,
+      created_by: job?.created_by || '',
+      claimed_by: job?.claimed_by || '',
+      created_at: job?.created_at || '',
+      claimed_at: job?.claimed_at || '',
+      completed_at: job?.completed_at || job?.updated_at || '',
+      target_label: getAdActivityTargetLabel(job),
+      target_dn: getAdActivityTargetDn(job),
+      message: getAdActivityMessage(job),
+      critical: isAdActivityCritical(job),
+      simulation: isAdActivitySimulation(job)
+    }))
+  }
+
+  function downloadAdActivityFile(filename, content, type) {
+    const blob = new Blob([content], { type })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function escapeAdActivityCsv(value) {
+    const text = value === null || value === undefined ? '' : String(value)
+
+    if (/[",\n;]/.test(text)) {
+      return `"${text.replaceAll('"', '""')}"`
+    }
+
+    return text
+  }
+
+  function resetAdActivityFilters() {
+    setAdActivitySearch('')
+    setAdActivityScope('all')
+    setAdActivityShowSimulations(true)
+    setAdActivityTimeRange('all')
+    setAdActivitySortOrder('newest')
+  }
+
+  function getAdActivityScopeLabel() {
+    if (adActivityScope === 'critical') return 'Critiques'
+    if (adActivityScope === 'failed') return 'Échecs'
+
+    return 'Tout'
+  }
+
+  function getAdActivityTimeRangeLabel() {
+    if (adActivityTimeRange === '24h') return 'Dernières 24h'
+    if (adActivityTimeRange === '7d') return 'Derniers 7j'
+
+    return 'Toute période'
+  }
+
+  function getAdActivitySortLabel() {
+    return adActivitySortOrder === 'oldest' ? 'Plus ancien' : 'Plus récent'
+  }
+
+  function getAdActivityFilterSummary() {
+    return [
+      `Résultats : ${getAdActivityFilteredJobs().length}/${getAdActivityJobs().length}`,
+      `Scope : ${getAdActivityScopeLabel()}`,
+      `Période : ${getAdActivityTimeRangeLabel()}`,
+      `Tri : ${getAdActivitySortLabel()}`,
+      `Simulations : ${adActivityShowSimulations ? 'visibles' : 'masquées'}`,
+      adActivitySearch.trim() ? `Recherche : ${adActivitySearch.trim()}` : 'Recherche : aucune'
+    ].join(' • ')
+  }
+
+  function copyAdActivitySummary() {
+    const jobs = getAdActivityFilteredJobs()
+    const lines = [
+      'Synthèse activité AD Admin',
+      getAdActivityFilterSummary(),
+      '',
+      ...jobs.slice(0, 20).map(job => [
+        `- ${getAdActivityActionLabel(job.action)}`,
+        `${getAdActivityStatusLabel(job)}`,
+        `${job.claimed_by || job.created_by || '—'}`,
+        `${formatAdActivityDate(getAdActivityDate(job))}`,
+        `${getAdActivityTargetLabel(job) || 'sans cible'}`,
+        `${getAdActivityMessage(job)}`
+      ].join(' | '))
+    ]
+
+    copyText(lines.join('\n'))
+  }
+
+  function exportAdActivityJson() {
+    const jobs = getAdActivityFilteredJobs()
+    const payload = {
+      exported_at: new Date().toISOString(),
+      search: adActivitySearch,
+      scope: adActivityScope,
+      scope_label: getAdActivityScopeLabel(),
+      time_range: adActivityTimeRange,
+      time_range_label: getAdActivityTimeRangeLabel(),
+      sort_order: adActivitySortOrder,
+      sort_label: getAdActivitySortLabel(),
+      simulations_visible: adActivityShowSimulations,
+      summary: getAdActivityFilterSummary(),
+      count: jobs.length,
+      jobs
+    }
+
+    downloadAdActivityFile(
+      `eitas-ad-activity-${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}.json`,
+      JSON.stringify(payload, null, 2),
+      'application/json;charset=utf-8'
+    )
+  }
+
+  function exportAdActivityCsv() {
+    const rows = getAdActivityExportRows()
+    const headers = [
+      'id',
+      'action',
+      'action_label',
+      'status',
+      'status_label',
+      'success',
+      'created_by',
+      'claimed_by',
+      'created_at',
+      'claimed_at',
+      'completed_at',
+      'target_label',
+      'target_dn',
+      'message',
+      'critical',
+      'simulation'
+    ]
+
+    const csv = [
+      headers.join(';'),
+      ...rows.map(row => headers.map(header => escapeAdActivityCsv(row[header])).join(';'))
+    ].join('\n')
+
+    downloadAdActivityFile(
+      `eitas-ad-activity-${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}.csv`,
+      csv,
+      'text/csv;charset=utf-8'
+    )
+  }
+
   function getAdActivityRecentJobs(limit = 12) {
-    return getAdActivityJobs().slice(0, limit)
+    return getAdActivityFilteredJobs().slice(0, limit)
   }
 
   function getAdActivityCriticalJobs(limit = 8) {
-    return getAdActivityJobs()
+    return getAdActivityFilteredJobs()
       .filter(job => isAdActivityCritical(job) || getAdActivityJobStatus(job) === 'failed')
       .slice(0, limit)
   }
@@ -3290,6 +3664,74 @@ function getAdAttributeValue(item, ...names) {
               </button>
             </div>
 
+            <div className="aduc-activity-tools">
+              <div className="aduc-activity-search">
+                <input
+                  value={adActivitySearch}
+                  onChange={event => setAdActivitySearch(event.target.value)}
+                  placeholder="Rechercher action, objet, agent, message..."
+                />
+                <span>{getAdActivityFilteredJobs().length} résultat(s)</span>
+              </div>
+
+              <div className="aduc-activity-scope">
+                {[
+                  ['all', 'Tout'],
+                  ['critical', 'Critiques'],
+                  ['failed', 'Échecs']
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={adActivityScope === value ? 'active' : ''}
+                    onClick={() => setAdActivityScope(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="aduc-activity-advanced">
+                <button
+                  type="button"
+                  className={adActivityShowSimulations ? 'active' : ''}
+                  onClick={() => setAdActivityShowSimulations(value => !value)}
+                >
+                  {adActivityShowSimulations ? 'Simulations visibles' : 'Simulations masquées'}
+                </button>
+
+                <select value={adActivityTimeRange} onChange={event => setAdActivityTimeRange(event.target.value)}>
+                  <option value="all">Toute période</option>
+                  <option value="24h">Dernières 24h</option>
+                  <option value="7d">Derniers 7j</option>
+                </select>
+
+                <select value={adActivitySortOrder} onChange={event => setAdActivitySortOrder(event.target.value)}>
+                  <option value="newest">Plus récent</option>
+                  <option value="oldest">Plus ancien</option>
+                </select>
+              </div>
+
+              <div className="aduc-activity-export">
+                <button type="button" onClick={copyAdActivitySummary} disabled={getAdActivityFilteredJobs().length === 0}>
+                  Copier synthèse
+                </button>
+                <button type="button" onClick={exportAdActivityJson} disabled={getAdActivityFilteredJobs().length === 0}>
+                  Export JSON
+                </button>
+                <button type="button" onClick={exportAdActivityCsv} disabled={getAdActivityFilteredJobs().length === 0}>
+                  Export CSV
+                </button>
+                <button type="button" className="neutral" onClick={resetAdActivityFilters}>
+                  Réinitialiser
+                </button>
+              </div>
+            </div>
+
+            <div className="aduc-activity-filter-summary">
+              {getAdActivityFilterSummary()}
+            </div>
+
             <div className="aduc-activity-kpis">
               {getAdActivityStatCards().map(card => (
                 <article key={card.key} className={`aduc-activity-kpi ${card.key}`}>
@@ -3307,7 +3749,7 @@ function getAdAttributeValue(item, ...names) {
 
             <div className="aduc-activity-grid">
               <section>
-                <h4>Dernières actions</h4>
+                <h4>Dernières actions <span>{getAdActivityRecentJobs().length}</span></h4>
 
                 {getAdActivityRecentJobs().length === 0 ? (
                   <p className="aduc-admin-history-empty">Aucune action AD Admin récente.</p>
@@ -3328,6 +3770,15 @@ function getAdAttributeValue(item, ...names) {
                             {job.claimed_by || job.created_by || '—'} • {getAdActivityStatusLabel(job)} • {formatAdActivityDate(getAdActivityDate(job))}
                           </small>
                           <p>{getAdActivityMessage(job)}</p>
+                          <div className="aduc-activity-tags">
+                            {getAdActivityTargetLabel(job) && (
+                              <code className="aduc-activity-target">{getAdActivityTargetLabel(job)}</code>
+                            )}
+
+                            {isAdActivitySimulation(job) && (
+                              <em className="aduc-activity-simulation-badge">Simulation</em>
+                            )}
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -3336,10 +3787,10 @@ function getAdAttributeValue(item, ...names) {
               </section>
 
               <section>
-                <h4>Actions sensibles / erreurs</h4>
+                <h4>Actions sensibles / erreurs <span>{getAdActivityCriticalJobs().length}</span></h4>
 
                 {getAdActivityCriticalJobs().length === 0 ? (
-                  <p className="aduc-admin-history-empty">Aucune action sensible ou erreur récente.</p>
+                  <p className="aduc-admin-history-empty">Aucune action sensible ou erreur ne correspond aux filtres actuels.</p>
                 ) : (
                   <div className="aduc-activity-list">
                     {getAdActivityCriticalJobs().map(job => (
@@ -3357,6 +3808,15 @@ function getAdAttributeValue(item, ...names) {
                             {job.claimed_by || job.created_by || '—'} • {getAdActivityStatusLabel(job)} • {formatAdActivityDate(getAdActivityDate(job))}
                           </small>
                           <p>{getAdActivityMessage(job)}</p>
+                          <div className="aduc-activity-tags">
+                            {getAdActivityTargetLabel(job) && (
+                              <code className="aduc-activity-target">{getAdActivityTargetLabel(job)}</code>
+                            )}
+
+                            {isAdActivitySimulation(job) && (
+                              <em className="aduc-activity-simulation-badge">Simulation</em>
+                            )}
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -3375,658 +3835,137 @@ function getAdAttributeValue(item, ...names) {
 
       {selectedAdAdminHistoryJob && (
         <div className="aduc-modal-backdrop" onClick={() => setSelectedAdAdminHistoryJob(null)}>
-          <div className="aduc-modal aduc-history-detail-modal" onClick={event => event.stopPropagation()}>
+          <section className="aduc-modal aduc-history-detail-modal" onClick={event => event.stopPropagation()}>
             <header>
               <div>
                 <span>Historique AD Admin</span>
-                <h3>{formatAdHistoryAction(selectedAdAdminHistoryJob.action)}</h3>
+                <h3>Détail de l’action</h3>
               </div>
 
               <button type="button" onClick={() => setSelectedAdAdminHistoryJob(null)}>×</button>
             </header>
 
+            <div className={`aduc-history-detail-summary-card ${getAdActivityJobStatus(selectedAdAdminHistoryJob)}`}>
+              <div>
+                <span className="aduc-history-detail-action">
+                  {getAdActivityActionLabel(selectedAdAdminHistoryJob.action)}
+                </span>
+
+                <h4>{getAdActivityMessage(selectedAdAdminHistoryJob)}</h4>
+
+                <p>
+                  {selectedAdAdminHistoryJob.claimed_by || selectedAdAdminHistoryJob.created_by || '—'}
+                  {' '}• {getAdActivityStatusLabel(selectedAdAdminHistoryJob)}
+                  {' '}• {formatAdActivityDate(getAdActivityDate(selectedAdAdminHistoryJob))}
+                </p>
+              </div>
+
+              <div className="aduc-history-detail-badges">
+                <strong>{getAdActivityStatusLabel(selectedAdAdminHistoryJob)}</strong>
+                {isAdActivitySimulation(selectedAdAdminHistoryJob) && <em>Simulation</em>}
+                {isAdActivityCritical(selectedAdAdminHistoryJob) && <em>Action critique</em>}
+              </div>
+            </div>
+
+            <div className="aduc-history-detail-actions">
+              <button type="button" onClick={() => copyAdHistoryDetailSummary(selectedAdAdminHistoryJob)}>
+                Copier résumé
+              </button>
+
+              <button type="button" onClick={() => copyAdHistoryDetailJson(selectedAdAdminHistoryJob)}>
+                Copier JSON job
+              </button>
+
+              {getAdActivityTargetDn(selectedAdAdminHistoryJob) && (
+                <button type="button" onClick={() => copyText(getAdActivityTargetDn(selectedAdAdminHistoryJob))}>
+                  Copier DN cible
+                </button>
+              )}
+            </div>
+
             <div className="aduc-history-detail-grid">
               <div>
+                <span>Action</span>
+                <strong>{getAdActivityActionLabel(selectedAdAdminHistoryJob.action)}</strong>
+              </div>
+
+              <div>
                 <span>Statut</span>
-                <strong>{formatAdHistoryStatus(selectedAdAdminHistoryJob)}</strong>
+                <strong>{getAdActivityStatusLabel(selectedAdAdminHistoryJob)}</strong>
               </div>
 
               <div>
                 <span>Agent</span>
-                <strong>{selectedAdAdminHistoryJob.agent_name || selectedAdAdminHistoryJob.claimed_by || 'Agent non assigné'}</strong>
+                <strong>{selectedAdAdminHistoryJob.claimed_by || '—'}</strong>
               </div>
 
               <div>
-                <span>Créée le</span>
-                <strong>{formatAdHistoryDate(selectedAdAdminHistoryJob.created_at)}</strong>
+                <span>Créé par</span>
+                <strong>{selectedAdAdminHistoryJob.created_by || '—'}</strong>
               </div>
 
               <div>
-                <span>Terminée le</span>
-                <strong>{formatAdHistoryDate(selectedAdAdminHistoryJob.completed_at)}</strong>
+                <span>Création</span>
+                <strong>{formatAdActivityDate(selectedAdAdminHistoryJob.created_at)}</strong>
               </div>
+
+              <div>
+                <span>Dernière date</span>
+                <strong>{formatAdActivityDate(getAdActivityDate(selectedAdAdminHistoryJob))}</strong>
+              </div>
+
+              {getAdActivityTargetLabel(selectedAdAdminHistoryJob) && (
+                <div>
+                  <span>Cible</span>
+                  <strong>{getAdActivityTargetLabel(selectedAdAdminHistoryJob)}</strong>
+                </div>
+              )}
+
+              {getAdActivityTargetDn(selectedAdAdminHistoryJob) && (
+                <div className="aduc-history-detail-grid-wide">
+                  <span>DN cible</span>
+                  <code>{getAdActivityTargetDn(selectedAdAdminHistoryJob)}</code>
+                </div>
+              )}
             </div>
 
             <div className="aduc-history-detail-message">
               <div className="aduc-history-detail-message-head">
-                <span>Résultat</span>
-                <button
-                  type="button"
-                  onClick={() => copyText(formatAdHistorySummary(selectedAdAdminHistoryJob)).then(() => setMessage?.('Résumé copié.'))}
-                >
-                  Copier résumé
+                <span>Message</span>
+                <button type="button" onClick={() => copyText(getAdActivityMessage(selectedAdAdminHistoryJob))}>
+                  Copier
                 </button>
               </div>
 
-              <strong>{formatAdHistoryMessage(selectedAdAdminHistoryJob)}</strong>
+              <strong>{getAdActivityMessage(selectedAdAdminHistoryJob)}</strong>
             </div>
 
             <div className="aduc-history-detail-json">
               <div className="aduc-history-detail-json-title">
-                <h4>Payload envoyé</h4>
-                <button
-                  type="button"
-                  onClick={() => copyText(formatAdHistoryJson(selectedAdAdminHistoryJob.payload || {})).then(() => setMessage?.('Payload copié.'))}
-                >
+                <h4>Résultat agent</h4>
+                <button type="button" onClick={() => copyText(JSON.stringify(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {}, null, 2))}>
                   Copier
                 </button>
               </div>
-              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.payload || {})}</pre>
+
+              <pre>{JSON.stringify(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {}, null, 2)}</pre>
             </div>
 
             <div className="aduc-history-detail-json">
               <div className="aduc-history-detail-json-title">
-                <h4>Output agent Windows</h4>
-                <button
-                  type="button"
-                  onClick={() => copyText(formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})).then(() => setMessage?.('Output agent copié.'))}
-                >
+                <h4>Job complet</h4>
+                <button type="button" onClick={() => copyAdHistoryDetailJson(selectedAdAdminHistoryJob)}>
                   Copier
                 </button>
               </div>
-              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.output || {})}</pre>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {newObjectModal && (
-        <div
-          className="aduc-modal-backdrop"
-          onClick={event => {
-            if (event.target === event.currentTarget) {
-              setNewObjectModal(null)
-            }
-          }}
-        >
-          <div
-            className="aduc-new-object-modal"
-            onClick={event => event.stopPropagation()}
-            onKeyDown={event => event.stopPropagation()}
-          >
-            <div className="aduc-modal-header">
-              <div>
-                <h3>Nouvel objet AD</h3>
-                <p>{getObjectDn(newObjectModal)}</p>
-              </div>
-              <button type="button" onClick={() => setNewObjectModal(null)}>×</button>
-            </div>
-
-            <div className="aduc-new-object-grid">
-              <button
-                type="button"
-                onClick={() => {
-                  const target = newObjectModal
-                  setNewObjectModal(null)
-                  openCreateOu(target)
-                }}
-              >
-                <strong>📁 Créer une OU</strong>
-                <span>Ajouter une unité d’organisation sous cette OU.</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const target = newObjectModal
-                  setNewObjectModal(null)
-                  openCreateGroup(target)
-                }}
-              >
-                <strong>👥 Créer un groupe</strong>
-                <span>Créer un groupe de sécurité dans cette OU.</span>
-              </button>
-
-              <button
-                type="button"
-                className="aduc-new-object-card"
-                onClick={() => {
-                  const target = newObjectModal
-                  setNewObjectModal(null)
-                  openCreateUser(target)
-                }}
-              >
-                <strong>👤 Créer un utilisateur</strong>
-                <span>Créer un compte utilisateur dans cette OU.</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {searchOuModal && (
-        <div
-          className="aduc-modal-backdrop"
-          onClick={event => {
-            if (event.target === event.currentTarget) {
-              setSearchOuModal(null)
-            }
-          }}
-        >
-          <form
-            className="aduc-search-ou-modal"
-            onSubmit={submitSearchOuModal}
-            onClick={event => event.stopPropagation()}
-            onKeyDown={event => event.stopPropagation()}
-          >
-            <div className="aduc-modal-header">
-              <div>
-                <h3>Rechercher dans cette OU</h3>
-                <p>{getObjectDn(searchOuModal)}</p>
-              </div>
-              <button type="button" onClick={() => setSearchOuModal(null)}>×</button>
-            </div>
-
-            <label>
-              Recherche
-              <input
-                value={searchOuQuery}
-                onChange={event => setSearchOuQuery(event.target.value)}
-                placeholder="Nom, groupe, utilisateur, description, DN..."
-                autoFocus
-              />
-            </label>
-
-            <div className="aduc-modal-actions">
-              <button type="button" onClick={() => setSearchOuModal(null)}>
-                Annuler
-              </button>
-              <button type="submit" disabled={!searchOuQuery.trim()}>
-                Rechercher
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {propertiesModal && (
-        <div
-          className="aduc-modal-backdrop"
-          onClick={event => {
-            if (event.target === event.currentTarget) {
-              setPropertiesModal(null)
-            }
-          }}
-        >
-          <div
-            className="aduc-properties-modal"
-            onClick={event => event.stopPropagation()}
-            onKeyDown={event => event.stopPropagation()}
-          >
-            <div className="aduc-modal-header">
-              <div>
-                <h3>Propriétés AD</h3>
-                <p>{getObjectDn(propertiesModal)}</p>
-              </div>
-              <button type="button" onClick={() => setPropertiesModal(null)}>×</button>
-            </div>
-
-            <div className="aduc-properties-summary">
-              <div className="aduc-properties-icon">ⓘ</div>
-              <div>
-                <strong>{propertiesModal.name || propertiesModal.sam_account_name || 'Objet AD'}</strong>
-                <span>{getObjectType(propertiesModal)}</span>
-              </div>
-            </div>
-
-            <div className="aduc-properties-actions">
-              <button type="button" onClick={() => copyText(getObjectDn(propertiesModal)).then(() => setMessage?.('DN copié.'))}>
-                Copier DN
-              </button>
-              <button type="button" onClick={() => copyText(JSON.stringify(propertiesModal, null, 2)).then(() => setMessage?.('JSON copié.'))}>
-                Copier JSON
-              </button>
-            </div>
-
-            <div className="aduc-properties-grid">
-              {getPropertiesRows(propertiesModal).map(([label, value]) => (
-                <div className="aduc-properties-row" key={label}>
-                  <span>{label}</span>
-                  <strong>{String(value)}</strong>
-                </div>
-              ))}
-            </div>
-
-            <details className="aduc-properties-raw">
-              <summary>JSON brut</summary>
-              <pre>{JSON.stringify(propertiesModal, null, 2)}</pre>
-            </details>
-          </div>
-        </div>
-      )}
-
-      {updateModal && (
-        <div
-          className="aduc-modal-backdrop"
-          onClick={event => {
-            if (event.target === event.currentTarget) {
-              setUpdateModal(null)
-            }
-          }}
-        >
-          <form
-            className="aduc-update-object-modal"
-            onSubmit={submitUpdateObject}
-            onClick={event => event.stopPropagation()}
-            onKeyDown={event => event.stopPropagation()}
-          >
-            <div className="aduc-modal-header">
-              <div>
-                <h3>Modifier objet AD</h3>
-                <p>{getObjectDn(updateModal)}</p>
-              </div>
-              <button type="button" onClick={() => setUpdateModal(null)}>×</button>
-            </div>
-
-            <div className="aduc-update-grid">
-              <label className="aduc-update-full">
-                Description
-                <textarea
-                  value={updateForm.description || ''}
-                  onChange={event => updateObjectFormField('description', event.target.value)}
-                  placeholder="Description de l’objet AD"
-                  rows={4}
-                  autoFocus
-                />
-              </label>
-
-              <label>
-                Nom affiché
-                <input
-                  value={updateForm.displayName || ''}
-                  onChange={event => updateObjectFormField('displayName', event.target.value)}
-                  placeholder="displayName"
-                />
-              </label>
-
-              <label>
-                Mail
-                <input
-                  value={updateForm.mail || ''}
-                  onChange={event => updateObjectFormField('mail', event.target.value)}
-                  placeholder="utilisateur@domaine.local"
-                />
-              </label>
-
-              <label>
-                Poste
-                <input
-                  value={updateForm.title || ''}
-                  onChange={event => updateObjectFormField('title', event.target.value)}
-                  placeholder="Technicien support"
-                />
-              </label>
-
-              <label>
-                Département
-                <input
-                  value={updateForm.department || ''}
-                  onChange={event => updateObjectFormField('department', event.target.value)}
-                  placeholder="Support"
-                />
-              </label>
-
-              <label>
-                Société
-                <input
-                  value={updateForm.company || ''}
-                  onChange={event => updateObjectFormField('company', event.target.value)}
-                  placeholder="Entreprise"
-                />
-              </label>
-
-              <label>
-                Téléphone
-                <input
-                  value={updateForm.telephoneNumber || ''}
-                  onChange={event => updateObjectFormField('telephoneNumber', event.target.value)}
-                  placeholder="+33..."
-                />
-              </label>
-
-              <label>
-                Bureau
-                <input
-                  value={updateForm.physicalDeliveryOfficeName || ''}
-                  onChange={event => updateObjectFormField('physicalDeliveryOfficeName', event.target.value)}
-                  placeholder="Pau / Bureau 1"
-                />
-              </label>
-            </div>
-
-            <div className="aduc-modal-actions">
-              <button type="button" onClick={() => setUpdateModal(null)}>
-                Annuler
-              </button>
-              <button type="submit">
-                Enregistrer
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {deleteModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setDeleteModal(null)}>
-          <form className="aduc-delete-object-modal" onSubmit={submitDeleteObject} onClick={event => event.stopPropagation()}>
-            <div className="aduc-modal-header">
-              <div>
-                <h3>Supprimer objet AD</h3>
-                <p>{getObjectDn(deleteModal)}</p>
-              </div>
-              <button type="button" onClick={() => setDeleteModal(null)}>×</button>
-            </div>
-
-            <div className="aduc-delete-danger">
-              Suppression réelle dans Active Directory. Le DN est pré-rempli automatiquement, vérifie simplement qu’il correspond bien à l’objet ciblé.
-            </div>
-
-            <label>
-              DN confirmé
-              <input
-                value={deleteConfirmDn}
-                onChange={event => setDeleteConfirmDn(event.target.value)}
-                placeholder="DN complet de l’objet AD"
-                autoFocus
-              />
-            </label>
-
-            {deleteConfirmDn.trim() && deleteConfirmDn.trim() !== getObjectDn(deleteModal) && (
-              <div className="aduc-delete-warning">
-                Le DN saisi ne correspond pas. La suppression sera bloquée.
-              </div>
-            )}
-
-            <div className="aduc-modal-actions">
-              <button type="button" onClick={() => setDeleteModal(null)}>
-                Annuler
-              </button>
-              <button
-                type="submit"
-                className="danger"
-                disabled={deleteConfirmDn.trim() !== getObjectDn(deleteModal)}
-              >
-                Supprimer définitivement
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {renameModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setRenameModal(null)}>
-          <form className="aduc-rename-object-modal" onSubmit={submitRenameObject} onClick={event => event.stopPropagation()}>
-            <div className="aduc-modal-header">
-              <div>
-                <h3>Renommer objet AD</h3>
-                <p>{getObjectDn(renameModal)}</p>
-              </div>
-              <button type="button" onClick={() => setRenameModal(null)}>×</button>
-            </div>
-
-            <label>
-              Nouveau nom
-              <input
-                value={renameNewName}
-                onChange={event => setRenameNewName(event.target.value)}
-                placeholder="Exemple : GG_MOVE_TEST_RENAMED"
-                autoFocus
-              />
-            </label>
-
-            {renameNewName.trim() === getRenameDefaultName(renameModal) && (
-              <div className="aduc-rename-warning">
-                Le nouveau nom est identique au nom actuel.
-              </div>
-            )}
-
-            <div className="aduc-modal-actions">
-              <button type="button" onClick={() => setRenameModal(null)}>
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={!renameNewName.trim() || renameNewName.trim() === getRenameDefaultName(renameModal)}
-              >
-                Renommer
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {moveModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setMoveModal(null)}>
-          <form className="aduc-modal aduc-move-object-modal" onSubmit={submitMoveObject} onClick={event => event.stopPropagation()}>
-            <header>
-              <div>
-                <span>Explorateur Active Directory</span>
-                <h3>Déplacer un objet AD</h3>
-              </div>
-
-              <button type="button" onClick={() => setMoveModal(null)}>×</button>
-            </header>
-
-            <label>
-              Objet à déplacer
-              <input value={getObjectName(moveModal)} readOnly />
-            </label>
-
-            <label>
-              DN actuel
-              <textarea value={getObjectDn(moveModal)} readOnly rows={3} />
-            </label>
-
-            <label>
-              DN de la destination
-              <input
-                value={moveTargetDn}
-                onChange={event => setMoveTargetDn(event.target.value)}
-                placeholder="OU=Groups,OU=EITAS,DC=API,DC=LOCAL"
-                autoFocus
-              />
-            </label>
-
-            <div className="aduc-move-quick-targets">
-              <button type="button" onClick={() => setMoveTargetDn('OU=Groups,OU=EITAS,DC=API,DC=LOCAL')}>
-                Groups
-              </button>
-              <button type="button" onClick={() => setMoveTargetDn('OU=Users,OU=EITAS,DC=API,DC=LOCAL')}>
-                Users
-              </button>
-              <button type="button" onClick={() => setMoveTargetDn('OU=MoveTest,OU=EITAS,DC=API,DC=LOCAL')}>
-                MoveTest
-              </button>
-            </div>
-
-            {moveTargetDn.trim() && moveTargetDn.trim().toLowerCase() === getParentDn(getObjectDn(moveModal)).toLowerCase() && (
-              <p className="aduc-move-warning">
-                La destination choisie est déjà l’emplacement actuel de cet objet.
-              </p>
-            )}
-
-            <p className="aduc-move-help">
-              Indique le DN du conteneur ou de l’OU de destination. L’objet sera déplacé avec Move-ADObject côté SRV-DC01.
-            </p>
-
-            <footer>
-              <button type="button" onClick={() => setMoveModal(null)}>
-                Annuler
-              </button>
-
-              <button
-                type="submit"
-                disabled={
-                  adminLoading ||
-                  !moveTargetDn.trim() ||
-                  moveTargetDn.trim().toLowerCase() === getParentDn(getObjectDn(moveModal)).toLowerCase()
-                }
-              >
-                {adminLoading ? 'Déplacement...' : 'Déplacer'}
-              </button>
-            </footer>
-          </form>
-        </div>
-      )}
-
-      {createUserModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setCreateUserModal(null)}>
-          <form
-            className="aduc-modal"
-            onSubmit={submitCreateUser}
-            onClick={event => event.stopPropagation()}
-            onKeyDown={event => event.stopPropagation()}
-          >
-            <header className="aduc-modal-header">
-              <div>
-                <strong>👤 Créer un utilisateur</strong>
-                <p>{createUserModal.target_ou_dn}</p>
-              </div>
-              <button type="button" onClick={() => setCreateUserModal(null)}>×</button>
-            </header>
-
-            <label>
-              Prénom
-              <input
-                value={createUserForm.first_name}
-                onChange={event => setCreateUserForm(current => ({ ...current, first_name: event.target.value }))}
-                placeholder="Ex : Liam"
-                autoFocus
-              />
-            </label>
-
-            <label>
-              Nom
-              <input
-                value={createUserForm.last_name}
-                onChange={event => setCreateUserForm(current => ({ ...current, last_name: event.target.value }))}
-                placeholder="Ex : Test"
-              />
-            </label>
-
-            <label>
-              Identifiant
-              <input
-                value={createUserForm.sam_account_name}
-                onChange={event => setCreateUserForm(current => ({ ...current, sam_account_name: event.target.value }))}
-                placeholder="Ex : liam.test"
-              />
-            </label>
-
-            <label>
-              OU de destination
-              <select
-                key={createUserOuOptions.map(option => option.dn).join('|') || 'loading-ou-tree'}
-                value={createUserForm.target_ou_dn}
-                disabled={createUserOuLoading}
-                onChange={event => setCreateUserForm(current => ({ ...current, target_ou_dn: event.target.value }))}
-              >
-                {createUserOuLoading && (
-                  <option value={createUserForm.target_ou_dn}>
-                    Chargement de l’arbre Active Directory...
-                  </option>
-                )}
-
-                {!createUserOuLoading && !dedupeCreateUserOuOptions(createUserOuOptions.length ? createUserOuOptions : getFallbackCreateUserOuOptions()).some(option => option.dn === createUserForm.target_ou_dn) && (
-                  <option value={createUserForm.target_ou_dn}>
-                    {getOuLabelFromDn(createUserForm.target_ou_dn)} — personnalisé
-                  </option>
-                )}
-
-                {!createUserOuLoading && dedupeCreateUserOuOptions(createUserOuOptions.length ? createUserOuOptions : getFallbackCreateUserOuOptions()).map(option => (
-                  <option key={option.dn} value={option.dn}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <details className="aduc-create-user-advanced-dn">
-              <summary>DN personnalisé / avancé</summary>
-              <input
-                value={createUserForm.target_ou_dn}
-                onChange={event => setCreateUserForm(current => ({ ...current, target_ou_dn: event.target.value }))}
-                placeholder="OU=Support,OU=Users,OU=EITAS,DC=API,DC=LOCAL"
-              />
-            </details>
-
-            <p className="aduc-create-user-ou-hint">
-              {createUserOuLoading
-                ? 'Chargement de l’arbre des OU depuis Active Directory...'
-                : `${createUserOuOptions.length} OU détectée${createUserOuOptions.length > 1 ? 's' : ''} dans l’arbre AD.`}
-            </p>
-
-            <label>
-              Mot de passe temporaire
-              <input
-                type="password"
-                autoComplete="new-password"
-                value={createUserForm.temporary_password}
-                onChange={event => setCreateUserForm(current => ({ ...current, temporary_password: event.target.value }))}
-              />
-            </label>
-
-            <label>
-              Description
-              <textarea
-                rows={3}
-                value={createUserForm.description}
-                onChange={event => setCreateUserForm(current => ({ ...current, description: event.target.value }))}
-                placeholder="Description optionnelle"
-              />
-            </label>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={createUserForm.enabled}
-                onChange={event => setCreateUserForm(current => ({ ...current, enabled: event.target.checked }))}
-              />
-              {' '}Activer le compte directement
-            </label>
-
-            <div className={isAdProductionMode() ? "aduc-modal-warning" : "aduc-modal-warning aduc-modal-warning-safe"}>
-              <strong>{getAdAgentModeLabel()}</strong>
-              <span>
-                {isAdProductionMode()
-                  ? "Cette création utilisateur modifiera réellement Active Directory."
-                  : "Cette création utilisateur sera simulée, aucun compte AD réel ne sera créé."}
-              </span>
+              <pre>{JSON.stringify(selectedAdAdminHistoryJob, null, 2)}</pre>
             </div>
 
             <footer className="aduc-modal-actions">
-              <button type="button" onClick={() => setCreateUserModal(null)}>Annuler</button>
-              <button type="submit" disabled={createUserLoading || createUserOuLoading || adAgentModeLoading}>
-                {createUserLoading
-                  ? 'Création...'
-                  : createUserOuLoading
-                    ? 'Chargement des OU...'
-                    : adAgentModeLoading
-                      ? 'Vérification mode...'
-                      : 'Créer utilisateur'}
-              </button>
+              <button type="button" onClick={() => setSelectedAdAdminHistoryJob(null)}>Fermer</button>
             </footer>
-          </form>
+          </section>
         </div>
       )}
 

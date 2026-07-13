@@ -4080,3 +4080,431 @@ button.aduc-admin-history-row.unknown > span {
     grid-template-columns: 1fr;
   }
 }
+
+/* BLOC278 - AD Activity search/export */
+.aduc-activity-tools {
+  display: grid;
+  grid-template-columns: 1.4fr auto auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.aduc-activity-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.aduc-activity-search input {
+  width: 100%;
+  min-width: 220px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  font-weight: 800;
+  outline: none;
+}
+
+.aduc-activity-search input:focus {
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.10);
+}
+
+.aduc-activity-search span {
+  white-space: nowrap;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.aduc-activity-scope,
+.aduc-activity-export {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.aduc-activity-scope button,
+.aduc-activity-export button {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 10px 13px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aduc-activity-scope button.active {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: white;
+}
+
+.aduc-activity-export button {
+  border-color: rgba(34, 197, 94, 0.26);
+  color: #166534;
+  background: rgba(240, 253, 244, 0.95);
+}
+
+.aduc-activity-export button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aduc-activity-grid h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aduc-activity-grid h4 span {
+  display: inline-flex;
+  min-width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.10);
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+@media (max-width: 980px) {
+  .aduc-activity-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-activity-search {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .aduc-activity-search span {
+    white-space: normal;
+  }
+}
+
+/* BLOC279 - AD activity detail UX */
+.aduc-history-detail-summary-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.aduc-history-detail-summary-card.completed {
+  border-color: rgba(34, 197, 94, 0.30);
+  background: rgba(240, 253, 244, 0.88);
+}
+
+.aduc-history-detail-summary-card.failed {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(254, 242, 242, 0.90);
+}
+
+.aduc-history-detail-summary-card.processing,
+.aduc-history-detail-summary-card.pending {
+  border-color: rgba(99, 102, 241, 0.32);
+  background: rgba(238, 242, 255, 0.90);
+}
+
+.aduc-history-detail-action {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.aduc-history-detail-summary-card h4 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.aduc-history-detail-summary-card p {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.aduc-history-detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.aduc-history-detail-badges strong,
+.aduc-history-detail-badges em {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 8px 11px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+.aduc-history-detail-badges strong {
+  background: rgba(15, 23, 42, 0.08);
+  color: #334155;
+}
+
+.aduc-history-detail-badges em {
+  background: rgba(249, 115, 22, 0.14);
+  color: #c2410c;
+}
+
+.aduc-history-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.aduc-history-detail-actions button {
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #3730a3;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.aduc-history-detail-actions button:hover {
+  background: rgba(99, 102, 241, 0.14);
+}
+
+@media (max-width: 720px) {
+  .aduc-history-detail-summary-card {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-history-detail-badges {
+    justify-content: flex-start;
+  }
+}
+
+/* BLOC280 - AD activity target UX */
+.aduc-activity-target {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.aduc-history-detail-grid-wide {
+  grid-column: 1 / -1;
+}
+
+.aduc-history-detail-grid-wide code {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+/* BLOC281 - AD Activity advanced filters */
+.aduc-activity-tools {
+  grid-template-columns: 1.2fr auto auto auto;
+}
+
+.aduc-activity-advanced {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aduc-activity-advanced button,
+.aduc-activity-advanced select {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  padding: 10px 13px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #475569;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aduc-activity-advanced button.active {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.10);
+  color: #3730a3;
+}
+
+.aduc-activity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.aduc-activity-tags .aduc-activity-target {
+  margin-top: 0;
+}
+
+.aduc-activity-simulation-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.10);
+  color: #3730a3;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+@media (max-width: 1180px) {
+  .aduc-activity-tools {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BLOC281B - Fix layout Centre activité AD */
+.aduc-activity-tools {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 12px !important;
+  margin-bottom: 18px;
+}
+
+.aduc-activity-search {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 1fr) auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100%;
+}
+
+.aduc-activity-search input {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.aduc-activity-search span {
+  justify-self: end;
+}
+
+.aduc-activity-scope,
+.aduc-activity-advanced,
+.aduc-activity-export {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+
+.aduc-activity-scope {
+  justify-content: flex-start;
+}
+
+.aduc-activity-advanced {
+  justify-content: flex-start;
+}
+
+.aduc-activity-export {
+  justify-content: flex-end;
+}
+
+.aduc-activity-advanced select {
+  min-width: 210px;
+}
+
+.aduc-activity-center-modal {
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+}
+
+.aduc-activity-grid {
+  min-height: 0;
+}
+
+.aduc-activity-list {
+  max-height: 430px;
+}
+
+@media (max-width: 900px) {
+  .aduc-activity-search {
+    grid-template-columns: 1fr !important;
+  }
+
+  .aduc-activity-search span {
+    justify-self: start;
+  }
+
+  .aduc-activity-export {
+    justify-content: flex-start;
+  }
+
+  .aduc-activity-advanced select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* BLOC282 - AD Activity final UX */
+.aduc-activity-export button.neutral {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(248, 250, 252, 0.96);
+  color: #475569;
+}
+
+.aduc-activity-filter-summary {
+  margin: -4px 0 18px;
+  padding: 11px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: rgba(238, 242, 255, 0.55);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.aduc-activity-export {
+  justify-content: flex-end;
+}
+
+.aduc-activity-export button:first-child {
+  border-color: rgba(99, 102, 241, 0.25);
+  background: rgba(99, 102, 241, 0.08);
+  color: #3730a3;
+}
+
+@media (max-width: 980px) {
+  .aduc-activity-export {
+    justify-content: flex-start;
+  }
+}
