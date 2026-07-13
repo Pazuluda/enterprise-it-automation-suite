@@ -3918,3 +3918,165 @@ button.aduc-admin-history-row.pending > span {
 button.aduc-admin-history-row.unknown > span {
   background: #94a3b8 !important;
 }
+
+/* BLOC277 - AD Activity Center */
+.aduc-activity-center-modal {
+  width: min(1120px, calc(100vw - 32px));
+}
+
+.aduc-activity-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.aduc-activity-actions button {
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #3730a3;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aduc-activity-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.aduc-activity-kpi {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.aduc-activity-kpi span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.aduc-activity-kpi strong {
+  display: block;
+  margin-top: 5px;
+  color: #0f172a;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.aduc-activity-kpi.success strong {
+  color: #15803d;
+}
+
+.aduc-activity-kpi.failed strong {
+  color: #b91c1c;
+}
+
+.aduc-activity-kpi.running strong {
+  color: #3730a3;
+}
+
+.aduc-activity-kpi.critical strong {
+  color: #c2410c;
+}
+
+.aduc-activity-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+}
+
+.aduc-activity-grid section {
+  min-width: 0;
+}
+
+.aduc-activity-grid h4 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.aduc-activity-list {
+  display: grid;
+  gap: 10px;
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.aduc-activity-row {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+}
+
+.aduc-activity-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+}
+
+.aduc-activity-dot {
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.aduc-activity-row.completed .aduc-activity-dot {
+  background: #22c55e;
+}
+
+.aduc-activity-row.failed .aduc-activity-dot {
+  background: #ef4444;
+}
+
+.aduc-activity-row.processing .aduc-activity-dot,
+.aduc-activity-row.pending .aduc-activity-dot {
+  background: #6366f1;
+}
+
+.aduc-activity-row.critical {
+  background: rgba(255, 247, 237, 0.75);
+}
+
+.aduc-activity-row strong {
+  display: block;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.aduc-activity-row small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.aduc-activity-row p {
+  margin: 7px 0 0;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+@media (max-width: 980px) {
+  .aduc-activity-kpis,
+  .aduc-activity-grid {
+    grid-template-columns: 1fr;
+  }
+}

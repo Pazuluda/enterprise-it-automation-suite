@@ -658,6 +658,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
   const [adAdminHistoryFilter, setAdAdminHistoryFilter] = useState('all')
   const [selectedAdAdminHistoryJob, setSelectedAdAdminHistoryJob] = useState(null)
+  const [adActivityModal, setAdActivityModal] = useState(false)
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -679,6 +680,125 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       JSON.stringify(item).toLowerCase().includes(filter)
     )
   }, [viewItems, viewFilter])
+
+  function getAdActivityJobStatus(job) {
+    if (job?.status === 'failed' || job?.success === false) return 'failed'
+    if (job?.status === 'processing') return 'processing'
+    if (job?.status === 'pending') return 'pending'
+    if (job?.status === 'completed' || job?.success === true) return 'completed'
+    return job?.status || 'unknown'
+  }
+
+  function getAdActivityStatusLabel(job) {
+    const status = getAdActivityJobStatus(job)
+
+    if (status === 'completed') return 'terminé'
+    if (status === 'failed') return 'échec'
+    if (status === 'processing') return 'en cours'
+    if (status === 'pending') return 'en attente'
+
+    return status
+  }
+
+  function getAdActivityActionLabel(action) {
+    const labels = {
+      create_ou: 'Création OU',
+      create_group: 'Création groupe',
+      create_user: 'Création utilisateur',
+      delete_object: 'Suppression objet',
+      move_object: 'Déplacement objet',
+      rename_object: 'Renommage objet',
+      update_object_properties: 'Modification objet',
+      add_group_member: 'Ajout membre',
+      remove_group_member: 'Retrait membre'
+    }
+
+    return labels[action] || action || 'Action AD'
+  }
+
+  function getAdActivityDate(job) {
+    return job?.completed_at
+      || job?.updated_at
+      || job?.claimed_at
+      || job?.created_at
+      || ''
+  }
+
+  function formatAdActivityDate(value) {
+    if (!value) return '—'
+
+    try {
+      return new Date(value).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return value
+    }
+  }
+
+  function getAdActivityMessage(job) {
+    const result = job?.result || job?.output || {}
+
+    return job?.message
+      || result?.message
+      || result?.error
+      || 'Aucun message'
+  }
+
+  function isAdActivityCritical(job) {
+    return [
+      'delete_object',
+      'move_object',
+      'rename_object',
+      'update_object_properties'
+    ].includes(job?.action)
+  }
+
+  function getAdActivityJobs() {
+    return Array.isArray(adAdminHistory) ? adAdminHistory : []
+  }
+
+  function getAdActivityStats() {
+    const jobs = getAdActivityJobs()
+
+    return {
+      total: jobs.length,
+      success: jobs.filter(job => getAdActivityJobStatus(job) === 'completed').length,
+      failed: jobs.filter(job => getAdActivityJobStatus(job) === 'failed').length,
+      running: jobs.filter(job => ['processing', 'pending'].includes(getAdActivityJobStatus(job))).length,
+      critical: jobs.filter(isAdActivityCritical).length
+    }
+  }
+
+  function getAdActivityStatCards() {
+    const stats = getAdActivityStats()
+
+    return [
+      { key: 'total', label: 'Actions chargées', value: stats.total },
+      { key: 'success', label: 'Succès', value: stats.success },
+      { key: 'failed', label: 'Échecs', value: stats.failed },
+      { key: 'running', label: 'En cours', value: stats.running },
+      { key: 'critical', label: 'Actions critiques', value: stats.critical }
+    ]
+  }
+
+  function getAdActivityRecentJobs(limit = 12) {
+    return getAdActivityJobs().slice(0, limit)
+  }
+
+  function getAdActivityCriticalJobs(limit = 8) {
+    return getAdActivityJobs()
+      .filter(job => isAdActivityCritical(job) || getAdActivityJobStatus(job) === 'failed')
+      .slice(0, limit)
+  }
+
+  async function openAdActivityCenter() {
+    setAdActivityModal(true)
+    await refreshAdAdminHistoryQuietly()
+  }
 
   async function runJob(action, options = {}) {
     const created = await apiFetch('/api/ad-explorer/jobs', {
@@ -2990,6 +3110,7 @@ function getAdAttributeValue(item, ...names) {
               openDeleteObject(contextMenu?.target || selectedObject || selectedNode)
             }}>🗑 Supprimer</button>
               <button type="button" onClick={openTestCleanupScanner}>🧹 Nettoyage tests</button>
+              <button type="button" onClick={openAdActivityCenter}>📊 Activité AD</button>
               <button type="button" onClick={refreshAll}>⟳ Actualiser</button>
             </section>
 
@@ -3150,6 +3271,107 @@ function getAdAttributeValue(item, ...names) {
       </div>
 
 
+
+      {adActivityModal && (
+        <div className="aduc-modal-backdrop" onClick={() => setAdActivityModal(false)}>
+          <section className="aduc-modal aduc-activity-center-modal" onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Centre d’activité Active Directory</span>
+                <h3>Activité AD Admin globale</h3>
+              </div>
+
+              <button type="button" onClick={() => setAdActivityModal(false)}>×</button>
+            </header>
+
+            <div className="aduc-activity-actions">
+              <button type="button" onClick={refreshAdAdminHistoryQuietly} disabled={adAdminHistoryLoading}>
+                {adAdminHistoryLoading ? 'Chargement...' : 'Actualiser l’activité'}
+              </button>
+            </div>
+
+            <div className="aduc-activity-kpis">
+              {getAdActivityStatCards().map(card => (
+                <article key={card.key} className={`aduc-activity-kpi ${card.key}`}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                </article>
+              ))}
+            </div>
+
+            {adAdminHistoryError && (
+              <div className="aduc-admin-history-error">
+                {adAdminHistoryError}
+              </div>
+            )}
+
+            <div className="aduc-activity-grid">
+              <section>
+                <h4>Dernières actions</h4>
+
+                {getAdActivityRecentJobs().length === 0 ? (
+                  <p className="aduc-admin-history-empty">Aucune action AD Admin récente.</p>
+                ) : (
+                  <div className="aduc-activity-list">
+                    {getAdActivityRecentJobs().map(job => (
+                      <button
+                        type="button"
+                        key={job.id || job.job_id}
+                        className={`aduc-activity-row ${getAdActivityJobStatus(job)}`}
+                        onClick={() => setSelectedAdAdminHistoryJob(job)}
+                      >
+                        <span className="aduc-activity-dot" />
+
+                        <div>
+                          <strong>{getAdActivityActionLabel(job.action)}</strong>
+                          <small>
+                            {job.claimed_by || job.created_by || '—'} • {getAdActivityStatusLabel(job)} • {formatAdActivityDate(getAdActivityDate(job))}
+                          </small>
+                          <p>{getAdActivityMessage(job)}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <h4>Actions sensibles / erreurs</h4>
+
+                {getAdActivityCriticalJobs().length === 0 ? (
+                  <p className="aduc-admin-history-empty">Aucune action sensible ou erreur récente.</p>
+                ) : (
+                  <div className="aduc-activity-list">
+                    {getAdActivityCriticalJobs().map(job => (
+                      <button
+                        type="button"
+                        key={job.id || job.job_id}
+                        className={`aduc-activity-row ${getAdActivityJobStatus(job)} critical`}
+                        onClick={() => setSelectedAdAdminHistoryJob(job)}
+                      >
+                        <span className="aduc-activity-dot" />
+
+                        <div>
+                          <strong>{getAdActivityActionLabel(job.action)}</strong>
+                          <small>
+                            {job.claimed_by || job.created_by || '—'} • {getAdActivityStatusLabel(job)} • {formatAdActivityDate(getAdActivityDate(job))}
+                          </small>
+                          <p>{getAdActivityMessage(job)}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <footer className="aduc-modal-actions">
+              <button type="button" onClick={() => setAdActivityModal(false)}>Fermer</button>
+              <button type="button" onClick={refreshAdAdminHistoryQuietly}>Actualiser</button>
+            </footer>
+          </section>
+        </div>
+      )}
 
       {selectedAdAdminHistoryJob && (
         <div className="aduc-modal-backdrop" onClick={() => setSelectedAdAdminHistoryJob(null)}>
