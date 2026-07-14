@@ -34,6 +34,10 @@ ALLOWED_ACTIONS = {
     "rename_object",
     "delete_object",
     "update_object_properties",
+    "enable_account",
+    "disable_account",
+    "unlock_account",
+    "reset_password",
 }
 
 
@@ -94,7 +98,62 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         "action": action,
     }
 
-    if action in {"create_ou", "create_group"}:
+    if action in {"enable_account", "disable_account", "unlock_account"}:
+        object_dn = validate_dn(
+            payload.get("object_dn")
+            or payload.get("distinguished_name")
+            or payload.get("dn"),
+            "object_dn"
+        )
+
+        job_payload = {
+            "object_dn": object_dn,
+        }
+
+        audit_details.update({
+            "object_dn": object_dn,
+        })
+
+    elif action == "reset_password":
+        object_dn = validate_dn(
+            payload.get("object_dn")
+            or payload.get("distinguished_name")
+            or payload.get("dn"),
+            "object_dn"
+        )
+
+        temporary_password = clean_string(
+            payload.get("temporary_password")
+            or payload.get("password")
+            or payload.get("new_password")
+        )
+
+        if not temporary_password:
+            raise ADAdminBadRequest("temporary_password est obligatoire")
+
+        force_change_at_logon = payload.get("force_change_at_logon", True)
+        unlock_after_reset = payload.get("unlock_after_reset", True)
+
+        if isinstance(force_change_at_logon, str):
+            force_change_at_logon = force_change_at_logon.strip().lower() not in {"0", "false", "no", "non"}
+
+        if isinstance(unlock_after_reset, str):
+            unlock_after_reset = unlock_after_reset.strip().lower() not in {"0", "false", "no", "non"}
+
+        job_payload = {
+            "object_dn": object_dn,
+            "temporary_password": temporary_password,
+            "force_change_at_logon": bool(force_change_at_logon),
+            "unlock_after_reset": bool(unlock_after_reset),
+        }
+
+        audit_details.update({
+            "object_dn": object_dn,
+            "force_change_at_logon": bool(force_change_at_logon),
+            "unlock_after_reset": bool(unlock_after_reset),
+        })
+
+    elif action in {"create_ou", "create_group"}:
         parent_dn = validate_dn(payload.get("parent_dn"), "parent_dn")
         name = validate_name(payload.get("name"), "name")
         description = clean_string(payload.get("description"))

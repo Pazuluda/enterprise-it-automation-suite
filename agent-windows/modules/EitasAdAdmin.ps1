@@ -1137,6 +1137,303 @@ function Invoke-EitasAdAdminMoveObject {
 }
 
 
+function Convert-EitasAdAdminBool {
+    param(
+        [object]$Value,
+        [bool]$Default = $false
+    )
+
+    if ($null -eq $Value) {
+        return $Default
+    }
+
+    if ($Value -is [bool]) {
+        return [bool]$Value
+    }
+
+    $Text = ([string]$Value).Trim().ToLowerInvariant()
+
+    if (@("1", "true", "yes", "oui", "enabled", "active") -contains $Text) {
+        return $true
+    }
+
+    if (@("0", "false", "no", "non", "disabled", "inactive") -contains $Text) {
+        return $false
+    }
+
+    return $Default
+}
+
+function Get-EitasAdAdminAccountIdentity {
+    param([object]$Payload)
+
+    $Identity = Get-EitasObjectValue -Object $Payload -Names @(
+        "object_dn",
+        "distinguished_name",
+        "dn",
+        "identity",
+        "sam_account_name",
+        "samAccountName"
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$Identity)) {
+        throw "Identité compte AD manquante"
+    }
+
+    return ([string]$Identity).Trim()
+}
+
+function Assert-EitasAdAdminAccountDnAllowed {
+    param(
+        [object]$Config,
+        [string]$ObjectDn
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectDn)) {
+        throw "DN compte AD manquant"
+    }
+
+    $AllowedBaseDn = Get-EitasObjectValue -Object $Config -Names @(
+        "EitasBaseOu",
+        "AllowedBaseDn",
+        "BaseDn",
+        "DomainBaseDn"
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace([string]$AllowedBaseDn)) {
+        $CleanDn = $ObjectDn.Trim().ToLowerInvariant()
+        $CleanBase = ([string]$AllowedBaseDn).Trim().ToLowerInvariant()
+
+        if (-not $CleanDn.EndsWith($CleanBase)) {
+            throw "DN hors périmètre EITAS : $ObjectDn"
+        }
+    }
+}
+
+function Resolve-EitasAdAdminAccountUser {
+    param(
+        [object]$Config,
+        [string]$Identity
+    )
+
+    Import-Module ActiveDirectory -ErrorAction Stop
+
+    $User = Get-ADUser `
+        -Identity $Identity `
+        -Properties Enabled, LockedOut, PasswordExpired, PasswordLastSet, UserPrincipalName, SamAccountName, DisplayName, Description `
+        -ErrorAction Stop
+
+    Assert-EitasAdAdminAccountDnAllowed -Config $Config -ObjectDn $User.DistinguishedName
+
+    return $User
+}
+
+function Convert-EitasAdAdminAccountResult {
+    param(
+        [string]$Action,
+        [bool]$Simulated,
+        [object]$User,
+        [string]$ObjectDn,
+        [string]$Message
+    )
+
+    $Result = [ordered]@{
+        action = $Action
+        simulated = $Simulated
+        object_dn = $ObjectDn
+        message = $Message
+    }
+
+    if ($null -ne $User) {
+        $Result.user = $User.Name
+        $Result.sam_account_name = $User.SamAccountName
+        $Result.user_principal_name = $User.UserPrincipalName
+        $Result.enabled = $User.Enabled
+        $Result.locked_out = $User.LockedOut
+        $Result.password_expired = $User.PasswordExpired
+        $Result.password_last_set = $User.PasswordLastSet
+        $Result.distinguished_name = $User.DistinguishedName
+
+        if (Get-Command Convert-EitasAdAdminObjectItem -ErrorAction SilentlyContinue) {
+            $Result.updated_object = Convert-EitasAdAdminObjectItem -Object $User
+        }
+    }
+
+    return [pscustomobject]$Result
+}
+
+function Invoke-EitasAdAdminEnableAccount {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Identity = Get-EitasAdAdminAccountIdentity -Payload $Payload
+
+    if ($Mode -ne "Production") {
+        return Convert-EitasAdAdminAccountResult `
+            -Action "enable_account" `
+            -Simulated $true `
+            -User $null `
+            -ObjectDn $Identity `
+            -Message "Simulation activation compte AD"
+    }
+
+    $User = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $Identity
+    Enable-ADAccount -Identity $User.DistinguishedName -ErrorAction Stop
+
+    $UpdatedUser = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $User.DistinguishedName
+
+    return Convert-EitasAdAdminAccountResult `
+        -Action "enable_account" `
+        -Simulated $false `
+        -User $UpdatedUser `
+        -ObjectDn $UpdatedUser.DistinguishedName `
+        -Message "Compte AD activé"
+}
+
+function Invoke-EitasAdAdminDisableAccount {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Identity = Get-EitasAdAdminAccountIdentity -Payload $Payload
+
+    if ($Mode -ne "Production") {
+        return Convert-EitasAdAdminAccountResult `
+            -Action "disable_account" `
+            -Simulated $true `
+            -User $null `
+            -ObjectDn $Identity `
+            -Message "Simulation désactivation compte AD"
+    }
+
+    $User = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $Identity
+    Disable-ADAccount -Identity $User.DistinguishedName -ErrorAction Stop
+
+    $UpdatedUser = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $User.DistinguishedName
+
+    return Convert-EitasAdAdminAccountResult `
+        -Action "disable_account" `
+        -Simulated $false `
+        -User $UpdatedUser `
+        -ObjectDn $UpdatedUser.DistinguishedName `
+        -Message "Compte AD désactivé"
+}
+
+function Invoke-EitasAdAdminUnlockAccount {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Identity = Get-EitasAdAdminAccountIdentity -Payload $Payload
+
+    if ($Mode -ne "Production") {
+        return Convert-EitasAdAdminAccountResult `
+            -Action "unlock_account" `
+            -Simulated $true `
+            -User $null `
+            -ObjectDn $Identity `
+            -Message "Simulation déverrouillage compte AD"
+    }
+
+    $User = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $Identity
+    Unlock-ADAccount -Identity $User.DistinguishedName -ErrorAction Stop
+
+    $UpdatedUser = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $User.DistinguishedName
+
+    return Convert-EitasAdAdminAccountResult `
+        -Action "unlock_account" `
+        -Simulated $false `
+        -User $UpdatedUser `
+        -ObjectDn $UpdatedUser.DistinguishedName `
+        -Message "Compte AD déverrouillé"
+}
+
+function Invoke-EitasAdAdminResetPassword {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Identity = Get-EitasAdAdminAccountIdentity -Payload $Payload
+    $TemporaryPassword = Get-EitasObjectValue -Object $Payload -Names @(
+        "temporary_password",
+        "password",
+        "new_password"
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$TemporaryPassword)) {
+        throw "Mot de passe temporaire manquant"
+    }
+
+    $ForceChangeAtLogon = Convert-EitasAdAdminBool `
+        -Value (Get-EitasObjectValue -Object $Payload -Names @("force_change_at_logon", "change_password_at_logon")) `
+        -Default $true
+
+    $UnlockAfterReset = Convert-EitasAdAdminBool `
+        -Value (Get-EitasObjectValue -Object $Payload -Names @("unlock_after_reset")) `
+        -Default $true
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "reset_password"
+            simulated = $true
+            object_dn = $Identity
+            force_change_at_logon = $ForceChangeAtLogon
+            unlock_after_reset = $UnlockAfterReset
+            message = "Simulation réinitialisation mot de passe AD"
+        }
+    }
+
+    $User = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $Identity
+
+    $SecurePassword = ConvertTo-SecureString `
+        -String ([string]$TemporaryPassword) `
+        -AsPlainText `
+        -Force
+
+    Set-ADAccountPassword `
+        -Identity $User.DistinguishedName `
+        -Reset `
+        -NewPassword $SecurePassword `
+        -ErrorAction Stop
+
+    if ($ForceChangeAtLogon) {
+        Set-ADUser `
+            -Identity $User.DistinguishedName `
+            -ChangePasswordAtLogon $true `
+            -ErrorAction Stop
+    }
+
+    if ($UnlockAfterReset) {
+        Unlock-ADAccount `
+            -Identity $User.DistinguishedName `
+            -ErrorAction Stop
+    }
+
+    $UpdatedUser = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $User.DistinguishedName
+
+    $Result = Convert-EitasAdAdminAccountResult `
+        -Action "reset_password" `
+        -Simulated $false `
+        -User $UpdatedUser `
+        -ObjectDn $UpdatedUser.DistinguishedName `
+        -Message "Mot de passe AD réinitialisé"
+
+    $Result | Add-Member -NotePropertyName force_change_at_logon -NotePropertyValue $ForceChangeAtLogon -Force
+    $Result | Add-Member -NotePropertyName unlock_after_reset -NotePropertyValue $UnlockAfterReset -Force
+
+    return $Result
+}
+
+
 function Invoke-EitasAdAdminJob {
     param(
         [object]$Config,
@@ -1187,6 +1484,22 @@ function Invoke-EitasAdAdminJob {
 
         "update_object_properties" {
             return Invoke-EitasAdAdminUpdateObjectProperties -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "enable_account" {
+            return Invoke-EitasAdAdminEnableAccount -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "disable_account" {
+            return Invoke-EitasAdAdminDisableAccount -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "unlock_account" {
+            return Invoke-EitasAdAdminUnlockAccount -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "reset_password" {
+            return Invoke-EitasAdAdminResetPassword -Config $Config -Payload $Payload -Mode $Mode
         }
 
         default {

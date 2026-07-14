@@ -4508,3 +4508,380 @@ button.aduc-admin-history-row.unknown > span {
     justify-content: flex-start;
   }
 }
+
+/* BLOC283 - ADUC properties v1 */
+.aduc-aduc-properties {
+  gap: 14px;
+}
+
+.aduc-object-avatar.computer {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+
+.aduc-object-avatar.contact {
+  background: rgba(217, 70, 239, 0.12);
+  color: #a21caf;
+}
+
+.aduc-aduc-actionbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.aduc-aduc-actionbar button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 13px;
+  background: #111827;
+  color: white;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.aduc-aduc-actionbar button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.16);
+}
+
+.aduc-aduc-actionbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aduc-aduc-actionbar button.danger {
+  background: #b91c1c;
+}
+
+.aduc-aduc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.aduc-aduc-tabs button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #475569;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.aduc-aduc-tabs button.active {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: white;
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.18);
+}
+
+.aduc-aduc-tab-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.aduc-tab-card {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 20px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.aduc-tab-card h4 {
+  margin: 0 0 12px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.aduc-aduc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.aduc-aduc-grid > div {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.aduc-aduc-grid > div.wide {
+  grid-column: 1 / -1;
+}
+
+.aduc-aduc-grid span {
+  display: block;
+  margin-bottom: 7px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.aduc-aduc-grid strong,
+.aduc-aduc-grid code {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.aduc-aduc-grid code {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+}
+
+.aduc-details-empty-mini {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.aduc-aduc-membership-list {
+  display: grid;
+  gap: 10px;
+}
+
+.aduc-aduc-membership-list > div {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.aduc-aduc-membership-list strong {
+  display: block;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.aduc-aduc-membership-list code {
+  display: block;
+  margin-top: 6px;
+  color: #475569;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.aduc-details-quick.inline {
+  margin-top: 12px;
+}
+
+@media (max-width: 760px) {
+  .aduc-aduc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-aduc-actionbar {
+    flex-direction: column;
+  }
+
+  .aduc-aduc-actionbar button {
+    width: 100%;
+  }
+}
+
+/* BLOC284 - ADUC account tab v1 */
+.aduc-account-tab {
+  display: grid;
+  gap: 14px;
+}
+
+.aduc-account-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.aduc-account-head h4 {
+  margin-bottom: 8px;
+}
+
+.aduc-account-status {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.aduc-account-status.enabled {
+  background: rgba(34, 197, 94, 0.12);
+  color: #166534;
+}
+
+.aduc-account-status.disabled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #991b1b;
+}
+
+.aduc-account-status.locked {
+  background: rgba(249, 115, 22, 0.14);
+  color: #c2410c;
+}
+
+.aduc-account-status.unknown {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
+.aduc-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.aduc-account-actions button {
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #3730a3;
+  font-weight: 1000;
+  cursor: pointer;
+}
+
+.aduc-account-actions button:hover {
+  background: rgba(99, 102, 241, 0.14);
+}
+
+.aduc-account-note {
+  border: 1px dashed rgba(99, 102, 241, 0.30);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(238, 242, 255, 0.55);
+}
+
+.aduc-account-note strong {
+  display: block;
+  color: #3730a3;
+  font-size: 13px;
+}
+
+.aduc-account-note p {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+@media (max-width: 780px) {
+  .aduc-account-head {
+    flex-direction: column;
+  }
+
+  .aduc-account-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* BLOC286B - ADUC account action modal */
+.aduc-account-action-modal {
+  max-width: 680px;
+}
+
+.aduc-account-action-warning {
+  margin-bottom: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.aduc-account-action-warning strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.aduc-account-action-warning p {
+  margin: 0;
+  color: #475569;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.aduc-account-action-warning.simulation {
+  border-color: rgba(99, 102, 241, 0.28);
+  background: rgba(238, 242, 255, 0.70);
+  color: #3730a3;
+}
+
+.aduc-account-action-warning.production {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(254, 242, 242, 0.90);
+  color: #991b1b;
+}
+
+.aduc-account-action-target {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.aduc-account-action-target > div,
+.aduc-account-action-field {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.aduc-account-action-target span,
+.aduc-account-action-field span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.aduc-account-action-target strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.aduc-account-action-target code {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.aduc-account-action-field input {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-weight: 900;
+}
+
+.aduc-account-action-field small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.aduc-modal-actions button.danger {
+  background: #b91c1c;
+  color: #fff;
+}

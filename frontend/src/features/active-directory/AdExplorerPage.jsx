@@ -271,30 +271,21 @@ function formatAdHistoryJson(value) {
   return cleanAdHistoryText(JSON.stringify(value || {}, null, 2))
 }
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onLoadMembers, onOpenAddMember, onRemoveMember }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember }) {
+  const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
   const dn = getObjectDn(displayed)
   const type = getObjectType(displayed)
+  const objectName = hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'
+  const objectClass = String(displayed?.objectClass || displayed?.object_class || displayed?.type || '').toLowerCase()
   const isOu = isOuObject(displayed)
   const isGroup = isGroupObject(displayed)
+  const isUser = type.includes('Utilisateur') || objectClass.includes('user')
+  const isComputer = type.includes('Ordinateur') || objectClass.includes('computer')
   const members = Array.isArray(memberItems) ? memberItems : []
   const history = Array.isArray(historyItems) ? historyItems : []
-  const filteredHistory = history.filter(job => {
-    const status = getHistoryStatus(job)
-
-    if (historyFilter === 'all') return true
-    if (historyFilter === 'success') return status === 'completed'
-    if (historyFilter === 'running') return status === 'processing' || status === 'pending'
-    if (historyFilter === 'failed') return status === 'failed'
-    if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
-    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
-    if (historyFilter === 'delete') return job.action === 'delete_object'
-    if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
-    if (historyFilter === 'move') return job.action === 'move_object'
-    return true
-  })
 
   function getHistoryStatus(job) {
     if (job?.status === 'failed' || job?.success === false) return 'failed'
@@ -302,17 +293,6 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     if (job?.status === 'pending') return 'pending'
     if (job?.status === 'completed' || job?.success === true) return 'completed'
     return job?.status || 'unknown'
-  }
-
-  function getHistoryStatusLabel(job) {
-    const status = getHistoryStatus(job)
-
-    if (status === 'completed') return 'terminé'
-    if (status === 'failed') return 'échec'
-    if (status === 'processing') return 'en cours'
-    if (status === 'pending') return 'en attente'
-
-    return status
   }
 
   function getHistoryCounter(filterValue) {
@@ -333,6 +313,21 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     }).length
   }
 
+  const filteredHistory = history.filter(job => {
+    const status = getHistoryStatus(job)
+
+    if (historyFilter === 'all') return true
+    if (historyFilter === 'success') return status === 'completed'
+    if (historyFilter === 'running') return status === 'processing' || status === 'pending'
+    if (historyFilter === 'failed') return status === 'failed'
+    if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
+    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
+    if (historyFilter === 'delete') return job.action === 'delete_object'
+    if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
+    if (historyFilter === 'move') return job.action === 'move_object'
+    return true
+  })
+
   const historyFilterOptions = [
     ['all', 'Tout'],
     ['success', 'Succès'],
@@ -349,189 +344,328 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     count: getHistoryCounter(value)
   }))
 
+  function pickAdField(names) {
+    for (const name of names) {
+      const value = displayed?.[name]
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        return value
+      }
+    }
+
+    return ''
+  }
+
+  function boolLabel(value) {
+    if (value === true || String(value).toLowerCase() === 'true') return 'Oui'
+    if (value === false || String(value).toLowerCase() === 'false') return 'Non'
+    if (String(value).trim() === '1') return 'Oui'
+    if (String(value).trim() === '0') return 'Non'
+    return value || ''
+  }
+
+  function getAccountStatus() {
+    const locked = pickAdField(['locked_out', 'lockedOut', 'LockedOut'])
+    const enabled = pickAdField(['enabled', 'Enabled'])
+    const disabled = pickAdField(['disabled', 'Disabled'])
+
+    if (locked === true || String(locked).toLowerCase() === 'true') return 'Verrouillé'
+    if (enabled === true || String(enabled).toLowerCase() === 'true') return 'Activé'
+    if (enabled === false || String(enabled).toLowerCase() === 'false') return 'Désactivé'
+    if (disabled === true || String(disabled).toLowerCase() === 'true') return 'Désactivé'
+
+    return 'État inconnu'
+  }
+
+  function getAccountStatusClass() {
+    const status = getAccountStatus().toLowerCase()
+
+    if (status.includes('activé')) return 'enabled'
+    if (status.includes('désactivé')) return 'disabled'
+    if (status.includes('verrouillé')) return 'locked'
+
+    return 'unknown'
+  }
+
+  const generalRows = rows.length ? rows.map(row => [row.label, row.value, row.long]) : [
+    ['Nom', objectName],
+    ['Type', type],
+    ['Description', pickAdField(['description'])],
+    ['SamAccountName', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
+    ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])]
+  ]
+
+  const accountRows = [
+    ['État du compte', getAccountStatus()],
+    ['SamAccountName', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
+    ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])],
+    ['Activé', boolLabel(pickAdField(['enabled', 'Enabled']))],
+    ['Verrouillé', boolLabel(pickAdField(['locked_out', 'lockedOut', 'LockedOut']))],
+    ['Mot de passe expiré', boolLabel(pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired']))],
+    ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])],
+    ['Dernière connexion', pickAdField(['last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate'])],
+    ['Dernier changement MDP', pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet'])]
+  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+
+  const objectRows = [
+    ['DN', dn, true],
+    ['Canonical name', pickAdField(['canonical_name', 'canonicalName'])],
+    ['ObjectClass', pickAdField(['objectClass', 'object_class', 'type'])],
+    ['ObjectGUID', pickAdField(['object_guid', 'objectGUID', 'guid'])],
+    ['SID', pickAdField(['sid', 'objectSid'])],
+    ['Créé le', pickAdField(['created_at', 'whenCreated', 'created'])],
+    ['Modifié le', pickAdField(['updated_at', 'whenChanged', 'modified'])]
+  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+
+  const orgRows = [
+    ['Titre / poste', pickAdField(['title', 'job_title', 'poste'])],
+    ['Service', pickAdField(['department', 'service'])],
+    ['Société', pickAdField(['company'])],
+    ['Manager', pickAdField(['manager'])],
+    ['Bureau', pickAdField(['office', 'physicalDeliveryOfficeName'])],
+    ['Téléphone', pickAdField(['telephoneNumber', 'phone', 'mobile'])],
+    ['Ville', pickAdField(['city', 'l'])],
+    ['Pays', pickAdField(['country', 'co'])]
+  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+
+  const tabs = [
+    ['general', 'Général'],
+    ...(isUser || isComputer ? [['account', 'Compte']] : []),
+    ['object', 'Objet'],
+    ['organization', 'Organisation'],
+    ['groups', isGroup ? 'Membres' : 'Groupes'],
+    ['history', 'Historique']
+  ]
+
+  function renderGrid(gridRows, emptyText = 'Aucune propriété disponible.') {
+    const cleanRows = gridRows.filter(([, value]) => value !== '' && value !== null && value !== undefined)
+
+    if (!cleanRows.length) {
+      return <p className="aduc-details-empty-mini">{emptyText}</p>
+    }
+
+    return (
+      <div className="aduc-aduc-grid">
+        {cleanRows.map(([label, value, long]) => (
+          <div className={long || String(label).toLowerCase().includes('dn') ? 'wide' : ''} key={label}>
+            <span>{label}</span>
+            {long || String(label).toLowerCase().includes('dn') ? (
+              <code>{Array.isArray(value) ? value.join(', ') : formatAdValue(value)}</code>
+            ) : (
+              <strong>{Array.isArray(value) ? value.join(', ') : formatAdValue(value)}</strong>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  function renderAccountTab() {
+    return (
+      <div className="aduc-tab-card aduc-account-tab">
+        <div className="aduc-account-head">
+          <div>
+            <h4>Compte</h4>
+            <span className={`aduc-account-status ${getAccountStatusClass()}`}>
+              {getAccountStatus()}
+            </span>
+          </div>
+
+          <div className="aduc-account-actions">
+            <button type="button" onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
+              {getAccountStatus().toLowerCase().includes('désactivé') ? 'Activer' : 'Désactiver'}
+            </button>
+
+            {isUser && (
+              <>
+                <button type="button" onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
+                  Réinitialiser MDP
+                </button>
+
+                <button type="button" onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
+                  Déverrouiller
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {renderGrid(accountRows, 'Aucune information de compte disponible.')}
+
+        <div className="aduc-account-note">
+          <strong>Préparation ADUC</strong>
+          <p>Ces actions sont prêtes côté interface. Le branchement réel au worker AD Admin arrive juste après.</p>
+        </div>
+      </div>
+    )
+  }
+
+  function renderGroupsTab() {
+    if (!isGroup) {
+      return (
+        <div className="aduc-tab-card">
+          <h4>Groupes</h4>
+          <p className="aduc-details-empty-mini">Les appartenances détaillées de groupe seront branchées dans une étape ADUC dédiée.</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="aduc-members-card aduc-tab-card">
+        <div className="aduc-members-head">
+          <div>
+            <h4>Membres du groupe</h4>
+            <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
+          </div>
+
+          <div className="aduc-members-buttons">
+            <button type="button" onClick={() => onOpenAddMember(displayed)} disabled={membersLoading} title="Ajouter un membre">＋</button>
+            <button type="button" onClick={() => onLoadMembers(displayed)} disabled={membersLoading} title="Actualiser les membres">⟳</button>
+          </div>
+        </div>
+
+        {membersError ? (
+          <p className="aduc-members-error">{membersError}</p>
+        ) : membersLoading ? (
+          <p className="aduc-members-empty">Chargement des membres depuis SRV-DC01...</p>
+        ) : members.length === 0 ? (
+          <p className="aduc-members-empty">Aucun membre dans ce groupe.</p>
+        ) : (
+          <div className="aduc-members-list">
+            {members.map((member, index) => (
+              <div className="aduc-member-row" key={member.distinguished_name || member.sam_account_name || index}>
+                <span>{member.type === 'group' ? '👥' : member.type === 'user' ? '👤' : 'ⓘ'}</span>
+                <div>
+                  <strong>{member.name || member.sam_account_name || 'Membre AD'}</strong>
+                  <small>{member.sam_account_name || member.distinguished_name || '—'}</small>
+                </div>
+                <button type="button" className="aduc-member-remove" onClick={() => onRemoveMember(displayed, member)} disabled={membersLoading}>
+                  Retirer
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function renderHistoryTab() {
+    return (
+      <div className="aduc-admin-history-card">
+        <div className="aduc-admin-history-head">
+          <div>
+            <h4>Historique AD Admin</h4>
+            <span>{historyLoading ? 'Chargement...' : `${filteredHistory.length}/${history.length} action(s)`}</span>
+          </div>
+
+          <button type="button" onClick={onLoadHistory} disabled={historyLoading}>⟳ Actualiser</button>
+        </div>
+
+        <div className="aduc-admin-history-filters">
+          {historyFilterOptions.map(({ value, label, count }) => (
+            <button type="button" key={value} className={historyFilter === value ? 'active' : ''} onClick={() => onHistoryFilterChange(value)}>
+              <span>{label}</span>
+              <small>{count}</small>
+            </button>
+          ))}
+        </div>
+
+        {historyError ? (
+          <p className="aduc-admin-history-error">{historyError}</p>
+        ) : filteredHistory.length === 0 ? (
+          <p className="aduc-admin-history-empty">Aucune action ne correspond aux filtres actuels.</p>
+        ) : (
+          <div className="aduc-admin-history-list">
+            {filteredHistory.slice(0, 8).map(job => (
+              <button type="button" className={`aduc-admin-history-row ${getHistoryStatus(job)}`} key={job.id} onClick={() => onOpenHistoryJob(job)}>
+                <span />
+                <div>
+                  <strong>{formatAdHistoryAction(job.action)}</strong>
+                  <small>{job.agent_name || job.claimed_by || 'Agent non assigné'} • {formatAdHistoryStatus(job)}</small>
+                  <em>{formatAdHistoryMessage(job)}</em>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <aside className="aduc-details-pane">
+    <aside className="aduc-details-pane aduc-aduc-properties">
       <div className="aduc-details-header">
-        <span className={`aduc-object-avatar ${isOu ? 'ou' : isGroup ? 'group' : type.includes('Utilisateur') ? 'user' : ''}`}>
-          {isOu ? '📁' : isGroup ? '👥' : type.includes('Utilisateur') ? '👤' : 'ⓘ'}
+        <span className={`aduc-object-avatar ${isOu ? 'ou' : isGroup ? 'group' : isUser ? 'user' : isComputer ? 'computer' : ''}`}>
+          {isOu ? '📁' : isGroup ? '👥' : isUser ? '👤' : isComputer ? '💻' : 'ⓘ'}
         </span>
 
         <div>
-          <h3>{hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'}</h3>
+          <h3>{objectName}</h3>
           <p>{hasObject ? type : 'Clique un objet pour afficher ses propriétés.'}</p>
         </div>
       </div>
 
       {hasObject ? (
         <>
-          <div className="aduc-details-actions">
-            <button
-              type="button"
-              onClick={() => onCopyDn(displayed)}
-              disabled={!dn}
-            >
-              Copier DN
-            </button>
+          <div className="aduc-aduc-actionbar">
+            <button type="button" onClick={() => onCopyDn(displayed)} disabled={!dn}>Copier DN</button>
+            {isOu && <button type="button" onClick={() => onExplore(displayed)}>Explorer cette OU</button>}
 
-            {isGroup && (
-              <button
-                type="button"
-                onClick={() => onLoadMembers(displayed)}
-                disabled={membersLoading}
-              >
-                {membersLoading ? 'Chargement...' : 'Voir membres'}
-              </button>
-            )}
-
-            {isOu && (
-              <button
-                type="button"
-                onClick={() => onExplore(displayed)}
-              >
-                Explorer cette OU
-              </button>
+            {object && (
+              <>
+                <button type="button" onClick={() => onOpenUpdateObject?.(displayed)}>Modifier</button>
+                <button type="button" onClick={() => onOpenRenameObject?.(displayed)}>Renommer</button>
+                <button type="button" onClick={() => onOpenMoveObject(displayed)}>Déplacer</button>
+                <button type="button" className="danger" onClick={() => onOpenDeleteObject?.(displayed)}>Supprimer</button>
+              </>
             )}
           </div>
 
-          <div className="aduc-details-grid">
-            {rows.map(row => (
-              <div className={row.long ? 'long' : ''} key={row.label}>
-                <span>{row.label}</span>
-                <strong>{formatAdValue(row.value)}</strong>
-              </div>
+          <div className="aduc-aduc-tabs">
+            {tabs.map(([value, label]) => (
+              <button type="button" key={value} className={activeDetailsTab === value ? 'active' : ''} onClick={() => setActiveDetailsTab(value)}>
+                {label}
+              </button>
             ))}
           </div>
 
-          {isGroup && (
-            <div className="aduc-members-card">
-              <div className="aduc-members-head">
-                <div>
-                  <h4>Membres du groupe</h4>
-                  <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
-                </div>
-
-                <div className="aduc-members-buttons">
-                  <button
-                    type="button"
-                    onClick={() => onOpenAddMember(displayed)}
-                    disabled={membersLoading}
-                    title="Ajouter un membre"
-                  >
-                    ＋
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onLoadMembers(displayed)}
-                    disabled={membersLoading}
-                    title="Actualiser les membres"
-                  >
-                    ⟳
-                  </button>
-                </div>
-              </div>
-
-              {membersError ? (
-                <p className="aduc-members-error">{membersError}</p>
-              ) : membersLoading ? (
-                <p className="aduc-members-empty">Chargement des membres depuis SRV-DC01...</p>
-              ) : members.length === 0 ? (
-                <p className="aduc-members-empty">Aucun membre dans ce groupe.</p>
-              ) : (
-                <div className="aduc-members-list">
-                  {members.map((member, index) => (
-                    <div className="aduc-member-row" key={member.distinguished_name || member.sam_account_name || index}>
-                      <span>{member.type === 'group' ? '👥' : member.type === 'user' ? '👤' : 'ⓘ'}</span>
-                      <div>
-                        <strong>{member.name || member.sam_account_name || 'Membre AD'}</strong>
-                        <small>{member.sam_account_name || member.distinguished_name || '—'}</small>
-                      </div>
-                      <button
-                        type="button"
-                        className="aduc-member-remove"
-                        onClick={() => onRemoveMember(displayed, member)}
-                        disabled={membersLoading}
-                        title="Retirer du groupe"
-                      >
-                        Retirer
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-
-          <div className="aduc-admin-history-card">
-            <div className="aduc-admin-history-head">
-              <div>
-                <h4>Historique AD Admin</h4>
-                <span>{historyLoading ? 'Chargement...' : `${filteredHistory.length}/${history.length} action(s)`}</span>
-              </div>
-
-              <button type="button" onClick={onLoadHistory} disabled={historyLoading}>
-                ⟳ Actualiser
-              </button>
-            </div>
-
-            <div className="aduc-admin-history-filters">
-              {historyFilterOptions.map(({ value, label, count }) => (
-                <button
-                  type="button"
-                  key={value}
-                  className={historyFilter === value ? 'active' : ''}
-                  onClick={() => onHistoryFilterChange(value)}
-                >
-                  <span>{label}</span>
-                  <small>{count}</small>
-                </button>
-              ))}
-            </div>
-
-            {historyError ? (
-              <p className="aduc-admin-history-error">{historyError}</p>
-            ) : filteredHistory.length === 0 ? (
-              <p className="aduc-admin-history-empty">Aucune action ne correspond aux filtres actuels.</p>
-            ) : (
-              <div className="aduc-admin-history-list">
-                {filteredHistory.slice(0, 8).map(job => (
-                  <button
-                    type="button"
-                    className={`aduc-admin-history-row ${getHistoryStatus(job)}`}
-                    key={job.id}
-                    onClick={() => onOpenHistoryJob(job)}
-                  >
-                    <span />
-                    <div>
-                      <strong>{formatAdHistoryAction(job.action)}</strong>
-                      <small>{job.agent_name || job.claimed_by || 'Agent non assigné'} • {formatAdHistoryStatus(job)}</small>
-                      <em>{formatAdHistoryMessage(job)}</em>
-                    </div>
-                  </button>
-                ))}
+          <div className="aduc-aduc-tab-panel">
+            {activeDetailsTab === 'general' && (
+              <div className="aduc-tab-card">
+                <h4>Général</h4>
+                {renderGrid(generalRows)}
               </div>
             )}
+
+            {activeDetailsTab === 'account' && renderAccountTab()}
+
+            {activeDetailsTab === 'object' && (
+              <div className="aduc-tab-card">
+                <h4>Objet</h4>
+                {renderGrid(objectRows)}
+              </div>
+            )}
+
+            {activeDetailsTab === 'organization' && (
+              <div className="aduc-tab-card">
+                <h4>Organisation</h4>
+                {renderGrid(orgRows, 'Aucune information organisationnelle disponible.')}
+              </div>
+            )}
+
+            {activeDetailsTab === 'groups' && renderGroupsTab()}
+            {activeDetailsTab === 'history' && renderHistoryTab()}
           </div>
 
           <div className="aduc-details-quick">
-            <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>
-              ＋ OU ici
-            </button>
-            <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>
-              ＋ Groupe ici
-            </button>
-
-            {object && (
-              <button type="button" onClick={() => onOpenMoveObject(displayed)}>
-                ↪ Déplacer
-              </button>
-            )}
+            <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>＋ OU ici</button>
+            <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>＋ Groupe ici</button>
+            {object && <button type="button" onClick={() => onOpenMoveObject(displayed)}>↪ Déplacer</button>}
           </div>
         </>
       ) : (
         <div className="aduc-details-empty">
-          Sélectionne une OU, un utilisateur ou un groupe dans la liste centrale.
+          Sélectionne une OU, un utilisateur, un groupe, un ordinateur ou un contact dans la liste centrale.
         </div>
       )}
     </aside>
@@ -664,6 +798,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [adActivityShowSimulations, setAdActivityShowSimulations] = useState(true)
   const [adActivityTimeRange, setAdActivityTimeRange] = useState('all')
   const [adActivitySortOrder, setAdActivitySortOrder] = useState('newest')
+  const [accountActionModal, setAccountActionModal] = useState(null)
+  const [accountActionPassword, setAccountActionPassword] = useState('')
+  const [accountActionConfirm, setAccountActionConfirm] = useState('')
+  const [accountActionLoading, setAccountActionLoading] = useState(false)
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -2610,6 +2748,103 @@ function getAdAttributeValue(item, ...names) {
     window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
   }
 
+  function getAccountActionLabel(action) {
+    const labels = {
+      enable_account: 'Activer le compte',
+      disable_account: 'Désactiver le compte',
+      reset_password: 'Réinitialiser le mot de passe',
+      unlock_account: 'Déverrouiller le compte'
+    }
+
+    return labels[action] || action
+  }
+
+  function getSelectedAccountEnabledState(target) {
+    const candidates = [
+      target?.enabled,
+      target?.Enabled,
+      target?.disabled === true ? false : null,
+      target?.Disabled === true ? false : null
+    ]
+
+    for (const value of candidates) {
+      if (value === true || String(value).toLowerCase() === 'true') return true
+      if (value === false || String(value).toLowerCase() === 'false') return false
+    }
+
+    return null
+  }
+
+  function prepareAccountAction(action, target) {
+    const targetDn = getObjectDn(target)
+
+    if (!targetDn) {
+      setMessage?.('Impossible de préparer l’action : DN introuvable.')
+      return
+    }
+
+    let resolvedAction = action
+
+    if (action === 'toggle_enabled') {
+      const enabled = getSelectedAccountEnabledState(target)
+
+      if (enabled === null) {
+        setMessage?.('État du compte inconnu : impossible de choisir automatiquement Activer/Désactiver.')
+        return
+      }
+
+      resolvedAction = enabled ? 'disable_account' : 'enable_account'
+    }
+
+    setAccountActionModal({
+      action: resolvedAction,
+      target,
+      targetName: getObjectName(target),
+      targetDn
+    })
+
+    setAccountActionConfirm('')
+    setAccountActionPassword('')
+  }
+
+  async function submitAccountAction() {
+    if (!accountActionModal) return
+
+    if (adAgentMode === 'Production' && accountActionConfirm !== 'PRODUCTION') {
+      setMessage?.('Confirmation Production obligatoire : tape PRODUCTION.')
+      return
+    }
+
+    if (accountActionModal.action === 'reset_password' && !accountActionPassword.trim()) {
+      setMessage?.('Mot de passe temporaire obligatoire.')
+      return
+    }
+
+    const payload = {
+      action: accountActionModal.action,
+      object_dn: accountActionModal.targetDn,
+      created_by: 'react-admin'
+    }
+
+    if (accountActionModal.action === 'reset_password') {
+      payload.temporary_password = accountActionPassword.trim()
+      payload.force_change_at_logon = true
+      payload.unlock_after_reset = true
+    }
+
+    try {
+      setAccountActionLoading(true)
+      await runAdAdminJob(payload)
+      setAccountActionModal(null)
+      setAccountActionConfirm('')
+      setMessage?.(`${getAccountActionLabel(accountActionModal.action)} envoyé à l’agent AD Admin.`)
+    } catch (err) {
+      setMessage?.(err?.message || 'Erreur action Compte ADUC.')
+    } finally {
+      setAccountActionLoading(false)
+    }
+  }
+
   async function runAdAdminJob(payload) {
     const created = await apiFetch('/api/ad-admin/jobs', {
       method: 'POST',
@@ -3629,6 +3864,10 @@ function getAdAttributeValue(item, ...names) {
                 onCreateOu={target => openCreateOu(target)}
                 onCreateGroup={target => openCreateGroup(target)}
                 onOpenMoveObject={target => openMoveObject(target)}
+                onOpenUpdateObject={target => openUpdateObject(target)}
+                onOpenRenameObject={target => openRenameObject(target)}
+                onOpenDeleteObject={target => openDeleteObject(target)}
+                onPrepareAccountAction={prepareAccountAction}
                 onLoadMembers={target => loadGroupMembers(target)}
                 onOpenAddMember={target => openAddMemberModal(target)}
                 onRemoveMember={(group, member) => removeGroupMember(group, member)}
@@ -3645,6 +3884,84 @@ function getAdAttributeValue(item, ...names) {
       </div>
 
 
+
+      {accountActionModal && (
+        <div className="aduc-modal-backdrop" onClick={() => !accountActionLoading && setAccountActionModal(null)}>
+          <section className="aduc-modal aduc-account-action-modal" onClick={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>Action Compte ADUC</span>
+                <h3>{getAccountActionLabel(accountActionModal.action)}</h3>
+              </div>
+
+              <button type="button" onClick={() => setAccountActionModal(null)} disabled={accountActionLoading}>×</button>
+            </header>
+
+            <div className={`aduc-account-action-warning ${adAgentMode === 'Production' ? 'production' : 'simulation'}`}>
+              <strong>Mode agent : {adAgentMode}</strong>
+              <p>
+                {adAgentMode === 'Production'
+                  ? 'Cette action modifiera réellement Active Directory.'
+                  : 'Simulation active : aucune modification réelle ne sera appliquée dans Active Directory.'}
+              </p>
+            </div>
+
+            <div className="aduc-account-action-target">
+              <div>
+                <span>Objet cible</span>
+                <strong>{accountActionModal.targetName}</strong>
+              </div>
+
+              <div>
+                <span>DN</span>
+                <code>{accountActionModal.targetDn}</code>
+              </div>
+            </div>
+
+            {accountActionModal.action === 'reset_password' && (
+              <label className="aduc-account-action-field">
+                <span>Mot de passe temporaire</span>
+                <input
+                  type="text"
+                  value={accountActionPassword}
+                  onChange={event => setAccountActionPassword(event.target.value)}
+                  placeholder="Mot de passe temporaire"
+                  disabled={accountActionLoading}
+                />
+                <small>Le changement au prochain logon et le déverrouillage après reset seront demandés.</small>
+              </label>
+            )}
+
+            {adAgentMode === 'Production' && (
+              <label className="aduc-account-action-field">
+                <span>Confirmation Production</span>
+                <input
+                  type="text"
+                  value={accountActionConfirm}
+                  onChange={event => setAccountActionConfirm(event.target.value)}
+                  placeholder="Tape PRODUCTION"
+                  disabled={accountActionLoading}
+                />
+              </label>
+            )}
+
+            <footer className="aduc-modal-actions">
+              <button type="button" onClick={() => setAccountActionModal(null)} disabled={accountActionLoading}>
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                className={adAgentMode === 'Production' ? 'danger' : ''}
+                onClick={submitAccountAction}
+                disabled={accountActionLoading || (adAgentMode === 'Production' && accountActionConfirm !== 'PRODUCTION')}
+              >
+                {accountActionLoading ? 'Envoi...' : adAgentMode === 'Production' ? 'Confirmer en Production' : 'Lancer en Simulation'}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
 
       {adActivityModal && (
         <div className="aduc-modal-backdrop" onClick={() => setAdActivityModal(false)}>
