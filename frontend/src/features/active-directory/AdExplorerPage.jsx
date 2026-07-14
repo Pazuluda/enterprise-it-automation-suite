@@ -271,7 +271,7 @@ function formatAdHistoryJson(value) {
   return cleanAdHistoryText(JSON.stringify(value || {}, null, 2))
 }
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -367,11 +367,13 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     const locked = pickAdField(['locked_out', 'lockedOut', 'LockedOut'])
     const enabled = pickAdField(['enabled', 'Enabled'])
     const disabled = pickAdField(['disabled', 'Disabled'])
+    const passwordExpired = pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired'])
 
     if (locked === true || String(locked).toLowerCase() === 'true') return 'Verrouillé'
-    if (enabled === true || String(enabled).toLowerCase() === 'true') return 'Activé'
     if (enabled === false || String(enabled).toLowerCase() === 'false') return 'Désactivé'
     if (disabled === true || String(disabled).toLowerCase() === 'true') return 'Désactivé'
+    if (passwordExpired === true || String(passwordExpired).toLowerCase() === 'true') return 'MDP expiré'
+    if (enabled === true || String(enabled).toLowerCase() === 'true') return 'Activé'
 
     return 'État inconnu'
   }
@@ -379,9 +381,10 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   function getAccountStatusClass() {
     const status = getAccountStatus().toLowerCase()
 
-    if (status.includes('activé')) return 'enabled'
-    if (status.includes('désactivé')) return 'disabled'
     if (status.includes('verrouillé')) return 'locked'
+    if (status.includes('désactivé')) return 'disabled'
+    if (status.includes('expiré')) return 'expired'
+    if (status.includes('activé')) return 'enabled'
 
     return 'unknown'
   }
@@ -401,9 +404,13 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Activé', boolLabel(pickAdField(['enabled', 'Enabled']))],
     ['Verrouillé', boolLabel(pickAdField(['locked_out', 'lockedOut', 'LockedOut']))],
     ['Mot de passe expiré', boolLabel(pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired']))],
-    ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])],
+    ['Mot de passe jamais expiré', boolLabel(pickAdField(['password_never_expires', 'passwordNeverExpires', 'PasswordNeverExpires']))],
+    ['Ne peut pas changer MDP', boolLabel(pickAdField(['cannot_change_password', 'cannotChangePassword', 'CannotChangePassword']))],
+    ['Dernier changement MDP', pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet'])],
     ['Dernière connexion', pickAdField(['last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate'])],
-    ['Dernier changement MDP', pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet'])]
+    ['Dernière erreur MDP', pickAdField(['last_bad_password_attempt', 'lastBadPasswordAttempt', 'LastBadPasswordAttempt'])],
+    ['Tentatives échouées', pickAdField(['bad_logon_count', 'badLogonCount', 'BadLogonCount'])],
+    ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
   const objectRows = [
@@ -492,62 +499,141 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
         {renderGrid(accountRows, 'Aucune information de compte disponible.')}
 
         <div className="aduc-account-note">
-          <strong>Préparation ADUC</strong>
-          <p>Ces actions sont prêtes côté interface. Le branchement réel au worker AD Admin arrive juste après.</p>
+          
+          <p></p>
         </div>
       </div>
     )
   }
+    function getGroupNameFromDn(groupDn) {
+      const text = String(groupDn || '').trim()
+      const firstPart = text.split(',')[0] || text
+      return firstPart.replace(/^(CN|OU)=/i, '').replace(/\\,/g, ',') || text
+    }
 
-  function renderGroupsTab() {
-    if (!isGroup) {
+    function getUserGroupMemberships() {
+      const raw = displayed?.member_of || displayed?.memberOf || displayed?.groups || []
+      const values = Array.isArray(raw) ? raw : [raw]
+
+      return values
+        .filter(Boolean)
+        .map((groupDn, index) => {
+          if (typeof groupDn === 'object') {
+            const dnValue = getObjectDn(groupDn)
+
+            return {
+              ...groupDn,
+              type: groupDn.type || 'group',
+              name: groupDn.name || getGroupNameFromDn(dnValue),
+              distinguished_name: dnValue,
+              dn: dnValue,
+              key: dnValue || groupDn.name || `group-${index}`
+            }
+          }
+
+          const dnValue = String(groupDn || '').trim()
+
+          return {
+            type: 'group',
+            name: getGroupNameFromDn(dnValue),
+            distinguished_name: dnValue,
+            dn: dnValue,
+            key: dnValue || `group-${index}`
+          }
+        })
+        .filter(group => group.dn || group.name)
+    }
+
+    function renderGroupsTab() {
+      if (!isGroup) {
+        const groupMemberships = getUserGroupMemberships()
+
+        return (
+          <div className="aduc-members-card aduc-tab-card">
+            <div className="aduc-members-head">
+              <div>
+                <h4>Groupes de l’utilisateur</h4>
+                <span>{groupMemberships.length} appartenance(s)</span>
+              </div>
+
+              <div className="aduc-members-buttons">
+                <button type="button" onClick={() => onReloadObject?.(displayed)} title="Actualiser les groupes">⟳</button>
+              </div>
+            </div>
+
+            {groupMemberships.length === 0 ? (
+              <p className="aduc-members-empty">Aucune appartenance de groupe remontée par Active Directory.</p>
+            ) : (
+              <div className="aduc-members-list">
+                {groupMemberships.map(group => (
+                  <div className="aduc-member-row aduc-user-group-row" key={group.key || group.dn || group.name}>
+                    <div className="aduc-member-main">
+                      <strong>{group.name || getGroupNameFromDn(group.dn)}</strong>
+                      <span>{group.dn || group.distinguished_name || 'DN non disponible'}</span>
+                    </div>
+
+                    <div className="aduc-member-actions">
+                      <button type="button" onClick={() => onCopyDn?.(group.dn || group.distinguished_name)}>
+                        Copier DN
+                      </button>
+
+                      <button type="button" className="danger" onClick={() => onRemoveMember?.(group, displayed)}>
+                        Retirer
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      }
+
       return (
-        <div className="aduc-tab-card">
-          <h4>Groupes</h4>
-          <p className="aduc-details-empty-mini">Les appartenances détaillées de groupe seront branchées dans une étape ADUC dédiée.</p>
+        <div className="aduc-members-card aduc-tab-card">
+          <div className="aduc-members-head">
+            <div>
+              <h4>Membres du groupe</h4>
+              <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
+            </div>
+
+            <div className="aduc-members-buttons">
+              <button type="button" onClick={() => onOpenAddMember(displayed)} disabled={membersLoading} title="Ajouter un membre">＋</button>
+              <button type="button" onClick={() => onLoadMembers(displayed)} disabled={membersLoading} title="Actualiser les membres">⟳</button>
+            </div>
+          </div>
+
+          {membersError ? (
+            <p className="aduc-members-error">{membersError}</p>
+          ) : membersLoading ? (
+            <p className="aduc-members-empty">Chargement des membres depuis SRV-DC01...</p>
+          ) : members.length === 0 ? (
+            <p className="aduc-members-empty">Aucun membre dans ce groupe.</p>
+          ) : (
+            <div className="aduc-members-list">
+              {members.map(member => (
+                <div className="aduc-member-row" key={getObjectDn(member) || member.name || member.sam_account_name}>
+                  <div className="aduc-member-main">
+                    <strong>{getObjectName(member)}</strong>
+                    <span>{getObjectDn(member) || member.sam_account_name || member.user_principal_name || 'Identité non disponible'}</span>
+                  </div>
+
+                  <div className="aduc-member-actions">
+                    <button type="button" onClick={() => onCopyDn?.(getObjectDn(member))}>
+                      Copier DN
+                    </button>
+
+                    <button type="button" className="danger" onClick={() => onRemoveMember?.(displayed, member)}>
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )
     }
-
-    return (
-      <div className="aduc-members-card aduc-tab-card">
-        <div className="aduc-members-head">
-          <div>
-            <h4>Membres du groupe</h4>
-            <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
-          </div>
-
-          <div className="aduc-members-buttons">
-            <button type="button" onClick={() => onOpenAddMember(displayed)} disabled={membersLoading} title="Ajouter un membre">＋</button>
-            <button type="button" onClick={() => onLoadMembers(displayed)} disabled={membersLoading} title="Actualiser les membres">⟳</button>
-          </div>
-        </div>
-
-        {membersError ? (
-          <p className="aduc-members-error">{membersError}</p>
-        ) : membersLoading ? (
-          <p className="aduc-members-empty">Chargement des membres depuis SRV-DC01...</p>
-        ) : members.length === 0 ? (
-          <p className="aduc-members-empty">Aucun membre dans ce groupe.</p>
-        ) : (
-          <div className="aduc-members-list">
-            {members.map((member, index) => (
-              <div className="aduc-member-row" key={member.distinguished_name || member.sam_account_name || index}>
-                <span>{member.type === 'group' ? '👥' : member.type === 'user' ? '👤' : 'ⓘ'}</span>
-                <div>
-                  <strong>{member.name || member.sam_account_name || 'Membre AD'}</strong>
-                  <small>{member.sam_account_name || member.distinguished_name || '—'}</small>
-                </div>
-                <button type="button" className="aduc-member-remove" onClick={() => onRemoveMember(displayed, member)} disabled={membersLoading}>
-                  Retirer
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
 
   function renderHistoryTab() {
     return (
@@ -3087,7 +3173,13 @@ function getAdAttributeValue(item, ...names) {
         return
       }
 
-      setMessage?.(`${memberName} ajouté à ${groupName}.`)
+      const simulated = output.simulated === true || rawMessage.toLowerCase().includes('simulation')
+
+        if (simulated) {
+          setMessage?.(`Simulation : ${memberName} non ajouté réellement à ${groupName}.`)
+        } else {
+          setMessage?.(`Production : ${memberName} ajouté à ${groupName}.`)
+        }
       closeMemberModal()
     } catch (err) {
       setMessage?.(err.message || 'Impossible d’ajouter le membre.')
@@ -3099,8 +3191,8 @@ function getAdAttributeValue(item, ...names) {
   async function removeGroupMember(group, member) {
     if (!group || !member) return
 
-    const memberLabel = member.sam_account_name || member.name || getObjectDn(member)
-    const groupLabel = group.sam_account_name || group.name || getObjectDn(group)
+    const memberLabel = getObjectDn(member) || member.sam_account_name || member.name
+    const groupLabel = getObjectDn(group) || group.sam_account_name || group.name
 
     if (!window.confirm(`Retirer ${memberLabel} du groupe ${groupLabel} ?`)) {
       return
@@ -3109,14 +3201,31 @@ function getAdAttributeValue(item, ...names) {
     setMemberActionLoading(true)
 
     try {
-      await runAdAdminJob({
+      const job = await runAdAdminJob({
         action: 'remove_group_member',
         group_identity: groupLabel,
         member_identity: memberLabel
       })
 
-      setMessage?.(`Membre ${memberLabel} retiré de ${groupLabel}.`)
-      await loadGroupMembers(group)
+      const output = job?.output || {}
+      const rawMessage = cleanAdAdminMessage(output.message || job?.message || '')
+      const simulated = output.simulated === true || rawMessage.toLowerCase().includes('simulation')
+      const memberName = output.member || member.sam_account_name || member.name || getObjectName(member) || memberLabel
+      const groupName = output.group || group.sam_account_name || group.name || getObjectName(group) || groupLabel
+
+      if (simulated) {
+        setMessage?.(`Simulation : ${memberName} non retiré réellement de ${groupName}.`)
+      } else {
+        setMessage?.(`Production : ${memberName} retiré de ${groupName}.`)
+      }
+
+      if (isGroupObject(group)) {
+        await loadGroupMembers(group, { silent: true })
+      }
+
+      if (selectedObject && !isGroupObject(selectedObject)) {
+        await openProperties(selectedObject)
+      }
     } catch (err) {
       setMessage?.(err.message || 'Impossible de retirer le membre.')
     } finally {

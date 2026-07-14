@@ -4885,3 +4885,63 @@ button.aduc-admin-history-row.unknown > span {
   background: #b91c1c;
   color: #fff;
 }
+
+/* BLOC287B - ADUC account real AD states */
+.aduc-account-status.expired {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(254, 243, 199, 0.85);
+  color: #92400e;
+}
+
+.aduc-account-status.unknown {
+  border-color: rgba(100, 116, 139, 0.25);
+  background: rgba(248, 250, 252, 0.9);
+  color: #475569;
+}
+
+/* BLOC287D - hide obsolete empty ADUC preparation card */
+.aduc-prep-card {
+  display: none !important;
+}
+
+
+/* BLOC289C - ADUC user group memberships */
+.aduc-user-group-row .aduc-member-main span {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.aduc-member-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.aduc-member-actions button {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.aduc-member-actions button.danger {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(254, 242, 242, 0.9);
+  color: #991b1b;
+}
+
+/* BLOC289D - fix visible action buttons in ADUC group tab */
+.aduc-member-actions button {
+  color: #0f172a !important;
+  font-size: 12px;
+  line-height: 1.2;
+  min-width: 86px;
+}
+
+.aduc-member-actions button.danger {
+  color: #991b1b !important;
+}

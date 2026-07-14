@@ -68,6 +68,44 @@ function Get-EitasLookupAction {
     return $DefaultAction
 }
 
+function Convert-EitasAdDateValue {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [datetime]) {
+        return $Value.ToString("yyyy-MM-dd HH:mm:ss")
+    }
+
+    return [string]$Value
+}
+
+function Convert-EitasAdBoolValue {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [bool]) {
+        return [bool]$Value
+    }
+
+    $Text = ([string]$Value).Trim().ToLowerInvariant()
+
+    if (@("true", "1", "yes", "oui") -contains $Text) {
+        return $true
+    }
+
+    if (@("false", "0", "no", "non") -contains $Text) {
+        return $false
+    }
+
+    return $Value
+}
+
 function Convert-EitasAdUserItem {
     param([object]$User)
 
@@ -78,7 +116,23 @@ function Convert-EitasAdUserItem {
         sam_account_name = $User.SamAccountName
         user_principal_name = $User.UserPrincipalName
         mail = $User.Mail
-        enabled = $User.Enabled
+        enabled = Convert-EitasAdBoolValue -Value $User.Enabled
+        locked_out = Convert-EitasAdBoolValue -Value $User.LockedOut
+        password_expired = Convert-EitasAdBoolValue -Value $User.PasswordExpired
+        password_never_expires = Convert-EitasAdBoolValue -Value $User.PasswordNeverExpires
+        cannot_change_password = Convert-EitasAdBoolValue -Value $User.CannotChangePassword
+        password_last_set = Convert-EitasAdDateValue -Value $User.PasswordLastSet
+        last_logon = Convert-EitasAdDateValue -Value $User.LastLogonDate
+        last_bad_password_attempt = Convert-EitasAdDateValue -Value $User.LastBadPasswordAttempt
+        account_expires = Convert-EitasAdDateValue -Value $User.AccountExpirationDate
+        bad_logon_count = $User.BadLogonCount
+        department = $User.Department
+        title = $User.Title
+        company = $User.Company
+        manager = $User.Manager
+        office = $User.Office
+        telephone_number = $User.TelephoneNumber
+        member_of = @($User.MemberOf)
         distinguished_name = $User.DistinguishedName
         dn = $User.DistinguishedName
         description = $User.Description
@@ -215,7 +269,7 @@ function Invoke-EitasAdLookupJob {
         -LDAPFilter $Filter `
         -SearchBase $SearchBase `
         -SearchScope Subtree `
-        -Properties DisplayName, Mail, Enabled, Description `
+        -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber `
         -ResultSetSize 20 `
         -ErrorAction Stop |
         Sort-Object SamAccountName |
@@ -591,7 +645,7 @@ function Invoke-EitasAdExplorerGetUser {
         throw "Identité utilisateur manquante"
     }
 
-    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf -ErrorAction Stop
+    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $User.DistinguishedName -Config $Config | Out-Null
 
