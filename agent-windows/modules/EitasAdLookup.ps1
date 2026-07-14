@@ -133,6 +133,11 @@ function Convert-EitasAdUserItem {
         office = $User.Office
         telephone_number = $User.TelephoneNumber
         member_of = @($User.MemberOf)
+        object_guid = "$($User.ObjectGUID)"
+        sid = if ($User.SID) { $User.SID.Value } else { $null }
+        created_at = Convert-EitasAdDateValue $User.whenCreated
+        updated_at = Convert-EitasAdDateValue $User.whenChanged
+        canonical_name = $User.CanonicalName
         distinguished_name = $User.DistinguishedName
         dn = $User.DistinguishedName
         description = $User.Description
@@ -269,7 +274,7 @@ function Invoke-EitasAdLookupJob {
         -LDAPFilter $Filter `
         -SearchBase $SearchBase `
         -SearchScope Subtree `
-        -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber `
+        -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName `
         -ResultSetSize 20 `
         -ErrorAction Stop |
         Sort-Object SamAccountName |
@@ -645,7 +650,7 @@ function Invoke-EitasAdExplorerGetUser {
         throw "Identité utilisateur manquante"
     }
 
-    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber -ErrorAction Stop
+    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $User.DistinguishedName -Config $Config | Out-Null
 
@@ -700,7 +705,7 @@ function Invoke-EitasAdExplorerGetGroupMembers {
         throw "Identité groupe manquante"
     }
 
-    $Group = Get-ADGroup -Identity $Identity -Properties Description -ErrorAction Stop
+    $Group = Get-ADGroup -Identity $Identity -Properties Description, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, GroupScope, GroupCategory, ManagedBy -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $Group.DistinguishedName -Config $Config | Out-Null
 

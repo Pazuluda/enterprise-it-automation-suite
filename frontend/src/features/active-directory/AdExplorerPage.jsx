@@ -420,7 +420,8 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['ObjectGUID', pickAdField(['object_guid', 'objectGUID', 'guid'])],
     ['SID', pickAdField(['sid', 'objectSid'])],
     ['Créé le', pickAdField(['created_at', 'whenCreated', 'created'])],
-    ['Modifié le', pickAdField(['updated_at', 'whenChanged', 'modified'])]
+    ['Modifié le', pickAdField(['updated_at', 'whenChanged', 'modified'])],
+    ['Protection suppression accidentelle', pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion'])]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
   const orgRows = [
