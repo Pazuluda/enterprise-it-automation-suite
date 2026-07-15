@@ -398,6 +398,169 @@ function Invoke-EitasAdAdminCreateUser {
 
 
 
+# BLOC294A - AD computer management
+
+function Invoke-EitasAdAdminCreateComputer {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Name = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "name",
+            "computer_name",
+            "computerName"
+        )
+
+    $TargetOuDn = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "target_ou_dn",
+            "targetOuDn",
+            "parent_dn",
+            "parentDn",
+            "path"
+        )
+
+    $Description = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "description",
+            "comment"
+        )
+
+    $Location = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "location",
+            "office",
+            "site"
+        )
+
+    $EnabledValue = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "enabled",
+            "active"
+        )
+
+    if ([string]::IsNullOrWhiteSpace([string]$Name)) {
+        throw "Nom ordinateur manquant"
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$TargetOuDn)) {
+        throw "OU cible ordinateur manquante"
+    }
+
+    $Name = ([string]$Name).Trim().ToUpperInvariant()
+    $TargetOuDn = ([string]$TargetOuDn).Trim()
+
+    if (
+        $Name.Length -gt 15 -or
+        $Name -notmatch "^[A-Z0-9-]+$"
+    ) {
+        throw "Le nom ordinateur doit contenir 1 à 15 caractères : lettres, chiffres et tirets"
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $TargetOuDn `
+        -Config $Config |
+        Out-Null
+
+    $Enabled = Convert-EitasAdAdminBool `
+        -Value $EnabledValue `
+        -Default $false
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "create_computer"
+            simulated = $true
+            name = $Name
+            target_ou_dn = $TargetOuDn
+            description = [string]$Description
+            location = [string]$Location
+            enabled = $Enabled
+            message = "Simulation création ordinateur AD"
+        }
+    }
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    Get-ADOrganizationalUnit `
+        -Identity $TargetOuDn `
+        -ErrorAction Stop |
+        Out-Null
+
+    $ComputerSamAccountName = "$Name`$"
+
+    $ExistingComputer = Get-ADComputer `
+        -LDAPFilter "(sAMAccountName=$ComputerSamAccountName)" `
+        -ErrorAction Stop
+
+    if ($null -ne $ExistingComputer) {
+        throw "Ordinateur déjà existant : $Name"
+    }
+
+    $Params = @{
+        Name = $Name
+        Path = $TargetOuDn
+        Enabled = $Enabled
+        ErrorAction = "Stop"
+    }
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Description
+        )
+    ) {
+        $Params.Description =
+            Repair-EitasTextEncoding -Value $Description
+    }
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Location
+        )
+    ) {
+        $Params.Location =
+            Repair-EitasTextEncoding -Value $Location
+    }
+
+    New-ADComputer @Params
+
+    $CreatedComputer = Get-ADComputer `
+        -Identity $Name `
+        -Properties `
+            Enabled, `
+            Description, `
+            Location, `
+            DNSHostName, `
+            OperatingSystem, `
+            OperatingSystemVersion, `
+            PasswordLastSet, `
+            whenCreated, `
+            whenChanged `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "create_computer"
+        simulated = $false
+        name = $CreatedComputer.Name
+        sam_account_name = $CreatedComputer.SamAccountName
+        distinguished_name = $CreatedComputer.DistinguishedName
+        target_ou_dn = $TargetOuDn
+        enabled = $CreatedComputer.Enabled
+        created_computer =
+            Convert-EitasAdAdminObjectItem `
+                -Object $CreatedComputer
+        message = "Ordinateur Active Directory créé"
+    }
+}
+
+
 function Resolve-EitasAdAdminGroup {
     param(
         [object]$Config,
@@ -724,6 +887,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $AllowedProperties = @(
         "description",
+        "location",
         "displayName",
         "mail",
         "title",
@@ -807,7 +971,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
         -ErrorAction Stop
 
     return [pscustomobject]@{
@@ -985,6 +1149,45 @@ function Invoke-EitasAdAdminRenameObject {
     $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
 
     $ObjectDn = [string]$Object.DistinguishedName
+    $ObjectClass = ([string]$Object.ObjectClass).Trim().ToLowerInvariant()
+    $IsComputer = $ObjectClass -eq "computer"
+
+    $OldSamAccountName = $null
+    $NewSamAccountName = $null
+
+    if ($IsComputer) {
+        $NewName = $NewName.ToUpperInvariant()
+
+        if (
+            $NewName.Length -lt 1 `
+            -or $NewName.Length -gt 15 `
+            -or $NewName -notmatch '^[A-Z0-9-]+$'
+        ) {
+            throw "Nom ordinateur invalide : 1 à 15 caractères, lettres A-Z, chiffres et tirets uniquement"
+        }
+
+        $ComputerBefore = Get-ADComputer `
+            -Identity $ObjectDn `
+            -Properties sAMAccountName `
+            -ErrorAction Stop
+
+        $OldSamAccountName = [string]$ComputerBefore.SamAccountName
+        $NewSamAccountName = "$NewName`$"
+
+        $ComputerConflict = Get-ADComputer `
+            -LDAPFilter "(sAMAccountName=$NewSamAccountName)" `
+            -Properties distinguishedName `
+            -ErrorAction Stop |
+            Where-Object {
+                [string]$_.DistinguishedName -ine $ObjectDn
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $ComputerConflict) {
+            throw "Un compte ordinateur utilise déjà l’identifiant $NewSamAccountName"
+        }
+    }
+
     $CommaIndex = $ObjectDn.IndexOf(",")
 
     if ($CommaIndex -lt 1) {
@@ -998,6 +1201,25 @@ function Invoke-EitasAdAdminRenameObject {
     $NewDn = "$RdnPrefix=$NewName,$CurrentParentDn"
 
     if ($CurrentName -ieq $NewName) {
+        $SamAccountNameUpdated = $false
+
+        if (
+            $IsComputer `
+            -and $OldSamAccountName -ine $NewSamAccountName
+        ) {
+            Set-ADComputer `
+                -Identity $ObjectDn `
+                -SamAccountName $NewSamAccountName `
+                -ErrorAction Stop
+
+            $SamAccountNameUpdated = $true
+        }
+
+        $CurrentObject = Get-ADObject `
+            -Identity $ObjectDn `
+            -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description `
+            -ErrorAction Stop
+
         return [pscustomobject]@{
             action = "rename_object"
             simulated = $false
@@ -1008,7 +1230,15 @@ function Invoke-EitasAdAdminRenameObject {
             old_name = $CurrentName
             new_name = $NewName
             new_dn = $ObjectDn
-            message = "L’objet porte déjà ce nom"
+            old_sam_account_name = $OldSamAccountName
+            new_sam_account_name = [string]$CurrentObject.sAMAccountName
+            sam_account_name_updated = $SamAccountNameUpdated
+            renamed_object = Convert-EitasAdAdminObjectItem -Object $CurrentObject
+            message = $(if ($SamAccountNameUpdated) {
+                "Nom déjà correct ; identifiant du compte ordinateur synchronisé"
+            } else {
+                "L’objet porte déjà ce nom"
+            })
         }
     }
 
@@ -1016,6 +1246,38 @@ function Invoke-EitasAdAdminRenameObject {
         -Identity $ObjectDn `
         -NewName $NewName `
         -ErrorAction Stop
+
+    if (
+        $IsComputer `
+        -and $OldSamAccountName -ine $NewSamAccountName
+    ) {
+        try {
+            Set-ADComputer `
+                -Identity $NewDn `
+                -SamAccountName $NewSamAccountName `
+                -ErrorAction Stop
+        }
+        catch {
+            $SamUpdateError = $_.Exception.Message
+            $RollbackError = $null
+
+            try {
+                Rename-ADObject `
+                    -Identity $NewDn `
+                    -NewName $CurrentName `
+                    -ErrorAction Stop
+            }
+            catch {
+                $RollbackError = $_.Exception.Message
+            }
+
+            if ($RollbackError) {
+                throw "Échec de synchronisation du compte ordinateur : $SamUpdateError. Le retour arrière du CN a également échoué : $RollbackError"
+            }
+
+            throw "Échec de synchronisation du compte ordinateur : $SamUpdateError. Le renommage du CN a été annulé."
+        }
+    }
 
     $RenamedObject = Get-ADObject `
         -Identity $NewDn `
@@ -1032,8 +1294,18 @@ function Invoke-EitasAdAdminRenameObject {
         old_name = $CurrentName
         new_name = $NewName
         new_dn = $RenamedObject.DistinguishedName
+        old_sam_account_name = $OldSamAccountName
+        new_sam_account_name = [string]$RenamedObject.sAMAccountName
+        sam_account_name_updated = $(
+            $IsComputer `
+            -and $OldSamAccountName -ine [string]$RenamedObject.sAMAccountName
+        )
         renamed_object = Convert-EitasAdAdminObjectItem -Object $RenamedObject
-        message = "Objet AD renommé"
+        message = $(if ($IsComputer) {
+            "Compte ordinateur AD renommé et identifiant synchronisé"
+        } else {
+            "Objet AD renommé"
+        })
     }
 }
 
@@ -1220,6 +1492,65 @@ function Assert-EitasAdAdminAccountDnAllowed {
     }
 }
 
+function Resolve-EitasAdAdminEnableDisableAccount {
+    param(
+        [object]$Config,
+        [string]$Identity
+    )
+
+    Import-Module ActiveDirectory -ErrorAction Stop
+
+    $BaseObject = Get-ADObject `
+        -Identity $Identity `
+        -Properties objectClass `
+        -ErrorAction Stop
+
+    $ObjectDn = [string]$BaseObject.DistinguishedName
+
+    Assert-EitasAdAdminAccountDnAllowed `
+        -Config $Config `
+        -ObjectDn $ObjectDn
+
+    $ObjectClass = (
+        [string]$BaseObject.ObjectClass
+    ).Trim().ToLowerInvariant()
+
+    if ($ObjectClass -eq "user") {
+        return Get-ADUser `
+            -Identity $ObjectDn `
+            -Properties `
+                Enabled, `
+                LockedOut, `
+                PasswordExpired, `
+                PasswordLastSet, `
+                UserPrincipalName, `
+                SamAccountName, `
+                DisplayName, `
+                Description, `
+                objectClass `
+            -ErrorAction Stop
+    }
+
+    if ($ObjectClass -eq "computer") {
+        return Get-ADComputer `
+            -Identity $ObjectDn `
+            -Properties `
+                Enabled, `
+                PasswordLastSet, `
+                SamAccountName, `
+                Description, `
+                Location, `
+                DNSHostName, `
+                OperatingSystem, `
+                OperatingSystemVersion, `
+                objectClass `
+            -ErrorAction Stop
+    }
+
+    throw "Type de compte incompatible avec Activer/Désactiver : $ObjectClass"
+}
+
+
 function Resolve-EitasAdAdminAccountUser {
     param(
         [object]$Config,
@@ -1255,17 +1586,52 @@ function Convert-EitasAdAdminAccountResult {
     }
 
     if ($null -ne $User) {
-        $Result.user = $User.Name
-        $Result.sam_account_name = $User.SamAccountName
-        $Result.user_principal_name = $User.UserPrincipalName
-        $Result.enabled = $User.Enabled
-        $Result.locked_out = $User.LockedOut
-        $Result.password_expired = $User.PasswordExpired
-        $Result.password_last_set = $User.PasswordLastSet
-        $Result.distinguished_name = $User.DistinguishedName
+        $Result.object = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("Name", "name")
 
-        if (Get-Command Convert-EitasAdAdminObjectItem -ErrorAction SilentlyContinue) {
-            $Result.updated_object = Convert-EitasAdAdminObjectItem -Object $User
+        $Result.user = $Result.object
+
+        $Result.object_type = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("ObjectClass", "objectClass")
+
+        $Result.sam_account_name = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("SamAccountName", "sAMAccountName")
+
+        $Result.user_principal_name = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("UserPrincipalName")
+
+        $Result.enabled = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("Enabled")
+
+        $Result.locked_out = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("LockedOut")
+
+        $Result.password_expired = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("PasswordExpired")
+
+        $Result.password_last_set = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("PasswordLastSet")
+
+        $Result.distinguished_name = Get-EitasObjectValue `
+            -Object $User `
+            -Names @("DistinguishedName")
+
+        if (
+            Get-Command `
+                Convert-EitasAdAdminObjectItem `
+                -ErrorAction SilentlyContinue
+        ) {
+            $Result.updated_object =
+                Convert-EitasAdAdminObjectItem `
+                    -Object $User
         }
     }
 
@@ -1290,10 +1656,10 @@ function Invoke-EitasAdAdminEnableAccount {
             -Message "Simulation activation compte AD"
     }
 
-    $User = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $Identity
+    $User = Resolve-EitasAdAdminEnableDisableAccount -Config $Config -Identity $Identity
     Enable-ADAccount -Identity $User.DistinguishedName -ErrorAction Stop
 
-    $UpdatedUser = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $User.DistinguishedName
+    $UpdatedUser = Resolve-EitasAdAdminEnableDisableAccount -Config $Config -Identity $User.DistinguishedName
 
     return Convert-EitasAdAdminAccountResult `
         -Action "enable_account" `
@@ -1321,10 +1687,10 @@ function Invoke-EitasAdAdminDisableAccount {
             -Message "Simulation désactivation compte AD"
     }
 
-    $User = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $Identity
+    $User = Resolve-EitasAdAdminEnableDisableAccount -Config $Config -Identity $Identity
     Disable-ADAccount -Identity $User.DistinguishedName -ErrorAction Stop
 
-    $UpdatedUser = Resolve-EitasAdAdminAccountUser -Config $Config -Identity $User.DistinguishedName
+    $UpdatedUser = Resolve-EitasAdAdminEnableDisableAccount -Config $Config -Identity $User.DistinguishedName
 
     return Convert-EitasAdAdminAccountResult `
         -Action "disable_account" `
@@ -1468,6 +1834,10 @@ function Invoke-EitasAdAdminJob {
         }
 
         
+        "create_computer" {
+            return Invoke-EitasAdAdminCreateComputer -Config $Config -Payload $Payload -Mode $Mode
+        }
+
         "create_user" {
             return Invoke-EitasAdAdminCreateUser -Config $Config -Payload $Payload -Mode $Mode
         }

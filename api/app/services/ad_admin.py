@@ -28,6 +28,7 @@ ALLOWED_ACTIONS = {
     "create_ou",
     "create_group",
     "create_user",
+    "create_computer",
     "add_group_member",
     "remove_group_member",
     "move_object",
@@ -260,6 +261,69 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "enabled": enabled,
         })
 
+    elif action == "create_computer":
+        name = validate_name(
+            payload.get("name")
+            or payload.get("computer_name")
+            or payload.get("computerName"),
+            "name",
+        ).upper()
+
+        if len(name) > 15:
+            raise ADAdminBadRequest(
+                "Le nom ordinateur est limité à 15 caractères"
+            )
+
+        target_ou_dn = validate_dn(
+            payload.get("target_ou_dn")
+            or payload.get("targetOuDn")
+            or payload.get("parent_dn")
+            or payload.get("parentDn"),
+            "target_ou_dn",
+        )
+
+        description = clean_string(
+            payload.get("description")
+        )
+
+        location = clean_string(
+            payload.get("location")
+            or payload.get("office")
+            or payload.get("site")
+        )
+
+        enabled = payload.get("enabled", False)
+
+        if isinstance(enabled, str):
+            enabled = (
+                enabled.strip().lower()
+                in {
+                    "1",
+                    "true",
+                    "yes",
+                    "oui",
+                    "enabled",
+                    "active",
+                }
+            )
+        else:
+            enabled = bool(enabled)
+
+        job_payload = {
+            "action": action,
+            "name": name,
+            "target_ou_dn": target_ou_dn,
+            "description": description,
+            "location": location,
+            "enabled": enabled,
+        }
+
+        audit_details.update({
+            "name": name,
+            "target_ou_dn": target_ou_dn,
+            "enabled": enabled,
+        })
+
     elif action == "update_object_properties":
         object_identity = clean_string(
             payload.get("object_identity")
@@ -277,6 +341,7 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
 
         allowed_properties = {
             "description",
+            "location",
             "displayName",
             "display_name",
             "mail",

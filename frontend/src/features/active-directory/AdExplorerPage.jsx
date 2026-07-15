@@ -4,6 +4,7 @@ const DOMAIN_DN = 'DC=API,DC=LOCAL'
 const EITAS_DN = `OU=EITAS,${DOMAIN_DN}`
 const USERS_DN = `OU=Users,${EITAS_DN}`
 const GROUPS_DN = `OU=Groups,${EITAS_DN}`
+const COMPUTERS_DN = `OU=Computers,${EITAS_DN}`
 
 function isEitasManagedDn(value) {
   const dn = String(value || '')
@@ -415,7 +416,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       if (filterValue === 'running') return status === 'processing' || status === 'pending'
       if (filterValue === 'failed') return status === 'failed'
       if (filterValue === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
-      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
+      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
       if (filterValue === 'delete') return job.action === 'delete_object'
       if (filterValue === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
       if (filterValue === 'move') return job.action === 'move_object'
@@ -432,7 +433,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     if (historyFilter === 'running') return status === 'processing' || status === 'pending'
     if (historyFilter === 'failed') return status === 'failed'
     if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
-    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user'].includes(job.action)
+    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
     if (historyFilter === 'delete') return job.action === 'delete_object'
     if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
     if (historyFilter === 'move') return job.action === 'move_object'
@@ -1002,7 +1003,25 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
             {activeDetailsTab === 'machine' && (
               <div className="aduc-tab-card">
-                <h4>Informations machine</h4>
+                <div className="aduc-machine-card-head">
+                  <h4>Informations machine</h4>
+
+                  {isManagedScope && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onPrepareAccountAction?.(
+                          'toggle_enabled',
+                          displayed
+                        )
+                      }
+                    >
+                      {computerEnabledText === 'Activé'
+                        ? 'Désactiver la machine'
+                        : 'Activer la machine'}
+                    </button>
+                  )}
+                </div>
 
                 {renderGrid(
                   machineRows,
@@ -1345,6 +1364,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       create_ou: 'Création OU',
       create_group: 'Création groupe',
       create_user: 'Création utilisateur',
+      create_computer: 'Création ordinateur',
       delete_object: 'Suppression objet',
       move_object: 'Déplacement objet',
       rename_object: 'Renommage objet',
@@ -2267,6 +2287,18 @@ function getAdAttributeValue(item, ...names) {
         .toLowerCase()
         .includes('utilisateur')
   }
+  function isUpdateComputerTarget(target) {
+    const objectClass = String(
+      target?.objectClass
+      || target?.object_class
+      || target?.type
+      || ''
+    ).trim().toLowerCase()
+
+    return objectClass === 'computer'
+      || getObjectType(target) === 'Ordinateur'
+  }
+
   function openUpdateObject(target) {
     if (!isEitasManagedObject(target)) {
       const message =
@@ -2294,6 +2326,10 @@ function getAdAttributeValue(item, ...names) {
       description: getAdAttributeValue(
         target,
         'description'
+      ),
+      location: getAdAttributeValue(
+        target,
+        'location'
       ),
       displayName: getAdAttributeValue(
         target,
@@ -2575,7 +2611,9 @@ function getAdAttributeValue(item, ...names) {
 
       await loadTree()
 
-      if (selectedNode) {
+      if (viewType === 'computers') {
+        await loadComputersView()
+      } else if (selectedNode) {
         await loadNodeContent(selectedNode, viewType)
       }
 
@@ -2612,7 +2650,7 @@ function getAdAttributeValue(item, ...names) {
 
     setContextMenu(null)
     setDeleteModal(target)
-    setDeleteConfirmDn(dn)
+    setDeleteConfirmDn('')
   }
 
   async function submitDeleteObject(event) {
@@ -2650,7 +2688,10 @@ function getAdAttributeValue(item, ...names) {
 
       await loadTree()
 
-      if (selectedNode) {
+      if (viewType === 'computers') {
+        setSelectedObject(null)
+        await loadComputersView()
+      } else if (selectedNode) {
         await loadNodeContent(selectedNode, viewType)
       }
 
@@ -2685,9 +2726,21 @@ function getAdAttributeValue(item, ...names) {
       return
     }
 
+    const currentName = String(
+      getObjectName(target) || ''
+    ).trim()
+
+    if (!currentName) {
+      setStatus(
+        'Nom actuel introuvable pour cet objet AD.'
+      )
+      setContextMenu(null)
+      return
+    }
+
     setContextMenu(null)
+    setRenameNewName(currentName)
     setRenameModal(target)
-    setRenameNewName(getRenameDefaultName(target))
   }
 
   async function submitRenameObject(event) {
@@ -2708,7 +2761,11 @@ function getAdAttributeValue(item, ...names) {
       return
     }
 
-    if (newName === getRenameDefaultName(renameModal)) {
+    const currentName = String(
+      getObjectName(renameModal) || ''
+    ).trim()
+
+    if (newName === currentName) {
       setStatus('Le nouveau nom est identique au nom actuel.')
       return
     }
@@ -2730,7 +2787,9 @@ function getAdAttributeValue(item, ...names) {
 
       await loadTree()
 
-      if (selectedNode) {
+      if (viewType === 'computers') {
+        await loadComputersView()
+      } else if (selectedNode) {
         await loadNodeContent(selectedNode, viewType)
       }
 
@@ -3490,6 +3549,78 @@ function getAdAttributeValue(item, ...names) {
     window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
   }
 
+  async function createComputerQuick() {
+    loadAdAgentMode()
+
+    const rawName = window.prompt(
+      'Nom du nouvel ordinateur AD :',
+      'PC-EITAS-TEST01'
+    )
+
+    if (!rawName) return
+
+    const name = rawName.trim().toUpperCase()
+
+    if (!/^[A-Z0-9-]{1,15}$/.test(name)) {
+      window.alert(
+        'Le nom doit contenir 1 à 15 caractères : lettres, chiffres et tirets.'
+      )
+      return
+    }
+
+    const description = (
+      window.prompt(
+        'Description de l’ordinateur :',
+        'Ordinateur de test créé par EITAS'
+      ) || ''
+    ).trim()
+
+    const location = (
+      window.prompt(
+        'Emplacement physique :',
+        'Lab EITAS'
+      ) || ''
+    ).trim()
+
+    if (!(
+      await confirmProductionAdAction(
+        'La création d’un ordinateur',
+        `${name} dans ${COMPUTERS_DN}`
+      )
+    )) {
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const job = await runAdAdminJob({
+        action: 'create_computer',
+        name,
+        target_ou_dn: COMPUTERS_DN,
+        description,
+        location,
+        enabled: false,
+        created_by: 'react-ad-explorer'
+      })
+
+      await loadComputersView()
+
+      setMessage?.(
+        job?.message ||
+        `${name} créé désactivé dans Active Directory.`
+      )
+    } catch (error) {
+      setMessage?.(
+        error?.message ||
+        'Création de l’ordinateur impossible.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   function getAccountActionLabel(action) {
     const labels = {
       enable_account: 'Activer le compte',
@@ -3587,6 +3718,11 @@ function getAdAttributeValue(item, ...names) {
     try {
       setAccountActionLoading(true)
       await runAdAdminJob(payload)
+
+      if (viewType === 'computers') {
+        await loadComputersView()
+      }
+
       setAccountActionModal(null)
       setAccountActionConfirm('')
       setMessage?.(`${getAccountActionLabel(accountActionModal.action)} envoyé à l’agent AD Admin.`)
@@ -3958,7 +4094,9 @@ function getAdAttributeValue(item, ...names) {
 
       await loadTree()
 
-      if (selectedNode) {
+      if (viewType === 'computers') {
+        await loadComputersView()
+      } else if (selectedNode) {
         await loadNodeContent(selectedNode, viewType)
       }
 
@@ -4515,6 +4653,12 @@ function getAdAttributeValue(item, ...names) {
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
               <button
                 type="button"
+                onClick={createComputerQuick}
+              >
+                💻 Créer un ordinateur
+              </button>
+              <button
+                type="button"
                 disabled={
                   !isEitasManagedObject(
                     contextMenu?.target ||
@@ -4757,6 +4901,321 @@ function getAdAttributeValue(item, ...names) {
 
 
 
+      {deleteModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={() => {
+            if (!loading) {
+              setDeleteModal(null)
+              setDeleteConfirmDn('')
+            }
+          }}
+        >
+          <section
+            className="aduc-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>Active Directory</span>
+                <h3>Supprimer l’objet</h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModal(null)
+                  setDeleteConfirmDn('')
+                }}
+                disabled={loading}
+              >
+                ×
+              </button>
+            </header>
+
+            <form onSubmit={submitDeleteObject}>
+              <div className="aduc-update-object-target">
+                <div>
+                  <span>Objet cible</span>
+                  <strong>{getObjectName(deleteModal)}</strong>
+                </div>
+
+                <div>
+                  <span>Type</span>
+                  <strong>{getObjectType(deleteModal)}</strong>
+                </div>
+
+                <div className="wide">
+                  <span>DN de l’objet</span>
+                  <code>{getObjectDn(deleteModal)}</code>
+                </div>
+              </div>
+
+              <div className="aduc-account-action-warning production">
+                <strong>Suppression définitive</strong>
+                <p>
+                  Cette action supprimera réellement l’objet
+                  dans Active Directory.
+                </p>
+              </div>
+
+              <label className="aduc-account-action-field">
+                <span>Confirmation par Distinguished Name</span>
+
+                <input
+                  type="text"
+                  className="mono"
+                  value={deleteConfirmDn}
+                  onChange={event =>
+                    setDeleteConfirmDn(event.target.value)
+                  }
+                  placeholder={getObjectDn(deleteModal)}
+                  autoComplete="off"
+                  autoFocus
+                  disabled={loading}
+                />
+
+                <small>
+                  Recopie exactement le DN affiché au-dessus.
+                </small>
+              </label>
+
+              <footer className="aduc-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteModal(null)
+                    setDeleteConfirmDn('')
+                  }}
+                  disabled={loading}
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="submit"
+                  className="danger"
+                  disabled={
+                    loading ||
+                    deleteConfirmDn.trim() !==
+                      getObjectDn(deleteModal)
+                  }
+                >
+                  {loading
+                    ? 'Suppression...'
+                    : 'Supprimer définitivement'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {moveModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={() => {
+            if (!loading) {
+              setMoveModal(null)
+              setMoveTargetDn('')
+            }
+          }}
+        >
+          <section
+            className="aduc-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>Active Directory</span>
+                <h3>Déplacer l’objet</h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMoveModal(null)
+                  setMoveTargetDn('')
+                }}
+                disabled={loading}
+              >
+                ×
+              </button>
+            </header>
+
+            <form onSubmit={submitMoveObject}>
+              <div className="aduc-update-object-target">
+                <div>
+                  <span>Objet cible</span>
+                  <strong>{getObjectName(moveModal)}</strong>
+                </div>
+
+                <div>
+                  <span>Type</span>
+                  <strong>{getObjectType(moveModal)}</strong>
+                </div>
+
+                <div className="wide">
+                  <span>DN actuel</span>
+                  <code>{getObjectDn(moveModal)}</code>
+                </div>
+              </div>
+
+              <label className="aduc-account-action-field">
+                <span>OU de destination</span>
+
+                <input
+                  type="text"
+                  className="mono"
+                  value={moveTargetDn}
+                  onChange={event =>
+                    setMoveTargetDn(event.target.value)
+                  }
+                  placeholder="OU=Destination,OU=EITAS,DC=API,DC=LOCAL"
+                  autoFocus
+                  disabled={loading}
+                />
+
+                <small>
+                  Saisis le Distinguished Name complet de l’OU
+                  de destination.
+                </small>
+              </label>
+
+              <p className="aduc-update-object-help">
+                Seuls les objets placés dans le périmètre
+                OU=EITAS peuvent être déplacés par EITAS.
+              </p>
+
+              <footer className="aduc-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMoveModal(null)
+                    setMoveTargetDn('')
+                  }}
+                  disabled={loading}
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    !moveTargetDn.trim()
+                  }
+                >
+                  {loading
+                    ? 'Déplacement...'
+                    : 'Déplacer'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {renameModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={() => {
+            if (!loading) {
+              setRenameModal(null)
+              setRenameNewName('')
+            }
+          }}
+        >
+          <section
+            className="aduc-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>Active Directory</span>
+                <h3>Renommer l’objet</h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setRenameModal(null)
+                  setRenameNewName('')
+                }}
+                disabled={loading}
+              >
+                ×
+              </button>
+            </header>
+
+            <form onSubmit={submitRenameObject}>
+              <div className="aduc-update-object-target">
+                <div>
+                  <span>Objet cible</span>
+                  <strong>{getObjectName(renameModal)}</strong>
+                </div>
+
+                <div>
+                  <span>Type</span>
+                  <strong>{getObjectType(renameModal)}</strong>
+                </div>
+
+                <div className="wide">
+                  <span>DN actuel</span>
+                  <code>{getObjectDn(renameModal)}</code>
+                </div>
+              </div>
+
+              <label className="aduc-account-action-field">
+                <span>Nouveau nom</span>
+                <input
+                  type="text"
+                  value={renameNewName}
+                  onChange={event =>
+                    setRenameNewName(event.target.value)
+                  }
+                  placeholder="Saisir le nouveau nom"
+                  autoFocus
+                  disabled={loading}
+                />
+              </label>
+
+              <p className="aduc-update-object-help">
+                Le renommage sera exécuté réellement dans Active
+                Directory par le worker AD Admin.
+              </p>
+
+              <footer className="aduc-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRenameModal(null)
+                    setRenameNewName('')
+                  }}
+                  disabled={loading}
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    !renameNewName.trim() ||
+                    renameNewName.trim() ===
+                      String(getObjectName(renameModal) || '').trim()
+                  }
+                >
+                  {loading
+                    ? 'Renommage...'
+                    : 'Renommer'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
       {updateModal && (
         <div
           className="aduc-modal-backdrop"
@@ -4810,18 +5269,36 @@ function getAdAttributeValue(item, ...names) {
                   <h4>Informations générales</h4>
 
                   <div className="aduc-update-object-grid">
-                    <label>
-                      <span>Nom d’affichage</span>
-                      <input
-                        type="text"
-                        value={updateForm.displayName || ''}
-                        onChange={event => updateObjectFormField(
-                          'displayName',
-                          event.target.value
-                        )}
-                        disabled={loading}
-                      />
-                    </label>
+                    {!isUpdateComputerTarget(updateModal) && (
+                      <label>
+                        <span>Nom d’affichage</span>
+                        <input
+                          type="text"
+                          value={updateForm.displayName || ''}
+                          onChange={event => updateObjectFormField(
+                            'displayName',
+                            event.target.value
+                          )}
+                          disabled={loading}
+                        />
+                      </label>
+                    )}
+
+                    {isUpdateComputerTarget(updateModal) && (
+                      <label>
+                        <span>Emplacement</span>
+                        <input
+                          type="text"
+                          value={updateForm.location || ''}
+                          onChange={event => updateObjectFormField(
+                            'location',
+                            event.target.value
+                          )}
+                          placeholder="Ex : Salle informatique"
+                          disabled={loading}
+                        />
+                      </label>
+                    )}
 
                     <label className="wide">
                       <span>Description</span>

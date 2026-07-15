@@ -5256,3 +5256,28 @@ button.aduc-admin-history-row.unknown > span {
   background: rgba(220, 38, 38, 0.08);
   color: rgba(153, 27, 27, 0.55);
 }
+
+
+/* BLOC294A - AD computer management */
+
+.aduc-machine-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.aduc-machine-card-head h4 {
+  margin: 0;
+}
+
+.aduc-machine-card-head button {
+  border: 1px solid rgba(79, 70, 229, 0.24);
+  border-radius: 11px;
+  padding: 9px 13px;
+  background: rgba(79, 70, 229, 0.09);
+  color: #4338ca;
+  font-weight: 850;
+  cursor: pointer;
+}
