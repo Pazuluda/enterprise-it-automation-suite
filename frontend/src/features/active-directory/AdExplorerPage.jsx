@@ -918,6 +918,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [updateModal, setUpdateModal] = useState(null)
   const [updateForm, setUpdateForm] = useState({ description: '' })
   const [updateOriginalForm, setUpdateOriginalForm] = useState({ description: '' })
+  const [managerSearchQuery, setManagerSearchQuery] = useState('')
+  const [managerSearchResults, setManagerSearchResults] = useState([])
+  const [managerSearchLoading, setManagerSearchLoading] = useState(false)
+  const [managerSearchError, setManagerSearchError] = useState('')
   const [deleteConfirmDn, setDeleteConfirmDn] = useState('')
   const [renameNewName, setRenameNewName] = useState('')
   const [moveTargetDn, setMoveTargetDn] = useState('')
@@ -2066,6 +2070,8 @@ function getAdAttributeValue(item, ...names) {
         'country'
       )
     }
+
+    resetManagerPicker()
     setContextMenu(null)
     setUpdateModal(target)
     setUpdateForm(form)
@@ -2077,6 +2083,136 @@ function getAdAttributeValue(item, ...names) {
       ...previous,
       [name]: value
     }))
+  }
+
+  function resetManagerPicker() {
+    setManagerSearchQuery('')
+    setManagerSearchResults([])
+    setManagerSearchLoading(false)
+    setManagerSearchError('')
+  }
+
+  function getManagerCandidateDn(candidate) {
+    return String(
+      candidate?.distinguished_name ||
+      candidate?.dn ||
+      ''
+    )
+  }
+
+  function selectManagerCandidate(candidate) {
+    const managerDn = getManagerCandidateDn(candidate)
+
+    if (!managerDn) {
+      setManagerSearchError(
+        'Le Distinguished Name de cet utilisateur est introuvable.'
+      )
+      return
+    }
+
+    updateObjectFormField('manager', managerDn)
+    setManagerSearchQuery('')
+    setManagerSearchResults([])
+    setManagerSearchError('')
+  }
+
+  function clearManagerSelection() {
+    updateObjectFormField('manager', '')
+    resetManagerPicker()
+  }
+
+  async function searchManagerCandidates() {
+    const query = managerSearchQuery.trim()
+
+    setManagerSearchResults([])
+    setManagerSearchError('')
+
+    if (query.length < 2) {
+      setManagerSearchError(
+        'Tape au moins 2 caractères pour rechercher un manager.'
+      )
+      return
+    }
+
+    setManagerSearchLoading(true)
+
+    try {
+      const users = await runJob('search_users', {
+        query,
+        baseDn: 'DC=API,DC=LOCAL',
+        limit: 50,
+        recursive: true
+      })
+
+      const currentDn = String(
+        getObjectDn(updateModal) || ''
+      ).toLowerCase()
+
+      const currentSam = String(
+        updateModal?.sam_account_name ||
+        updateModal?.samAccountName ||
+        ''
+      ).toLowerCase()
+
+      const results = users
+        .filter(candidate => {
+          const candidateDn = getManagerCandidateDn(candidate)
+
+          if (!candidateDn) return false
+
+          const enabledValue =
+            candidate?.enabled ??
+            candidate?.Enabled
+
+          const isDisabled =
+            enabledValue === false ||
+            enabledValue === 0 ||
+            String(enabledValue || '')
+              .trim()
+              .toLowerCase() === 'false'
+
+          if (isDisabled) return false
+
+          const candidateSam = String(
+            candidate?.sam_account_name ||
+            candidate?.samAccountName ||
+            ''
+          ).toLowerCase()
+
+          const isCurrentObject =
+            candidateDn.toLowerCase() === currentDn ||
+            (
+              currentSam &&
+              candidateSam &&
+              candidateSam === currentSam
+            )
+
+          return !isCurrentObject
+        })
+        .sort((first, second) =>
+          getMemberCandidateTitle(first).localeCompare(
+            getMemberCandidateTitle(second),
+            'fr',
+            { sensitivity: 'base' }
+          )
+        )
+
+      setManagerSearchResults(results)
+
+      if (!results.length) {
+        setManagerSearchError(
+          'Aucun autre utilisateur Active Directory actif trouvé.'
+        )
+      }
+    } catch (error) {
+      setManagerSearchResults([])
+      setManagerSearchError(
+        error.message ||
+        'Recherche de manager impossible.'
+      )
+    } finally {
+      setManagerSearchLoading(false)
+    }
   }
 
   async function submitUpdateObject(event) {
@@ -2120,6 +2256,7 @@ function getAdAttributeValue(item, ...names) {
       const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Propriétés objet AD modifiées')
       setStatus(message)
       setUpdateModal(null)
+      resetManagerPicker()
 
       await loadTree()
 
@@ -4289,47 +4426,153 @@ function getAdAttributeValue(item, ...names) {
 
                         <div className="aduc-update-object-grid">
                           {section.fields.map(
-                            ([name, label, wide]) => (
-                              <label
-                                key={name}
-                                className={wide ? 'wide' : ''}
-                              >
-                                <span>{label}</span>
+                            ([name, label, wide]) => {
+                              if (name === 'manager') {
+                                return (
+                                  <label
+                                    key={name}
+                                    className="wide aduc-manager-field"
+                                  >
+                                    <span>{label}</span>
 
-                                <input
-                                  type={
-                                    name === 'mail'
-                                      ? 'email'
-                                      : 'text'
-                                  }
-                                  className={
-                                    name === 'manager'
-                                      ? 'mono'
-                                      : ''
-                                  }
-                                  value={updateForm[name] || ''}
-                                  onChange={event =>
-                                    updateObjectFormField(
-                                      name,
-                                      event.target.value
-                                    )
-                                  }
-                                  placeholder={
-                                    name === 'manager'
-                                      ? 'CN=Manager,OU=Users,DC=API,DC=LOCAL'
-                                      : ''
-                                  }
-                                  disabled={loading}
-                                />
+                                    <div className="aduc-manager-current-row">
+                                      <input
+                                        className="mono"
+                                        value={updateForm.manager || ''}
+                                        placeholder="Aucun manager défini"
+                                        readOnly
+                                        disabled={loading}
+                                      />
 
-                                {name === 'manager' && (
-                                  <small>
-                                    Utiliser le Distinguished Name
-                                    complet du manager.
-                                  </small>
-                                )}
-                              </label>
-                            )
+                                      <button
+                                        type="button"
+                                        className="aduc-manager-clear-button"
+                                        onClick={clearManagerSelection}
+                                        disabled={
+                                          loading ||
+                                          !updateForm.manager
+                                        }
+                                      >
+                                        Retirer
+                                      </button>
+                                    </div>
+
+                                    <div className="aduc-member-picker-row">
+                                      <input
+                                        value={managerSearchQuery}
+                                        onChange={event => {
+                                          setManagerSearchQuery(
+                                            event.target.value
+                                          )
+                                          setManagerSearchResults([])
+                                          setManagerSearchError('')
+                                        }}
+                                        onKeyDown={event => {
+                                          if (event.key === 'Enter') {
+                                            event.preventDefault()
+                                            searchManagerCandidates()
+                                          }
+                                        }}
+                                        placeholder="Nom, identifiant ou e-mail du manager..."
+                                        disabled={
+                                          loading ||
+                                          managerSearchLoading
+                                        }
+                                      />
+
+                                      <button
+                                        type="button"
+                                        className="aduc-member-search-button"
+                                        onClick={searchManagerCandidates}
+                                        disabled={
+                                          loading ||
+                                          managerSearchLoading ||
+                                          managerSearchQuery.trim().length < 2
+                                        }
+                                      >
+                                        {managerSearchLoading
+                                          ? 'Recherche...'
+                                          : 'Rechercher'}
+                                      </button>
+                                    </div>
+
+                                    {managerSearchError && (
+                                      <div className="aduc-member-search-error">
+                                        {managerSearchError}
+                                      </div>
+                                    )}
+
+                                    {managerSearchResults.length > 0 && (
+                                      <div className="aduc-member-search-results aduc-manager-search-results">
+                                        {managerSearchResults.map(
+                                          candidate => {
+                                            const candidateDn =
+                                              getManagerCandidateDn(candidate)
+
+                                            return (
+                                              <button
+                                                type="button"
+                                                key={candidateDn}
+                                                data-kind-label="Manager possible"
+                                                onClick={() =>
+                                                  selectManagerCandidate(
+                                                    candidate
+                                                  )
+                                                }
+                                              >
+                                                <strong>
+                                                  {getMemberCandidateTitle(
+                                                    candidate
+                                                  )}
+                                                </strong>
+
+                                                <small>
+                                                  {getMemberCandidateSubtitle(
+                                                    candidate
+                                                  )}
+                                                </small>
+                                              </button>
+                                            )
+                                          }
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <small>
+                                      Recherche dans le domaine API.LOCAL.
+                                      L’utilisateur en cours de modification
+                                      est automatiquement exclu. Seuls
+                                      les comptes actifs sont proposés.
+                                    </small>
+                                  </label>
+                                )
+                              }
+
+                              return (
+                                <label
+                                  key={name}
+                                  className={wide ? 'wide' : ''}
+                                >
+                                  <span>{label}</span>
+
+                                  <input
+                                    type={
+                                      name === 'mail'
+                                        ? 'email'
+                                        : 'text'
+                                    }
+                                    value={updateForm[name] || ''}
+                                    onChange={event =>
+                                      updateObjectFormField(
+                                        name,
+                                        event.target.value
+                                      )
+                                    }
+                                    disabled={loading}
+                                  />
+                                </label>
+                              )
+                            }
                           )}
                         </div>
                       </section>

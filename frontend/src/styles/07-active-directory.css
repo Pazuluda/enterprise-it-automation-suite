@@ -5139,3 +5139,81 @@ button.aduc-admin-history-row.unknown > span {
     grid-column: auto;
   }
 }
+
+
+/* BLOC292E - Manager user picker */
+
+.aduc-manager-field {
+  display: grid;
+  gap: 10px;
+}
+
+.aduc-manager-current-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.aduc-manager-current-row .mono {
+  font-family:
+    "Cascadia Code",
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  font-size: 12px;
+}
+
+.aduc-manager-clear-button {
+  min-height: 42px;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  border-radius: 12px;
+  padding: 0 16px;
+  background: rgba(220, 38, 38, 0.09);
+  color: #991b1b;
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.aduc-manager-clear-button:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.16);
+  transform: translateY(-1px);
+}
+
+.aduc-manager-clear-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.aduc-manager-search-results {
+  margin-top: 2px;
+  max-height: 280px !important;
+}
+
+.aduc-manager-search-results button[data-kind-label="Manager possible"] {
+  border-left-color: #0f766e !important;
+  background:
+    linear-gradient(
+      135deg,
+      #f0fdfa 0%,
+      #eef2ff 100%
+    ) !important;
+}
+
+.aduc-manager-search-results button[data-kind-label="Manager possible"]::after {
+  background: rgba(15, 118, 110, 0.13) !important;
+  color: #115e59 !important;
+}
+
+@media (max-width: 720px) {
+  .aduc-manager-current-row {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-manager-clear-button {
+    width: 100%;
+  }
+}

@@ -269,7 +269,7 @@ function Invoke-EitasAdLookupJob {
         $SearchBase = Get-EitasDefaultUsersDn -Config $Config
     }
 
-    Assert-EitasDnSafe -DistinguishedName $SearchBase -Config $Config | Out-Null
+    Assert-EitasDnSafe -DistinguishedName $SearchBase -Config $Config -AllowDomainRoot | Out-Null
 
     if ([string]::IsNullOrWhiteSpace($Query)) {
         $Filter = "(&(objectCategory=person)(objectClass=user))"
