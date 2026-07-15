@@ -4945,3 +4945,197 @@ button.aduc-admin-history-row.unknown > span {
 .aduc-member-actions button.danger {
   color: #991b1b !important;
 }
+
+/* BLOC292 - ADUC organization tab */
+
+.aduc-org-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.aduc-org-head p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.aduc-org-head button {
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* BLOC292D - Full object editor */
+
+.aduc-update-object-modal {
+  width: min(980px, calc(100vw - 32px));
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.aduc-update-object-modal > form {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(92vh - 78px);
+  min-height: 0;
+}
+
+.aduc-update-object-target {
+  margin: 18px 20px 0;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.aduc-update-object-target > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.aduc-update-object-target .wide {
+  grid-column: 1 / -1;
+}
+
+.aduc-update-object-target span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.aduc-update-object-target code {
+  display: block;
+  padding: 9px 11px;
+  overflow-wrap: anywhere;
+  border-radius: 10px;
+  background: #e9eef5;
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.aduc-update-object-help {
+  margin: 12px 20px 0;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.aduc-update-object-sections {
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.aduc-update-object-sections > section {
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.aduc-update-object-sections h4 {
+  margin: 0 0 14px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.aduc-update-object-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.aduc-update-object-grid label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.aduc-update-object-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.aduc-update-object-grid label > span {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.aduc-update-object-grid input,
+.aduc-update-object-grid textarea {
+  width: 100%;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.aduc-update-object-grid textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.aduc-update-object-grid input:focus,
+.aduc-update-object-grid textarea:focus {
+  outline: 3px solid rgba(79, 70, 229, 0.14);
+  border-color: #6366f1;
+}
+
+.aduc-update-object-grid input.mono {
+  font-family: Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.aduc-update-object-grid small {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.aduc-update-object-modal .aduc-modal-actions {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  background: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .aduc-update-object-modal {
+    width: calc(100vw - 18px);
+  }
+
+  .aduc-update-object-target,
+  .aduc-update-object-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-update-object-target .wide,
+  .aduc-update-object-grid label.wide {
+    grid-column: auto;
+  }
+}

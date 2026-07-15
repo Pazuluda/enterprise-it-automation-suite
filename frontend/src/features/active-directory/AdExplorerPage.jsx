@@ -424,16 +424,46 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Protection suppression accidentelle', pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion'])]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
-  const orgRows = [
-    ['Titre / poste', pickAdField(['title', 'job_title', 'poste'])],
-    ['Service', pickAdField(['department', 'service'])],
-    ['Société', pickAdField(['company'])],
-    ['Manager', pickAdField(['manager'])],
-    ['Bureau', pickAdField(['office', 'physicalDeliveryOfficeName'])],
-    ['Téléphone', pickAdField(['telephoneNumber', 'phone', 'mobile'])],
-    ['Ville', pickAdField(['city', 'l'])],
-    ['Pays', pickAdField(['country', 'co'])]
-  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+    const orgValue = names => pickAdField(names)
+
+    const managerDn = orgValue([
+      'manager',
+      'manager_dn',
+      'managerDn'
+    ])
+
+    const orgRows = [
+      ['Titre / poste', orgValue(['title', 'job_title', 'poste'])],
+      ['Service', orgValue(['department', 'service'])],
+      ['Division', orgValue(['division', 'business_unit', 'businessUnit'])],
+      ['Société', orgValue(['company'])],
+      ['Bureau', orgValue(['office', 'physicalDeliveryOfficeName'])]
+    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+
+    const hrRows = [
+      [
+        'Employee ID',
+        orgValue([
+          'employee_id',
+          'employeeID',
+          'EmployeeID',
+          'employee_number',
+          'employeeNumber'
+        ])
+      ],
+      ['Manager', managerDn, true]
+    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+
+    const contactRows = [
+      ['E-mail', orgValue(['mail', 'email', 'emailAddress'])],
+      ['Téléphone', orgValue(['telephone_number', 'telephoneNumber', 'phone'])],
+      ['Mobile', orgValue(['mobile', 'mobilePhone'])],
+      ['Adresse', orgValue(['street_address', 'streetAddress']), true],
+      ['Code postal', orgValue(['postal_code', 'postalCode'])],
+      ['Ville', orgValue(['city', 'l'])],
+      ['Région / département', orgValue(['state', 'st'])],
+      ['Pays', orgValue(['country', 'co', 'c'])]
+    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
   const tabs = [
     ['general', 'Général'],
@@ -733,12 +763,38 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
               </div>
             )}
 
-            {activeDetailsTab === 'organization' && (
-              <div className="aduc-tab-card">
-                <h4>Organisation</h4>
-                {renderGrid(orgRows, 'Aucune information organisationnelle disponible.')}
-              </div>
-            )}
+              {activeDetailsTab === 'organization' && (
+                <div className="aduc-tab-card">
+                  <h4>Organisation</h4>
+                  {renderGrid(
+                    orgRows,
+                    'Aucune information organisationnelle disponible.'
+                  )}
+
+                  <h4>Informations RH</h4>
+                  {renderGrid(
+                    hrRows,
+                    'Aucune information RH disponible.'
+                  )}
+
+                  {managerDn && (
+                    <div className="aduc-aduc-actionbar">
+                      <button
+                        type="button"
+                        onClick={() => onCopyDn?.(managerDn)}
+                      >
+                        Copier manager DN
+                      </button>
+                    </div>
+                  )}
+
+                  <h4>Coordonnées</h4>
+                  {renderGrid(
+                    contactRows,
+                    'Aucune coordonnée disponible.'
+                  )}
+                </div>
+              )}
 
             {activeDetailsTab === 'groups' && renderGroupsTab()}
             {activeDetailsTab === 'history' && renderHistoryTab()}
@@ -1889,6 +1945,19 @@ function getAdAttributeValue(item, ...names) {
     return ''
   }
 
+  function isUpdateUserTarget(target) {
+    const objectClass = String(
+      target?.objectClass
+      || target?.object_class
+      || target?.type
+      || ''
+    ).toLowerCase()
+
+    return objectClass.includes('user')
+      || getObjectType(target)
+        .toLowerCase()
+        .includes('utilisateur')
+  }
   function openUpdateObject(target) {
     if (!target) {
       setStatus('Aucun objet sélectionné pour la modification.')
@@ -1903,16 +1972,100 @@ function getAdAttributeValue(item, ...names) {
     }
 
     const form = {
-      description: getAdAttributeValue(target, 'description'),
-      displayName: getAdAttributeValue(target, 'displayName', 'display_name', 'display_name_value'),
-      mail: getAdAttributeValue(target, 'mail', 'email'),
-      title: getAdAttributeValue(target, 'title', 'job_title'),
-      department: getAdAttributeValue(target, 'department'),
-      company: getAdAttributeValue(target, 'company'),
-      telephoneNumber: getAdAttributeValue(target, 'telephoneNumber', 'telephone_number', 'phone'),
-      physicalDeliveryOfficeName: getAdAttributeValue(target, 'physicalDeliveryOfficeName', 'office')
+      description: getAdAttributeValue(
+        target,
+        'description'
+      ),
+      displayName: getAdAttributeValue(
+        target,
+        'displayName',
+        'display_name',
+        'display_name_value'
+      ),
+      mail: getAdAttributeValue(
+        target,
+        'mail',
+        'email'
+      ),
+      title: getAdAttributeValue(
+        target,
+        'title',
+        'job_title'
+      ),
+      department: getAdAttributeValue(
+        target,
+        'department',
+        'service'
+      ),
+      division: getAdAttributeValue(
+        target,
+        'division',
+        'business_unit',
+        'businessUnit'
+      ),
+      company: getAdAttributeValue(
+        target,
+        'company'
+      ),
+      physicalDeliveryOfficeName: getAdAttributeValue(
+        target,
+        'physicalDeliveryOfficeName',
+        'office'
+      ),
+      employeeID: getAdAttributeValue(
+        target,
+        'employeeID',
+        'employee_id',
+        'EmployeeID'
+      ),
+      employeeNumber: getAdAttributeValue(
+        target,
+        'employeeNumber',
+        'employee_number'
+      ),
+      manager: getAdAttributeValue(
+        target,
+        'manager',
+        'manager_dn',
+        'managerDn'
+      ),
+      telephoneNumber: getAdAttributeValue(
+        target,
+        'telephoneNumber',
+        'telephone_number',
+        'phone'
+      ),
+      mobile: getAdAttributeValue(
+        target,
+        'mobile',
+        'mobilePhone'
+      ),
+      streetAddress: getAdAttributeValue(
+        target,
+        'streetAddress',
+        'street_address'
+      ),
+      postalCode: getAdAttributeValue(
+        target,
+        'postalCode',
+        'postal_code'
+      ),
+      l: getAdAttributeValue(
+        target,
+        'l',
+        'city'
+      ),
+      st: getAdAttributeValue(
+        target,
+        'st',
+        'state'
+      ),
+      co: getAdAttributeValue(
+        target,
+        'co',
+        'country'
+      )
     }
-
     setContextMenu(null)
     setUpdateModal(target)
     setUpdateForm(form)
@@ -3995,6 +4148,218 @@ function getAdAttributeValue(item, ...names) {
 
 
 
+      {updateModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={() => !loading && setUpdateModal(null)}
+        >
+          <section
+            className="aduc-modal aduc-update-object-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>Active Directory</span>
+                <h3>Modifier les propriétés</h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setUpdateModal(null)}
+                disabled={loading}
+              >
+                ×
+              </button>
+            </header>
+
+            <form onSubmit={submitUpdateObject}>
+              <div className="aduc-update-object-target">
+                <div>
+                  <span>Objet cible</span>
+                  <strong>{getObjectName(updateModal)}</strong>
+                </div>
+
+                <div>
+                  <span>Type</span>
+                  <strong>{getObjectType(updateModal)}</strong>
+                </div>
+
+                <div className="wide">
+                  <span>DN</span>
+                  <code>{getObjectDn(updateModal)}</code>
+                </div>
+              </div>
+
+              <p className="aduc-update-object-help">
+                Seuls les champs modifiés seront envoyés au worker.
+                Vider un champ supprimera l’attribut correspondant
+                dans Active Directory.
+              </p>
+
+              <div className="aduc-update-object-sections">
+                <section>
+                  <h4>Informations générales</h4>
+
+                  <div className="aduc-update-object-grid">
+                    <label>
+                      <span>Nom d’affichage</span>
+                      <input
+                        type="text"
+                        value={updateForm.displayName || ''}
+                        onChange={event => updateObjectFormField(
+                          'displayName',
+                          event.target.value
+                        )}
+                        disabled={loading}
+                      />
+                    </label>
+
+                    <label className="wide">
+                      <span>Description</span>
+                      <textarea
+                        rows="3"
+                        value={updateForm.description || ''}
+                        onChange={event => updateObjectFormField(
+                          'description',
+                          event.target.value
+                        )}
+                        disabled={loading}
+                      />
+                    </label>
+                  </div>
+                </section>
+
+                {isUpdateUserTarget(updateModal) && (
+                  <>
+                    {[
+                      {
+                        title: 'Organisation',
+                        fields: [
+                          ['title', 'Titre / poste'],
+                          ['department', 'Service'],
+                          ['division', 'Division'],
+                          ['company', 'Société'],
+                          [
+                            'physicalDeliveryOfficeName',
+                            'Bureau'
+                          ]
+                        ]
+                      },
+                      {
+                        title: 'Informations RH',
+                        fields: [
+                          ['employeeID', 'Employee ID'],
+                          [
+                            'employeeNumber',
+                            'Numéro employé'
+                          ],
+                          [
+                            'manager',
+                            'Manager — Distinguished Name',
+                            true
+                          ]
+                        ]
+                      },
+                      {
+                        title: 'Coordonnées',
+                        fields: [
+                          ['mail', 'E-mail'],
+                          [
+                            'telephoneNumber',
+                            'Téléphone'
+                          ],
+                          ['mobile', 'Mobile'],
+                          [
+                            'streetAddress',
+                            'Adresse',
+                            true
+                          ],
+                          ['postalCode', 'Code postal'],
+                          ['l', 'Ville'],
+                          [
+                            'st',
+                            'Région / département'
+                          ],
+                          ['co', 'Pays']
+                        ]
+                      }
+                    ].map(section => (
+                      <section key={section.title}>
+                        <h4>{section.title}</h4>
+
+                        <div className="aduc-update-object-grid">
+                          {section.fields.map(
+                            ([name, label, wide]) => (
+                              <label
+                                key={name}
+                                className={wide ? 'wide' : ''}
+                              >
+                                <span>{label}</span>
+
+                                <input
+                                  type={
+                                    name === 'mail'
+                                      ? 'email'
+                                      : 'text'
+                                  }
+                                  className={
+                                    name === 'manager'
+                                      ? 'mono'
+                                      : ''
+                                  }
+                                  value={updateForm[name] || ''}
+                                  onChange={event =>
+                                    updateObjectFormField(
+                                      name,
+                                      event.target.value
+                                    )
+                                  }
+                                  placeholder={
+                                    name === 'manager'
+                                      ? 'CN=Manager,OU=Users,DC=API,DC=LOCAL'
+                                      : ''
+                                  }
+                                  disabled={loading}
+                                />
+
+                                {name === 'manager' && (
+                                  <small>
+                                    Utiliser le Distinguished Name
+                                    complet du manager.
+                                  </small>
+                                )}
+                              </label>
+                            )
+                          )}
+                        </div>
+                      </section>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              <footer className="aduc-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setUpdateModal(null)}
+                  disabled={loading}
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading
+                    ? 'Enregistrement...'
+                    : 'Enregistrer les modifications'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
       {accountActionModal && (
         <div className="aduc-modal-backdrop" onClick={() => !accountActionLoading && setAccountActionModal(null)}>
           <section className="aduc-modal aduc-account-action-modal" onClick={event => event.stopPropagation()}>

@@ -728,9 +728,19 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "mail",
         "title",
         "department",
+        "division",
         "company",
         "telephoneNumber",
-        "physicalDeliveryOfficeName"
+        "mobile",
+        "physicalDeliveryOfficeName",
+        "employeeID",
+        "employeeNumber",
+        "manager",
+        "streetAddress",
+        "postalCode",
+        "l",
+        "st",
+        "co"
     )
 
     $Properties = @{}
@@ -797,7 +807,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, mail, title, department, company, telephoneNumber, physicalDeliveryOfficeName `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
         -ErrorAction Stop
 
     return [pscustomobject]@{

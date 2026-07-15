@@ -282,11 +282,30 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "mail",
             "title",
             "department",
+            "division",
             "company",
             "telephoneNumber",
             "telephone_number",
+            "mobile",
+            "mobile_phone",
             "office",
             "physicalDeliveryOfficeName",
+            "employeeID",
+            "employee_id",
+            "employeeNumber",
+            "employee_number",
+            "manager",
+            "manager_dn",
+            "streetAddress",
+            "street_address",
+            "postalCode",
+            "postal_code",
+            "l",
+            "city",
+            "st",
+            "state",
+            "co",
+            "country",
         }
 
         normalized_properties = {}
@@ -294,7 +313,16 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         property_aliases = {
             "display_name": "displayName",
             "telephone_number": "telephoneNumber",
+            "mobile_phone": "mobile",
             "office": "physicalDeliveryOfficeName",
+            "employee_id": "employeeID",
+            "employee_number": "employeeNumber",
+            "manager_dn": "manager",
+            "street_address": "streetAddress",
+            "postal_code": "postalCode",
+            "city": "l",
+            "state": "st",
+            "country": "co",
         }
 
         for key, value in raw_properties.items():
