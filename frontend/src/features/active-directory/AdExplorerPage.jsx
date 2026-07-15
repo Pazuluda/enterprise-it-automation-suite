@@ -93,13 +93,70 @@ function getObjectName(item) {
 }
 
 function getGroupDescription(item) {
-  return item?.description || 'Groupe EITAS lab'
+  if (getObjectType(item) === 'Ordinateur') {
+    return (
+      item?.description ||
+      [
+        item?.operating_system,
+        item?.operating_system_version
+      ]
+        .filter(Boolean)
+        .join(' ') ||
+      item?.dns_host_name ||
+      'Ordinateur Active Directory'
+    )
+  }
+
+  if (getObjectType(item) === 'Utilisateur') {
+    return (
+      item?.description ||
+      item?.user_principal_name ||
+      'Utilisateur Active Directory'
+    )
+  }
+
+  return item?.description || 'Objet Active Directory'
 }
 
 function getObjectType(item) {
-  if (item?.type === 'group' || item?.scope || item?.category) return 'Groupe de sécurité'
-  if (item?.type === 'user' || item?.user_principal_name) return 'Utilisateur'
-  if (item?.type === 'ou') return 'Unité d’organisation'
+  const rawType = String(
+    item?.type ||
+    item?.object_class ||
+    item?.objectClass ||
+    ''
+  ).toLowerCase()
+
+  if (rawType === 'computer-container') {
+    return 'Conteneur d’ordinateurs'
+  }
+
+  if (
+    rawType === 'computer' ||
+    item?.dns_host_name ||
+    item?.dnsHostName
+  ) {
+    return 'Ordinateur'
+  }
+
+  if (
+    item?.type === 'group' ||
+    item?.scope ||
+    item?.category
+  ) {
+    return 'Groupe de sécurité'
+  }
+
+  if (
+    item?.type === 'user' ||
+    item?.user_principal_name
+  ) {
+    return 'Utilisateur'
+  }
+
+  if (item?.type === 'ou') {
+    return 'Unité d’organisation'
+  }
+
   return item?.type || 'Objet AD'
 }
 
@@ -151,6 +208,24 @@ function getObjectMetaRows(item) {
     { label: 'Type', value: getObjectType(item) },
     { label: 'SamAccountName', value: item?.sam_account_name },
     { label: 'UPN', value: item?.user_principal_name },
+    {
+      label: 'Nom DNS',
+      value: item?.dns_host_name || item?.dnsHostName
+    },
+    {
+      label: 'Adresse IPv4',
+      value: item?.ipv4_address || item?.ipv4Address
+    },
+    {
+      label: 'Système',
+      value: item?.operating_system || item?.operatingSystem
+    },
+    {
+      label: 'Version du système',
+      value:
+        item?.operating_system_version ||
+        item?.operatingSystemVersion
+    },
     { label: 'Scope', value: item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
     { label: 'Catégorie', value: item?.group_category !== undefined ? formatGroupCategory(item.group_category) : '' },
     { label: 'Description', value: item?.description },
@@ -298,11 +373,28 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   const isManagedScope = isEitasManagedDn(dn)
   const type = getObjectType(displayed)
   const objectName = hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'
-  const objectClass = String(displayed?.objectClass || displayed?.object_class || displayed?.type || '').toLowerCase()
+  const objectClass = String(
+    displayed?.objectClass ||
+    displayed?.object_class ||
+    displayed?.type ||
+    ''
+  ).toLowerCase()
+
+  const isComputerContainer =
+    objectClass === 'computer-container'
+
   const isOu = isOuObject(displayed)
   const isGroup = isGroupObject(displayed)
-  const isUser = type.includes('Utilisateur') || objectClass.includes('user')
-  const isComputer = type.includes('Ordinateur') || objectClass.includes('computer')
+  const isUser =
+    type.includes('Utilisateur') ||
+    objectClass === 'user'
+
+  const isComputer =
+    !isComputerContainer &&
+    (
+      type === 'Ordinateur' ||
+      objectClass === 'computer'
+    )
   const members = Array.isArray(memberItems) ? memberItems : []
   const history = Array.isArray(historyItems) ? historyItems : []
 
@@ -425,8 +517,8 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Mot de passe expiré', boolLabel(pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired']))],
     ['Mot de passe jamais expiré', boolLabel(pickAdField(['password_never_expires', 'passwordNeverExpires', 'PasswordNeverExpires']))],
     ['Ne peut pas changer MDP', boolLabel(pickAdField(['cannot_change_password', 'cannotChangePassword', 'CannotChangePassword']))],
-    ['Dernier changement MDP', pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet'])],
-    ['Dernière connexion', pickAdField(['last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate'])],
+    ['Dernier changement MDP', formatAdHistoryDate(pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet']))],
+    ['Dernière connexion', formatAdHistoryDate(pickAdField(['last_logon_date', 'lastLogonDate', 'last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate']))],
     ['Dernière erreur MDP', pickAdField(['last_bad_password_attempt', 'lastBadPasswordAttempt', 'LastBadPasswordAttempt'])],
     ['Tentatives échouées', pickAdField(['bad_logon_count', 'badLogonCount', 'BadLogonCount'])],
     ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])]
@@ -438,8 +530,8 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['ObjectClass', pickAdField(['objectClass', 'object_class', 'type'])],
     ['ObjectGUID', pickAdField(['object_guid', 'objectGUID', 'guid'])],
     ['SID', pickAdField(['sid', 'objectSid'])],
-    ['Créé le', pickAdField(['created_at', 'whenCreated', 'created'])],
-    ['Modifié le', pickAdField(['updated_at', 'whenChanged', 'modified'])],
+    ['Créé le', formatAdHistoryDate(pickAdField(['created_at', 'whenCreated', 'created']))],
+    ['Modifié le', formatAdHistoryDate(pickAdField(['updated_at', 'whenChanged', 'modified']))],
     ['Protection suppression accidentelle', pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion'])]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
@@ -484,9 +576,96 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       ['Pays', orgValue(['country', 'co', 'c'])]
     ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
+  const computerEnabledValue = orgValue([
+    'enabled',
+    'Enabled'
+  ])
+
+  const computerEnabledText =
+    computerEnabledValue === true ||
+    String(computerEnabledValue || '')
+      .toLowerCase() === 'true'
+      ? 'Activé'
+      : computerEnabledValue === false ||
+          String(computerEnabledValue || '')
+            .toLowerCase() === 'false'
+        ? 'Désactivé'
+        : ''
+
+  const machineRows = [
+    ['État du compte machine', computerEnabledText],
+    [
+      'Nom DNS',
+      orgValue([
+        'dns_host_name',
+        'dnsHostName'
+      ])
+    ],
+    [
+      'Adresse IPv4',
+      orgValue([
+        'ipv4_address',
+        'ipv4Address'
+      ])
+    ],
+    [
+      'Système d’exploitation',
+      orgValue([
+        'operating_system',
+        'operatingSystem'
+      ])
+    ],
+    [
+      'Version du système',
+      orgValue([
+        'operating_system_version',
+        'operatingSystemVersion'
+      ])
+    ],
+    [
+      'Service Pack',
+      orgValue([
+        'operating_system_service_pack',
+        'operatingSystemServicePack'
+      ])
+    ],
+    [
+      'Dernière connexion',
+      formatAdHistoryDate(
+        orgValue([
+          'last_logon_date',
+          'lastLogonDate'
+        ])
+      )
+    ],
+    [
+      'Mot de passe machine modifié',
+      formatAdHistoryDate(
+        orgValue([
+          'password_last_set',
+          'passwordLastSet'
+        ])
+      )
+    ],
+    ['Emplacement', orgValue(['location'])],
+    [
+      'Géré par',
+      orgValue([
+        'managed_by',
+        'managedBy'
+      ])
+    ]
+  ].filter(
+    ([, value]) =>
+      value !== '' &&
+      value !== null &&
+      value !== undefined
+  )
+
   const tabs = [
     ['general', 'Général'],
     ...(isUser || isComputer ? [['account', 'Compte']] : []),
+    ...(isComputer ? [['machine', 'Machine']] : []),
     ['object', 'Objet'],
     ['organization', 'Organisation'],
     ['groups', isGroup ? 'Membres' : 'Groupes'],
@@ -528,17 +707,17 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
           </div>
 
           <div className="aduc-account-actions">
-            <button type="button" disabled={!isManagedScope} onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
+            <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
               {getAccountStatus().toLowerCase().includes('désactivé') ? 'Activer' : 'Désactiver'}
             </button>
 
             {isUser && (
               <>
-                <button type="button" disabled={!isManagedScope} onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
+                <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
                   Réinitialiser MDP
                 </button>
 
-                <button type="button" disabled={!isManagedScope} onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
+                <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
                   Déverrouiller
                 </button>
               </>
@@ -820,6 +999,17 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                   )}
                 </div>
               )}
+
+            {activeDetailsTab === 'machine' && (
+              <div className="aduc-tab-card">
+                <h4>Informations machine</h4>
+
+                {renderGrid(
+                  machineRows,
+                  'Aucune information machine disponible.'
+                )}
+              </div>
+            )}
 
             {activeDetailsTab === 'groups' && renderGroupsTab()}
             {activeDetailsTab === 'history' && renderHistoryTab()}
@@ -1867,6 +2057,74 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     }
   }
 
+  async function loadComputersView() {
+    setLoading(true)
+    setStatus(
+      'Chargement des ordinateurs Active Directory...'
+    )
+
+    try {
+      const computers = await runJob(
+        'list_computers',
+        {
+          query: '',
+          baseDn: DOMAIN_DN,
+          recursive: true,
+          limit: 1000
+        }
+      )
+
+      const items = extractExplorerItems(computers)
+
+      setSelectedNode({
+        name: 'Ordinateurs',
+        type: 'computer-container',
+        distinguished_name: DOMAIN_DN,
+        dn: DOMAIN_DN,
+        canonical_name: 'API.LOCAL/Ordinateurs'
+      })
+
+      setViewType('computers')
+      setViewItems(items)
+
+      setSelectedObject(previous => {
+        if (!previous) return null
+
+        const previousDn = String(
+          getObjectDn(previous) || ''
+        ).toLowerCase()
+
+        if (!previousDn) return null
+
+        return (
+          items.find(item =>
+            String(
+              getObjectDn(item) || ''
+            ).toLowerCase() === previousDn
+          ) || null
+        )
+      })
+
+      setObjectMembers([])
+      setMembersError('')
+
+      setStatus(
+        `${items.length} ordinateur(s) Active Directory chargé(s)`
+      )
+    } catch (error) {
+      setViewItems([])
+      setSelectedObject(null)
+
+      setStatus(
+        error.message ||
+        'Chargement des ordinateurs Active Directory impossible.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+
   async function openProperties(target) {
     setContextMenu(null)
 
@@ -1897,7 +2155,11 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       const baseDn = DOMAIN_DN
       const lowered = query.toLowerCase()
 
-      const [usersResult, groupsResult] = await Promise.allSettled([
+      const [
+        usersResult,
+        groupsResult,
+        computersResult
+      ] = await Promise.allSettled([
         runJob('search_users', {
           query,
           baseDn,
@@ -1905,6 +2167,12 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           limit: 100
         }),
         runJob('list_groups', {
+          baseDn,
+          recursive: true,
+          limit: 500
+        }),
+        runJob('search_computers', {
+          query,
           baseDn,
           recursive: true,
           limit: 500
@@ -1930,6 +2198,14 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           .filter(Boolean)
           .some(value => String(value).toLowerCase().includes(lowered))
         ))
+      }
+
+      if (computersResult.status === 'fulfilled') {
+        results.push(
+          ...extractExplorerItems(
+            computersResult.value
+          )
+        )
       }
 
       const seen = new Set()
@@ -4192,7 +4468,15 @@ function getAdAttributeValue(item, ...names) {
                 Groupes
               </button>
 
-              <button type="button" onClick={() => setMessage?.('Ordinateurs AD : prochaine étape.')}>
+              <button
+                type="button"
+                className={
+                  viewType === 'computers'
+                    ? 'active'
+                    : ''
+                }
+                onClick={loadComputersView}
+              >
                 Ordinateurs
               </button>
 
@@ -4229,14 +4513,65 @@ function getAdAttributeValue(item, ...names) {
               <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
-              <button type="button" onClick={() => {
-              setContextMenu(null)
-              openUpdateObject(contextMenu?.target || selectedObject || selectedNode)
-            }}>✎ Modifier</button>
-              <button type="button" className="danger" onClick={() => {
-              setContextMenu(null)
-              openDeleteObject(contextMenu?.target || selectedObject || selectedNode)
-            }}>🗑 Supprimer</button>
+              <button
+                type="button"
+                disabled={
+                  !isEitasManagedObject(
+                    contextMenu?.target ||
+                    selectedObject ||
+                    selectedNode
+                  )
+                }
+                title={
+                  isEitasManagedObject(
+                    contextMenu?.target ||
+                    selectedObject ||
+                    selectedNode
+                  )
+                    ? 'Modifier l’objet sélectionné'
+                    : 'Lecture seule : objet hors périmètre EITAS'
+                }
+                onClick={() => {
+                  setContextMenu(null)
+                  openUpdateObject(
+                    contextMenu?.target ||
+                    selectedObject ||
+                    selectedNode
+                  )
+                }}
+              >
+                ✎ Modifier
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={
+                  !isEitasManagedObject(
+                    contextMenu?.target ||
+                    selectedObject ||
+                    selectedNode
+                  )
+                }
+                title={
+                  isEitasManagedObject(
+                    contextMenu?.target ||
+                    selectedObject ||
+                    selectedNode
+                  )
+                    ? 'Supprimer l’objet sélectionné'
+                    : 'Lecture seule : objet hors périmètre EITAS'
+                }
+                onClick={() => {
+                  setContextMenu(null)
+                  openDeleteObject(
+                    contextMenu?.target ||
+                    selectedObject ||
+                    selectedNode
+                  )
+                }}
+              >
+                🗑 Supprimer
+              </button>
               <button type="button" onClick={openTestCleanupScanner}>🧹 Nettoyage tests</button>
               <button type="button" onClick={openAdActivityCenter}>📊 Activité AD</button>
               <button type="button" onClick={refreshAll}>⟳ Actualiser</button>
@@ -4282,7 +4617,17 @@ function getAdAttributeValue(item, ...names) {
                   </button>
 
                   <button type="button" className="aduc-node system">› 📁 BuiltIn</button>
-                  <button type="button" className="aduc-node system">› 📁 Computers</button>
+                  <button
+                    type="button"
+                    className={`aduc-node system ${
+                      viewType === 'computers'
+                        ? 'selected'
+                        : ''
+                    }`}
+                    onClick={loadComputersView}
+                  >
+                    › 💻 Computers
+                  </button>
                   <button type="button" className="aduc-node system">› 📁 Domain Controllers</button>
 
                   {filteredTree.map((item, index) => {
@@ -4349,7 +4694,15 @@ function getAdAttributeValue(item, ...names) {
                         onContextMenu={event => openContextMenu(event, item, 'object')}
                       >
                         <span>
-                          <i>{getObjectType(item).includes('Groupe') ? '👥' : getObjectType(item).includes('Utilisateur') ? '👤' : '📁'}</i>
+                          <i>
+                            {getObjectType(item).includes('Groupe')
+                              ? '👥'
+                              : getObjectType(item).includes('Utilisateur')
+                                ? '👤'
+                                : getObjectType(item) === 'Ordinateur'
+                                  ? '💻'
+                                  : '📁'}
+                          </i>
                           {getObjectName(item)}
                         </span>
                         <span>{getObjectType(item)}</span>

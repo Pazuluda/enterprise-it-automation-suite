@@ -5240,3 +5240,19 @@ button.aduc-admin-history-row.unknown > span {
   transform: none;
   box-shadow: none;
 }
+
+
+/* BLOC292G - Read-only toolbar buttons */
+
+.aduc-toolbar button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+  filter: grayscale(0.35);
+}
+
+.aduc-toolbar button.danger:disabled {
+  background: rgba(220, 38, 38, 0.08);
+  color: rgba(153, 27, 27, 0.55);
+}

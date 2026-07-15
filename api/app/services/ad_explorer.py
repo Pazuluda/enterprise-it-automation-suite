@@ -31,12 +31,15 @@ ALLOWED_ACTIONS = {
     "search_users",
     "get_user",
     "get_group_members",
+    "list_computers",
+    "search_computers",
 }
 
 
 QUERY_REQUIRED_ACTIONS = {
     "get_user",
     "get_group_members",
+    "search_computers",
 }
 
 

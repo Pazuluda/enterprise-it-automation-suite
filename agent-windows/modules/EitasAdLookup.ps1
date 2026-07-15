@@ -739,6 +739,227 @@ function Invoke-EitasAdExplorerGetGroupMembers {
     }
 }
 
+# BLOC293A - Active Directory computer inventory
+
+# BLOC293C - Computer ISO dates
+
+function Convert-EitasAdDateValue {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    try {
+        $DateValue = [datetime]$Value
+
+        return $DateValue.ToUniversalTime().ToString(
+            "yyyy-MM-ddTHH:mm:ss.fffZ",
+            [System.Globalization.CultureInfo]::InvariantCulture
+        )
+    }
+    catch {
+        return [string]$Value
+    }
+}
+
+
+function Convert-EitasAdComputerItem {
+    param([object]$Computer)
+
+    return [pscustomobject]@{
+        type = "computer"
+        object_class = "computer"
+        name = [string]$Computer.Name
+        display_name = [string]$Computer.Name
+        sam_account_name = [string]$Computer.SamAccountName
+        distinguished_name = [string]$Computer.DistinguishedName
+        dn = [string]$Computer.DistinguishedName
+        dns_host_name = [string]$Computer.DNSHostName
+        ipv4_address = [string]$Computer.IPv4Address
+        operating_system = [string]$Computer.OperatingSystem
+        operating_system_version = [string]$Computer.OperatingSystemVersion
+        operating_system_service_pack = [string]$Computer.OperatingSystemServicePack
+        enabled = [bool]$Computer.Enabled
+        description = [string]$Computer.Description
+        location = [string]$Computer.Location
+        managed_by = [string]$Computer.ManagedBy
+        last_logon_date = Convert-EitasAdDateValue -Value $Computer.LastLogonDate
+        password_last_set = Convert-EitasAdDateValue -Value $Computer.PasswordLastSet
+        created_at = Convert-EitasAdDateValue -Value $Computer.whenCreated
+        updated_at = Convert-EitasAdDateValue -Value $Computer.whenChanged
+        canonical_name = [string]$Computer.CanonicalName
+        object_guid = [string]$Computer.ObjectGUID
+        sid = [string]$Computer.SID
+    }
+}
+
+function Invoke-EitasAdExplorerListComputers {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $Query = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "query",
+            "search",
+            "search_text",
+            "text",
+            "identity",
+            "computer_name"
+        )
+
+    $BaseDn = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "base_dn",
+            "baseDn",
+            "search_base",
+            "searchBase",
+            "target_dn",
+            "targetDn",
+            "dn"
+        )
+
+    if ([string]::IsNullOrWhiteSpace([string]$BaseDn)) {
+        $BaseDn = Get-EitasLookupValue `
+            -Object $Config `
+            -Names @(
+                "DomainDn",
+                "DomainBaseDn",
+                "AdDomainDn"
+            )
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$BaseDn)) {
+        $AllowedBaseDn = Get-EitasAllowedBaseDn -Config $Config
+        $BaseDn = ([string]$AllowedBaseDn) -replace "^OU=EITAS,", ""
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $BaseDn `
+        -Config $Config `
+        -AllowDomainRoot |
+        Out-Null
+
+    $RecursiveValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "recursive",
+            "Recursive",
+            "recurse",
+            "include_children",
+            "includeChildren"
+        )
+
+    $Recursive = $true
+
+    if ($null -ne $RecursiveValue) {
+        if ($RecursiveValue -is [bool]) {
+            $Recursive = $RecursiveValue
+        }
+        else {
+            $Recursive = @(
+                "1",
+                "true",
+                "yes",
+                "oui",
+                "subtree"
+            ) -contains (
+                [string]$RecursiveValue
+            ).Trim().ToLowerInvariant()
+        }
+    }
+
+    $SearchScope = if ($Recursive) {
+        "Subtree"
+    }
+    else {
+        "OneLevel"
+    }
+
+    $LimitValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "limit",
+            "max_results",
+            "maxResults"
+        )
+
+    $Limit = 1000
+
+    if ($null -ne $LimitValue) {
+        try {
+            $ParsedLimit = [int]$LimitValue
+
+            if ($ParsedLimit -gt 0) {
+                $Limit = [Math]::Min(
+                    $ParsedLimit,
+                    5000
+                )
+            }
+        }
+        catch {
+            $Limit = 1000
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$Query)) {
+        $Filter = "(&(objectCategory=computer)(objectClass=computer))"
+    }
+    else {
+        $Escaped = Escape-EitasLdapFilterValue -Value $Query
+
+        $Filter = "(&(objectCategory=computer)(objectClass=computer)(|(name=*$Escaped*)(sAMAccountName=*$Escaped*)(dNSHostName=*$Escaped*)(operatingSystem=*$Escaped*)(description=*$Escaped*)))"
+    }
+
+    $Computers = @(
+        Get-ADComputer `
+            -LDAPFilter $Filter `
+            -SearchBase $BaseDn `
+            -SearchScope $SearchScope `
+            -Properties `
+                DNSHostName, `
+                IPv4Address, `
+                OperatingSystem, `
+                OperatingSystemVersion, `
+                OperatingSystemServicePack, `
+                Enabled, `
+                Description, `
+                Location, `
+                ManagedBy, `
+                LastLogonDate, `
+                PasswordLastSet, `
+                whenCreated, `
+                whenChanged, `
+                CanonicalName, `
+                ObjectGUID, `
+                SID `
+            -ResultSetSize $Limit `
+            -ErrorAction Stop |
+            Sort-Object Name |
+            ForEach-Object {
+                Convert-EitasAdComputerItem -Computer $_
+            }
+    )
+
+    return [pscustomobject]@{
+        action = "list_computers"
+        query = [string]$Query
+        base_dn = [string]$BaseDn
+        recursive = $Recursive
+        search_scope = $SearchScope
+        count = @($Computers).Count
+        items = @($Computers)
+        message = "Ordinateurs Active Directory chargés"
+    }
+}
+
+
 function Invoke-EitasAdExplorerJob {
     param(
         [object]$Config,
@@ -777,6 +998,14 @@ function Invoke-EitasAdExplorerJob {
 
         "get_group_members" {
             return Invoke-EitasAdExplorerGetGroupMembers -Config $Config -Payload $Payload
+        }
+
+        "list_computers" {
+            return Invoke-EitasAdExplorerListComputers -Config $Config -Payload $Payload
+        }
+
+        "search_computers" {
+            return Invoke-EitasAdExplorerListComputers -Config $Config -Payload $Payload
         }
 
         default {
