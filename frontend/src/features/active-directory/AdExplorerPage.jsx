@@ -1,8 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
 
 const DOMAIN_DN = 'DC=API,DC=LOCAL'
-const USERS_DN = `OU=Users,OU=EITAS,${DOMAIN_DN}`
-const GROUPS_DN = `OU=Groups,OU=EITAS,${DOMAIN_DN}`
+const EITAS_DN = `OU=EITAS,${DOMAIN_DN}`
+const USERS_DN = `OU=Users,${EITAS_DN}`
+const GROUPS_DN = `OU=Groups,${EITAS_DN}`
+
+function isEitasManagedDn(value) {
+  const dn = String(value || '')
+    .trim()
+    .toLowerCase()
+
+  const allowedBase = EITAS_DN.toLowerCase()
+
+  return (
+    dn === allowedBase ||
+    dn.endsWith(`,${allowedBase}`)
+  )
+}
+
+function isEitasManagedObject(item) {
+  return isEitasManagedDn(getObjectDn(item))
+}
 
 function normalizeBaseDn(value) {
   const clean = String(value || '').trim()
@@ -277,6 +295,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
   const dn = getObjectDn(displayed)
+  const isManagedScope = isEitasManagedDn(dn)
   const type = getObjectType(displayed)
   const objectName = hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'
   const objectClass = String(displayed?.objectClass || displayed?.object_class || displayed?.type || '').toLowerCase()
@@ -509,17 +528,17 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
           </div>
 
           <div className="aduc-account-actions">
-            <button type="button" onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
+            <button type="button" disabled={!isManagedScope} onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
               {getAccountStatus().toLowerCase().includes('désactivé') ? 'Activer' : 'Désactiver'}
             </button>
 
             {isUser && (
               <>
-                <button type="button" onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
+                <button type="button" disabled={!isManagedScope} onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
                   Réinitialiser MDP
                 </button>
 
-                <button type="button" onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
+                <button type="button" disabled={!isManagedScope} onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
                   Déverrouiller
                 </button>
               </>
@@ -728,13 +747,19 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             <button type="button" onClick={() => onCopyDn(displayed)} disabled={!dn}>Copier DN</button>
             {isOu && <button type="button" onClick={() => onExplore(displayed)}>Explorer cette OU</button>}
 
-            {object && (
+            {object && isManagedScope && (
               <>
                 <button type="button" onClick={() => onOpenUpdateObject?.(displayed)}>Modifier</button>
                 <button type="button" onClick={() => onOpenRenameObject?.(displayed)}>Renommer</button>
                 <button type="button" onClick={() => onOpenMoveObject(displayed)}>Déplacer</button>
                 <button type="button" className="danger" onClick={() => onOpenDeleteObject?.(displayed)}>Supprimer</button>
               </>
+            )}
+
+            {object && !isManagedScope && (
+              <span className="aduc-readonly-scope-badge">
+                Lecture seule — hors périmètre EITAS
+              </span>
             )}
           </div>
 
@@ -800,11 +825,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             {activeDetailsTab === 'history' && renderHistoryTab()}
           </div>
 
-          <div className="aduc-details-quick">
-            <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>＋ OU ici</button>
-            <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>＋ Groupe ici</button>
-            {object && <button type="button" onClick={() => onOpenMoveObject(displayed)}>↪ Déplacer</button>}
-          </div>
+          {isEitasManagedDn(
+            getObjectDn(isOu ? displayed : selectedNode)
+          ) && (
+            <div className="aduc-details-quick">
+              <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>＋ OU ici</button>
+              <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>＋ Groupe ici</button>
+              {object && <button type="button" onClick={() => onOpenMoveObject(displayed)}>↪ Déplacer</button>}
+            </div>
+          )}
         </>
       ) : (
         <div className="aduc-details-empty">
@@ -1865,7 +1894,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setStatus(`Recherche globale AD : ${query}...`)
 
     try {
-      const baseDn = 'OU=EITAS,DC=API,DC=LOCAL'
+      const baseDn = DOMAIN_DN
       const lowered = query.toLowerCase()
 
       const [usersResult, groupsResult] = await Promise.allSettled([
@@ -1963,6 +1992,16 @@ function getAdAttributeValue(item, ...names) {
         .includes('utilisateur')
   }
   function openUpdateObject(target) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     if (!target) {
       setStatus('Aucun objet sélectionné pour la modification.')
       return
@@ -2273,6 +2312,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openDeleteObject(target) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     if (!target) {
       setStatus('Aucun objet sélectionné pour la suppression.')
       return
@@ -2338,6 +2387,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openRenameObject(target) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     if (!target) {
       setStatus('Aucun objet sélectionné pour le renommage.')
       return
@@ -2408,6 +2467,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openMoveObject(target) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     const dn = getObjectDn(target)
 
     if (!target || !dn) {
@@ -3064,6 +3133,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openCreateOu(target = selectedNode) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     loadAdAgentMode()
     const parentDn = getCreateAdminParentDn(target)
 
@@ -3095,6 +3174,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openCreateGroup(target = selectedNode) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     loadAdAgentMode()
     const parentDn = getCreateAdminParentDn(target)
 
@@ -3153,6 +3242,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function prepareAccountAction(action, target) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     const targetDn = getObjectDn(target)
 
     if (!targetDn) {
@@ -3275,6 +3374,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function openAddMemberModal(group) {
+    if (!isEitasManagedObject(group)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     if (!group || !isGroupObject(group)) {
       setMessage?.('Sélectionne un groupe avant d’ajouter un membre.')
       return
@@ -3480,6 +3589,16 @@ function getAdAttributeValue(item, ...names) {
   }
 
   async function removeGroupMember(group, member) {
+    if (!isEitasManagedObject(group)) {
+      const message =
+        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
     if (!group || !member) return
 
     const memberLabel = getObjectDn(member) || member.sam_account_name || member.name
@@ -4137,7 +4256,7 @@ function getAdAttributeValue(item, ...names) {
           <form className="aduc-global-search-panel" onSubmit={runGlobalAdSearch}>
             <div>
               <strong>Recherche globale AD</strong>
-              <span>Cherche dans les groupes et utilisateurs de OU=EITAS.</span>
+              <span>Cherche dans tous les groupes et utilisateurs de API.LOCAL. Les objets hors OU=EITAS sont en lecture seule.</span>
             </div>
 
             <input

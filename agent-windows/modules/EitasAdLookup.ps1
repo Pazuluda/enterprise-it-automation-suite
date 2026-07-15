@@ -597,7 +597,7 @@ function Invoke-EitasAdExplorerListGroups {
         $BaseDn = Get-EitasDefaultGroupsDn -Config $Config
     }
 
-    Assert-EitasDnSafe -DistinguishedName $BaseDn -Config $Config | Out-Null
+    Assert-EitasDnSafe -DistinguishedName $BaseDn -Config $Config -AllowDomainRoot | Out-Null
 
     $RecursiveValue = Get-EitasLookupValue -Object $Payload -Names @("recursive", "Recursive", "recurse", "include_children", "includeChildren")
     $Recursive = $false
