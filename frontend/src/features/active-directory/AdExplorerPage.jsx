@@ -1161,6 +1161,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [managerSearchLoading, setManagerSearchLoading] = useState(false)
   const [managerSearchError, setManagerSearchError] = useState('')
   const [deleteConfirmDn, setDeleteConfirmDn] = useState('')
+  const [deleteError, setDeleteError] = useState('')
   const [renameNewName, setRenameNewName] = useState('')
   const [moveTargetDn, setMoveTargetDn] = useState('')
   const [globalAdSearch, setGlobalAdSearch] = useState('')
@@ -1187,6 +1188,17 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [accountActionPassword, setAccountActionPassword] = useState('')
   const [accountActionConfirm, setAccountActionConfirm] = useState('')
   const [accountActionLoading, setAccountActionLoading] = useState(false)
+  const [createComputerModal, setCreateComputerModal] = useState(false)
+  const [createComputerLoading, setCreateComputerLoading] = useState(false)
+  const [createComputerError, setCreateComputerError] = useState('')
+  const [createComputerConfirm, setCreateComputerConfirm] = useState('')
+  const [createComputerForm, setCreateComputerForm] = useState({
+    name: 'PC-EITAS-MODAL',
+    target_ou_dn: COMPUTERS_DN,
+    description: 'Ordinateur créé depuis la modale EITAS',
+    location: 'Lab EITAS',
+    enabled: false
+  })
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -1208,6 +1220,48 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       JSON.stringify(item).toLowerCase().includes(filter)
     )
   }, [viewItems, viewFilter])
+
+  const computerOuOptions = useMemo(() => {
+    const byDn = new Map()
+
+    const addOu = item => {
+      const dn = String(
+        item?.distinguished_name
+        || item?.distinguishedName
+        || item?.dn
+        || ''
+      ).trim()
+
+      if (!/^OU=/i.test(dn)) return
+      if (!isEitasManagedDn(dn)) return
+
+      const key = dn.toUpperCase()
+
+      if (!byDn.has(key)) {
+        byDn.set(key, {
+          dn,
+          label: getOuLabelFromDn(dn)
+        })
+      }
+    }
+
+    addOu({
+      distinguished_name: COMPUTERS_DN
+    })
+
+    treeItems.forEach(addOu)
+
+    return Array.from(byDn.values()).sort((a, b) => {
+      if (a.dn === COMPUTERS_DN) return -1
+      if (b.dn === COMPUTERS_DN) return 1
+
+      return a.label.localeCompare(
+        b.label,
+        'fr',
+        { sensitivity: 'base' }
+      )
+    })
+  }, [treeItems])
 
   function getAdActivityJobStatus(job) {
     if (job?.status === 'failed' || job?.success === false) return 'failed'
@@ -2625,6 +2679,12 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  function normalizeDeleteConfirmationDn(value) {
+    return String(value || '')
+      .trim()
+      .toUpperCase()
+  }
+
   function openDeleteObject(target) {
     if (!isEitasManagedObject(target)) {
       const message =
@@ -2637,71 +2697,119 @@ function getAdAttributeValue(item, ...names) {
     }
 
     if (!target) {
-      setStatus('Aucun objet sélectionné pour la suppression.')
+      const message =
+        'Aucun objet sélectionné pour la suppression.'
+
+      setStatus(message)
+      setMessage?.(message)
       return
     }
 
     const dn = getObjectDn(target)
 
     if (!dn) {
-      setStatus('DN introuvable pour cet objet AD.')
+      const message =
+        'DN introuvable pour cet objet Active Directory.'
+
+      setStatus(message)
+      setMessage?.(message)
       return
     }
 
     setContextMenu(null)
     setDeleteModal(target)
     setDeleteConfirmDn('')
+    setDeleteError('')
   }
 
   async function submitDeleteObject(event) {
-    event.preventDefault()
+    event?.preventDefault?.()
 
-    if (!deleteModal) return
-
-    const objectDn = getObjectDn(deleteModal)
-    const confirmDn = deleteConfirmDn.trim()
-
-    if (!objectDn) {
-      setStatus('DN introuvable pour cet objet AD.')
+    if (!deleteModal) {
+      setDeleteError(
+        'Objet cible introuvable. Ferme puis rouvre la fenêtre.'
+      )
       return
     }
 
-    if (confirmDn !== objectDn) {
-      setStatus('Confirmation DN incorrecte. Suppression annulée.')
+    const objectDn = String(
+      getObjectDn(deleteModal) || ''
+    ).trim()
+
+    const confirmDn = String(
+      deleteConfirmDn || ''
+    ).trim()
+
+    if (!objectDn) {
+      const message =
+        'DN introuvable pour cet objet Active Directory.'
+
+      setDeleteError(message)
+      setStatus(message)
+      return
+    }
+
+    if (
+      normalizeDeleteConfirmationDn(confirmDn)
+      !== normalizeDeleteConfirmationDn(objectDn)
+    ) {
+      const message =
+        'Le DN de confirmation ne correspond pas au DN de l’objet.'
+
+      setDeleteError(message)
+      setStatus(message)
       return
     }
 
     setLoading(true)
+    setDeleteError('')
+    setStatus('Suppression Active Directory en cours...')
 
     try {
       const job = await runAdAdminJob({
         action: 'delete_object',
         object_identity: objectDn,
-        confirm_dn: confirmDn,
+        confirm_dn: objectDn,
         created_by: 'react-admin'
       })
 
-      const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Objet AD supprimé')
+      const message = cleanAdHistoryText(
+        job?.message
+        || job?.output?.message
+        || 'Objet Active Directory supprimé.'
+      )
+
       setStatus(message)
+      setMessage?.(message)
+
       setDeleteModal(null)
       setDeleteConfirmDn('')
+      setDeleteError('')
+      setSelectedObject(null)
 
       await loadTree()
 
       if (viewType === 'computers') {
-        setSelectedObject(null)
         await loadComputersView()
       } else if (selectedNode) {
         await loadNodeContent(selectedNode, viewType)
       }
 
       await loadAdAdminHistory()
-    } catch (err) {
-      setStatus(err.message || 'Erreur pendant la suppression AD.')
+    } catch (error) {
+      const message = cleanAdHistoryText(
+        error?.message
+        || 'Erreur pendant la suppression Active Directory.'
+      )
+
+      setDeleteError(message)
+      setStatus(message)
+      setMessage?.(message)
     } finally {
       setLoading(false)
     }
   }
+
 
   function openRenameObject(target) {
     if (!isEitasManagedObject(target)) {
@@ -3549,74 +3657,149 @@ function getAdAttributeValue(item, ...names) {
     window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
   }
 
-  async function createComputerQuick() {
+  function resetCreateComputerForm() {
+    setCreateComputerForm({
+      name: 'PC-EITAS-MODAL',
+      target_ou_dn: COMPUTERS_DN,
+      description: 'Ordinateur créé depuis la modale EITAS',
+      location: 'Lab EITAS',
+      enabled: false
+    })
+
+    setCreateComputerConfirm('')
+    setCreateComputerError('')
+  }
+
+  function openCreateComputerModal() {
+    resetCreateComputerForm()
+    setCreateComputerModal(true)
     loadAdAgentMode()
+  }
 
-    const rawName = window.prompt(
-      'Nom du nouvel ordinateur AD :',
-      'PC-EITAS-TEST01'
-    )
+  function closeCreateComputerModal() {
+    if (createComputerLoading) return
 
-    if (!rawName) return
+    setCreateComputerModal(false)
+    resetCreateComputerForm()
+  }
 
-    const name = rawName.trim().toUpperCase()
+  function updateCreateComputerField(name, value) {
+    setCreateComputerForm(current => ({
+      ...current,
+      [name]: value
+    }))
+
+    setCreateComputerError('')
+  }
+
+  function getCreateComputerValidationError(
+    form = createComputerForm
+  ) {
+    const name = String(form?.name || '')
+      .trim()
+      .toUpperCase()
+
+    const targetOuDn = String(
+      form?.target_ou_dn || ''
+    ).trim()
+
+    if (!name) {
+      return 'Le nom de l’ordinateur est obligatoire.'
+    }
 
     if (!/^[A-Z0-9-]{1,15}$/.test(name)) {
-      window.alert(
-        'Le nom doit contenir 1 à 15 caractères : lettres, chiffres et tirets.'
+      return (
+        'Le nom doit contenir 1 à 15 caractères : '
+        + 'lettres A-Z, chiffres et tirets uniquement.'
+      )
+    }
+
+    if (!targetOuDn) {
+      return 'L’OU de destination est obligatoire.'
+    }
+
+    if (!/^OU=/i.test(targetOuDn)) {
+      return 'La destination doit être une unité d’organisation.'
+    }
+
+    if (!isEitasManagedDn(targetOuDn)) {
+      return (
+        'La destination doit appartenir au périmètre '
+        + 'OU=EITAS.'
+      )
+    }
+
+    return ''
+  }
+
+  async function submitCreateComputer(event) {
+    event.preventDefault()
+
+    const validationError =
+      getCreateComputerValidationError()
+
+    if (validationError) {
+      setCreateComputerError(validationError)
+      return
+    }
+
+    const name = createComputerForm.name
+      .trim()
+      .toUpperCase()
+
+    const targetOuDn =
+      createComputerForm.target_ou_dn.trim()
+
+    const productionMode =
+      String(adAgentMode).toLowerCase() === 'production'
+
+    if (
+      productionMode
+      && createComputerConfirm !== 'PRODUCTION'
+    ) {
+      setCreateComputerError(
+        'Tape PRODUCTION pour confirmer la création réelle.'
       )
       return
     }
 
-    const description = (
-      window.prompt(
-        'Description de l’ordinateur :',
-        'Ordinateur de test créé par EITAS'
-      ) || ''
-    ).trim()
-
-    const location = (
-      window.prompt(
-        'Emplacement physique :',
-        'Lab EITAS'
-      ) || ''
-    ).trim()
-
-    if (!(
-      await confirmProductionAdAction(
-        'La création d’un ordinateur',
-        `${name} dans ${COMPUTERS_DN}`
-      )
-    )) {
-      return
-    }
-
-    setLoading(true)
+    setCreateComputerLoading(true)
+    setCreateComputerError('')
 
     try {
       const job = await runAdAdminJob({
         action: 'create_computer',
         name,
-        target_ou_dn: COMPUTERS_DN,
-        description,
-        location,
-        enabled: false,
+        target_ou_dn: targetOuDn,
+        description:
+          createComputerForm.description.trim(),
+        location:
+          createComputerForm.location.trim(),
+        enabled:
+          Boolean(createComputerForm.enabled),
         created_by: 'react-ad-explorer'
       })
+
+      setCreateComputerModal(false)
+      resetCreateComputerForm()
 
       await loadComputersView()
 
       setMessage?.(
-        job?.message ||
-        `${name} créé désactivé dans Active Directory.`
+        cleanAdHistoryText(
+          job?.message
+          || `${name} créé dans Active Directory.`
+        )
       )
     } catch (error) {
-      setMessage?.(
-        error?.message ||
-        'Création de l’ordinateur impossible.'
+      setCreateComputerError(
+        cleanAdHistoryText(
+          error?.message
+          || 'Création de l’ordinateur impossible.'
+        )
       )
     } finally {
-      setLoading(false)
+      setCreateComputerLoading(false)
     }
   }
 
@@ -4653,7 +4836,7 @@ function getAdAttributeValue(item, ...names) {
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
               <button
                 type="button"
-                onClick={createComputerQuick}
+                onClick={openCreateComputerModal}
               >
                 💻 Créer un ordinateur
               </button>
@@ -4901,6 +5084,284 @@ function getAdAttributeValue(item, ...names) {
 
 
 
+      {createComputerModal && (
+        <div
+          className="aduc-modal-backdrop"
+          onClick={closeCreateComputerModal}
+        >
+          <section
+            className="aduc-modal aduc-create-computer-modal"
+            onClick={event => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span>Active Directory</span>
+                <h3>Créer un ordinateur</h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCreateComputerModal}
+                disabled={createComputerLoading}
+              >
+                ×
+              </button>
+            </header>
+
+            <form
+              className="aduc-create-computer-form"
+              onSubmit={submitCreateComputer}
+            >
+              <div
+                className={`aduc-account-action-warning ${
+                  isAdProductionMode()
+                    ? 'production'
+                    : 'simulation'
+                }`}
+              >
+                <strong>
+                  {getAdAgentModeLabel()}
+                </strong>
+
+                <p>
+                  {isAdProductionMode()
+                    ? 'Le compte ordinateur sera réellement créé dans Active Directory.'
+                    : 'Simulation active : aucun compte ordinateur réel ne sera créé.'}
+                </p>
+              </div>
+
+              <div className="aduc-create-computer-grid">
+                <label>
+                  <span>Nom de l’ordinateur</span>
+
+                  <input
+                    type="text"
+                    value={createComputerForm.name}
+                    onChange={event =>
+                      updateCreateComputerField(
+                        'name',
+                        event.target.value.toUpperCase()
+                      )
+                    }
+                    maxLength="15"
+                    placeholder="PC-EITAS-001"
+                    autoFocus
+                    disabled={createComputerLoading}
+                  />
+
+                  <small>
+                    1 à 15 caractères : A-Z, chiffres et tirets.
+                  </small>
+                </label>
+
+                <label>
+                  <span>État initial du compte</span>
+
+                  <select
+                    value={
+                      createComputerForm.enabled
+                        ? 'enabled'
+                        : 'disabled'
+                    }
+                    onChange={event =>
+                      updateCreateComputerField(
+                        'enabled',
+                        event.target.value === 'enabled'
+                      )
+                    }
+                    disabled={createComputerLoading}
+                  >
+                    <option value="disabled">
+                      Désactivé — recommandé
+                    </option>
+
+                    <option value="enabled">
+                      Activé
+                    </option>
+                  </select>
+                </label>
+
+                <label className="wide">
+                  <span>OU de destination</span>
+
+                  <select
+                    value={createComputerForm.target_ou_dn}
+                    onChange={event =>
+                      updateCreateComputerField(
+                        'target_ou_dn',
+                        event.target.value
+                      )
+                    }
+                    disabled={createComputerLoading}
+                  >
+                    {!computerOuOptions.some(
+                      option =>
+                        option.dn ===
+                        createComputerForm.target_ou_dn
+                    ) && (
+                      <option
+                        value={
+                          createComputerForm.target_ou_dn
+                        }
+                      >
+                        {getOuLabelFromDn(
+                          createComputerForm.target_ou_dn
+                        )} — personnalisée
+                      </option>
+                    )}
+
+                    {computerOuOptions.map(option => (
+                      <option
+                        key={option.dn}
+                        value={option.dn}
+                      >
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <details className="wide aduc-create-user-advanced-dn">
+                  <summary>
+                    DN personnalisé / avancé
+                  </summary>
+
+                  <input
+                    type="text"
+                    className="mono"
+                    value={createComputerForm.target_ou_dn}
+                    onChange={event =>
+                      updateCreateComputerField(
+                        'target_ou_dn',
+                        event.target.value
+                      )
+                    }
+                    placeholder={COMPUTERS_DN}
+                    disabled={createComputerLoading}
+                  />
+                </details>
+
+                <label className="wide">
+                  <span>Description</span>
+
+                  <textarea
+                    rows="3"
+                    value={createComputerForm.description}
+                    onChange={event =>
+                      updateCreateComputerField(
+                        'description',
+                        event.target.value
+                      )
+                    }
+                    placeholder="Description du poste"
+                    disabled={createComputerLoading}
+                  />
+                </label>
+
+                <label>
+                  <span>Emplacement physique</span>
+
+                  <input
+                    type="text"
+                    value={createComputerForm.location}
+                    onChange={event =>
+                      updateCreateComputerField(
+                        'location',
+                        event.target.value
+                      )
+                    }
+                    placeholder="Ex : Salle informatique"
+                    disabled={createComputerLoading}
+                  />
+                </label>
+
+                <div className="aduc-create-computer-summary">
+                  <span>Compte généré</span>
+                  <strong>
+                    {createComputerForm.name
+                      .trim()
+                      .toUpperCase() || '—'}$
+                  </strong>
+                </div>
+
+                {isAdProductionMode() && (
+                  <label className="wide">
+                    <span>Confirmation Production</span>
+
+                    <input
+                      type="text"
+                      value={createComputerConfirm}
+                      onChange={event => {
+                        setCreateComputerConfirm(
+                          event.target.value
+                        )
+                        setCreateComputerError('')
+                      }}
+                      placeholder="Tape PRODUCTION"
+                      autoComplete="off"
+                      disabled={createComputerLoading}
+                    />
+
+                    <small>
+                      Cette confirmation est obligatoire
+                      pour créer réellement le compte.
+                    </small>
+                  </label>
+                )}
+              </div>
+
+              {createComputerError && (
+                <div className="aduc-member-submit-error">
+                  <strong>
+                    Création impossible
+                  </strong>
+
+                  <span>{createComputerError}</span>
+                </div>
+              )}
+
+              <footer className="aduc-modal-actions">
+                <button
+                  type="button"
+                  onClick={closeCreateComputerModal}
+                  disabled={createComputerLoading}
+                >
+                  Annuler
+                </button>
+
+                <button
+                  type="submit"
+                  className={
+                    isAdProductionMode()
+                      ? 'danger'
+                      : ''
+                  }
+                  disabled={
+                    createComputerLoading
+                    || adAgentModeLoading
+                    || Boolean(
+                      getCreateComputerValidationError()
+                    )
+                    || (
+                      isAdProductionMode()
+                      && createComputerConfirm !== 'PRODUCTION'
+                    )
+                  }
+                >
+                  {createComputerLoading
+                    ? 'Création...'
+                    : adAgentModeLoading
+                      ? 'Vérification du mode...'
+                      : isAdProductionMode()
+                        ? 'Créer en Production'
+                        : 'Lancer la simulation'}
+                </button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      )}
+
       {deleteModal && (
         <div
           className="aduc-modal-backdrop"
@@ -4908,6 +5369,7 @@ function getAdAttributeValue(item, ...names) {
             if (!loading) {
               setDeleteModal(null)
               setDeleteConfirmDn('')
+              setDeleteError('')
             }
           }}
         >
@@ -4926,6 +5388,7 @@ function getAdAttributeValue(item, ...names) {
                 onClick={() => {
                   setDeleteModal(null)
                   setDeleteConfirmDn('')
+                  setDeleteError('')
                 }}
                 disabled={loading}
               >
@@ -4953,6 +5416,7 @@ function getAdAttributeValue(item, ...names) {
 
               <div className="aduc-account-action-warning production">
                 <strong>Suppression définitive</strong>
+
                 <p>
                   Cette action supprimera réellement l’objet
                   dans Active Directory.
@@ -4966,9 +5430,10 @@ function getAdAttributeValue(item, ...names) {
                   type="text"
                   className="mono"
                   value={deleteConfirmDn}
-                  onChange={event =>
+                  onChange={event => {
                     setDeleteConfirmDn(event.target.value)
-                  }
+                    setDeleteError('')
+                  }}
                   placeholder={getObjectDn(deleteModal)}
                   autoComplete="off"
                   autoFocus
@@ -4976,9 +5441,17 @@ function getAdAttributeValue(item, ...names) {
                 />
 
                 <small>
-                  Recopie exactement le DN affiché au-dessus.
+                  Recopie le DN affiché au-dessus. La casse
+                  des lettres n’a pas d’importance.
                 </small>
               </label>
+
+              {deleteError && (
+                <div className="aduc-member-submit-error">
+                  <strong>Suppression impossible</strong>
+                  <span>{deleteError}</span>
+                </div>
+              )}
 
               <footer className="aduc-modal-actions">
                 <button
@@ -4986,6 +5459,7 @@ function getAdAttributeValue(item, ...names) {
                   onClick={() => {
                     setDeleteModal(null)
                     setDeleteConfirmDn('')
+                    setDeleteError('')
                   }}
                   disabled={loading}
                 >
@@ -4993,12 +5467,12 @@ function getAdAttributeValue(item, ...names) {
                 </button>
 
                 <button
-                  type="submit"
+                  type="button"
                   className="danger"
+                  onClick={submitDeleteObject}
                   disabled={
                     loading ||
-                    deleteConfirmDn.trim() !==
-                      getObjectDn(deleteModal)
+                    !deleteConfirmDn.trim()
                   }
                 >
                   {loading
