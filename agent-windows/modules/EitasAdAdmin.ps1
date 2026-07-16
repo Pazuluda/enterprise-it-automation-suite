@@ -604,6 +604,14 @@ function Invoke-EitasAdAdminCreateComputer {
             "computerName"
         )
 
+    $SuppliedSamAccountName = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "sam_account_name",
+            "samAccountName",
+            "sAMAccountName"
+        )
+
     $TargetOuDn = Get-EitasObjectValue `
         -Object $Payload `
         -Names @(
@@ -646,12 +654,90 @@ function Invoke-EitasAdAdminCreateComputer {
 
     $Name = ([string]$Name).Trim().ToUpperInvariant()
     $TargetOuDn = ([string]$TargetOuDn).Trim()
+    $DescriptionText = [string]$Description
+    $LocationText = [string]$Location
 
     if (
         $Name.Length -gt 15 -or
         $Name -notmatch "^[A-Z0-9-]+$"
     ) {
         throw "Le nom ordinateur doit contenir 1 à 15 caractères : lettres, chiffres et tirets"
+    }
+
+    if (
+        $Name.StartsWith("-") -or
+        $Name.EndsWith("-")
+    ) {
+        throw "Le nom ordinateur ne peut pas commencer ou finir par un tiret"
+    }
+
+    if ($Name -match "^[0-9]+$") {
+        throw "Le nom ordinateur ne peut pas contenir uniquement des chiffres"
+    }
+
+    if ($DescriptionText.Length -gt 1024) {
+        throw "La description ordinateur est limitée à 1024 caractères"
+    }
+
+    if ($LocationText.Length -gt 128) {
+        throw "L’emplacement ordinateur est limité à 128 caractères"
+    }
+
+    $ComputerSamAccountName = $Name + '$'
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$SuppliedSamAccountName
+        )
+    ) {
+        $NormalizedSuppliedSam = (
+            [string]$SuppliedSamAccountName
+        ).Trim().ToUpperInvariant()
+
+        if (-not $NormalizedSuppliedSam.EndsWith('$')) {
+            $NormalizedSuppliedSam = (
+                $NormalizedSuppliedSam + '$'
+            )
+        }
+
+        if (
+            $NormalizedSuppliedSam -ine
+            $ComputerSamAccountName
+        ) {
+            throw "L’identifiant ordinateur ne correspond pas au nom demandé"
+        }
+    }
+
+    $DnParts = @(
+        $TargetOuDn -split "," |
+            ForEach-Object {
+                $_.Trim().ToUpperInvariant()
+            }
+    )
+
+    $IsComputerOu = $false
+
+    if (
+        $DnParts.Count -gt 0 -and
+        $DnParts[0].StartsWith("OU=")
+    ) {
+        for (
+            $Index = 0;
+            $Index -lt ($DnParts.Count - 1);
+            $Index++
+        ) {
+            if (
+                $DnParts[$Index] -eq "OU=COMPUTERS" -and
+                $DnParts[$Index + 1] -eq "OU=EITAS"
+            ) {
+                $IsComputerOu = $true
+                break
+            }
+        }
+    }
+
+    if (-not $IsComputerOu) {
+        throw "La destination ordinateur doit appartenir à OU=Computers,OU=EITAS"
     }
 
     Assert-EitasDnSafe `
@@ -668,33 +754,51 @@ function Invoke-EitasAdAdminCreateComputer {
             action = "create_computer"
             simulated = $true
             name = $Name
+            sam_account_name = $ComputerSamAccountName
             target_ou_dn = $TargetOuDn
-            description = [string]$Description
-            location = [string]$Location
+            description = $DescriptionText
+            location = $LocationText
             enabled = $Enabled
             message = "Simulation création ordinateur AD"
         }
     }
 
-    Import-EitasActiveDirectoryModule | Out-Null
+    Import-EitasActiveDirectoryModule |
+        Out-Null
 
     Get-ADOrganizationalUnit `
         -Identity $TargetOuDn `
         -ErrorAction Stop |
         Out-Null
 
-    $ComputerSamAccountName = "$Name`$"
+    $EscapedName = Escape-EitasLdapFilterValue `
+        -Value $Name
 
-    $ExistingComputer = Get-ADComputer `
-        -LDAPFilter "(sAMAccountName=$ComputerSamAccountName)" `
-        -ErrorAction Stop
+    $EscapedSamAccountName = Escape-EitasLdapFilterValue `
+        -Value $ComputerSamAccountName
 
-    if ($null -ne $ExistingComputer) {
-        throw "Ordinateur déjà existant : $Name"
+    $LdapFilter = "(|(sAMAccountName={0})(name={1}))" -f $EscapedSamAccountName, $EscapedName
+
+    $LookupParams = @{
+        LDAPFilter = $LdapFilter
+        Properties = @(
+            "sAMAccountName",
+            "DistinguishedName"
+        )
+        ErrorAction = "Stop"
     }
 
-    $Params = @{
+    $ExistingComputer = @(
+        Get-ADComputer @LookupParams
+    ) | Select-Object -First 1
+
+    if ($null -ne $ExistingComputer) {
+        throw "Ordinateur déjà existant : $Name ($($ExistingComputer.DistinguishedName))"
+    }
+
+    $CreateParams = @{
         Name = $Name
+        SamAccountName = $ComputerSamAccountName
         Path = $TargetOuDn
         Enabled = $Enabled
         ErrorAction = "Stop"
@@ -702,37 +806,45 @@ function Invoke-EitasAdAdminCreateComputer {
 
     if (
         -not [string]::IsNullOrWhiteSpace(
-            [string]$Description
+            $DescriptionText
         )
     ) {
-        $Params.Description =
-            Repair-EitasTextEncoding -Value $Description
+        $CreateParams.Description = (
+            Repair-EitasTextEncoding `
+                -Value $DescriptionText
+        )
     }
 
     if (
         -not [string]::IsNullOrWhiteSpace(
-            [string]$Location
+            $LocationText
         )
     ) {
-        $Params.Location =
-            Repair-EitasTextEncoding -Value $Location
+        $CreateParams.Location = (
+            Repair-EitasTextEncoding `
+                -Value $LocationText
+        )
     }
 
-    New-ADComputer @Params
+    New-ADComputer @CreateParams
 
-    $CreatedComputer = Get-ADComputer `
-        -Identity $Name `
-        -Properties `
-            Enabled, `
-            Description, `
-            Location, `
-            DNSHostName, `
-            OperatingSystem, `
-            OperatingSystemVersion, `
-            PasswordLastSet, `
-            whenCreated, `
-            whenChanged `
-        -ErrorAction Stop
+    $ReadParams = @{
+        Identity = $ComputerSamAccountName
+        Properties = @(
+            "Enabled",
+            "Description",
+            "Location",
+            "DNSHostName",
+            "OperatingSystem",
+            "OperatingSystemVersion",
+            "PasswordLastSet",
+            "whenCreated",
+            "whenChanged"
+        )
+        ErrorAction = "Stop"
+    }
+
+    $CreatedComputer = Get-ADComputer @ReadParams
 
     return [pscustomobject]@{
         action = "create_computer"
@@ -742,13 +854,16 @@ function Invoke-EitasAdAdminCreateComputer {
         distinguished_name = $CreatedComputer.DistinguishedName
         target_ou_dn = $TargetOuDn
         enabled = $CreatedComputer.Enabled
-        created_computer =
+        description = $CreatedComputer.Description
+        location = $CreatedComputer.Location
+        dns_host_name = $CreatedComputer.DNSHostName
+        created_computer = (
             Convert-EitasAdAdminObjectItem `
                 -Object $CreatedComputer
+        )
         message = "Ordinateur Active Directory créé"
     }
 }
-
 
 function Resolve-EitasAdAdminGroup {
     param(

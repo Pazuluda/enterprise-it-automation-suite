@@ -1397,10 +1397,10 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [createComputerError, setCreateComputerError] = useState('')
   const [createComputerConfirm, setCreateComputerConfirm] = useState('')
   const [createComputerForm, setCreateComputerForm] = useState({
-    name: 'PC-EITAS-MODAL',
+    name: '',
     target_ou_dn: COMPUTERS_DN,
-    description: 'Ordinateur créé depuis la modale EITAS',
-    location: 'Lab EITAS',
+    description: '',
+    location: '',
     enabled: false
   })
 
@@ -1425,6 +1425,20 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     )
   }, [viewItems, viewFilter])
 
+  function isComputerManagedDn(value) {
+    const dn = String(value || '')
+      .trim()
+      .toUpperCase()
+
+    const computerBaseDn =
+      COMPUTERS_DN.toUpperCase()
+
+    return (
+      dn === computerBaseDn
+      || dn.endsWith(`,${computerBaseDn}`)
+    )
+  }
+
   const computerOuOptions = useMemo(() => {
     const byDn = new Map()
 
@@ -1437,7 +1451,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       ).trim()
 
       if (!/^OU=/i.test(dn)) return
-      if (!isEitasManagedDn(dn)) return
+      if (!isComputerManagedDn(dn)) return
 
       const key = dn.toUpperCase()
 
@@ -4906,10 +4920,10 @@ function getAdAttributeValue(item, ...names) {
 
   function resetCreateComputerForm() {
     setCreateComputerForm({
-      name: 'PC-EITAS-MODAL',
+      name: '',
       target_ou_dn: COMPUTERS_DN,
-      description: 'Ordinateur créé depuis la modale EITAS',
-      location: 'Lab EITAS',
+      description: '',
+      location: '',
       enabled: false
     })
 
@@ -4961,6 +4975,20 @@ function getAdAttributeValue(item, ...names) {
       )
     }
 
+    if (name.startsWith('-') || name.endsWith('-')) {
+      return (
+        'Le nom ne peut pas commencer ou finir '
+        + 'par un tiret.'
+      )
+    }
+
+    if (/^[0-9]+$/.test(name)) {
+      return (
+        'Le nom ne peut pas contenir uniquement '
+        + 'des chiffres.'
+      )
+    }
+
     if (!targetOuDn) {
       return 'L’OU de destination est obligatoire.'
     }
@@ -4969,10 +4997,10 @@ function getAdAttributeValue(item, ...names) {
       return 'La destination doit être une unité d’organisation.'
     }
 
-    if (!isEitasManagedDn(targetOuDn)) {
+    if (!isComputerManagedDn(targetOuDn)) {
       return (
-        'La destination doit appartenir au périmètre '
-        + 'OU=EITAS.'
+        'La destination doit appartenir à '
+        + 'OU=Computers,OU=EITAS.'
       )
     }
 
@@ -7104,6 +7132,7 @@ function getAdAttributeValue(item, ...names) {
 
                   <textarea
                     rows="3"
+                    maxLength="1024"
                     value={createComputerForm.description}
                     onChange={event =>
                       updateCreateComputerField(
@@ -7121,6 +7150,7 @@ function getAdAttributeValue(item, ...names) {
 
                   <input
                     type="text"
+                    maxLength="128"
                     value={createComputerForm.location}
                     onChange={event =>
                       updateCreateComputerField(

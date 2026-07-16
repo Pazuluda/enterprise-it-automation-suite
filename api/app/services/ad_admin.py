@@ -267,6 +267,71 @@ def validate_name(value: str, field_name: str) -> str:
     return clean
 
 
+# BLOC300A - Validation sécurisée des ordinateurs AD
+
+
+def validate_computer_name(value) -> str:
+    clean = clean_string(value).upper()
+
+    if not clean:
+        raise ADAdminBadRequest(
+            "Le nom ordinateur est obligatoire"
+        )
+
+    if not re.fullmatch(
+        r"[A-Z0-9-]{1,15}",
+        clean,
+    ):
+        raise ADAdminBadRequest(
+            "Le nom ordinateur doit contenir 1 à 15 caractères : "
+            "lettres A-Z, chiffres et tirets"
+        )
+
+    if clean.startswith("-") or clean.endswith("-"):
+        raise ADAdminBadRequest(
+            "Le nom ordinateur ne peut pas commencer ou finir par un tiret"
+        )
+
+    if clean.isdigit():
+        raise ADAdminBadRequest(
+            "Le nom ordinateur ne peut pas contenir uniquement des chiffres"
+        )
+
+    return clean
+
+
+def validate_computer_target_ou(value) -> str:
+    clean = validate_dn(
+        value,
+        "target_ou_dn",
+    )
+
+    parts = [
+        part.strip().upper()
+        for part in clean.split(",")
+        if part.strip()
+    ]
+
+    if not parts or not parts[0].startswith("OU="):
+        raise ADAdminBadRequest(
+            "La destination ordinateur doit être une OU"
+        )
+
+    is_computer_scope = any(
+        parts[index] == "OU=COMPUTERS"
+        and parts[index + 1] == "OU=EITAS"
+        for index in range(len(parts) - 1)
+    )
+
+    if not is_computer_scope:
+        raise ADAdminBadRequest(
+            "La destination ordinateur doit appartenir à "
+            "OU=Computers,OU=EITAS"
+        )
+
+    return clean
+
+
 def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
     payload = payload or {}
 
@@ -501,24 +566,19 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         })
 
     elif action == "create_computer":
-        name = validate_name(
+        name = validate_computer_name(
             payload.get("name")
             or payload.get("computer_name")
-            or payload.get("computerName"),
-            "name",
-        ).upper()
+            or payload.get("computerName")
+        )
 
-        if len(name) > 15:
-            raise ADAdminBadRequest(
-                "Le nom ordinateur est limité à 15 caractères"
-            )
+        sam_account_name = f"{name}$"
 
-        target_ou_dn = validate_dn(
+        target_ou_dn = validate_computer_target_ou(
             payload.get("target_ou_dn")
             or payload.get("targetOuDn")
             or payload.get("parent_dn")
-            or payload.get("parentDn"),
-            "target_ou_dn",
+            or payload.get("parentDn")
         )
 
         description = clean_string(
@@ -531,26 +591,25 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             or payload.get("site")
         )
 
-        enabled = payload.get("enabled", False)
-
-        if isinstance(enabled, str):
-            enabled = (
-                enabled.strip().lower()
-                in {
-                    "1",
-                    "true",
-                    "yes",
-                    "oui",
-                    "enabled",
-                    "active",
-                }
+        if len(description) > 1024:
+            raise ADAdminBadRequest(
+                "La description ordinateur est limitée à 1024 caractères"
             )
-        else:
-            enabled = bool(enabled)
+
+        if len(location) > 128:
+            raise ADAdminBadRequest(
+                "L’emplacement ordinateur est limité à 128 caractères"
+            )
+
+        enabled = normalize_bool(
+            payload.get("enabled"),
+            default=False,
+        )
 
         job_payload = {
             "action": action,
             "name": name,
+            "sam_account_name": sam_account_name,
             "target_ou_dn": target_ou_dn,
             "description": description,
             "location": location,
@@ -559,6 +618,7 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
 
         audit_details.update({
             "name": name,
+            "sam_account_name": sam_account_name,
             "target_ou_dn": target_ou_dn,
             "enabled": enabled,
         })
