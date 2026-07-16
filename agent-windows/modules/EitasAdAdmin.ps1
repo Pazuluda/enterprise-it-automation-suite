@@ -279,53 +279,204 @@ function Invoke-EitasAdAdminCreateUser {
         [string]$Mode
     )
 
-    $FirstName = Get-EitasObjectValue -Object $Payload -Names @("first_name", "firstName", "given_name", "givenName")
-    $LastName = Get-EitasObjectValue -Object $Payload -Names @("last_name", "lastName", "surname", "sn")
-    $SamAccountName = Get-EitasObjectValue -Object $Payload -Names @("sam_account_name", "samAccountName", "username", "login")
-    $TargetOuDn = Get-EitasObjectValue -Object $Payload -Names @("target_ou_dn", "targetOuDn", "target_parent_dn", "targetParentDn", "ou_dn", "ouDn")
-    $TemporaryPassword = Get-EitasObjectValue -Object $Payload -Names @("temporary_password", "temporaryPassword", "password")
-    $Description = Get-EitasObjectValue -Object $Payload -Names @("description", "Description")
-    $EnabledValue = Get-EitasObjectValue -Object $Payload -Names @("enabled", "Enabled")
+    $FirstName = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "first_name",
+            "firstName",
+            "given_name",
+            "givenName"
+        )
 
-    if ([string]::IsNullOrWhiteSpace($FirstName)) {
-        throw "Prenom utilisateur manquant"
+    $LastName = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "last_name",
+            "lastName",
+            "surname",
+            "sn"
+        )
+
+    $SamAccountName = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "sam_account_name",
+            "samAccountName",
+            "username",
+            "login"
+        )
+
+    $UserPrincipalName = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "user_principal_name",
+            "userPrincipalName",
+            "upn"
+        )
+
+    $TargetOuDn = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "target_ou_dn",
+            "targetOuDn",
+            "target_parent_dn",
+            "targetParentDn",
+            "ou_dn",
+            "ouDn"
+        )
+
+    $TemporaryPassword = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "temporary_password",
+            "temporaryPassword",
+            "password"
+        )
+
+    $Description = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "description",
+            "Description"
+        )
+
+    $EnabledValue = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "enabled",
+            "Enabled"
+        )
+
+    $ForceChangeValue = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "force_change_at_logon",
+            "change_password_at_logon",
+            "changePasswordAtLogon"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$FirstName
+        )
+    ) {
+        throw "Prénom utilisateur manquant"
     }
 
-    if ([string]::IsNullOrWhiteSpace($LastName)) {
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$LastName
+        )
+    ) {
         throw "Nom utilisateur manquant"
     }
 
-    if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$SamAccountName
+        )
+    ) {
         throw "Identifiant utilisateur manquant"
     }
 
-    if ([string]::IsNullOrWhiteSpace($TargetOuDn)) {
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$TargetOuDn
+        )
+    ) {
         throw "OU cible manquante"
     }
 
-    if ([string]::IsNullOrWhiteSpace($TemporaryPassword)) {
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$TemporaryPassword
+        )
+    ) {
         throw "Mot de passe temporaire manquant"
     }
 
-    $FirstName = ([string]$FirstName).Trim()
-    $LastName = ([string]$LastName).Trim()
-    $SamAccountName = ([string]$SamAccountName).Trim()
-    $TargetOuDn = ([string]$TargetOuDn).Trim()
-    $Description = ([string]$Description).Trim()
+    $FirstName = Repair-EitasTextEncoding `
+        -Value ([string]$FirstName).Trim()
+
+    $LastName = Repair-EitasTextEncoding `
+        -Value ([string]$LastName).Trim()
+
+    $SamAccountName = (
+        [string]$SamAccountName
+    ).Trim()
+
+    $TargetOuDn = (
+        [string]$TargetOuDn
+    ).Trim()
+
+    $Description = Repair-EitasTextEncoding `
+        -Value ([string]$Description).Trim()
+
+    if ($SamAccountName.Length -gt 20) {
+        throw "Identifiant utilisateur limité à 20 caractères"
+    }
+
+    if ($SamAccountName -notmatch "^[A-Za-z0-9._-]+$") {
+        throw "Format identifiant utilisateur invalide"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$UserPrincipalName
+        )
+    ) {
+        $DomainParts = @(
+            $TargetOuDn -split "," |
+                ForEach-Object {
+                    ([string]$_).Trim()
+                } |
+                Where-Object {
+                    $_ -match "^DC="
+                } |
+                ForEach-Object {
+                    $_.Substring(3)
+                }
+        )
+
+        $DomainDnsName = (
+            $DomainParts -join "."
+        )
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $DomainDnsName
+            )
+        ) {
+            throw "Domaine UPN impossible à déterminer"
+        }
+
+        $UserPrincipalName =
+            "$SamAccountName@$DomainDnsName"
+    } else {
+        $UserPrincipalName = (
+            [string]$UserPrincipalName
+        ).Trim()
+    }
+
+    if ($UserPrincipalName -notmatch "^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$") {
+        throw "UPN utilisateur invalide"
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $TargetOuDn `
+        -Config $Config |
+        Out-Null
+
+    $Enabled = Convert-EitasAdAdminBool `
+        -Value $EnabledValue `
+        -Default $false
+
+    $ForceChangeAtLogon = Convert-EitasAdAdminBool `
+        -Value $ForceChangeValue `
+        -Default $true
 
     $DisplayName = "$FirstName $LastName"
     $Name = $DisplayName
-
-    $Enabled = $true
-
-    if ($null -ne $EnabledValue) {
-        if ($EnabledValue -is [bool]) {
-            $Enabled = [bool]$EnabledValue
-        } else {
-            $EnabledText = ([string]$EnabledValue).Trim().ToLowerInvariant()
-            $Enabled = @("1", "true", "yes", "oui", "enabled", "active") -contains $EnabledText
-        }
-    }
 
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
@@ -335,25 +486,34 @@ function Invoke-EitasAdAdminCreateUser {
             last_name = $LastName
             display_name = $DisplayName
             sam_account_name = $SamAccountName
+            user_principal_name = $UserPrincipalName
             target_ou_dn = $TargetOuDn
             enabled = $Enabled
+            force_change_at_logon = $ForceChangeAtLogon
             description = $Description
-            message = "Simulation creation utilisateur AD"
+            message = "Simulation création utilisateur AD"
         }
     }
 
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
     Get-ADOrganizationalUnit `
         -Identity $TargetOuDn `
-        -ErrorAction Stop | Out-Null
+        -ErrorAction Stop |
+        Out-Null
 
-    $EscapedSam = $SamAccountName.Replace("'", "''")
+    $EscapedSam = $SamAccountName.Replace(
+        "'",
+        "''"
+    )
 
     $ExistingUser = Get-ADUser `
         -Filter "SamAccountName -eq '$EscapedSam'" `
         -ErrorAction SilentlyContinue
 
     if ($ExistingUser) {
-        throw "Utilisateur deja existant : $SamAccountName"
+        throw "Utilisateur déjà existant : $SamAccountName"
     }
 
     $SecurePassword = ConvertTo-SecureString `
@@ -367,37 +527,64 @@ function Invoke-EitasAdAdminCreateUser {
         Surname = $LastName
         DisplayName = $DisplayName
         SamAccountName = $SamAccountName
+        UserPrincipalName = $UserPrincipalName
         Path = $TargetOuDn
         AccountPassword = $SecurePassword
         Enabled = $Enabled
-        ChangePasswordAtLogon = $true
+        ChangePasswordAtLogon = $ForceChangeAtLogon
         ErrorAction = "Stop"
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($Description)) {
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Description
+        )
+    ) {
         $NewUserParams.Description = $Description
     }
 
     New-ADUser @NewUserParams
 
+    if ($ForceChangeAtLogon) {
+        Set-ADUser `
+            -Identity $SamAccountName `
+            -ChangePasswordAtLogon $true `
+            -ErrorAction Stop
+    }
+
     $CreatedUser = Get-ADUser `
         -Identity $SamAccountName `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, mail, title, department, company, telephoneNumber, physicalDeliveryOfficeName, Enabled `
+        -Properties `
+            objectClass, `
+            sAMAccountName, `
+            userPrincipalName, `
+            displayName, `
+            description, `
+            mail, `
+            title, `
+            department, `
+            company, `
+            telephoneNumber, `
+            physicalDeliveryOfficeName, `
+            Enabled `
         -ErrorAction Stop
 
     return [pscustomobject]@{
         action = "create_user"
         simulated = $false
         user = $CreatedUser.Name
+        display_name = $CreatedUser.DisplayName
         sam_account_name = $CreatedUser.SamAccountName
+        user_principal_name = $CreatedUser.UserPrincipalName
         distinguished_name = $CreatedUser.DistinguishedName
         target_ou_dn = $TargetOuDn
         enabled = $CreatedUser.Enabled
-        created_user = Convert-EitasAdAdminObjectItem -Object $CreatedUser
-        message = "Utilisateur AD cree"
+        force_change_at_logon = $ForceChangeAtLogon
+        created_user = Convert-EitasAdAdminObjectItem `
+            -Object $CreatedUser
+        message = "Utilisateur AD créé"
     }
 }
-
 
 
 # BLOC294A - AD computer management

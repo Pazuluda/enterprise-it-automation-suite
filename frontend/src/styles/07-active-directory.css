@@ -5861,3 +5861,155 @@ button.aduc-admin-history-row.unknown > span {
     min-width: 0;
   }
 }
+
+
+/* BLOC298A - Secure create user modal */
+
+.aduc-create-user-modal {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+
+.aduc-create-user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aduc-create-user-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.aduc-create-user-grid > .wide {
+  grid-column: 1 / -1;
+}
+
+.aduc-create-user-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.aduc-create-user-grid label > span,
+.aduc-create-user-production > span,
+.aduc-create-user-summary > span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.aduc-create-user-grid small,
+.aduc-create-user-production small,
+.aduc-create-user-summary small {
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.aduc-create-user-grid textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.aduc-create-user-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.aduc-create-user-toggle {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 10px !important;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(148, 163, 184, 0.07);
+  cursor: pointer;
+}
+
+.aduc-create-user-toggle input {
+  width: auto !important;
+  min-width: 17px;
+  height: 17px;
+  margin-top: 1px;
+}
+
+.aduc-create-user-toggle span {
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.aduc-create-user-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  border-radius: 14px;
+  padding: 13px 15px;
+  background: rgba(79, 70, 229, 0.06);
+}
+
+.aduc-create-user-summary strong {
+  color: #312e81;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  overflow-wrap: anywhere;
+}
+
+.aduc-create-user-production {
+  display: flex !important;
+  flex-direction: column;
+  gap: 7px !important;
+  border: 1px solid rgba(220, 38, 38, 0.26);
+  border-radius: 14px;
+  padding: 13px 15px;
+  background: rgba(254, 226, 226, 0.62);
+}
+
+.aduc-create-user-production input {
+  border-color: rgba(220, 38, 38, 0.35);
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+}
+
+.aduc-create-user-error {
+  white-space: pre-line;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(254, 226, 226, 0.72);
+  color: #991b1b;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .aduc-create-user-modal {
+    width: calc(100vw - 18px);
+  }
+
+  .aduc-create-user-grid,
+  .aduc-create-user-options {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-create-user-grid > .wide {
+    grid-column: auto;
+  }
+}
