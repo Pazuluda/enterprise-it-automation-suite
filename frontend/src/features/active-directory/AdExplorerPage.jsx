@@ -1227,6 +1227,8 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     group_category: 'Security'
   })
   const [adminLoading, setAdminLoading] = useState(false)
+  const [adminError, setAdminError] = useState('')
+  const [adminSuccess, setAdminSuccess] = useState('')
   const [moveModal, setMoveModal] = useState(null)
   const [renameModal, setRenameModal] = useState(null)
   const [deleteModal, setDeleteModal] = useState(null)
@@ -3863,6 +3865,238 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  function getAdminCreationOuDisplayLabel(dn) {
+    const cleanDn = String(dn || '').trim()
+
+    if (!cleanDn) {
+      return 'OU inconnue'
+    }
+
+    if (
+      cleanDn.toUpperCase()
+      === String(EITAS_DN).toUpperCase()
+    ) {
+      return 'EITAS'
+    }
+
+    const pathLabel = getOuPathLabelFromDn(
+      cleanDn,
+      EITAS_DN
+    )
+
+    if (!pathLabel) {
+      return cleanDn
+    }
+
+    if (
+      pathLabel.toUpperCase() === 'EITAS'
+    ) {
+      return 'EITAS'
+    }
+
+    return `EITAS / ${pathLabel}`
+  }
+
+  function normalizeAdminCreationOptions(items) {
+    const sourceItems = [
+      {
+        distinguished_name: EITAS_DN
+      },
+      ...(Array.isArray(items) ? items : [])
+    ]
+
+    return sortCreateUserOuOptions(
+      dedupeCreateUserOuOptions(
+        sourceItems
+          .map(item => {
+            const dn = String(
+              getObjectDn(item)
+              || item?.dn
+              || item?.distinguished_name
+              || ''
+            ).trim()
+
+            return {
+              dn,
+              label:
+                getAdminCreationOuDisplayLabel(dn)
+            }
+          })
+          .filter(option =>
+            option.dn
+            && isOuDn(option.dn)
+            && isEitasManagedDn(option.dn)
+          )
+      )
+    )
+  }
+
+  function getAdminCreationValidationError(
+    form = adminForm,
+    modal = adminModal
+  ) {
+    if (!modal) {
+      return ''
+    }
+
+    const parentDn = String(
+      form?.parent_dn || ''
+    ).trim()
+
+    const name = String(
+      form?.name || ''
+    ).trim()
+
+    const forbiddenPattern =
+      /[,+\=<>#;"\\]/
+
+    if (!parentDn) {
+      return 'Choisis une OU de destination.'
+    }
+
+    if (!isOuDn(parentDn)) {
+      return (
+        'La destination doit être le DN '
+        + 'd’une unité d’organisation.'
+      )
+    }
+
+    if (!isEitasManagedDn(parentDn)) {
+      return (
+        'Destination bloquée : la création '
+        + 'doit rester sous OU=EITAS.'
+      )
+    }
+
+    if (!name) {
+      return 'Le nom est obligatoire.'
+    }
+
+    if (forbiddenPattern.test(name)) {
+      return (
+        'Le nom contient un caractère LDAP '
+        + 'interdit.'
+      )
+    }
+
+    if (modal.action === 'create_group') {
+      const samAccountName = String(
+        form?.sam_account_name || name
+      ).trim()
+
+      if (!samAccountName) {
+        return 'Le SamAccountName est obligatoire.'
+      }
+
+      if (
+        forbiddenPattern.test(samAccountName)
+      ) {
+        return (
+          'Le SamAccountName contient un '
+          + 'caractère LDAP interdit.'
+        )
+      }
+
+      if (
+        ![
+          'Global',
+          'Universal',
+          'DomainLocal'
+        ].includes(form?.group_scope)
+      ) {
+        return 'Le scope du groupe est invalide.'
+      }
+
+      if (
+        ![
+          'Security',
+          'Distribution'
+        ].includes(form?.group_category)
+      ) {
+        return 'Le type du groupe est invalide.'
+      }
+    }
+
+    return ''
+  }
+
+  function getAdminCreationInlineError() {
+    const explicitError = String(
+      adminError || ''
+    ).trim()
+
+    if (explicitError) {
+      return explicitError
+    }
+
+    const parentDn = String(
+      adminForm?.parent_dn || ''
+    ).trim()
+
+    if (
+      parentDn
+      && (
+        !isOuDn(parentDn)
+        || !isEitasManagedDn(parentDn)
+      )
+    ) {
+      return getAdminCreationValidationError()
+    }
+
+    const name = String(
+      adminForm?.name || ''
+    ).trim()
+
+    const forbiddenPattern =
+      /[,+\=<>#;"\\]/
+
+    if (
+      name
+      && forbiddenPattern.test(name)
+    ) {
+      return getAdminCreationValidationError()
+    }
+
+    if (
+      adminModal?.action === 'create_group'
+    ) {
+      const samAccountName = String(
+        adminForm?.sam_account_name || ''
+      ).trim()
+
+      if (
+        samAccountName
+        && forbiddenPattern.test(
+          samAccountName
+        )
+      ) {
+        return getAdminCreationValidationError()
+      }
+    }
+
+    return ''
+  }
+
+  function updateAdminFormField(field, value) {
+    setAdminForm(current => ({
+      ...current,
+      [field]: value
+    }))
+
+    setAdminError('')
+  }
+
+  function closeAdminCreationModal() {
+    if (adminLoading) {
+      return
+    }
+
+    setAdminModal(null)
+    setAdminOuOptions([])
+    setAdminOuLoading(false)
+    setAdminError('')
+  }
+
   function getCreateAdminParentDn(target = selectedNode) {
     const targetDn = getObjectDn(target)
 
@@ -3908,80 +4142,127 @@ function getAdAttributeValue(item, ...names) {
     return exactCurrent || safeOptions[0]
   }
 
-  async function loadAdminOuOptions(parentDn = '') {
-    const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
-
-    if (!searchBaseDn) {
-      setAdminOuOptions([])
-      return
-    }
+  async function loadAdminOuOptions(
+    parentDn = ''
+  ) {
+    const searchBaseDn = EITAS_DN
 
     setAdminOuLoading(true)
+    setAdminError('')
 
     try {
-      const created = await apiFetch('/api/ad-explorer/jobs', {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'list_ou_tree',
-          base_dn: searchBaseDn,
-          baseDn: searchBaseDn,
-          created_by: 'react-admin-create-ou-tree'
-        })
-      })
+      const created = await apiFetch(
+        '/api/ad-explorer/jobs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'list_ou_tree',
+            base_dn: searchBaseDn,
+            baseDn: searchBaseDn,
+            created_by:
+              'react-admin-create-ou-tree'
+          })
+        }
+      )
 
       const jobId = created?.job?.id
 
       if (!jobId) {
-        throw new Error('Job list_ou_tree introuvable')
+        throw new Error(
+          'Job list_ou_tree introuvable.'
+        )
       }
 
-      const completedJob = await waitForAdExplorerJob(jobId)
-      const items = getCreateUserOuItemsFromJob(completedJob)
+      const completedJob =
+        await waitForAdExplorerJob(jobId)
 
-      const options = sortCreateUserOuOptions(dedupeCreateUserOuOptions(
-        items
-          .map(item => {
-            const dn = getObjectDn(item)
+      const items =
+        getCreateUserOuItemsFromJob(
+          completedJob
+        )
 
-            return {
-              dn,
-              label: item?.path_label || item?.pathLabel || item?.label || item?.name || item?.Name || getOuLabelFromDn(dn)
-            }
-          })
-          .filter(option => option.dn)
-      ))
+      let finalOptions =
+        normalizeAdminCreationOptions(items)
 
-      const finalOptions = options.length ? options : getFallbackCreateUserOuOptions(searchBaseDn)
+      if (!finalOptions.length) {
+        finalOptions =
+          normalizeAdminCreationOptions(
+            getFallbackCreateUserOuOptions(
+              searchBaseDn
+            )
+          )
+      }
 
       setAdminOuOptions(finalOptions)
 
       setAdminForm(current => {
-        const currentDn = String(current.parent_dn || '').trim()
-        const exists = finalOptions.some(option => option.dn.toUpperCase() === currentDn.toUpperCase())
+        const currentDn = String(
+          current.parent_dn || parentDn || ''
+        ).trim()
 
-        if (exists && currentDn) {
+        const currentExists =
+          finalOptions.some(option =>
+            option.dn.toUpperCase()
+            === currentDn.toUpperCase()
+          )
+
+        if (
+          currentDn
+          && currentExists
+          && isEitasManagedDn(currentDn)
+        ) {
           return current
         }
 
-        const preferred = getPreferredOuForAction(finalOptions, adminModal?.action, parentDn)
+        const preferred =
+          getPreferredOuForAction(
+            finalOptions,
+            adminModal?.action,
+            parentDn
+          )
 
         return {
           ...current,
-          parent_dn: preferred?.dn || parentDn
+          parent_dn:
+            preferred?.dn
+            || parentDn
+            || EITAS_DN
         }
       })
     } catch (error) {
-      console.warn('Impossible de charger l’arbre OU AD pour création OU/groupe', error)
-      setAdminOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
+      console.warn(
+        'Impossible de charger l’arbre OU '
+        + 'AD pour création OU/groupe',
+        error
+      )
+
+      const fallbackOptions =
+        normalizeAdminCreationOptions(
+          getFallbackCreateUserOuOptions(
+            searchBaseDn
+          )
+        )
+
+      setAdminOuOptions(fallbackOptions)
+
+      setAdminError(
+        'Chargement complet des OU impossible. '
+        + 'La liste locale ou le DN avancé '
+        + 'restent disponibles.'
+      )
     } finally {
       setAdminOuLoading(false)
     }
   }
 
-  function openCreateOu(target = selectedNode) {
+  function openCreateOu(
+    target = selectedNode
+  ) {
     if (!isEitasManagedObject(target)) {
       const message =
-        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+        'Action bloquée : cet objet est hors '
+        + 'du périmètre OU=EITAS et reste '
+        + 'accessible uniquement en lecture.'
 
       setStatus(message)
       setMessage?.(message)
@@ -3990,16 +4271,25 @@ function getAdAttributeValue(item, ...names) {
     }
 
     loadAdAgentMode()
-    const parentDn = getCreateAdminParentDn(target)
 
-    if (!parentDn) {
-      setMessage?.('Sélectionne une OU de destination avant de créer une OU.')
+    const parentDn =
+      getCreateAdminParentDn(target)
+
+    if (
+      !parentDn
+      || !isEitasManagedDn(parentDn)
+    ) {
+      setMessage?.(
+        'Sélectionne une OU EITAS de '
+        + 'destination avant de créer une OU.'
+      )
       return
     }
 
-    const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
-
     setContextMenu(null)
+    setAdminError('')
+    setAdminOuOptions([])
+
     setAdminForm({
       name: '',
       description: '',
@@ -4008,21 +4298,28 @@ function getAdAttributeValue(item, ...names) {
       group_category: 'Security',
       parent_dn: parentDn
     })
+
     setAdminModal({
       action: 'create_ou',
       title: 'Créer une OU',
       parent_dn: parentDn,
-      search_base_dn: searchBaseDn
+      search_base_dn: EITAS_DN
     })
 
-    setAdminOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
-    window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
+    window.setTimeout(
+      () => loadAdminOuOptions(parentDn),
+      0
+    )
   }
 
-  function openCreateGroup(target = selectedNode) {
+  function openCreateGroup(
+    target = selectedNode
+  ) {
     if (!isEitasManagedObject(target)) {
       const message =
-        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
+        'Action bloquée : cet objet est hors '
+        + 'du périmètre OU=EITAS et reste '
+        + 'accessible uniquement en lecture.'
 
       setStatus(message)
       setMessage?.(message)
@@ -4031,16 +4328,25 @@ function getAdAttributeValue(item, ...names) {
     }
 
     loadAdAgentMode()
-    const parentDn = getCreateAdminParentDn(target)
 
-    if (!parentDn) {
-      setMessage?.('Sélectionne une OU de destination avant de créer un groupe.')
+    const parentDn =
+      getCreateAdminParentDn(target)
+
+    if (
+      !parentDn
+      || !isEitasManagedDn(parentDn)
+    ) {
+      setMessage?.(
+        'Sélectionne une OU EITAS de '
+        + 'destination avant de créer un groupe.'
+      )
       return
     }
 
-    const searchBaseDn = getCreateUserSearchBaseDn(parentDn) || parentDn
-
     setContextMenu(null)
+    setAdminError('')
+    setAdminOuOptions([])
+
     setAdminForm({
       name: '',
       description: '',
@@ -4049,15 +4355,18 @@ function getAdAttributeValue(item, ...names) {
       group_category: 'Security',
       parent_dn: parentDn
     })
+
     setAdminModal({
       action: 'create_group',
       title: 'Créer un groupe',
       parent_dn: parentDn,
-      search_base_dn: searchBaseDn
+      search_base_dn: EITAS_DN
     })
 
-    setAdminOuOptions(getFallbackCreateUserOuOptions(searchBaseDn))
-    window.setTimeout(() => loadAdminOuOptions(parentDn), 0)
+    window.setTimeout(
+      () => loadAdminOuOptions(parentDn),
+      0
+    )
   }
 
   function resetCreateComputerForm() {
@@ -4320,6 +4629,8 @@ function getAdAttributeValue(item, ...names) {
   }
 
   async function runAdAdminJob(payload) {
+    setAdminSuccess('')
+
     const created = await apiFetch('/api/ad-admin/jobs', {
       method: 'POST',
       body: JSON.stringify({
@@ -4727,32 +5038,61 @@ function getAdAttributeValue(item, ...names) {
   async function submitAdAdminJob(event) {
     event.preventDefault()
 
-    if (!adminModal) return
+    if (!adminModal) {
+      return
+    }
+
+    const validationError =
+      getAdminCreationValidationError()
+
+    if (validationError) {
+      setAdminError(validationError)
+      setStatus(validationError)
+      return
+    }
 
     const name = adminForm.name.trim()
-    const description = adminForm.description.trim()
-    const sam = adminForm.sam_account_name.trim() || name
-    const parentDn = String(adminForm.parent_dn || adminModal.parent_dn || '').trim()
 
-    if (!name) {
-      setMessage?.('Nom obligatoire.')
-      return
-    }
+    const description =
+      adminForm.description.trim()
 
-    if (!parentDn) {
-      setMessage?.('Emplacement de création obligatoire.')
-      return
-    }
+    const samAccountName = String(
+      adminForm.sam_account_name || name
+    ).trim()
 
-    const actionLabel = adminModal.action === 'create_ou'
-      ? 'La création de l’OU'
-      : 'La création du groupe'
+    const parentDn = String(
+      adminForm.parent_dn || ''
+    ).trim()
 
-    if (!(await confirmProductionAdAction(actionLabel, `${name} dans ${parentDn}`))) {
+    const actionLabel =
+      adminModal.action === 'create_ou'
+        ? 'La création de l’OU'
+        : 'La création du groupe'
+
+    const targetSummary =
+      `${name} dans `
+      + getAdminCreationOuDisplayLabel(
+        parentDn
+      )
+
+    const confirmed =
+      await confirmProductionAdAction(
+        actionLabel,
+        targetSummary
+      )
+
+    if (!confirmed) {
       return
     }
 
     setAdminLoading(true)
+    setAdminError('')
+
+    setStatus(
+      adminModal.action === 'create_ou'
+        ? 'Création de l’OU en cours...'
+        : 'Création du groupe en cours...'
+    )
 
     try {
       const payload = {
@@ -4763,24 +5103,64 @@ function getAdAttributeValue(item, ...names) {
         created_by: 'react-admin'
       }
 
-      if (adminModal.action === 'create_group') {
-        payload.sam_account_name = sam
-        payload.group_scope = adminForm.group_scope
-        payload.group_category = adminForm.group_category
+      if (
+        adminModal.action === 'create_group'
+      ) {
+        payload.sam_account_name =
+          samAccountName
+
+        payload.group_scope =
+          adminForm.group_scope
+
+        payload.group_category =
+          adminForm.group_category
       }
 
-      const created = await apiFetch('/api/ad-admin/jobs', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      })
+      const job = await runAdAdminJob(payload)
 
-      setMessage?.(`Job AD Admin créé : ${created.job.id}. Attente de l’agent principal.`)
+      const destinationLabel =
+        getAdminCreationOuDisplayLabel(
+          parentDn
+        )
+
+      const message = cleanAdHistoryText(
+        adminModal.action === 'create_ou'
+          ? `OU ${name} créée dans ${destinationLabel}.`
+          : `Groupe ${name} créé dans ${destinationLabel}.`
+      )
+
       setAdminModal(null)
-      setAdminLoading(false)
+      setAdminOuOptions([])
+      setAdminError('')
 
-      waitForAdAdminJobInBackground(created.job.id)
-    } catch (err) {
-      setMessage?.(err.message || 'Erreur création AD.')
+      await loadTree()
+
+      if (viewType === 'computers') {
+        await loadComputersView()
+      } else if (selectedNode) {
+        await loadNodeContent(
+          selectedNode,
+          viewType
+        )
+      }
+
+      await loadAdAdminHistory()
+
+      setAdminSuccess(message)
+      setStatus(message)
+      setMessage?.(message)
+    } catch (error) {
+      setAdminSuccess('')
+      const message = cleanAdHistoryText(
+        error?.message
+        || 'Erreur pendant la création '
+        + 'Active Directory.'
+      )
+
+      setAdminError(message)
+      setStatus(message)
+      setMessage?.(message)
+    } finally {
       setAdminLoading(false)
     }
   }
@@ -5337,6 +5717,41 @@ function getAdAttributeValue(item, ...names) {
               <button type="button" onClick={refreshAll}>⟳ Actualiser</button>
             </section>
 
+            {adminSuccess && (
+              <div
+                className="aduc-admin-success-banner"
+                role="status"
+              >
+                <span
+                  className={
+                    "aduc-admin-success-icon"
+                  }
+                >
+                  ✓
+                </span>
+
+                <div>
+                  <strong>
+                    Création Active Directory terminée
+                  </strong>
+
+                  <p>{adminSuccess}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAdminSuccess('')
+                  }
+                  aria-label={
+                    "Fermer la confirmation"
+                  }
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
             <section className="aduc-console">
               <div className="aduc-tree-pane">
                 <div className="aduc-pane-head">
@@ -5447,8 +5862,22 @@ function getAdAttributeValue(item, ...names) {
                         className={`aduc-table-row ${getObjectDn(selectedObject) && getObjectDn(selectedObject) === getObjectDn(item) ? 'selected-object' : ''}`}
                         onClick={() => selectObject(item)}
                         onDoubleClick={() => {
-                          if (getObjectType(item).includes('Groupe')) {
-                            loadNodeContent(item, 'groups')
+                          if (isOuObject(item)) {
+                            loadNodeContent(
+                              item,
+                              getNodeKind(item)
+                            )
+                            return
+                          }
+
+                          if (
+                            getObjectType(item)
+                              .includes('Groupe')
+                          ) {
+                            loadNodeContent(
+                              item,
+                              'groups'
+                            )
                           }
                         }}
                         onContextMenu={event => openContextMenu(event, item, 'object')}
@@ -7062,140 +7491,432 @@ function getAdAttributeValue(item, ...names) {
       )}
 
       {adminModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setAdminModal(null)}>
-          <form className="aduc-modal" onSubmit={submitAdAdminJob} onClick={event => event.stopPropagation()}>
+        <div
+          className="aduc-modal-backdrop"
+          onClick={closeAdminCreationModal}
+        >
+          <form
+            className={
+              "aduc-modal "
+              + "aduc-admin-create-modal "
+              + "aduc-admin-create-modal-compact"
+            }
+            onSubmit={submitAdAdminJob}
+            onClick={event =>
+              event.stopPropagation()
+            }
+          >
             <header>
               <div>
-                <span>Administration Active Directory</span>
+                <span>
+                  Administration Active Directory
+                </span>
+
                 <h3>{adminModal.title}</h3>
               </div>
 
-              <button type="button" onClick={() => setAdminModal(null)}>×</button>
+              <button
+                type="button"
+                onClick={closeAdminCreationModal}
+                disabled={adminLoading}
+              >
+                ×
+              </button>
             </header>
 
-            <label>
-              Emplacement de création
-              <select
-                key={adminOuOptions.map(option => option.dn).join('|') || 'admin-ou-loading'}
-                value={adminForm.parent_dn || adminModal.parent_dn}
-                disabled={adminOuLoading}
-                onChange={event => setAdminForm(current => ({ ...current, parent_dn: event.target.value }))}
+            <div
+              className={
+                `aduc-account-action-warning ${
+                  isAdProductionMode()
+                    ? 'production'
+                    : 'simulation'
+                }`
+              }
+            >
+              <strong>
+                {getAdAgentModeLabel()}
+              </strong>
+
+              <p>
+                {isAdProductionMode()
+                  ? (
+                    adminModal.action === 'create_ou'
+                      ? 'L’OU sera réellement créée dans Active Directory.'
+                      : 'Le groupe sera réellement créé dans Active Directory.'
+                  )
+                  : 'Simulation active : aucun objet réel ne sera créé.'}
+              </p>
+            </div>
+
+            <section
+              className="aduc-admin-create-section"
+            >
+              <div
+                className={
+                  "aduc-admin-create-section-head"
+                }
               >
-                {adminOuLoading && (
-                  <option value={adminForm.parent_dn || adminModal.parent_dn}>
-                    Chargement de l’arbre Active Directory...
-                  </option>
-                )}
+                <div>
+                  <span>Destination</span>
 
-                {!adminOuLoading && !adminOuOptions.some(option => option.dn === (adminForm.parent_dn || adminModal.parent_dn)) && (
-                  <option value={adminForm.parent_dn || adminModal.parent_dn}>
-                    {getOuLabelFromDn(adminForm.parent_dn || adminModal.parent_dn)} — personnalisé
-                  </option>
-                )}
+                  <strong>
+                    {adminForm.parent_dn
+                      ? getAdminCreationOuDisplayLabel(
+                        adminForm.parent_dn
+                      )
+                      : 'Aucune OU sélectionnée'}
+                  </strong>
+                </div>
 
-                {!adminOuLoading && adminOuOptions.map(option => (
-                  <option key={option.dn} value={option.dn}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <small>
+                  {adminOuLoading
+                    ? 'Chargement...'
+                    : `${adminOuOptions.length} OU`}
+                </small>
+              </div>
 
-            <details className="aduc-create-user-advanced-dn">
-              <summary>DN personnalisé / avancé</summary>
-              <input
-                value={adminForm.parent_dn || ''}
-                onChange={event => setAdminForm(current => ({ ...current, parent_dn: event.target.value }))}
-                placeholder="OU=Groups,OU=EITAS,DC=API,DC=LOCAL"
-              />
-            </details>
+              <label className="aduc-admin-field">
+                <span>Emplacement de création</span>
 
-            <p className="aduc-create-user-ou-hint">
-              {adminOuLoading
-                ? 'Chargement de l’arbre des OU depuis Active Directory...'
-                : `${adminOuOptions.length} OU détectée${adminOuOptions.length > 1 ? 's' : ''} dans l’arbre AD.`}
-            </p>
+                <select
+                  key={
+                    adminOuOptions
+                      .map(option => option.dn)
+                      .join('|')
+                    || 'admin-ou-loading'
+                  }
+                  value={
+                    adminForm.parent_dn || ''
+                  }
+                  disabled={
+                    adminOuLoading
+                    || adminLoading
+                  }
+                  onChange={event =>
+                    updateAdminFormField(
+                      'parent_dn',
+                      event.target.value
+                    )
+                  }
+                >
+                  {!adminForm.parent_dn && (
+                    <option value="" disabled>
+                      Choisir une OU
+                    </option>
+                  )}
 
-            <label>
-              Nom
-              <input
-                value={adminForm.name}
-                onChange={event => setAdminForm(current => ({
-                  ...current,
-                  name: event.target.value,
-                  sam_account_name: adminModal.action === 'create_group' ? event.target.value : current.sam_account_name
-                }))}
-                placeholder={adminModal.action === 'create_ou' ? 'Ex : Finance' : 'Ex : GG_Finance_RW'}
-                autoFocus
-              />
-            </label>
+                  {adminOuLoading && (
+                    <option
+                      value={
+                        adminForm.parent_dn || ''
+                      }
+                    >
+                      Chargement des OU...
+                    </option>
+                  )}
 
-            {adminModal.action === 'create_group' && (
-              <>
-                <label>
-                  SamAccountName
+                  {!adminOuLoading
+                    && adminForm.parent_dn
+                    && !adminOuOptions.some(
+                      option =>
+                        option.dn.toUpperCase()
+                        === adminForm.parent_dn
+                          .toUpperCase()
+                    )
+                    && (
+                    <option
+                      value={adminForm.parent_dn}
+                    >
+                      {getAdminCreationOuDisplayLabel(
+                        adminForm.parent_dn
+                      )} — personnalisée
+                    </option>
+                  )}
+
+                  {!adminOuLoading
+                    && adminOuOptions.map(
+                      option => (
+                        <option
+                          key={option.dn}
+                          value={option.dn}
+                        >
+                          {option.label}
+                        </option>
+                      )
+                    )}
+                </select>
+              </label>
+
+              <details
+                className={
+                  "aduc-create-user-advanced-dn "
+                  + "aduc-admin-create-advanced"
+                }
+              >
+                <summary>
+                  DN personnalisé / avancé
+                </summary>
+
+                <input
+                  value={
+                    adminForm.parent_dn || ''
+                  }
+                  onChange={event =>
+                    updateAdminFormField(
+                      'parent_dn',
+                      event.target.value
+                    )
+                  }
+                  placeholder={
+                    "OU=Groups,OU=EITAS,"
+                    + "DC=API,DC=LOCAL"
+                  }
+                  disabled={adminLoading}
+                />
+              </details>
+            </section>
+
+            <section
+              className="aduc-admin-create-section"
+            >
+              <div
+                className={
+                  "aduc-admin-create-section-head"
+                }
+              >
+                <div>
+                  <span>Informations</span>
+
+                  <strong>
+                    {adminModal.action === 'create_ou'
+                      ? 'Nouvelle unité d’organisation'
+                      : 'Nouveau groupe Active Directory'}
+                  </strong>
+                </div>
+              </div>
+
+              <div
+                className={
+                  `aduc-admin-create-identity-grid ${
+                    adminModal.action
+                    === 'create_group'
+                      ? 'two-columns'
+                      : ''
+                  }`
+                }
+              >
+                <label className="aduc-admin-field">
+                  <span>
+                    {adminModal.action === 'create_ou'
+                      ? 'Nom de l’OU'
+                      : 'Nom du groupe'}
+                  </span>
+
                   <input
-                    value={adminForm.sam_account_name}
-                    onChange={event => setAdminForm(current => ({ ...current, sam_account_name: event.target.value }))}
-                    placeholder="Ex : GG_Finance_RW"
+                    value={adminForm.name}
+                    onChange={event => {
+                      const value =
+                        event.target.value
+
+                      setAdminForm(current => ({
+                        ...current,
+                        name: value,
+                        sam_account_name:
+                          adminModal.action
+                          === 'create_group'
+                            ? value
+                            : current
+                              .sam_account_name
+                      }))
+
+                      setAdminError('')
+                    }}
+                    placeholder={
+                      adminModal.action === 'create_ou'
+                        ? 'Finance'
+                        : 'GG_Finance_RW'
+                    }
+                    autoFocus
+                    disabled={adminLoading}
                   />
                 </label>
 
-                <div className="aduc-modal-grid">
-                  <label>
-                    Scope
+                {adminModal.action
+                  === 'create_group' && (
+                  <label
+                    className="aduc-admin-field"
+                  >
+                    <span>SamAccountName</span>
+
+                    <input
+                      value={
+                        adminForm.sam_account_name
+                      }
+                      onChange={event =>
+                        updateAdminFormField(
+                          'sam_account_name',
+                          event.target.value
+                        )
+                      }
+                      placeholder="GG_Finance_RW"
+                      disabled={adminLoading}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {adminModal.action
+                === 'create_group' && (
+                <div
+                  className={
+                    "aduc-admin-create-options-grid"
+                  }
+                >
+                  <label
+                    className="aduc-admin-field"
+                  >
+                    <span>Portée</span>
+
                     <select
-                      value={adminForm.group_scope}
-                      onChange={event => setAdminForm(current => ({ ...current, group_scope: event.target.value }))}
+                      value={
+                        adminForm.group_scope
+                      }
+                      onChange={event =>
+                        updateAdminFormField(
+                          'group_scope',
+                          event.target.value
+                        )
+                      }
+                      disabled={adminLoading}
                     >
-                      <option value="Global">Global</option>
-                      <option value="Universal">Universal</option>
-                      <option value="DomainLocal">DomainLocal</option>
+                      <option value="Global">
+                        Globale
+                      </option>
+
+                      <option value="Universal">
+                        Universelle
+                      </option>
+
+                      <option value="DomainLocal">
+                        Domaine local
+                      </option>
                     </select>
                   </label>
 
-                  <label>
-                    Type
+                  <label
+                    className="aduc-admin-field"
+                  >
+                    <span>Catégorie</span>
+
                     <select
-                      value={adminForm.group_category}
-                      onChange={event => setAdminForm(current => ({ ...current, group_category: event.target.value }))}
+                      value={
+                        adminForm.group_category
+                      }
+                      onChange={event =>
+                        updateAdminFormField(
+                          'group_category',
+                          event.target.value
+                        )
+                      }
+                      disabled={adminLoading}
                     >
-                      <option value="Security">Sécurité</option>
-                      <option value="Distribution">Distribution</option>
+                      <option value="Security">
+                        Sécurité
+                      </option>
+
+                      <option value="Distribution">
+                        Distribution
+                      </option>
                     </select>
                   </label>
                 </div>
-              </>
-            )}
+              )}
 
-            <label>
-              Description
-              <textarea
-                value={adminForm.description}
-                onChange={event => setAdminForm(current => ({ ...current, description: event.target.value }))}
-                placeholder="Description optionnelle"
-              />
-            </label>
+              <label className="aduc-admin-field">
+                <span>Description</span>
 
-            <div className={isAdProductionMode() ? "aduc-modal-warning" : "aduc-modal-warning aduc-modal-warning-safe"}>
-              <strong>{getAdAgentModeLabel()}</strong>
-              <span>
-                {isAdProductionMode()
-                  ? "Cette action modifiera réellement Active Directory via l’agent Windows."
-                  : "Cette action sera simulée, aucun objet AD réel ne sera créé ou modifié."}
-              </span>
+                <textarea
+                  value={adminForm.description}
+                  onChange={event =>
+                    updateAdminFormField(
+                      'description',
+                      event.target.value
+                    )
+                  }
+                  placeholder="Description optionnelle"
+                  disabled={adminLoading}
+                />
+              </label>
+            </section>
+
+            <div
+              className={
+                "aduc-admin-create-summary-compact"
+              }
+            >
+              <div>
+                <span>Création prévue</span>
+
+                <strong>
+                  {adminForm.name.trim()
+                    || 'Nom à renseigner'}
+                  {' → '}
+                  {adminForm.parent_dn
+                    ? getAdminCreationOuDisplayLabel(
+                      adminForm.parent_dn
+                    )
+                    : 'OU non sélectionnée'}
+                </strong>
+              </div>
+
+              <code>
+                {adminForm.parent_dn
+                  || 'DN non sélectionné'}
+              </code>
             </div>
 
+            {getAdminCreationInlineError() && (
+              <div
+                className={
+                  "aduc-admin-create-error-compact"
+                }
+              >
+                <strong>Attention :</strong>
+
+                <span>
+                  {getAdminCreationInlineError()}
+                </span>
+              </div>
+            )}
+
             <footer>
-              <button type="button" onClick={() => setAdminModal(null)}>Annuler</button>
-              <button type="submit" disabled={adminLoading || adminOuLoading || adAgentModeLoading}>
+              <button
+                type="button"
+                onClick={closeAdminCreationModal}
+                disabled={adminLoading}
+              >
+                Annuler
+              </button>
+
+              <button
+                type="submit"
+                disabled={
+                  adminLoading
+                  || adminOuLoading
+                  || adAgentModeLoading
+                  || Boolean(
+                    getAdminCreationValidationError()
+                  )
+                }
+              >
                 {adminLoading
-                  ? 'Création...'
+                  ? 'Création en cours...'
                   : adminOuLoading
                     ? 'Chargement des OU...'
-                    : adAgentModeLoading
-                      ? 'Vérification mode...'
-                      : adminModal.action === 'create_ou' ? 'Créer l’OU' : 'Créer le groupe'}
+                    : adminModal.action
+                      === 'create_ou'
+                      ? 'Créer l’OU'
+                      : 'Créer le groupe'}
               </button>
             </footer>
           </form>

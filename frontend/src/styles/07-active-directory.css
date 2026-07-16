@@ -5397,3 +5397,346 @@ button.aduc-admin-history-row.unknown > span {
   overflow-wrap: anywhere;
   white-space: normal;
 }
+
+/* BLOC297A - Secure OU and group creation modal */
+
+.aduc-admin-create-modal {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.aduc-admin-create-form {
+  display: grid;
+  gap: 16px;
+}
+
+.aduc-admin-create-form label {
+  gap: 7px;
+}
+
+.aduc-admin-create-form label > span {
+  font-weight: 700;
+}
+
+.aduc-admin-create-form label > small {
+  line-height: 1.45;
+  opacity: 0.72;
+}
+
+.aduc-admin-create-advanced {
+  margin: 0;
+}
+
+.aduc-admin-group-options {
+  align-items: start;
+}
+
+.aduc-admin-create-summary {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.aduc-admin-create-summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.aduc-admin-create-summary span {
+  opacity: 0.72;
+}
+
+.aduc-admin-create-summary strong {
+  text-align: right;
+}
+
+.aduc-admin-create-summary code {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-size: 0.78rem;
+}
+
+.aduc-admin-create-summary.valid {
+  border-color: rgba(34, 197, 94, 0.38);
+}
+
+.aduc-admin-create-summary.invalid {
+  border-color: rgba(245, 158, 11, 0.44);
+}
+
+.aduc-admin-create-error {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid rgba(239, 68, 68, 0.48);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.aduc-admin-create-error strong {
+  color: #fecaca;
+}
+
+.aduc-admin-create-error span {
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .aduc-admin-create-summary > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .aduc-admin-create-summary strong {
+    text-align: left;
+  }
+
+  .aduc-admin-group-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* BLOC297B - Compact OU and group modal */
+
+.aduc-admin-create-modal-compact {
+  width: min(700px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.aduc-admin-create-modal-compact
+.aduc-account-action-warning {
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 12px;
+}
+
+.aduc-admin-create-modal-compact
+.aduc-account-action-warning p {
+  margin: 3px 0 0;
+  font-size: 0.88rem;
+}
+
+.aduc-admin-create-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.055);
+}
+
+.aduc-admin-create-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.aduc-admin-create-section-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.aduc-admin-create-section-head span {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.aduc-admin-create-section-head strong {
+  font-size: 0.95rem;
+}
+
+.aduc-admin-create-section-head small {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.aduc-admin-field {
+  display: grid;
+  gap: 6px;
+}
+
+.aduc-admin-field > span {
+  font-size: 0.83rem;
+  font-weight: 750;
+}
+
+.aduc-admin-create-modal-compact input,
+.aduc-admin-create-modal-compact select {
+  min-height: 44px;
+}
+
+.aduc-admin-create-modal-compact textarea {
+  min-height: 72px;
+  max-height: 130px;
+}
+
+.aduc-admin-create-identity-grid,
+.aduc-admin-create-options-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.aduc-admin-create-identity-grid.two-columns,
+.aduc-admin-create-options-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.aduc-admin-create-advanced {
+  margin: 0;
+  padding: 9px 11px;
+}
+
+.aduc-admin-create-summary-compact {
+  display: grid;
+  gap: 6px;
+  padding: 11px 13px;
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.055);
+}
+
+.aduc-admin-create-summary-compact > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.aduc-admin-create-summary-compact span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.aduc-admin-create-summary-compact strong {
+  text-align: right;
+}
+
+.aduc-admin-create-summary-compact code {
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 0.72rem;
+  white-space: normal;
+}
+
+.aduc-admin-create-error-compact {
+  display: flex;
+  gap: 6px;
+  padding: 9px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.055);
+  font-size: 0.84rem;
+}
+
+.aduc-admin-create-error-compact strong {
+  color: #dc2626;
+}
+
+.aduc-admin-create-modal-compact footer {
+  margin-top: 0;
+}
+
+@media (max-width: 680px) {
+  .aduc-admin-create-identity-grid.two-columns,
+  .aduc-admin-create-options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-admin-create-summary-compact > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .aduc-admin-create-summary-compact strong {
+    text-align: left;
+  }
+}
+
+/* BLOC297C - Persistent AD creation success */
+
+.aduc-admin-success-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 12px;
+  padding: 11px 14px;
+  border: 1px solid rgba(34, 197, 94, 0.34);
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.aduc-admin-success-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.16);
+  color: #15803d;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.aduc-admin-success-banner > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.aduc-admin-success-banner strong {
+  color: #166534;
+  font-size: 0.88rem;
+}
+
+.aduc-admin-success-banner p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+.aduc-admin-success-banner button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #475569;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.aduc-admin-success-banner button:hover {
+  background: rgba(148, 163, 184, 0.24);
+}
+
+@media (max-width: 680px) {
+  .aduc-admin-success-banner {
+    align-items: start;
+  }
+}

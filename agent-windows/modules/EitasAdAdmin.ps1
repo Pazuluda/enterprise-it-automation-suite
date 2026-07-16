@@ -173,7 +173,8 @@ function Invoke-EitasAdAdminCreateOu {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($Description)) {
-        $Params.Description = $Description
+        $Params.Description =
+            Repair-EitasTextEncoding -Value $Description
     }
 
     New-ADOrganizationalUnit @Params
@@ -253,7 +254,8 @@ function Invoke-EitasAdAdminCreateGroup {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($Description)) {
-        $Params.Description = $Description
+        $Params.Description =
+            Repair-EitasTextEncoding -Value $Description
     }
 
     New-ADGroup @Params
