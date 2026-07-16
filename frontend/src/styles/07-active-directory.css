@@ -5355,3 +5355,45 @@ button.aduc-admin-history-row.unknown > span {
     grid-column: auto;
   }
 }
+
+
+/* BLOC296A - Visual OU move selector */
+
+.aduc-move-modal {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.aduc-move-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aduc-move-modal select {
+  width: 100%;
+}
+
+.aduc-move-destination-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid rgba(100, 116, 139, 0.24);
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.aduc-move-destination-summary > span {
+  color: var(--aduc-muted, #64748b);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.aduc-move-destination-summary > strong {
+  font-size: 0.95rem;
+}
+
+.aduc-move-destination-summary > code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

@@ -1164,6 +1164,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [deleteError, setDeleteError] = useState('')
   const [renameNewName, setRenameNewName] = useState('')
   const [moveTargetDn, setMoveTargetDn] = useState('')
+  const [moveOuOptions, setMoveOuOptions] = useState([])
+  const [moveOuLoading, setMoveOuLoading] = useState(false)
+  const [moveOuError, setMoveOuError] = useState('')
   const [globalAdSearch, setGlobalAdSearch] = useState('')
   const [globalAdSearchLoading, setGlobalAdSearchLoading] = useState(false)
   const [testCleanupModal, setTestCleanupModal] = useState(false)
@@ -2909,6 +2912,316 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
+  function getMoveCurrentParentDn(objectDn) {
+    const parts = splitLdapDn(objectDn)
+
+    if (parts.length < 2) {
+      return ''
+    }
+
+    return parts.slice(1).join(',')
+  }
+
+  function isMoveDestinationBlocked(
+    objectDn,
+    targetParentDn
+  ) {
+    const objectKey = String(objectDn || '')
+      .trim()
+      .toUpperCase()
+
+    const targetKey = String(targetParentDn || '')
+      .trim()
+      .toUpperCase()
+
+    if (!objectKey || !targetKey) {
+      return false
+    }
+
+    if (!isOuDn(objectDn)) {
+      return false
+    }
+
+    return (
+      targetKey === objectKey
+      || targetKey.endsWith(`,${objectKey}`)
+    )
+  }
+
+  function isManagedMoveDestination(dn) {
+    const value = String(dn || '').trim()
+
+    return (
+      isEitasManagedDn(value)
+      || value.toUpperCase() ===
+        String(EITAS_DN).toUpperCase()
+    )
+  }
+
+  function getMoveOuDisplayLabel(dn) {
+    const cleanDn = String(dn || '').trim()
+
+    if (!cleanDn) {
+      return 'OU inconnue'
+    }
+
+    if (
+      cleanDn.toUpperCase()
+      === String(EITAS_DN).toUpperCase()
+    ) {
+      return 'EITAS'
+    }
+
+    const pathLabel = getOuPathLabelFromDn(
+      cleanDn,
+      EITAS_DN
+    )
+
+    if (!pathLabel) {
+      return cleanDn
+    }
+
+    if (
+      pathLabel.toUpperCase() === 'EITAS'
+    ) {
+      return 'EITAS'
+    }
+
+    return `EITAS / ${pathLabel}`
+  }
+
+  function buildMoveOuOptions(
+    items,
+    objectDn = ''
+  ) {
+    const currentParentDn =
+      getMoveCurrentParentDn(objectDn)
+
+    const currentParentKey = String(
+      currentParentDn || ''
+    )
+      .trim()
+      .toUpperCase()
+
+    const sourceItems = [
+      {
+        dn: EITAS_DN
+      },
+      ...(Array.isArray(items) ? items : [])
+    ]
+
+    const options = sourceItems
+      .map(item => {
+        const dn = String(
+          getObjectDn(item)
+          || item?.dn
+          || item?.distinguished_name
+          || ''
+        ).trim()
+
+        if (!dn || !isOuDn(dn)) {
+          return null
+        }
+
+        return {
+          dn,
+          label: getMoveOuDisplayLabel(dn)
+        }
+      })
+      .filter(Boolean)
+      .filter(option =>
+        isManagedMoveDestination(option.dn)
+      )
+      .filter(option =>
+        option.dn.toUpperCase()
+        !== currentParentKey
+      )
+      .filter(option =>
+        !isMoveDestinationBlocked(
+          objectDn,
+          option.dn
+        )
+      )
+
+    return dedupeCreateUserOuOptions(options)
+      .sort((a, b) =>
+        String(a.label || '').localeCompare(
+          String(b.label || ''),
+          'fr',
+          { sensitivity: 'base' }
+        )
+      )
+  }
+
+  function getMoveValidationError(
+    target = moveModal,
+    targetParentDn = moveTargetDn
+  ) {
+    const objectDn = getObjectDn(target)
+    const destination = String(
+      targetParentDn || ''
+    ).trim()
+
+    if (!objectDn) {
+      return 'Objet Active Directory invalide.'
+    }
+
+    if (!destination) {
+      return 'Choisis une OU de destination.'
+    }
+
+    if (!isOuDn(destination)) {
+      return (
+        'La destination doit être une unité '
+        + 'd’organisation.'
+      )
+    }
+
+    if (!isManagedMoveDestination(destination)) {
+      return (
+        'La destination doit appartenir au '
+        + 'périmètre OU=EITAS.'
+      )
+    }
+
+    const currentParentDn =
+      getMoveCurrentParentDn(objectDn)
+
+    if (
+      currentParentDn
+      && destination.toUpperCase()
+        === currentParentDn.toUpperCase()
+    ) {
+      return (
+        'Cet objet se trouve déjà dans cette OU.'
+      )
+    }
+
+    if (
+      isMoveDestinationBlocked(
+        objectDn,
+        destination
+      )
+    ) {
+      return (
+        'Une OU ne peut pas être déplacée '
+        + 'dans elle-même ou dans une OU enfant.'
+      )
+    }
+
+    return ''
+  }
+
+  async function loadMoveOuOptions(target) {
+    const objectDn = getObjectDn(target)
+    const currentParentDn =
+      getMoveCurrentParentDn(objectDn)
+
+    const fallbackOptions =
+      buildMoveOuOptions(
+        [
+          ...treeItems,
+          {
+            dn: currentParentDn,
+            label: getOuPathLabelFromDn(
+              currentParentDn,
+              EITAS_DN
+            )
+          }
+        ],
+        objectDn
+      )
+
+    setMoveOuOptions(fallbackOptions)
+    setMoveOuLoading(true)
+    setMoveOuError('')
+
+    try {
+      const created = await apiFetch(
+        '/api/ad-explorer/jobs',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'list_ou_tree',
+            base_dn: EITAS_DN,
+            baseDn: EITAS_DN,
+            created_by:
+              'react-move-ou-selector'
+          })
+        }
+      )
+
+      const jobId = created?.job?.id
+
+      if (!jobId) {
+        throw new Error(
+          'Job de chargement des OU introuvable.'
+        )
+      }
+
+      const completedJob =
+        await waitForAdExplorerJob(jobId)
+
+      const items =
+        getCreateUserOuItemsFromJob(
+          completedJob
+        )
+
+      const options = buildMoveOuOptions(
+        [
+          ...treeItems,
+          ...items,
+          {
+            dn: currentParentDn,
+            label: getOuPathLabelFromDn(
+              currentParentDn,
+              EITAS_DN
+            )
+          }
+        ],
+        objectDn
+      )
+
+      setMoveOuOptions(
+        options.length
+          ? options
+          : fallbackOptions
+      )
+
+      if (
+        !options.length
+        && !fallbackOptions.length
+      ) {
+        setMoveOuError(
+          'Aucune OU de destination disponible.'
+        )
+      }
+    } catch (error) {
+      console.warn(
+        'Chargement des OU de déplacement impossible',
+        error
+      )
+
+      setMoveOuError(
+        error?.message
+        || 'Chargement des OU impossible.'
+      )
+    } finally {
+      setMoveOuLoading(false)
+    }
+  }
+
+  function closeMoveModal() {
+    if (adminLoading) {
+      return
+    }
+
+    setMoveModal(null)
+    setMoveTargetDn('')
+    setMoveOuOptions([])
+    setMoveOuError('')
+  }
+
   function openMoveObject(target) {
     if (!isEitasManagedObject(target)) {
       const message =
@@ -2920,16 +3233,47 @@ function getAdAttributeValue(item, ...names) {
       return
     }
 
-    const dn = getObjectDn(target)
+    const objectDn = getObjectDn(target)
 
-    if (!target || !dn) {
-      setStatus('Aucun objet AD valide à déplacer.')
+    if (!target || !objectDn) {
+      setStatus(
+        'Aucun objet AD valide à déplacer.'
+      )
       return
     }
 
+    const currentParentDn =
+      getMoveCurrentParentDn(objectDn)
+
+    setContextMenu(null)
     setMoveModal(target)
     setMoveTargetDn('')
+    setMoveOuError('')
+
+    setMoveOuOptions(
+      buildMoveOuOptions(
+        [
+          ...treeItems,
+          {
+            dn: currentParentDn,
+            label: getOuPathLabelFromDn(
+              currentParentDn,
+              EITAS_DN
+            )
+          }
+        ],
+        objectDn
+      )
+    )
+
+    loadAdAgentMode()
+
+    window.setTimeout(
+      () => loadMoveOuOptions(target),
+      0
+    )
   }
+
 
   function normalizeCreateUserPart(value) {
     return String(value || '')
@@ -4246,20 +4590,36 @@ function getAdAttributeValue(item, ...names) {
     }
 
     const objectDn = getObjectDn(moveModal)
-    const targetParentDn = moveTargetDn.trim()
+    const targetParentDn =
+      moveTargetDn.trim()
 
-    if (!objectDn) {
-      setStatus('Objet AD invalide.')
+    const validationError =
+      getMoveValidationError(
+        moveModal,
+        targetParentDn
+      )
+
+    if (validationError) {
+      setMoveOuError(validationError)
+      setStatus(validationError)
       return
     }
 
-    if (!targetParentDn) {
-      setStatus('DN de destination obligatoire.')
+    const confirmed =
+      await confirmProductionAdAction(
+        'Le déplacement de l’objet',
+        `${getObjectName(moveModal)} vers ${targetParentDn}`
+      )
+
+    if (!confirmed) {
       return
     }
 
     setAdminLoading(true)
-    setStatus('')
+    setMoveOuError('')
+    setStatus(
+      'Déplacement Active Directory en cours...'
+    )
 
     try {
       const job = await runAdAdminJob({
@@ -4270,26 +4630,48 @@ function getAdAttributeValue(item, ...names) {
       })
 
       const output = job?.output || {}
-      setMessage?.(cleanAdHistoryText(output.message || job?.message || 'Objet AD déplacé.'))
+
+      const message = cleanAdHistoryText(
+        output.message
+        || job?.message
+        || 'Objet AD déplacé.'
+      )
+
+      setStatus(message)
+      setMessage?.(message)
 
       setMoveModal(null)
       setMoveTargetDn('')
+      setMoveOuOptions([])
+      setMoveOuError('')
+      setSelectedObject(null)
 
       await loadTree()
 
       if (viewType === 'computers') {
         await loadComputersView()
       } else if (selectedNode) {
-        await loadNodeContent(selectedNode, viewType)
+        await loadNodeContent(
+          selectedNode,
+          viewType
+        )
       }
 
       await loadAdAdminHistory()
-    } catch (err) {
-      setStatus(err.message || 'Impossible de déplacer cet objet AD.')
+    } catch (error) {
+      const message = cleanAdHistoryText(
+        error?.message
+        || 'Impossible de déplacer cet objet AD.'
+      )
+
+      setMoveOuError(message)
+      setStatus(message)
+      setMessage?.(message)
     } finally {
       setAdminLoading(false)
     }
   }
+
 
   async function submitAdAdminJob(event) {
     event.preventDefault()
@@ -5488,16 +5870,13 @@ function getAdAttributeValue(item, ...names) {
       {moveModal && (
         <div
           className="aduc-modal-backdrop"
-          onClick={() => {
-            if (!loading) {
-              setMoveModal(null)
-              setMoveTargetDn('')
-            }
-          }}
+          onClick={closeMoveModal}
         >
           <section
-            className="aduc-modal"
-            onClick={event => event.stopPropagation()}
+            className="aduc-modal aduc-move-modal"
+            onClick={event =>
+              event.stopPropagation()
+            }
           >
             <header>
               <div>
@@ -5507,11 +5886,8 @@ function getAdAttributeValue(item, ...names) {
 
               <button
                 type="button"
-                onClick={() => {
-                  setMoveModal(null)
-                  setMoveTargetDn('')
-                }}
-                disabled={loading}
+                onClick={closeMoveModal}
+                disabled={adminLoading}
               >
                 ×
               </button>
@@ -5521,54 +5897,166 @@ function getAdAttributeValue(item, ...names) {
               <div className="aduc-update-object-target">
                 <div>
                   <span>Objet cible</span>
-                  <strong>{getObjectName(moveModal)}</strong>
+                  <strong>
+                    {getObjectName(moveModal)}
+                  </strong>
                 </div>
 
                 <div>
                   <span>Type</span>
-                  <strong>{getObjectType(moveModal)}</strong>
+                  <strong>
+                    {getObjectType(moveModal)}
+                  </strong>
                 </div>
 
                 <div className="wide">
                   <span>DN actuel</span>
-                  <code>{getObjectDn(moveModal)}</code>
+                  <code>
+                    {getObjectDn(moveModal)}
+                  </code>
+                </div>
+
+                <div className="wide">
+                  <span>OU actuelle</span>
+                  <code>
+                    {getMoveCurrentParentDn(
+                      getObjectDn(moveModal)
+                    )}
+                  </code>
                 </div>
               </div>
 
               <label className="aduc-account-action-field">
                 <span>OU de destination</span>
 
+                <select
+                  key={
+                    moveOuOptions
+                      .map(option => option.dn)
+                      .join('|')
+                    || 'move-ou-loading'
+                  }
+                  value={moveTargetDn}
+                  onChange={event => {
+                    setMoveTargetDn(
+                      event.target.value
+                    )
+                    setMoveOuError('')
+                  }}
+                  autoFocus
+                  disabled={
+                    adminLoading
+                    || moveOuLoading
+                  }
+                >
+                  <option value="" disabled>
+                    {moveOuLoading
+                      ? 'Chargement des OU...'
+                      : 'Choisir une OU de destination'}
+                  </option>
+
+                  {!moveOuLoading
+                    && moveTargetDn
+                    && !moveOuOptions.some(
+                      option =>
+                        option.dn.toUpperCase()
+                        === moveTargetDn
+                          .toUpperCase()
+                    )
+                    && (
+                    <option value={moveTargetDn}>
+                      {getMoveOuDisplayLabel(
+                        moveTargetDn
+                      )} — personnalisée
+                    </option>
+                  )}
+
+                  {moveOuOptions.map(option => (
+                    <option
+                      key={option.dn}
+                      value={option.dn}
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+
+                <small>
+                  {moveOuLoading
+                    ? 'Chargement de l’arbre Active Directory...'
+                    : `${moveOuOptions.length} OU disponible${moveOuOptions.length > 1 ? 's' : ''}.`}
+                </small>
+              </label>
+
+              <details className="aduc-create-user-advanced-dn">
+                <summary>
+                  DN personnalisé / avancé
+                </summary>
+
                 <input
                   type="text"
                   className="mono"
                   value={moveTargetDn}
-                  onChange={event =>
-                    setMoveTargetDn(event.target.value)
-                  }
+                  onChange={event => {
+                    setMoveTargetDn(
+                      event.target.value
+                    )
+                    setMoveOuError('')
+                  }}
                   placeholder="OU=Destination,OU=EITAS,DC=API,DC=LOCAL"
-                  autoFocus
-                  disabled={loading}
+                  disabled={adminLoading}
                 />
+              </details>
 
-                <small>
-                  Saisis le Distinguished Name complet de l’OU
-                  de destination.
-                </small>
-              </label>
+              <div className="aduc-move-destination-summary">
+                <span>Nouvel emplacement</span>
 
-              <p className="aduc-update-object-help">
-                Seuls les objets placés dans le périmètre
-                OU=EITAS peuvent être déplacés par EITAS.
-              </p>
+                <strong>
+                  {moveTargetDn
+                    ? getMoveOuDisplayLabel(
+                        moveTargetDn
+                      )
+                    : 'Aucune destination'}
+                </strong>
+
+                <code>
+                  {moveTargetDn || '—'}
+                </code>
+              </div>
+
+              <div
+                className={`aduc-account-action-warning ${
+                  isAdProductionMode()
+                    ? 'production'
+                    : 'simulation'
+                }`}
+              >
+                <strong>
+                  {getAdAgentModeLabel()}
+                </strong>
+
+                <p>
+                  {isAdProductionMode()
+                    ? 'Le déplacement modifiera réellement Active Directory.'
+                    : 'Simulation active : aucun objet réel ne sera déplacé.'}
+                </p>
+              </div>
+
+              {moveOuError && (
+                <div className="aduc-member-submit-error">
+                  <strong>
+                    Déplacement impossible
+                  </strong>
+
+                  <span>{moveOuError}</span>
+                </div>
+              )}
 
               <footer className="aduc-modal-actions">
                 <button
                   type="button"
-                  onClick={() => {
-                    setMoveModal(null)
-                    setMoveTargetDn('')
-                  }}
-                  disabled={loading}
+                  onClick={closeMoveModal}
+                  disabled={adminLoading}
                 >
                   Annuler
                 </button>
@@ -5576,13 +6064,21 @@ function getAdAttributeValue(item, ...names) {
                 <button
                   type="submit"
                   disabled={
-                    loading ||
-                    !moveTargetDn.trim()
+                    adminLoading
+                    || moveOuLoading
+                    || adAgentModeLoading
+                    || Boolean(
+                      getMoveValidationError()
+                    )
                   }
                 >
-                  {loading
+                  {adminLoading
                     ? 'Déplacement...'
-                    : 'Déplacer'}
+                    : moveOuLoading
+                      ? 'Chargement des OU...'
+                      : adAgentModeLoading
+                        ? 'Vérification du mode...'
+                        : 'Déplacer'}
                 </button>
               </footer>
             </form>
