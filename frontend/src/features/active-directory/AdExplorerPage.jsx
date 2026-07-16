@@ -256,40 +256,101 @@ function getParentDn(dn) {
 }
 
 
+const AD_ADMIN_ACTION_LABELS = Object.freeze({
+  create_ou: 'Créer une OU',
+  create_group: 'Créer un groupe',
+  create_user: 'Créer un utilisateur',
+  create_computer: 'Créer un ordinateur',
+  add_group_member: 'Ajouter un membre au groupe',
+  remove_group_member: 'Retirer un membre du groupe',
+  move_object: 'Déplacer un objet',
+  rename_object: 'Renommer un objet',
+  delete_object: 'Supprimer un objet',
+  update_object_properties: 'Modifier les propriétés',
+  reset_password: 'Réinitialiser le mot de passe',
+  disable_account: 'Désactiver le compte',
+  enable_account: 'Activer le compte',
+  unlock_account: 'Déverrouiller le compte'
+})
+
+const AD_ADMIN_STATUS_LABELS = Object.freeze({
+  completed: 'Terminé',
+  failed: 'Échec',
+  processing: 'En cours',
+  pending: 'En attente',
+  claimed: 'Pris en charge',
+  queued: 'En file d’attente',
+  unknown: 'Inconnu'
+})
+
+const AD_ADMIN_TEXT_REPLACEMENTS = Object.freeze([
+  ['dÃ©jÃ\u00a0', 'déjà'],
+  ['dÃ©jÃ ', 'déjà '],
+  ['dÃ©jÃ', 'déjà'],
+  ['ajoutÃ©', 'ajouté'],
+  ['retirÃ©', 'retiré'],
+  ['crÃ©Ã©', 'créé'],
+  ['crÃ©Ã©e', 'créée'],
+  ['dÃ©placÃ©', 'déplacé'],
+  ['renommÃ©', 'renommé'],
+  ['supprimÃ©', 'supprimé'],
+  ['modifiÃ©', 'modifié'],
+  ['rÃ©initialisÃ©', 'réinitialisé'],
+  ['dÃ©sactivÃ©', 'désactivé'],
+  ['activÃ©', 'activé'],
+  ['dÃ©verrouillÃ©', 'déverrouillé'],
+  ['Ã‰', 'É'],
+  ['Ã€', 'À'],
+  ['Ã‡', 'Ç'],
+  ['Ã©', 'é'],
+  ['Ã¨', 'è'],
+  ['Ãª', 'ê'],
+  ['Ã«', 'ë'],
+  ['Ã ', 'à'],
+  ['Ã¢', 'â'],
+  ['Ã§', 'ç'],
+  ['Ã®', 'î'],
+  ['Ã¯', 'ï'],
+  ['Ã´', 'ô'],
+  ['Ã¶', 'ö'],
+  ['Ã¹', 'ù'],
+  ['Ã»', 'û'],
+  ['Ã¼', 'ü'],
+  ['â€™', '’'],
+  ['â€œ', '“'],
+  ['â€\u009d', '”'],
+  ['â€“', '–'],
+  ['â€”', '—'],
+  ['â€¢', '•'],
+  ['â€¦', '…'],
+  ['Â ', ' '],
+  ['Â', '']
+])
+
 function cleanAdHistoryText(value) {
-  return String(value || '')
-    .replaceAll('dÃ©jÃ ', 'déjà')
-    .replaceAll('dÃ©jÃ', 'déjà')
-    .replaceAll('dÃ©jÃ ', 'déjà ')
-    .replaceAll('ajoutÃ©', 'ajouté')
-    .replaceAll('retirÃ©', 'retiré')
-    .replaceAll('crÃ©Ã©', 'créé')
-    .replaceAll('Ã©', 'é')
-    .replaceAll('Ã¨', 'è')
-    .replaceAll('Ãª', 'ê')
-    .replaceAll('Ã ', 'à')
-    .replaceAll('Ã ', 'à')
-    .replaceAll('Ã§', 'ç')
-    .replaceAll(' deja ', ' déjà ')
-    .replaceAll(' deja  ', ' déjà ')
-    .replaceAll('deja', 'déjà')
-    .replace(/déjà\s+dans/g, 'déjà dans')
-    .replaceAll('déjà    dans', 'déjà dans')
-    .replaceAll('déjà   dans', 'déjà dans')
-    .replaceAll('déjà  dans', 'déjà dans')
+  let text = String(value ?? '')
+
+  for (
+    const [broken, corrected]
+    of AD_ADMIN_TEXT_REPLACEMENTS
+  ) {
+    text = text.split(broken).join(corrected)
+  }
+
+  return text
+    .replace(/\bdeja\b/gi, 'déjà')
+    .replace(/déjà\s+/gi, 'déjà ')
+    .trim()
 }
 
 function formatAdHistoryAction(action) {
-  return {
-    create_ou: 'Création OU',
-    create_group: 'Création groupe',
-    add_group_member: 'Ajout membre',
-    remove_group_member: 'Retrait membre',
-    move_object: 'Déplacement objet',
-    rename_object: 'Renommage objet',
-    delete_object: 'Suppression objet',
-    update_object_properties: 'Modification propriétés'
-  }[action] || action || 'Action AD'
+  const key = String(action || '').trim()
+
+  return (
+    AD_ADMIN_ACTION_LABELS[key]
+    || cleanAdHistoryText(key)
+    || 'Action Active Directory'
+  )
 }
 
 function formatAdHistoryDate(value) {
@@ -309,11 +370,27 @@ function formatAdHistoryDate(value) {
 }
 
 function formatAdHistoryStatus(job) {
-  if (job?.status === 'completed' && job?.success) return 'terminé'
-  if (job?.status === 'failed' || job?.success === false) return 'échec'
-  if (job?.status === 'processing') return 'en cours'
-  if (job?.status === 'pending') return 'en attente'
-  return job?.status || 'statut inconnu'
+  let status = String(
+    job?.status || 'unknown'
+  ).toLowerCase()
+
+  if (
+    status === 'failed'
+    || job?.success === false
+  ) {
+    status = 'failed'
+  } else if (
+    status === 'completed'
+    || job?.success === true
+  ) {
+    status = 'completed'
+  }
+
+  return (
+    AD_ADMIN_STATUS_LABELS[status]
+    || cleanAdHistoryText(status)
+    || AD_ADMIN_STATUS_LABELS.unknown
+  )
 }
 
 function formatAdHistoryMessage(job) {
@@ -1275,14 +1352,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
   function getAdActivityStatusLabel(job) {
-    const status = getAdActivityJobStatus(job)
-
-    if (status === 'completed') return 'terminé'
-    if (status === 'failed') return 'échec'
-    if (status === 'processing') return 'en cours'
-    if (status === 'pending') return 'en attente'
-
-    return status
+    return formatAdHistoryStatus(job)
   }
 
   function getAdHistoryDetailSummary(job) {
@@ -1304,7 +1374,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
   function copyAdHistoryDetailJson(job) {
-    copyText(JSON.stringify(job || {}, null, 2))
+    copyText(formatAdHistoryJson(job))
   }
 
   function getAdActivityResult(job) {
@@ -1417,20 +1487,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
   function getAdActivityActionLabel(action) {
-    const labels = {
-      create_ou: 'Création OU',
-      create_group: 'Création groupe',
-      create_user: 'Création utilisateur',
-      create_computer: 'Création ordinateur',
-      delete_object: 'Suppression objet',
-      move_object: 'Déplacement objet',
-      rename_object: 'Renommage objet',
-      update_object_properties: 'Modification objet',
-      add_group_member: 'Ajout membre',
-      remove_group_member: 'Retrait membre'
-    }
-
-    return labels[action] || action || 'Action AD'
+    return formatAdHistoryAction(action)
   }
 
   function getAdActivityDate(job) {
@@ -1457,12 +1514,14 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
   function getAdActivityMessage(job) {
-    const result = job?.result || job?.output || {}
+    const result = getAdActivityResult(job)
 
-    return job?.message
+    return cleanAdHistoryText(
+      job?.message
       || result?.message
       || result?.error
       || 'Aucun message'
+    )
   }
 
   function isAdActivityCritical(job) {
@@ -4389,15 +4448,7 @@ function getAdAttributeValue(item, ...names) {
   }
 
   function cleanAdAdminMessage(value) {
-    return String(value || '')
-      .replaceAll('dÃ©jÃ ', 'déjà')
-      .replaceAll('Ã©', 'é')
-      .replaceAll('Ã¨', 'è')
-      .replaceAll('Ãª', 'ê')
-      .replaceAll('Ã ', 'à')
-      .replaceAll('Ã§', 'ç')
-      .replaceAll('Ã´', 'ô')
-      .replaceAll('Ã»', 'û')
+    return cleanAdHistoryText(value)
   }
 
   function selectMemberCandidate(candidate) {
@@ -6897,12 +6948,12 @@ function getAdAttributeValue(item, ...names) {
             <div className="aduc-history-detail-json">
               <div className="aduc-history-detail-json-title">
                 <h4>Résultat agent</h4>
-                <button type="button" onClick={() => copyText(JSON.stringify(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {}, null, 2))}>
+                <button type="button" onClick={() => copyText(formatAdHistoryJson(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {}))}>
                   Copier
                 </button>
               </div>
 
-              <pre>{JSON.stringify(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {}, null, 2)}</pre>
+              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {})}</pre>
             </div>
 
             <div className="aduc-history-detail-json">
@@ -6913,7 +6964,7 @@ function getAdAttributeValue(item, ...names) {
                 </button>
               </div>
 
-              <pre>{JSON.stringify(selectedAdAdminHistoryJob, null, 2)}</pre>
+              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob)}</pre>
             </div>
 
             <footer className="aduc-modal-actions">
