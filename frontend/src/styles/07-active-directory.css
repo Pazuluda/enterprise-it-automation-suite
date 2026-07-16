@@ -5740,3 +5740,124 @@ button.aduc-admin-history-row.unknown > span {
     align-items: start;
   }
 }
+
+/* BLOC298A - AD Explorer breadcrumb navigation */
+
+.aduc-list-title {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.aduc-list-navigation {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.aduc-up-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.92);
+  color: #334155;
+  cursor: pointer;
+  font-size: 0.77rem;
+  font-weight: 750;
+}
+
+.aduc-up-button:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.34);
+  background: rgba(219, 234, 254, 0.68);
+  color: #1d4ed8;
+}
+
+.aduc-up-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.aduc-breadcrumb {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.aduc-breadcrumb > span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 3px;
+}
+
+.aduc-breadcrumb i {
+  color: #94a3b8;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.aduc-breadcrumb button {
+  max-width: 190px;
+  padding: 3px 5px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 0.77rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aduc-breadcrumb button:hover:not(:disabled) {
+  background: rgba(219, 234, 254, 0.72);
+}
+
+.aduc-breadcrumb .current button {
+  color: #475569;
+  cursor: default;
+  font-weight: 800;
+  opacity: 1;
+}
+
+.aduc-list-search {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1050px) {
+  .aduc-list-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .aduc-list-navigation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .aduc-breadcrumb {
+    width: 100%;
+    flex-wrap: wrap;
+    overflow: visible;
+    white-space: normal;
+  }
+
+  .aduc-list-search {
+    width: 100%;
+  }
+
+  .aduc-list-search input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}

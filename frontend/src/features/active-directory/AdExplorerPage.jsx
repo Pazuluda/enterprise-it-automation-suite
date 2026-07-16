@@ -256,6 +256,124 @@ function getParentDn(dn) {
 }
 
 
+function getAdDnPartLabel(part) {
+  return String(part || '')
+    .replace(/^(OU|DC|CN)=/i, '')
+    .replace(/\\,/g, ',')
+    .trim()
+}
+
+
+function buildAdCanonicalName(dn) {
+  const parts = String(dn || '')
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+
+  const domainParts = parts
+    .filter(part => /^DC=/i.test(part))
+    .map(getAdDnPartLabel)
+
+  const ouParts = parts
+    .filter(part => /^OU=/i.test(part))
+    .reverse()
+    .map(getAdDnPartLabel)
+
+  return [
+    domainParts.join('.'),
+    ...ouParts
+  ]
+    .filter(Boolean)
+    .join('/')
+}
+
+
+function buildAdNavigationNode(dn) {
+  const cleanDn = String(dn || '').trim()
+
+  if (!cleanDn) {
+    return null
+  }
+
+  const firstPart = cleanDn
+    .split(',')[0]
+    ?.trim()
+
+  const isDomain =
+    /^DC=/i.test(firstPart)
+
+  const name = isDomain
+    ? buildAdCanonicalName(cleanDn)
+    : getAdDnPartLabel(firstPart)
+
+  return {
+    name: name || cleanDn,
+    type: isDomain ? 'domain' : 'ou',
+    distinguished_name: cleanDn,
+    dn: cleanDn,
+    canonical_name:
+      buildAdCanonicalName(cleanDn)
+  }
+}
+
+
+function buildAdBreadcrumbs(dn) {
+  const cleanDn = String(dn || '').trim()
+
+  if (!cleanDn) {
+    return []
+  }
+
+  const parts = cleanDn
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+
+  const domainParts = parts.filter(
+    part => /^DC=/i.test(part)
+  )
+
+  if (domainParts.length === 0) {
+    return []
+  }
+
+  const domainDn = domainParts.join(',')
+
+  const domainLabel = domainParts
+    .map(getAdDnPartLabel)
+    .join('.')
+
+  const breadcrumbs = [
+    {
+      label: domainLabel || domainDn,
+      dn: domainDn,
+      node: buildAdNavigationNode(domainDn)
+    }
+  ]
+
+  const ouPartsFromRoot = parts
+    .filter(part => /^OU=/i.test(part))
+    .reverse()
+
+  ouPartsFromRoot.forEach((part, index) => {
+    const currentOuDn = [
+      ...ouPartsFromRoot
+        .slice(0, index + 1)
+        .reverse(),
+      ...domainParts
+    ].join(',')
+
+    breadcrumbs.push({
+      label: getAdDnPartLabel(part),
+      dn: currentOuDn,
+      node: buildAdNavigationNode(currentOuDn)
+    })
+  })
+
+  return breadcrumbs
+}
+
+
 const AD_ADMIN_ACTION_LABELS = Object.freeze({
   create_ou: 'Créer une OU',
   create_group: 'Créer un groupe',
@@ -2011,6 +2129,43 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     if (isGroupObject(item)) {
       loadGroupMembers(item)
     }
+  }
+
+
+  function navigateToAdDn(dn) {
+    const node = buildAdNavigationNode(dn)
+
+    if (!node) {
+      return
+    }
+
+    setViewFilter('')
+
+    loadNodeContent(
+      node,
+      getNodeKind(node)
+    )
+  }
+
+
+  function navigateToParentNode() {
+    const currentDn = getObjectDn(selectedNode)
+
+    if (
+      !currentDn
+      || currentDn.toUpperCase()
+        === DOMAIN_DN.toUpperCase()
+    ) {
+      return
+    }
+
+    const parentDn = getParentDn(currentDn)
+
+    if (!parentDn) {
+      return
+    }
+
+    navigateToAdDn(parentDn)
   }
 
   function openContextMenu(event, target, targetType = 'tree') {
@@ -5550,6 +5705,18 @@ function getAdAttributeValue(item, ...names) {
     loadAdAdminHistory()
   }, [])
 
+  const selectedNodeDn =
+    getObjectDn(selectedNode)
+
+  const adBreadcrumbs =
+    buildAdBreadcrumbs(selectedNodeDn)
+
+  const canNavigateToParent =
+    Boolean(selectedNodeDn)
+    && selectedNodeDn.toUpperCase()
+      !== DOMAIN_DN.toUpperCase()
+    && Boolean(getParentDn(selectedNodeDn))
+
   return (
     <div className="aduc-shell" onClick={closeContextMenu}>
       <div className="aduc-window">
@@ -5828,19 +5995,118 @@ function getAdAttributeValue(item, ...names) {
 
               <div className="aduc-list-pane">
                 <div className="aduc-list-head">
-                  <div>
-                    <h3>{selectedNode?.name || 'Objet AD'} <span>({filteredViewItems.length} objet{filteredViewItems.length > 1 ? 's' : ''})</span></h3>
-                    <small>{selectedNode?.canonical_name || selectedNode?.distinguished_name || '-'}</small>
+                  <div className="aduc-list-title">
+                    <div className="aduc-list-navigation">
+                      <button
+                        type="button"
+                        className="aduc-up-button"
+                        onClick={navigateToParentNode}
+                        disabled={!canNavigateToParent}
+                        title={
+                          canNavigateToParent
+                            ? 'Remonter d’un niveau'
+                            : 'Racine du domaine atteinte'
+                        }
+                      >
+                        ↑ Remonter
+                      </button>
+
+                      <nav
+                        className="aduc-breadcrumb"
+                        aria-label={
+                          "Chemin Active Directory"
+                        }
+                      >
+                        {adBreadcrumbs.map(
+                          (breadcrumb, index) => {
+                            const isCurrent =
+                              index
+                              === adBreadcrumbs.length - 1
+
+                            return (
+                              <span
+                                key={breadcrumb.dn}
+                                className={
+                                  isCurrent
+                                    ? 'current'
+                                    : ''
+                                }
+                              >
+                                {index > 0 && (
+                                  <i aria-hidden="true">
+                                    ›
+                                  </i>
+                                )}
+
+                                <button
+                                  type="button"
+                                  disabled={isCurrent}
+                                  onClick={() =>
+                                    navigateToAdDn(
+                                      breadcrumb.dn
+                                    )
+                                  }
+                                  title={
+                                    breadcrumb.dn
+                                  }
+                                >
+                                  {breadcrumb.label}
+                                </button>
+                              </span>
+                            )
+                          }
+                        )}
+                      </nav>
+                    </div>
+
+                    <h3>
+                      {selectedNode?.name || 'Objet AD'}
+                      {' '}
+                      <span>
+                        ({filteredViewItems.length}
+                        {' '}
+                        objet
+                        {filteredViewItems.length > 1
+                          ? 's'
+                          : ''}
+                        )
+                      </span>
+                    </h3>
+
+                    <small>
+                      {selectedNode?.canonical_name
+                        || selectedNode
+                          ?.distinguished_name
+                        || '-'}
+                    </small>
                   </div>
 
-                  <div>
+                  <div className="aduc-list-search">
                     <input
                       value={viewFilter}
-                      onChange={event => setViewFilter(event.target.value)}
-                      placeholder="Rechercher dans cette vue..."
+                      onChange={event =>
+                        setViewFilter(
+                          event.target.value
+                        )
+                      }
+                      placeholder={
+                        "Rechercher dans cette vue..."
+                      }
                     />
-                    <button type="button">⌕</button>
-                    <button type="button">≡</button>
+
+                    <button
+                      type="button"
+                      title="Rechercher"
+                    >
+                      ⌕
+                    </button>
+
+                    <button
+                      type="button"
+                      title="Options d’affichage"
+                    >
+                      ≡
+                    </button>
                   </div>
                 </div>
 
