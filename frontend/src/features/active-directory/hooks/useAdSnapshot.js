@@ -20,6 +20,11 @@ function useAdSnapshot({
   apiFetch,
   enabled = true,
   intervalMs = 5000,
+  endpoint = '/api/ad-snapshot',
+  invalidMessage =
+    'Snapshot Active Directory invalide.',
+  loadErrorMessage =
+    'Chargement du snapshot Active Directory impossible.',
 }) {
   const [snapshot, setSnapshot] = useState(null)
   const [snapshotLoading, setSnapshotLoading] =
@@ -63,16 +68,16 @@ function useAdSnapshot({
         try {
           const payload =
             await apiFetchRef.current(
-              '/api/ad-snapshot'
-            )
+                endpoint
+              )
 
           const normalized =
             normalizeAdSnapshot(payload)
 
           if (!normalized) {
             throw new Error(
-              'Snapshot Active Directory invalide.'
-            )
+                invalidMessage
+              )
           }
 
           snapshotRef.current = normalized
@@ -85,8 +90,8 @@ function useAdSnapshot({
           return normalized
         } catch (error) {
           const message =
-            error?.message ||
-            'Chargement du snapshot Active Directory impossible.'
+              error?.message ||
+              loadErrorMessage
 
           if (mountedRef.current) {
             setSnapshotError(message)
@@ -288,7 +293,13 @@ function useAdSnapshot({
       mountedRef.current = false
       window.clearInterval(intervalId)
     }
-  }, [enabled, intervalMs])
+  }, [
+    enabled,
+    intervalMs,
+    endpoint,
+    invalidMessage,
+    loadErrorMessage,
+  ])
 
   const snapshotIsUsable =
     isAdSnapshotUsable(snapshot)

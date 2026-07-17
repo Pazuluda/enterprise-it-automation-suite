@@ -3,6 +3,7 @@
     [int]$IntervalMilliseconds = 250,
     [int]$IntervalSeconds = 0,
     [int]$SnapshotIntervalSeconds = 5,
+    [int]$DomainCatalogIntervalSeconds = 15,
     [int]$HeartbeatSeconds = 60
 )
 
@@ -36,6 +37,8 @@ $Mode = Get-EitasResolvedAgentMode -Config $Config
 $NextHeartbeat = Get-Date
 $NextSnapshot = Get-Date
 $LastSnapshotCount = $null
+$NextDomainCatalog = Get-Date
+$LastDomainCatalogCount = $null
 Send-EitasWorkerHeartbeat -Config $Config -WorkerId "ad-lookup-worker" -WorkerName "AD Lookup Explorer Worker" -Role "ad-read" -Status "running" -Mode $Mode -StaleAfterSeconds 180 -Details @{ script = "Run-AdLookupWorker.ps1"; phase = "startup" } | Out-Null
 
 Write-EitasLog -Name "ad-lookup-worker-light.log" -Level "OK" -Message "EITAS AD Lookup/Explorer Worker léger démarré sur $AgentName" -Console
@@ -89,6 +92,54 @@ while ($true) {
                 $SnapshotDelay
             )
         }
+
+        if ($Now -ge $NextDomainCatalog) {
+            try {
+                $DomainCatalogResult = Publish-EitasAdDomainCatalog `
+                    -Config $Config
+
+                if (
+                    $null -eq $LastDomainCatalogCount -or
+                    $LastDomainCatalogCount -ne $DomainCatalogResult.count
+                ) {
+                    Write-EitasLog `
+                        -Name "ad-lookup-worker-light.log" `
+                        -Level "OK" `
+                        -Message (
+                            "Catalogue domaine publie : {0} objet(s) en {1} ms" `
+                                -f $DomainCatalogResult.count,
+                                   $DomainCatalogResult.build_milliseconds
+                        ) `
+                        -Console
+                }
+
+                $LastDomainCatalogCount = (
+                    $DomainCatalogResult.count
+                )
+            }
+            catch {
+                Write-EitasLog `
+                    -Name "ad-lookup-worker-light.log" `
+                    -Level "ERROR" `
+                    -Message (
+                        "Echec publication catalogue domaine : {0}" `
+                            -f $_.Exception.Message
+                    ) `
+                    -Console
+            }
+
+            $DomainCatalogDelay = [Math]::Max(
+                5,
+                $DomainCatalogIntervalSeconds
+            )
+
+            $NextDomainCatalog = (
+                Get-Date
+            ).AddSeconds(
+                $DomainCatalogDelay
+            )
+        }
+
 
         if ($Now -ge $NextHeartbeat) {
             Write-EitasLog -Name "ad-lookup-worker-light.log" -Level "INFO" -Message "Worker AD Lookup/Explorer actif, attente de jobs."

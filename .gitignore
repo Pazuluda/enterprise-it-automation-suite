@@ -39,6 +39,7 @@ api/data/worker-events.jsonl
 
 # Runtime Active Directory snapshot
 api/data/ad-snapshot.json
+api/data/ad-domain-catalog.json
 
 # Temporary files created by atomic JSON writes
 api/data/.*.tmp

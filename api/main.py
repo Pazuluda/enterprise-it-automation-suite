@@ -142,6 +142,25 @@ AD_SNAPSHOT_STALE_AFTER_SECONDS = max(
     3,
     int(os.getenv("EITAS_AD_SNAPSHOT_STALE_AFTER_SECONDS", "15")),
 )
+AD_DOMAIN_CATALOG_FILE = (
+    DATA_DIR / "ad-domain-catalog.json"
+)
+
+AD_DOMAIN_CATALOG_EXPECTED_BASE_DN = os.getenv(
+    "EITAS_AD_DOMAIN_CATALOG_BASE_DN",
+    "DC=API,DC=LOCAL",
+)
+
+AD_DOMAIN_CATALOG_STALE_AFTER_SECONDS = max(
+    5,
+    int(
+        os.getenv(
+            "EITAS_AD_DOMAIN_CATALOG_STALE_AFTER_SECONDS",
+            "30",
+        )
+    ),
+)
+
 AD_ADMIN_JOBS_FILE = DATA_DIR / "ad-admin-jobs.json"
 
 
@@ -632,6 +651,61 @@ def get_ad_snapshot(
             AD_SNAPSHOT_FILE,
             stale_after_seconds=AD_SNAPSHOT_STALE_AFTER_SECONDS,
         )
+    except ADSnapshotNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
+
+
+@app.post(
+    "/api/agent/ad-domain-catalog"
+)
+def receive_ad_domain_catalog(
+    payload: dict = Body(...),
+    api_key: None = Depends(
+        require_api_key
+    ),
+):
+    try:
+        response = service_receive_ad_snapshot(
+            AD_DOMAIN_CATALOG_FILE,
+            payload,
+            expected_base_dn=(
+                AD_DOMAIN_CATALOG_EXPECTED_BASE_DN
+            ),
+        )
+
+        response["message"] = (
+            "Catalogue Active Directory "
+            "du domaine enregistré."
+        )
+
+        return response
+
+    except ADSnapshotBadRequest as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+@app.get(
+    "/api/ad-domain-catalog"
+)
+def get_ad_domain_catalog(
+    api_key: None = Depends(
+        require_api_key
+    ),
+):
+    try:
+        return service_get_ad_snapshot(
+            AD_DOMAIN_CATALOG_FILE,
+            stale_after_seconds=(
+                AD_DOMAIN_CATALOG_STALE_AFTER_SECONDS
+            ),
+        )
+
     except ADSnapshotNotFound as exc:
         raise HTTPException(
             status_code=404,

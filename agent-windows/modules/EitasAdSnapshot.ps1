@@ -390,6 +390,227 @@ function New-EitasAdSnapshot {
 }
 
 
+function Convert-EitasDomainCatalogObject {
+    param([object]$Object)
+
+    $Type = Get-EitasSnapshotObjectType `
+        -Object $Object
+
+    if (
+        $Type -notin @(
+            "user",
+            "group",
+            "computer"
+        )
+    ) {
+        return $null
+    }
+
+    $UserAccountControl = 0
+
+    try {
+        $UserAccountControl = [int64]$Object.userAccountControl
+    }
+    catch {}
+
+    $Enabled = $null
+
+    if (
+        $Type -eq "user" -or
+        $Type -eq "computer"
+    ) {
+        $Enabled = (
+            ($UserAccountControl -band 2) -eq 0
+        )
+    }
+
+    return [pscustomobject]@{
+        type = $Type
+        object_class = $Type
+
+        name = [string]$Object.Name
+        display_name = [string]$Object.displayName
+
+        distinguished_name = [string]$Object.DistinguishedName
+        dn = [string]$Object.DistinguishedName
+        canonical_name = [string]$Object.canonicalName
+
+        sam_account_name = [string]$Object.sAMAccountName
+        user_principal_name = [string]$Object.userPrincipalName
+        mail = [string]$Object.mail
+
+        description = [string]$Object.description
+        department = [string]$Object.department
+        title = [string]$Object.title
+        company = [string]$Object.company
+        manager = [string]$Object.manager
+
+        enabled = $Enabled
+
+        group_scope = Get-EitasSnapshotGroupScope `
+            -GroupTypeValue $Object.groupType
+
+        group_category = Get-EitasSnapshotGroupCategory `
+            -GroupTypeValue $Object.groupType
+
+        dns_host_name = [string]$Object.dNSHostName
+        operating_system = [string]$Object.operatingSystem
+        operating_system_version = [string]$Object.operatingSystemVersion
+        operating_system_service_pack = [string]$Object.operatingSystemServicePack
+
+        location = [string]$Object.location
+        managed_by = [string]$Object.managedBy
+
+        last_logon = Convert-EitasSnapshotFileTimeValue `
+            -Value $Object.lastLogonTimestamp
+
+        created_at = Convert-EitasSnapshotDateValue `
+            -Value $Object.whenCreated
+
+        updated_at = Convert-EitasSnapshotDateValue `
+            -Value $Object.whenChanged
+
+        object_guid = [string]$Object.ObjectGUID
+        sid = [string]$Object.objectSid
+
+        members = @()
+        member_count = 0
+        member_of = @()
+    }
+}
+
+
+function New-EitasAdDomainCatalog {
+    param([object]$Config)
+
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
+    $BaseDn = Get-EitasAdDomainDn `
+        -Config $Config
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $BaseDn `
+        -Config $Config `
+        -AllowDomainRoot |
+        Out-Null
+
+    $Domain = Get-ADDomain `
+        -ErrorAction Stop
+
+    $Properties = @(
+        "description",
+        "displayName",
+        "sAMAccountName",
+        "userPrincipalName",
+        "mail",
+        "userAccountControl",
+        "lastLogonTimestamp",
+        "department",
+        "title",
+        "company",
+        "manager",
+        "groupType",
+        "canonicalName",
+        "whenCreated",
+        "whenChanged",
+        "dNSHostName",
+        "operatingSystem",
+        "operatingSystemVersion",
+        "operatingSystemServicePack",
+        "location",
+        "managedBy",
+        "objectGUID",
+        "objectSid"
+    )
+
+    $LdapFilter = (
+        "(|" +
+        "(&(objectCategory=person)(objectClass=user))" +
+        "(objectClass=group)" +
+        "(&(objectCategory=computer)(objectClass=computer))" +
+        ")"
+    )
+
+    $Watch = (
+        [System.Diagnostics.Stopwatch]::StartNew()
+    )
+
+    $Objects = @(
+        Get-ADObject `
+            -LDAPFilter $LdapFilter `
+            -SearchBase $BaseDn `
+            -SearchScope Subtree `
+            -Properties $Properties `
+            -ErrorAction Stop
+    )
+
+    $Items = @(
+        foreach ($Object in $Objects) {
+            $Item = Convert-EitasDomainCatalogObject `
+                -Object $Object
+
+            if ($null -ne $Item) {
+                $Item
+            }
+        }
+    )
+
+    $Items = @(
+        $Items |
+            Sort-Object `
+                @{Expression={$_.type}},
+                @{Expression={$_.name}}
+    )
+
+    $Watch.Stop()
+
+    $GeneratedAt = (
+        Get-Date
+    ).ToUniversalTime().ToString(
+        "yyyy-MM-ddTHH:mm:ss.fffZ",
+        [System.Globalization.CultureInfo]::InvariantCulture
+    )
+
+    return [pscustomobject]@{
+        version = $GeneratedAt
+        generated_at = $GeneratedAt
+        domain = [string]$Domain.DNSRoot
+        base_dn = [string]$BaseDn
+        controller = [string]$env:COMPUTERNAME
+        count = $Items.Count
+
+        build_milliseconds = [Math]::Round(
+            $Watch.Elapsed.TotalMilliseconds,
+            3
+        )
+
+        items = $Items
+    }
+}
+
+
+function Publish-EitasAdDomainCatalog {
+    param([object]$Config)
+
+    $Catalog = New-EitasAdDomainCatalog `
+        -Config $Config
+
+    $Response = Invoke-EitasApiRequest `
+        -Method "POST" `
+        -Path "/api/agent/ad-domain-catalog" `
+        -Body $Catalog `
+        -Config $Config
+
+    return [pscustomobject]@{
+        response = $Response
+        count = $Catalog.count
+        generated_at = $Catalog.generated_at
+        build_milliseconds = $Catalog.build_milliseconds
+    }
+}
+
+
 function Publish-EitasAdSnapshot {
     param([object]$Config)
 

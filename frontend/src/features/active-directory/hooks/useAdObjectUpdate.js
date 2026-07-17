@@ -13,6 +13,7 @@ function useAdObjectUpdate({
   setContextMenu,
   setLoading,
   runJob,
+  adDomainCatalog,
   runAdAdminJob,
   loadTree,
   loadComputersView,
@@ -257,12 +258,26 @@ function useAdObjectUpdate({
     setManagerSearchLoading(true)
 
     try {
-      const users = await runJob('search_users', {
-        query,
-        baseDn: 'DC=API,DC=LOCAL',
-        limit: 50,
-        recursive: true
-      })
+      let users =
+        await adDomainCatalog?.search?.({
+          query,
+          baseDn: 'DC=API,DC=LOCAL',
+          types: ['user'],
+          limit: 50,
+          recursive: true,
+        })
+
+      if (!Array.isArray(users)) {
+        users = await runJob(
+          'search_users',
+          {
+            query,
+            baseDn: 'DC=API,DC=LOCAL',
+            limit: 50,
+            recursive: true
+          }
+        )
+      }
 
       const currentDn = String(
         getObjectDn(updateModal) || ''
@@ -276,7 +291,8 @@ function useAdObjectUpdate({
 
       const results = users
         .filter(candidate => {
-          const candidateDn = getManagerCandidateDn(candidate)
+          const candidateDn =
+            getManagerCandidateDn(candidate)
 
           if (!candidateDn) return false
 
@@ -313,7 +329,9 @@ function useAdObjectUpdate({
           getMemberCandidateTitle(first).localeCompare(
             getMemberCandidateTitle(second),
             'fr',
-            { sensitivity: 'base' }
+            {
+              sensitivity: 'base',
+            }
           )
         )
 

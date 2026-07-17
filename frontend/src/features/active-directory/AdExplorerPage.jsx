@@ -96,6 +96,16 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     intervalMs: 5000,
   })
 
+  const adDomainCatalog = useAdSnapshot({
+    apiFetch,
+    endpoint: '/api/ad-domain-catalog',
+    intervalMs: 15000,
+    invalidMessage:
+      'Catalogue Active Directory du domaine invalide.',
+    loadErrorMessage:
+      'Chargement du catalogue Active Directory du domaine impossible.',
+  })
+
   const groupMembers = useAdGroupMembers({
     setMessage,
     setStatus,
@@ -253,6 +263,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setContextMenu,
     setLoading,
     runJob,
+    adDomainCatalog,
     runAdAdminJob,
     loadTree,
     loadComputersView,
@@ -1155,17 +1166,32 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     )
 
     try {
-      const computers = await runJob(
-        'list_computers',
-        {
-          query: '',
-          baseDn: DOMAIN_DN,
-          recursive: true,
-          limit: 1000
-        }
-      )
+      let items = await adDomainCatalog.search({
+        query: '',
+        baseDn: DOMAIN_DN,
+        recursive: true,
+        types: ['computer'],
+        limit: 1000,
+      })
 
-      const items = extractExplorerItems(computers)
+      const loadedFromCatalog =
+        Array.isArray(items)
+
+      if (!loadedFromCatalog) {
+        const computers = await runJob(
+          'list_computers',
+          {
+            query: '',
+            baseDn: DOMAIN_DN,
+            recursive: true,
+            limit: 1000
+          }
+        )
+
+        items = extractExplorerItems(
+          computers
+        )
+      }
 
       setSelectedNode({
         name: 'Ordinateurs',
@@ -1200,7 +1226,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setMembersError('')
 
       setStatus(
-        `${items.length} ordinateur(s) Active Directory chargé(s)`
+        loadedFromCatalog
+          ? `${items.length} ordinateur(s) chargé(s) depuis le catalogue du domaine`
+          : `${items.length} ordinateur(s) Active Directory chargé(s)`
       )
     } catch (error) {
       setViewItems([])
@@ -1244,64 +1272,98 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
     try {
       const baseDn = DOMAIN_DN
-      const lowered = query.toLowerCase()
 
-      const [
-        usersResult,
-        groupsResult,
-        computersResult
-      ] = await Promise.allSettled([
-        runJob('search_users', {
-          query,
-          baseDn,
-          recursive: true,
-          limit: 100
-        }),
-        runJob('list_groups', {
-          baseDn,
-          recursive: true,
-          limit: 500
-        }),
-        runJob('search_computers', {
-          query,
-          baseDn,
-          recursive: true,
-          limit: 500
-        })
-      ])
+      let results = await adDomainCatalog.search({
+        query,
+        baseDn,
+        recursive: true,
+        types: [
+          'user',
+          'group',
+          'computer',
+        ],
+        limit: 2000,
+      })
 
-      const results = []
+      const loadedFromCatalog =
+        Array.isArray(results)
 
-      if (usersResult.status === 'fulfilled') {
-        results.push(...extractExplorerItems(usersResult.value))
-      }
+      if (!loadedFromCatalog) {
+        const lowered = query.toLowerCase()
 
-      if (groupsResult.status === 'fulfilled') {
-        const groups = extractExplorerItems(groupsResult.value)
+        const [
+          usersResult,
+          groupsResult,
+          computersResult
+        ] = await Promise.allSettled([
+          runJob('search_users', {
+            query,
+            baseDn,
+            recursive: true,
+            limit: 100
+          }),
+          runJob('list_groups', {
+            baseDn,
+            recursive: true,
+            limit: 500
+          }),
+          runJob('search_computers', {
+            query,
+            baseDn,
+            recursive: true,
+            limit: 500
+          })
+        ])
 
-        results.push(...groups.filter(group => [
-          group?.name,
-          group?.sam_account_name,
-          group?.description,
-          group?.distinguished_name,
-          group?.dn
-        ]
-          .filter(Boolean)
-          .some(value => String(value).toLowerCase().includes(lowered))
-        ))
-      }
+        results = []
 
-      if (computersResult.status === 'fulfilled') {
-        results.push(
-          ...extractExplorerItems(
-            computersResult.value
+        if (usersResult.status === 'fulfilled') {
+          results.push(
+            ...extractExplorerItems(
+              usersResult.value
+            )
           )
-        )
+        }
+
+        if (groupsResult.status === 'fulfilled') {
+          const groups = extractExplorerItems(
+            groupsResult.value
+          )
+
+          results.push(
+            ...groups.filter(group => [
+              group?.name,
+              group?.sam_account_name,
+              group?.description,
+              group?.distinguished_name,
+              group?.dn
+            ]
+              .filter(Boolean)
+              .some(value =>
+                String(value)
+                  .toLowerCase()
+                  .includes(lowered)
+              )
+            )
+          )
+        }
+
+        if (computersResult.status === 'fulfilled') {
+          results.push(
+            ...extractExplorerItems(
+              computersResult.value
+            )
+          )
+        }
       }
 
       const seen = new Set()
+
       const uniqueResults = results.filter(item => {
-        const key = getObjectDn(item) || item?.sam_account_name || item?.name
+        const key =
+          getObjectDn(item) ||
+          item?.sam_account_name ||
+          item?.name
 
         if (!key) return true
         if (seen.has(key)) return false
@@ -1323,9 +1385,16 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setObjectMembers([])
       setMembersError('')
 
-      setStatus(`${uniqueResults.length} résultat(s) pour ${query}`)
-    } catch (err) {
-      setStatus(err.message || 'Recherche globale AD impossible.')
+      setStatus(
+        loadedFromCatalog
+          ? `${uniqueResults.length} résultat(s) pour ${query} depuis le catalogue du domaine`
+          : `${uniqueResults.length} résultat(s) pour ${query}`
+      )
+    } catch (error) {
+      setStatus(
+        error.message ||
+        'Recherche globale AD impossible.'
+      )
     } finally {
       setGlobalAdSearchLoading(false)
     }
