@@ -1,1303 +1,48 @@
-import { useEffect, useMemo, useState } from 'react'
-
-const DOMAIN_DN = 'DC=API,DC=LOCAL'
-const EITAS_DN = `OU=EITAS,${DOMAIN_DN}`
-const USERS_DN = `OU=Users,${EITAS_DN}`
-const GROUPS_DN = `OU=Groups,${EITAS_DN}`
-const COMPUTERS_DN = `OU=Computers,${EITAS_DN}`
-
-function isEitasManagedDn(value) {
-  const dn = String(value || '')
-    .trim()
-    .toLowerCase()
-
-  const allowedBase = EITAS_DN.toLowerCase()
-
-  return (
-    dn === allowedBase ||
-    dn.endsWith(`,${allowedBase}`)
-  )
-}
-
-function isEitasManagedObject(item) {
-  return isEitasManagedDn(getObjectDn(item))
-}
-
-function normalizeBaseDn(value) {
-  const clean = String(value || '').trim()
-  if (!clean) return ''
-  if (/^(OU|DC|CN)=/i.test(clean)) return clean
-
-  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(clean)) {
-    return clean
-      .split('.')
-      .filter(Boolean)
-      .map(part => `DC=${part.toUpperCase()}`)
-      .join(',')
-  }
-
-  return clean
-}
-
-function getOuDepth(item) {
-  const dn = String(item?.distinguished_name || '')
-  const ouParts = dn.split(',').filter(part => part.trim().toUpperCase().startsWith('OU='))
-  return Math.max(0, ouParts.length - 1)
-}
-
-function buildOuTree(items) {
-  return items
-    .filter(item => String(item?.distinguished_name || '').startsWith('OU='))
-    .map(item => ({
-      ...item,
-      depth: getOuDepth(item)
-    }))
-    .sort((a, b) => {
-      const pathA = a.canonical_name || a.distinguished_name || a.name || ''
-      const pathB = b.canonical_name || b.distinguished_name || b.name || ''
-      return pathA.localeCompare(pathB)
-    })
-}
-
-function objectIcon(item) {
-  const name = String(item?.name || '').toLowerCase()
-
-  if (name.includes('group')) return '📁'
-  if (name.includes('user')) return '📁'
-  if (name.includes('disabled')) return '📁'
-  if (name.includes('domain controller')) return '📁'
-  if (name.includes('computer')) return '📁'
-  return '📁'
-}
-
-function getNodeKind(item) {
-  const dn = String(item?.distinguished_name || '')
-  const name = String(item?.name || '').toLowerCase()
-
-  if (name.includes('group')) return 'groups'
-  if (name.includes('user')) return 'users'
-  if (dn.includes('OU=Groups')) return 'groups'
-  if (dn.includes('OU=Users')) return 'users'
-  return 'ou'
-}
-
-function extractExplorerItems(value) {
-  if (Array.isArray(value)) return value
-  if (Array.isArray(value?.items)) return value.items
-  if (Array.isArray(value?.result?.items)) return value.result.items
-  if (Array.isArray(value?.output?.items)) return value.output.items
-  return []
-}
-
-function getObjectName(item) {
-  return item?.name || item?.display_name || item?.sam_account_name || '-'
-}
-
-function getGroupDescription(item) {
-  if (getObjectType(item) === 'Ordinateur') {
-    return (
-      item?.description ||
-      [
-        item?.operating_system,
-        item?.operating_system_version
-      ]
-        .filter(Boolean)
-        .join(' ') ||
-      item?.dns_host_name ||
-      'Ordinateur Active Directory'
-    )
-  }
-
-  if (getObjectType(item) === 'Utilisateur') {
-    return (
-      item?.description ||
-      item?.user_principal_name ||
-      'Utilisateur Active Directory'
-    )
-  }
-
-  return item?.description || 'Objet Active Directory'
-}
-
-function getObjectType(item) {
-  const rawType = String(
-    item?.type ||
-    item?.object_class ||
-    item?.objectClass ||
-    ''
-  ).toLowerCase()
-
-  if (rawType === 'computer-container') {
-    return 'Conteneur d’ordinateurs'
-  }
-
-  if (
-    rawType === 'computer' ||
-    item?.dns_host_name ||
-    item?.dnsHostName
-  ) {
-    return 'Ordinateur'
-  }
-
-  if (
-    item?.type === 'group' ||
-    item?.scope ||
-    item?.category
-  ) {
-    return 'Groupe de sécurité'
-  }
-
-  if (
-    item?.type === 'user' ||
-    item?.user_principal_name
-  ) {
-    return 'Utilisateur'
-  }
-
-  if (item?.type === 'ou') {
-    return 'Unité d’organisation'
-  }
-
-  return item?.type || 'Objet AD'
-}
-
-
-function getObjectDn(item) {
-  return item?.distinguished_name || item?.dn || ''
-}
-
-function isOuObject(item) {
-  const dn = String(getObjectDn(item)).toUpperCase()
-  return item?.type === 'ou' || dn.startsWith('OU=')
-}
-
-function formatAdValue(value) {
-  if (value === null || value === undefined || value === '') return '—'
-  if (typeof value === 'boolean') return value ? 'Oui' : 'Non'
-  return String(value)
-}
-
-function formatGroupScope(value) {
-  const map = {
-    0: 'DomainLocal',
-    1: 'Global',
-    2: 'Universal',
-    DomainLocal: 'DomainLocal',
-    Global: 'Global',
-    Universal: 'Universal'
-  }
-
-  return map[value] || value
-}
-
-function formatGroupCategory(value) {
-  const map = {
-    0: 'Distribution',
-    1: 'Security',
-    Distribution: 'Distribution',
-    Security: 'Security'
-  }
-
-  return map[value] || value
-}
-
-function getObjectMetaRows(item) {
-  if (!item) return []
-
-  const rows = [
-    { label: 'Nom', value: getObjectName(item) },
-    { label: 'Type', value: getObjectType(item) },
-    { label: 'SamAccountName', value: item?.sam_account_name },
-    { label: 'UPN', value: item?.user_principal_name },
-    {
-      label: 'Nom DNS',
-      value: item?.dns_host_name || item?.dnsHostName
-    },
-    {
-      label: 'Adresse IPv4',
-      value: item?.ipv4_address || item?.ipv4Address
-    },
-    {
-      label: 'Système',
-      value: item?.operating_system || item?.operatingSystem
-    },
-    {
-      label: 'Version du système',
-      value:
-        item?.operating_system_version ||
-        item?.operatingSystemVersion
-    },
-    { label: 'Scope', value: item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
-    { label: 'Catégorie', value: item?.group_category !== undefined ? formatGroupCategory(item.group_category) : '' },
-    { label: 'Description', value: item?.description },
-    { label: 'DN', value: getObjectDn(item), long: true }
-  ]
-
-  return rows.filter(row => row.value !== undefined && row.value !== null && row.value !== '')
-}
-
-
-function isGroupObject(item) {
-  const type = getObjectType(item)
-  return item?.type === 'group' || type.includes('Groupe')
-}
-
-function getRenameDefaultName(item) {
-  return item?.name || item?.sam_account_name || ''
-}
-
-function getParentDn(dn) {
-  const value = String(dn || '')
-  const index = value.indexOf(',')
-
-  if (index === -1) return ''
-
-  return value.slice(index + 1)
-}
-
-
-function getAdDnPartLabel(part) {
-  return String(part || '')
-    .replace(/^(OU|DC|CN)=/i, '')
-    .replace(/\\,/g, ',')
-    .trim()
-}
-
-
-function buildAdCanonicalName(dn) {
-  const parts = String(dn || '')
-    .split(',')
-    .map(part => part.trim())
-    .filter(Boolean)
-
-  const domainParts = parts
-    .filter(part => /^DC=/i.test(part))
-    .map(getAdDnPartLabel)
-
-  const ouParts = parts
-    .filter(part => /^OU=/i.test(part))
-    .reverse()
-    .map(getAdDnPartLabel)
-
-  return [
-    domainParts.join('.'),
-    ...ouParts
-  ]
-    .filter(Boolean)
-    .join('/')
-}
-
-
-function buildAdNavigationNode(dn) {
-  const cleanDn = String(dn || '').trim()
-
-  if (!cleanDn) {
-    return null
-  }
-
-  const firstPart = cleanDn
-    .split(',')[0]
-    ?.trim()
-
-  const isDomain =
-    /^DC=/i.test(firstPart)
-
-  const name = isDomain
-    ? buildAdCanonicalName(cleanDn)
-    : getAdDnPartLabel(firstPart)
-
-  return {
-    name: name || cleanDn,
-    type: isDomain ? 'domain' : 'ou',
-    distinguished_name: cleanDn,
-    dn: cleanDn,
-    canonical_name:
-      buildAdCanonicalName(cleanDn)
-  }
-}
-
-
-function buildAdBreadcrumbs(dn) {
-  const cleanDn = String(dn || '').trim()
-
-  if (!cleanDn) {
-    return []
-  }
-
-  const parts = cleanDn
-    .split(',')
-    .map(part => part.trim())
-    .filter(Boolean)
-
-  const domainParts = parts.filter(
-    part => /^DC=/i.test(part)
-  )
-
-  if (domainParts.length === 0) {
-    return []
-  }
-
-  const domainDn = domainParts.join(',')
-
-  const domainLabel = domainParts
-    .map(getAdDnPartLabel)
-    .join('.')
-
-  const breadcrumbs = [
-    {
-      label: domainLabel || domainDn,
-      dn: domainDn,
-      node: buildAdNavigationNode(domainDn)
-    }
-  ]
-
-  const ouPartsFromRoot = parts
-    .filter(part => /^OU=/i.test(part))
-    .reverse()
-
-  ouPartsFromRoot.forEach((part, index) => {
-    const currentOuDn = [
-      ...ouPartsFromRoot
-        .slice(0, index + 1)
-        .reverse(),
-      ...domainParts
-    ].join(',')
-
-    breadcrumbs.push({
-      label: getAdDnPartLabel(part),
-      dn: currentOuDn,
-      node: buildAdNavigationNode(currentOuDn)
-    })
-  })
-
-  return breadcrumbs
-}
-
-
-const AD_ADMIN_ACTION_LABELS = Object.freeze({
-  create_ou: 'Créer une OU',
-  create_group: 'Créer un groupe',
-  create_user: 'Créer un utilisateur',
-  create_computer: 'Créer un ordinateur',
-  add_group_member: 'Ajouter un membre au groupe',
-  remove_group_member: 'Retirer un membre du groupe',
-  move_object: 'Déplacer un objet',
-  rename_object: 'Renommer un objet',
-  delete_object: 'Supprimer un objet',
-  update_object_properties: 'Modifier les propriétés',
-  reset_password: 'Réinitialiser le mot de passe',
-  disable_account: 'Désactiver le compte',
-  enable_account: 'Activer le compte',
-  unlock_account: 'Déverrouiller le compte'
-})
-
-const AD_ADMIN_STATUS_LABELS = Object.freeze({
-  completed: 'Terminé',
-  failed: 'Échec',
-  processing: 'En cours',
-  pending: 'En attente',
-  claimed: 'Pris en charge',
-  queued: 'En file d’attente',
-  unknown: 'Inconnu'
-})
-
-const AD_ADMIN_TEXT_REPLACEMENTS = Object.freeze([
-  ['dÃ©jÃ\u00a0', 'déjà'],
-  ['dÃ©jÃ ', 'déjà '],
-  ['dÃ©jÃ', 'déjà'],
-  ['ajoutÃ©', 'ajouté'],
-  ['retirÃ©', 'retiré'],
-  ['crÃ©Ã©', 'créé'],
-  ['crÃ©Ã©e', 'créée'],
-  ['dÃ©placÃ©', 'déplacé'],
-  ['renommÃ©', 'renommé'],
-  ['supprimÃ©', 'supprimé'],
-  ['modifiÃ©', 'modifié'],
-  ['rÃ©initialisÃ©', 'réinitialisé'],
-  ['dÃ©sactivÃ©', 'désactivé'],
-  ['activÃ©', 'activé'],
-  ['dÃ©verrouillÃ©', 'déverrouillé'],
-  ['Ã‰', 'É'],
-  ['Ã€', 'À'],
-  ['Ã‡', 'Ç'],
-  ['Ã©', 'é'],
-  ['Ã¨', 'è'],
-  ['Ãª', 'ê'],
-  ['Ã«', 'ë'],
-  ['Ã ', 'à'],
-  ['Ã¢', 'â'],
-  ['Ã§', 'ç'],
-  ['Ã®', 'î'],
-  ['Ã¯', 'ï'],
-  ['Ã´', 'ô'],
-  ['Ã¶', 'ö'],
-  ['Ã¹', 'ù'],
-  ['Ã»', 'û'],
-  ['Ã¼', 'ü'],
-  ['â€™', '’'],
-  ['â€œ', '“'],
-  ['â€\u009d', '”'],
-  ['â€“', '–'],
-  ['â€”', '—'],
-  ['â€¢', '•'],
-  ['â€¦', '…'],
-  ['Â ', ' '],
-  ['Â', '']
-])
-
-function cleanAdHistoryText(value) {
-  let text = String(value ?? '')
-
-  for (
-    const [broken, corrected]
-    of AD_ADMIN_TEXT_REPLACEMENTS
-  ) {
-    text = text.split(broken).join(corrected)
-  }
-
-  return text
-    .replace(/\bdeja\b/gi, 'déjà')
-    .replace(/déjà\s+/gi, 'déjà ')
-    .trim()
-}
-
-function formatAdHistoryAction(action) {
-  const key = String(action || '').trim()
-
-  return (
-    AD_ADMIN_ACTION_LABELS[key]
-    || cleanAdHistoryText(key)
-    || 'Action Active Directory'
-  )
-}
-
-function formatAdHistoryDate(value) {
-  if (!value) return '—'
-
-  try {
-    return new Date(value).toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return value
-  }
-}
-
-function formatAdHistoryStatus(job) {
-  let status = String(
-    job?.status || 'unknown'
-  ).toLowerCase()
-
-  if (
-    status === 'failed'
-    || job?.success === false
-  ) {
-    status = 'failed'
-  } else if (
-    status === 'completed'
-    || job?.success === true
-  ) {
-    status = 'completed'
-  }
-
-  return (
-    AD_ADMIN_STATUS_LABELS[status]
-    || cleanAdHistoryText(status)
-    || AD_ADMIN_STATUS_LABELS.unknown
-  )
-}
-
-function formatAdHistoryMessage(job) {
-  const output = job?.output || {}
-  const payload = job?.payload || {}
-  const group = output.group || payload.group_identity || 'groupe'
-  const member = output.member || payload.member_identity || 'membre'
-
-  if (job?.action === 'add_group_member' && output.already_member) {
-    return `${member} est déjà membre de ${group}`
-  }
-
-  if (job?.action === 'add_group_member') {
-    return `${member} ajouté au groupe ${group}`
-  }
-
-  if (job?.action === 'remove_group_member') {
-    return `${member} retiré du groupe ${group}`
-  }
-  if (job?.action === 'move_object') {
-    const objectName = output.object || payload.object_identity || 'Objet AD'
-    const target = output.target_parent_dn || payload.target_parent_dn || 'destination'
-    return `${objectName} déplacé vers ${target}`
-  }
-
-
-  if (job?.action === 'create_group') {
-    return `Groupe ${payload.name || output.name || group} créé`
-  }
-
-  if (job?.action === 'create_ou') {
-    return `OU ${payload.name || output.name || 'AD'} créée`
-  }
-
-  return cleanAdHistoryText(output.message || job?.message || '—')
-}
-
-
-function formatAdHistorySummary(job) {
-  return [
-    `Action : ${formatAdHistoryAction(job?.action)}`,
-    `Statut : ${formatAdHistoryStatus(job)}`,
-    `Agent : ${job?.agent_name || job?.claimed_by || 'Agent non assigné'}`,
-    `Résultat : ${formatAdHistoryMessage(job)}`
-  ].join('\n')
-}
-
-function formatAdHistoryJson(value) {
-  return cleanAdHistoryText(JSON.stringify(value || {}, null, 2))
-}
-
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject }) {
-  const [activeDetailsTab, setActiveDetailsTab] = useState('general')
-  const displayed = object || selectedNode
-  const hasObject = Boolean(displayed)
-  const rows = getObjectMetaRows(displayed)
-  const dn = getObjectDn(displayed)
-  const isManagedScope = isEitasManagedDn(dn)
-  const type = getObjectType(displayed)
-  const objectName = hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'
-  const objectClass = String(
-    displayed?.objectClass ||
-    displayed?.object_class ||
-    displayed?.type ||
-    ''
-  ).toLowerCase()
-
-  const isComputerContainer =
-    objectClass === 'computer-container'
-
-  const isOu = isOuObject(displayed)
-  const isGroup = isGroupObject(displayed)
-  const isUser =
-    type.includes('Utilisateur') ||
-    objectClass === 'user'
-
-  const isComputer =
-    !isComputerContainer &&
-    (
-      type === 'Ordinateur' ||
-      objectClass === 'computer'
-    )
-  const members = Array.isArray(memberItems) ? memberItems : []
-  const history = Array.isArray(historyItems) ? historyItems : []
-
-  function getHistoryStatus(job) {
-    if (job?.status === 'failed' || job?.success === false) return 'failed'
-    if (job?.status === 'processing') return 'processing'
-    if (job?.status === 'pending') return 'pending'
-    if (job?.status === 'completed' || job?.success === true) return 'completed'
-    return job?.status || 'unknown'
-  }
-
-  function getHistoryCounter(filterValue) {
-    return history.filter(job => {
-      const status = getHistoryStatus(job)
-
-      if (filterValue === 'all') return true
-      if (filterValue === 'success') return status === 'completed'
-      if (filterValue === 'running') return status === 'processing' || status === 'pending'
-      if (filterValue === 'failed') return status === 'failed'
-      if (filterValue === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
-      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
-      if (filterValue === 'delete') return job.action === 'delete_object'
-      if (filterValue === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
-      if (filterValue === 'move') return job.action === 'move_object'
-
-      return true
-    }).length
-  }
-
-  const filteredHistory = history.filter(job => {
-    const status = getHistoryStatus(job)
-
-    if (historyFilter === 'all') return true
-    if (historyFilter === 'success') return status === 'completed'
-    if (historyFilter === 'running') return status === 'processing' || status === 'pending'
-    if (historyFilter === 'failed') return status === 'failed'
-    if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
-    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
-    if (historyFilter === 'delete') return job.action === 'delete_object'
-    if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
-    if (historyFilter === 'move') return job.action === 'move_object'
-    return true
-  })
-
-  const historyFilterOptions = [
-    ['all', 'Tout'],
-    ['success', 'Succès'],
-    ['running', 'En cours'],
-    ['failed', 'Échecs'],
-    ['create', 'Créations'],
-    ['delete', 'Suppressions'],
-    ['edit', 'Modifs'],
-    ['move', 'Déplacements'],
-    ['members', 'Membres']
-  ].map(([value, label]) => ({
-    value,
-    label,
-    count: getHistoryCounter(value)
-  }))
-
-  function pickAdField(names) {
-    for (const name of names) {
-      const value = displayed?.[name]
-      if (value !== null && value !== undefined && String(value).trim() !== '') {
-        return value
-      }
-    }
-
-    return ''
-  }
-
-  function boolLabel(value) {
-    if (value === true || String(value).toLowerCase() === 'true') return 'Oui'
-    if (value === false || String(value).toLowerCase() === 'false') return 'Non'
-    if (String(value).trim() === '1') return 'Oui'
-    if (String(value).trim() === '0') return 'Non'
-    return value || ''
-  }
-
-  function getAccountStatus() {
-    const locked = pickAdField(['locked_out', 'lockedOut', 'LockedOut'])
-    const enabled = pickAdField(['enabled', 'Enabled'])
-    const disabled = pickAdField(['disabled', 'Disabled'])
-    const passwordExpired = pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired'])
-
-    if (locked === true || String(locked).toLowerCase() === 'true') return 'Verrouillé'
-    if (enabled === false || String(enabled).toLowerCase() === 'false') return 'Désactivé'
-    if (disabled === true || String(disabled).toLowerCase() === 'true') return 'Désactivé'
-    if (passwordExpired === true || String(passwordExpired).toLowerCase() === 'true') return 'MDP expiré'
-    if (enabled === true || String(enabled).toLowerCase() === 'true') return 'Activé'
-
-    return 'État inconnu'
-  }
-
-  function getAccountStatusClass() {
-    const status = getAccountStatus().toLowerCase()
-
-    if (status.includes('verrouillé')) return 'locked'
-    if (status.includes('désactivé')) return 'disabled'
-    if (status.includes('expiré')) return 'expired'
-    if (status.includes('activé')) return 'enabled'
-
-    return 'unknown'
-  }
-
-  const generalRows = rows.length ? rows.map(row => [row.label, row.value, row.long]) : [
-    ['Nom', objectName],
-    ['Type', type],
-    ['Description', pickAdField(['description'])],
-    ['SamAccountName', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
-    ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])]
-  ]
-
-  const accountRows = [
-    ['État du compte', getAccountStatus()],
-    ['SamAccountName', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
-    ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])],
-    ['Activé', boolLabel(pickAdField(['enabled', 'Enabled']))],
-    ['Verrouillé', boolLabel(pickAdField(['locked_out', 'lockedOut', 'LockedOut']))],
-    ['Mot de passe expiré', boolLabel(pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired']))],
-    ['Mot de passe jamais expiré', boolLabel(pickAdField(['password_never_expires', 'passwordNeverExpires', 'PasswordNeverExpires']))],
-    ['Ne peut pas changer MDP', boolLabel(pickAdField(['cannot_change_password', 'cannotChangePassword', 'CannotChangePassword']))],
-    ['Dernier changement MDP', formatAdHistoryDate(pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet']))],
-    ['Dernière connexion', formatAdHistoryDate(pickAdField(['last_logon_date', 'lastLogonDate', 'last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate']))],
-    ['Dernière erreur MDP', pickAdField(['last_bad_password_attempt', 'lastBadPasswordAttempt', 'LastBadPasswordAttempt'])],
-    ['Tentatives échouées', pickAdField(['bad_logon_count', 'badLogonCount', 'BadLogonCount'])],
-    ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])]
-  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
-
-  const objectRows = [
-    ['DN', dn, true],
-    ['Canonical name', pickAdField(['canonical_name', 'canonicalName'])],
-    ['ObjectClass', pickAdField(['objectClass', 'object_class', 'type'])],
-    ['ObjectGUID', pickAdField(['object_guid', 'objectGUID', 'guid'])],
-    ['SID', pickAdField(['sid', 'objectSid'])],
-    ['Créé le', formatAdHistoryDate(pickAdField(['created_at', 'whenCreated', 'created']))],
-    ['Modifié le', formatAdHistoryDate(pickAdField(['updated_at', 'whenChanged', 'modified']))],
-    ['Protection suppression accidentelle', pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion'])]
-  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
-
-    const orgValue = names => pickAdField(names)
-
-    const managerDn = orgValue([
-      'manager',
-      'manager_dn',
-      'managerDn'
-    ])
-
-    const orgRows = [
-      ['Titre / poste', orgValue(['title', 'job_title', 'poste'])],
-      ['Service', orgValue(['department', 'service'])],
-      ['Division', orgValue(['division', 'business_unit', 'businessUnit'])],
-      ['Société', orgValue(['company'])],
-      ['Bureau', orgValue(['office', 'physicalDeliveryOfficeName'])]
-    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
-
-    const hrRows = [
-      [
-        'Employee ID',
-        orgValue([
-          'employee_id',
-          'employeeID',
-          'EmployeeID',
-          'employee_number',
-          'employeeNumber'
-        ])
-      ],
-      ['Manager', managerDn, true]
-    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
-
-    const contactRows = [
-      ['E-mail', orgValue(['mail', 'email', 'emailAddress'])],
-      ['Téléphone', orgValue(['telephone_number', 'telephoneNumber', 'phone'])],
-      ['Mobile', orgValue(['mobile', 'mobilePhone'])],
-      ['Adresse', orgValue(['street_address', 'streetAddress']), true],
-      ['Code postal', orgValue(['postal_code', 'postalCode'])],
-      ['Ville', orgValue(['city', 'l'])],
-      ['Région / département', orgValue(['state', 'st'])],
-      ['Pays', orgValue(['country', 'co', 'c'])]
-    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
-
-  const computerEnabledValue = orgValue([
-    'enabled',
-    'Enabled'
-  ])
-
-  const computerEnabledText =
-    computerEnabledValue === true ||
-    String(computerEnabledValue || '')
-      .toLowerCase() === 'true'
-      ? 'Activé'
-      : computerEnabledValue === false ||
-          String(computerEnabledValue || '')
-            .toLowerCase() === 'false'
-        ? 'Désactivé'
-        : ''
-
-  const machineRows = [
-    ['État du compte machine', computerEnabledText],
-    [
-      'Nom DNS',
-      orgValue([
-        'dns_host_name',
-        'dnsHostName'
-      ])
-    ],
-    [
-      'Adresse IPv4',
-      orgValue([
-        'ipv4_address',
-        'ipv4Address'
-      ])
-    ],
-    [
-      'Système d’exploitation',
-      orgValue([
-        'operating_system',
-        'operatingSystem'
-      ])
-    ],
-    [
-      'Version du système',
-      orgValue([
-        'operating_system_version',
-        'operatingSystemVersion'
-      ])
-    ],
-    [
-      'Service Pack',
-      orgValue([
-        'operating_system_service_pack',
-        'operatingSystemServicePack'
-      ])
-    ],
-    [
-      'Dernière connexion',
-      formatAdHistoryDate(
-        orgValue([
-          'last_logon_date',
-          'lastLogonDate'
-        ])
-      )
-    ],
-    [
-      'Mot de passe machine modifié',
-      formatAdHistoryDate(
-        orgValue([
-          'password_last_set',
-          'passwordLastSet'
-        ])
-      )
-    ],
-    ['Emplacement', orgValue(['location'])],
-    [
-      'Géré par',
-      orgValue([
-        'managed_by',
-        'managedBy'
-      ])
-    ]
-  ].filter(
-    ([, value]) =>
-      value !== '' &&
-      value !== null &&
-      value !== undefined
-  )
-
-  const tabs = [
-    ['general', 'Général'],
-    ...(isUser || isComputer ? [['account', 'Compte']] : []),
-    ...(isComputer ? [['machine', 'Machine']] : []),
-    ['object', 'Objet'],
-    ['organization', 'Organisation'],
-    ['groups', isGroup ? 'Membres' : 'Groupes'],
-    ['history', 'Historique']
-  ]
-
-  function renderGrid(gridRows, emptyText = 'Aucune propriété disponible.') {
-    const cleanRows = gridRows.filter(([, value]) => value !== '' && value !== null && value !== undefined)
-
-    if (!cleanRows.length) {
-      return <p className="aduc-details-empty-mini">{emptyText}</p>
-    }
-
-    return (
-      <div className="aduc-aduc-grid">
-        {cleanRows.map(([label, value, long]) => (
-          <div className={long || String(label).toLowerCase().includes('dn') ? 'wide' : ''} key={label}>
-            <span>{label}</span>
-            {long || String(label).toLowerCase().includes('dn') ? (
-              <code>{Array.isArray(value) ? value.join(', ') : formatAdValue(value)}</code>
-            ) : (
-              <strong>{Array.isArray(value) ? value.join(', ') : formatAdValue(value)}</strong>
-            )}
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  function renderAccountTab() {
-    return (
-      <div className="aduc-tab-card aduc-account-tab">
-        <div className="aduc-account-head">
-          <div>
-            <h4>Compte</h4>
-            <span className={`aduc-account-status ${getAccountStatusClass()}`}>
-              {getAccountStatus()}
-            </span>
-          </div>
-
-          <div className="aduc-account-actions">
-            <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
-              {getAccountStatus().toLowerCase().includes('désactivé') ? 'Activer' : 'Désactiver'}
-            </button>
-
-            {isUser && (
-              <>
-                <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
-                  Réinitialiser MDP
-                </button>
-
-                <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
-                  Déverrouiller
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {renderGrid(accountRows, 'Aucune information de compte disponible.')}
-
-        <div className="aduc-account-note">
-          
-          <p></p>
-        </div>
-      </div>
-    )
-  }
-    function getGroupNameFromDn(groupDn) {
-      const text = String(groupDn || '').trim()
-      const firstPart = text.split(',')[0] || text
-      return firstPart.replace(/^(CN|OU)=/i, '').replace(/\\,/g, ',') || text
-    }
-
-    function getUserGroupMemberships() {
-      const raw = displayed?.member_of || displayed?.memberOf || displayed?.groups || []
-      const values = Array.isArray(raw) ? raw : [raw]
-
-      return values
-        .filter(Boolean)
-        .map((groupDn, index) => {
-          if (typeof groupDn === 'object') {
-            const dnValue = getObjectDn(groupDn)
-
-            return {
-              ...groupDn,
-              type: groupDn.type || 'group',
-              name: groupDn.name || getGroupNameFromDn(dnValue),
-              distinguished_name: dnValue,
-              dn: dnValue,
-              key: dnValue || groupDn.name || `group-${index}`
-            }
-          }
-
-          const dnValue = String(groupDn || '').trim()
-
-          return {
-            type: 'group',
-            name: getGroupNameFromDn(dnValue),
-            distinguished_name: dnValue,
-            dn: dnValue,
-            key: dnValue || `group-${index}`
-          }
-        })
-        .filter(group => group.dn || group.name)
-    }
-
-    function renderGroupsTab() {
-      if (!isGroup) {
-        const groupMemberships = getUserGroupMemberships()
-
-        return (
-          <div className="aduc-members-card aduc-tab-card">
-            <div className="aduc-members-head">
-              <div>
-                <h4>Groupes de l’utilisateur</h4>
-                <span>{groupMemberships.length} appartenance(s)</span>
-              </div>
-
-              <div className="aduc-members-buttons">
-                <button type="button" onClick={() => onReloadObject?.(displayed)} title="Actualiser les groupes">⟳</button>
-              </div>
-            </div>
-
-            {groupMemberships.length === 0 ? (
-              <p className="aduc-members-empty">Aucune appartenance de groupe remontée par Active Directory.</p>
-            ) : (
-              <div className="aduc-members-list">
-                {groupMemberships.map(group => (
-                  <div className="aduc-member-row aduc-user-group-row" key={group.key || group.dn || group.name}>
-                    <div className="aduc-member-main">
-                      <strong>{group.name || getGroupNameFromDn(group.dn)}</strong>
-                      <span>{group.dn || group.distinguished_name || 'DN non disponible'}</span>
-                    </div>
-
-                    <div className="aduc-member-actions">
-                      <button type="button" onClick={() => onCopyDn?.(group.dn || group.distinguished_name)}>
-                        Copier DN
-                      </button>
-
-                      <button type="button" className="danger" onClick={() => onRemoveMember?.(group, displayed)}>
-                        Retirer
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      }
-
-      return (
-        <div className="aduc-members-card aduc-tab-card">
-          <div className="aduc-members-head">
-            <div>
-              <h4>Membres du groupe</h4>
-              <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
-            </div>
-
-            <div className="aduc-members-buttons">
-              <button type="button" onClick={() => onOpenAddMember(displayed)} disabled={membersLoading} title="Ajouter un membre">＋</button>
-              <button type="button" onClick={() => onLoadMembers(displayed)} disabled={membersLoading} title="Actualiser les membres">⟳</button>
-            </div>
-          </div>
-
-          {membersError ? (
-            <p className="aduc-members-error">{membersError}</p>
-          ) : membersLoading ? (
-            <p className="aduc-members-empty">Chargement des membres depuis SRV-DC01...</p>
-          ) : members.length === 0 ? (
-            <p className="aduc-members-empty">Aucun membre dans ce groupe.</p>
-          ) : (
-            <div className="aduc-members-list">
-              {members.map(member => (
-                <div className="aduc-member-row" key={getObjectDn(member) || member.name || member.sam_account_name}>
-                  <div className="aduc-member-main">
-                    <strong>{getObjectName(member)}</strong>
-                    <span>{getObjectDn(member) || member.sam_account_name || member.user_principal_name || 'Identité non disponible'}</span>
-                  </div>
-
-                  <div className="aduc-member-actions">
-                    <button type="button" onClick={() => onCopyDn?.(getObjectDn(member))}>
-                      Copier DN
-                    </button>
-
-                    <button type="button" className="danger" onClick={() => onRemoveMember?.(displayed, member)}>
-                      Retirer
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )
-    }
-
-  function renderHistoryTab() {
-    return (
-      <div className="aduc-admin-history-card">
-        <div className="aduc-admin-history-head">
-          <div>
-            <h4>Historique AD Admin</h4>
-            <span>{historyLoading ? 'Chargement...' : `${filteredHistory.length}/${history.length} action(s)`}</span>
-          </div>
-
-          <button type="button" onClick={onLoadHistory} disabled={historyLoading}>⟳ Actualiser</button>
-        </div>
-
-        <div className="aduc-admin-history-filters">
-          {historyFilterOptions.map(({ value, label, count }) => (
-            <button type="button" key={value} className={historyFilter === value ? 'active' : ''} onClick={() => onHistoryFilterChange(value)}>
-              <span>{label}</span>
-              <small>{count}</small>
-            </button>
-          ))}
-        </div>
-
-        {historyError ? (
-          <p className="aduc-admin-history-error">{historyError}</p>
-        ) : filteredHistory.length === 0 ? (
-          <p className="aduc-admin-history-empty">Aucune action ne correspond aux filtres actuels.</p>
-        ) : (
-          <div className="aduc-admin-history-list">
-            {filteredHistory.slice(0, 8).map(job => (
-              <button type="button" className={`aduc-admin-history-row ${getHistoryStatus(job)}`} key={job.id} onClick={() => onOpenHistoryJob(job)}>
-                <span />
-                <div>
-                  <strong>{formatAdHistoryAction(job.action)}</strong>
-                  <small>{job.agent_name || job.claimed_by || 'Agent non assigné'} • {formatAdHistoryStatus(job)}</small>
-                  <em>{formatAdHistoryMessage(job)}</em>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <aside className="aduc-details-pane aduc-aduc-properties">
-      <div className="aduc-details-header">
-        <span className={`aduc-object-avatar ${isOu ? 'ou' : isGroup ? 'group' : isUser ? 'user' : isComputer ? 'computer' : ''}`}>
-          {isOu ? '📁' : isGroup ? '👥' : isUser ? '👤' : isComputer ? '💻' : 'ⓘ'}
-        </span>
-
-        <div>
-          <h3>{objectName}</h3>
-          <p>{hasObject ? type : 'Clique un objet pour afficher ses propriétés.'}</p>
-        </div>
-      </div>
-
-      {hasObject ? (
-        <>
-          <div className="aduc-aduc-actionbar">
-            <button type="button" onClick={() => onCopyDn(displayed)} disabled={!dn}>Copier DN</button>
-            {isOu && <button type="button" onClick={() => onExplore(displayed)}>Explorer cette OU</button>}
-
-            {object && isManagedScope && (
-              <>
-                <button type="button" onClick={() => onOpenUpdateObject?.(displayed)}>Modifier</button>
-                <button type="button" onClick={() => onOpenRenameObject?.(displayed)}>Renommer</button>
-                <button type="button" onClick={() => onOpenMoveObject(displayed)}>Déplacer</button>
-                <button type="button" className="danger" onClick={() => onOpenDeleteObject?.(displayed)}>Supprimer</button>
-              </>
-            )}
-
-            {object && !isManagedScope && (
-              <span className="aduc-readonly-scope-badge">
-                Lecture seule — hors périmètre EITAS
-              </span>
-            )}
-          </div>
-
-          <div className="aduc-aduc-tabs">
-            {tabs.map(([value, label]) => (
-              <button type="button" key={value} className={activeDetailsTab === value ? 'active' : ''} onClick={() => setActiveDetailsTab(value)}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="aduc-aduc-tab-panel">
-            {activeDetailsTab === 'general' && (
-              <div className="aduc-tab-card">
-                <h4>Général</h4>
-                {renderGrid(generalRows)}
-              </div>
-            )}
-
-            {activeDetailsTab === 'account' && renderAccountTab()}
-
-            {activeDetailsTab === 'object' && (
-              <div className="aduc-tab-card">
-                <h4>Objet</h4>
-                {renderGrid(objectRows)}
-              </div>
-            )}
-
-              {activeDetailsTab === 'organization' && (
-                <div className="aduc-tab-card">
-                  <h4>Organisation</h4>
-                  {renderGrid(
-                    orgRows,
-                    'Aucune information organisationnelle disponible.'
-                  )}
-
-                  <h4>Informations RH</h4>
-                  {renderGrid(
-                    hrRows,
-                    'Aucune information RH disponible.'
-                  )}
-
-                  {managerDn && (
-                    <div className="aduc-aduc-actionbar">
-                      <button
-                        type="button"
-                        onClick={() => onCopyDn?.(managerDn)}
-                      >
-                        Copier manager DN
-                      </button>
-                    </div>
-                  )}
-
-                  <h4>Coordonnées</h4>
-                  {renderGrid(
-                    contactRows,
-                    'Aucune coordonnée disponible.'
-                  )}
-                </div>
-              )}
-
-            {activeDetailsTab === 'machine' && (
-              <div className="aduc-tab-card">
-                <div className="aduc-machine-card-head">
-                  <h4>Informations machine</h4>
-
-                  {isManagedScope && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onPrepareAccountAction?.(
-                          'toggle_enabled',
-                          displayed
-                        )
-                      }
-                    >
-                      {computerEnabledText === 'Activé'
-                        ? 'Désactiver la machine'
-                        : 'Activer la machine'}
-                    </button>
-                  )}
-                </div>
-
-                {renderGrid(
-                  machineRows,
-                  'Aucune information machine disponible.'
-                )}
-              </div>
-            )}
-
-            {activeDetailsTab === 'groups' && renderGroupsTab()}
-            {activeDetailsTab === 'history' && renderHistoryTab()}
-          </div>
-
-          {isEitasManagedDn(
-            getObjectDn(isOu ? displayed : selectedNode)
-          ) && (
-            <div className="aduc-details-quick">
-              <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>＋ OU ici</button>
-              <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>＋ Groupe ici</button>
-              {object && <button type="button" onClick={() => onOpenMoveObject(displayed)}>↪ Déplacer</button>}
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="aduc-details-empty">
-          Sélectionne une OU, un utilisateur, un groupe, un ordinateur ou un contact dans la liste centrale.
-        </div>
-      )}
-    </aside>
-  )
-}
-
-
-async function copyText(value) {
-  const text = String(value ?? '')
-
-  if (navigator?.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text)
-      return true
-    } catch {
-      // Fallback below
-    }
-  }
-
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.left = '-9999px'
-  textarea.style.top = '0'
-  document.body.appendChild(textarea)
-
-  textarea.focus()
-  textarea.select()
-  textarea.setSelectionRange(0, textarea.value.length)
-
-  try {
-    const ok = document.execCommand('copy')
-    document.body.removeChild(textarea)
-
-    if (!ok) {
-      throw new Error('Copie refusée par le navigateur')
-    }
-
-    return true
-  } catch (err) {
-    document.body.removeChild(textarea)
-    throw err
-  }
-}
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+import {
+  DOMAIN_DN,
+  EITAS_DN,
+  USERS_DN,
+  GROUPS_DN,
+  COMPUTERS_DN,
+  isEitasManagedDn,
+  isEitasManagedObject,
+  normalizeBaseDn,
+  buildOuTree,
+  objectIcon,
+  getNodeKind,
+  extractExplorerItems,
+  getObjectName,
+  getGroupDescription,
+  getObjectType,
+  getObjectDn,
+  isOuObject,
+  isGroupObject,
+  getParentDn,
+  buildAdNavigationNode,
+  buildAdBreadcrumbs,
+  cleanAdHistoryText,
+  copyText,
+} from './utils/adExplorerCore'
+
+import ObjectDetailsPanel from './components/ObjectDetailsPanel'
+import AdActivityModal from './components/AdActivityModal'
+import AdHistoryDetailModal from './components/AdHistoryDetailModal'
+import TestCleanupModal from './components/TestCleanupModal'
+import useAdActivity from './hooks/useAdActivity'
+import useTestCleanup from './hooks/useTestCleanup'
 
 export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [treeItems, setTreeItems] = useState([])
   const [viewItems, setViewItems] = useState([])
   const [selectedNode, setSelectedNode] = useState({
-    name: 'Groups',
-    distinguished_name: GROUPS_DN,
-    canonical_name: 'API.LOCAL/EITAS/Groups'
+    name: 'EITAS',
+    distinguished_name: EITAS_DN,
+    canonical_name: 'API.LOCAL/EITAS'
   })
 
-  const [viewType, setViewType] = useState('groups')
+  const [viewType, setViewType] = useState('ou')
   const [selectedObject, setSelectedObject] = useState(null)
   const [newObjectModal, setNewObjectModal] = useState(null)
   const [propertiesModal, setPropertiesModal] = useState(null)
@@ -1317,6 +62,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
   const [loading, setLoading] = useState(false)
+  const nodeContentCacheRef = useRef(new Map())
+  const nodeContentPromisesRef = useRef(new Map())
+  const nodeContentRequestIdRef = useRef(0)
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
   const [adminModal, setAdminModal] = useState(null)
@@ -1370,24 +118,39 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [moveOuError, setMoveOuError] = useState('')
   const [globalAdSearch, setGlobalAdSearch] = useState('')
   const [globalAdSearchLoading, setGlobalAdSearchLoading] = useState(false)
-  const [testCleanupModal, setTestCleanupModal] = useState(false)
-  const [testCleanupLoading, setTestCleanupLoading] = useState(false)
-  const [testCleanupItems, setTestCleanupItems] = useState([])
-  const [testCleanupError, setTestCleanupError] = useState('')
-  const [testCleanupDeletingDn, setTestCleanupDeletingDn] = useState('')
-  const [testCleanupResults, setTestCleanupResults] = useState({})
-  const [testCleanupBulkRunning, setTestCleanupBulkRunning] = useState(false)
+  const testCleanup = useTestCleanup({
+    apiFetch,
+    selectedNode,
+    getCreateUserSearchBaseDn,
+    waitForAdExplorerJob,
+    getCreateUserOuItemsFromJob,
+    setStatus,
+    adAgentMode,
+    setAdAgentMode,
+    runAdAdminJob,
+    loadAdAgentMode,
+  })
+
+  const {
+    testCleanupModal,
+    setTestCleanupModal,
+    openTestCleanupScanner,
+  } = testCleanup
   const [adAdminHistory, setAdAdminHistory] = useState([])
   const [adAdminHistoryLoading, setAdAdminHistoryLoading] = useState(false)
   const [adAdminHistoryError, setAdAdminHistoryError] = useState('')
   const [adAdminHistoryFilter, setAdAdminHistoryFilter] = useState('all')
   const [selectedAdAdminHistoryJob, setSelectedAdAdminHistoryJob] = useState(null)
-  const [adActivityModal, setAdActivityModal] = useState(false)
-  const [adActivitySearch, setAdActivitySearch] = useState('')
-  const [adActivityScope, setAdActivityScope] = useState('all')
-  const [adActivityShowSimulations, setAdActivityShowSimulations] = useState(true)
-  const [adActivityTimeRange, setAdActivityTimeRange] = useState('all')
-  const [adActivitySortOrder, setAdActivitySortOrder] = useState('newest')
+  const adActivity = useAdActivity({
+    adAdminHistory,
+    refreshAdAdminHistoryQuietly,
+  })
+
+  const {
+    adActivityModal,
+    setAdActivityModal,
+    openAdActivityCenter,
+  } = adActivity
   const [accountActionModal, setAccountActionModal] = useState(null)
   const [accountActionPassword, setAccountActionPassword] = useState('')
   const [accountActionConfirm, setAccountActionConfirm] = useState('')
@@ -1481,477 +244,6 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     })
   }, [treeItems])
 
-  function getAdActivityJobStatus(job) {
-    if (job?.status === 'failed' || job?.success === false) return 'failed'
-    if (job?.status === 'processing') return 'processing'
-    if (job?.status === 'pending') return 'pending'
-    if (job?.status === 'completed' || job?.success === true) return 'completed'
-    return job?.status || 'unknown'
-  }
-
-  function getAdActivityStatusLabel(job) {
-    return formatAdHistoryStatus(job)
-  }
-
-  function getAdHistoryDetailSummary(job) {
-    if (!job) return ''
-
-    return [
-      `Action : ${getAdActivityActionLabel(job.action)}`,
-      `Statut : ${getAdActivityStatusLabel(job)}`,
-      `Agent : ${job.claimed_by || job.created_by || '—'}`,
-      `Date : ${formatAdActivityDate(getAdActivityDate(job))}`,
-      `Message : ${getAdActivityMessage(job)}`,
-      `Simulation : ${isAdActivitySimulation(job) ? 'oui' : 'non'}`,
-      `ID : ${job.id || job.job_id || '—'}`
-    ].join('\n')
-  }
-
-  function copyAdHistoryDetailSummary(job) {
-    copyText(getAdHistoryDetailSummary(job))
-  }
-
-  function copyAdHistoryDetailJson(job) {
-    copyText(formatAdHistoryJson(job))
-  }
-
-  function getAdActivityResult(job) {
-    const raw = job?.result || job?.output || {}
-
-    if (typeof raw === 'string') {
-      try {
-        return JSON.parse(raw)
-      } catch {
-        return { message: raw }
-      }
-    }
-
-    return raw || {}
-  }
-
-  function getAdActivityPayload(job) {
-    const raw = job?.payload || {}
-
-    if (typeof raw === 'string') {
-      try {
-        return JSON.parse(raw)
-      } catch {
-        return {}
-      }
-    }
-
-    return raw || {}
-  }
-
-  function pickAdActivityValue(...values) {
-    for (const value of values) {
-      if (value !== null && value !== undefined && String(value).trim()) {
-        return String(value).trim()
-      }
-    }
-
-    return ''
-  }
-
-  function getAdActivityTargetDn(job) {
-    const result = getAdActivityResult(job)
-    const payload = getAdActivityPayload(job)
-
-    return pickAdActivityValue(
-      result?.object_dn,
-      result?.distinguished_name,
-      result?.dn,
-      result?.confirm_dn,
-      result?.target_ou_dn,
-      result?.target_parent_dn,
-      result?.parent_dn,
-      result?.group_dn,
-      result?.member_dn,
-      result?.new_dn,
-      result?.old_parent_dn,
-      result?.deleted_object?.dn,
-      result?.deleted_object?.distinguished_name,
-      result?.updated_object?.dn,
-      result?.updated_object?.distinguished_name,
-      result?.renamed_object?.dn,
-      result?.renamed_object?.distinguished_name,
-      result?.created_user?.dn,
-      result?.created_user?.distinguished_name,
-      payload?.object_identity,
-      payload?.object_dn,
-      payload?.distinguished_name,
-      payload?.dn,
-      payload?.confirm_dn,
-      payload?.target_ou_dn,
-      payload?.target_parent_dn,
-      payload?.parent_dn,
-      payload?.group_dn,
-      payload?.member_dn
-    )
-  }
-
-  function getAdActivityTargetNameFromDn(dn) {
-    if (!dn) return ''
-
-    const first = String(dn).split(',')[0] || ''
-    const idx = first.indexOf('=')
-
-    return idx >= 0 ? first.slice(idx + 1) : first
-  }
-
-  function getAdActivityTargetLabel(job) {
-    const result = getAdActivityResult(job)
-    const payload = getAdActivityPayload(job)
-    const dn = getAdActivityTargetDn(job)
-
-    return pickAdActivityValue(
-      result?.object,
-      result?.name,
-      result?.user,
-      result?.group,
-      result?.member,
-      result?.sam_account_name,
-      result?.deleted_object?.name,
-      result?.updated_object?.name,
-      result?.renamed_object?.name,
-      result?.created_user?.name,
-      payload?.name,
-      payload?.sam_account_name,
-      payload?.object_identity,
-      payload?.group_identity,
-      payload?.member_identity,
-      getAdActivityTargetNameFromDn(dn)
-    )
-  }
-
-  function getAdActivityActionLabel(action) {
-    return formatAdHistoryAction(action)
-  }
-
-  function getAdActivityDate(job) {
-    return job?.completed_at
-      || job?.updated_at
-      || job?.claimed_at
-      || job?.created_at
-      || ''
-  }
-
-  function formatAdActivityDate(value) {
-    if (!value) return '—'
-
-    try {
-      return new Date(value).toLocaleString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    } catch {
-      return value
-    }
-  }
-
-  function getAdActivityMessage(job) {
-    const result = getAdActivityResult(job)
-
-    return cleanAdHistoryText(
-      job?.message
-      || result?.message
-      || result?.error
-      || 'Aucun message'
-    )
-  }
-
-  function isAdActivityCritical(job) {
-    return [
-      'delete_object',
-      'move_object',
-      'rename_object',
-      'update_object_properties'
-    ].includes(job?.action)
-  }
-
-  function getAdActivityJobs() {
-    return Array.isArray(adAdminHistory) ? adAdminHistory : []
-  }
-
-  function getAdActivityStats() {
-    const jobs = getAdActivityJobs()
-
-    return {
-      total: jobs.length,
-      success: jobs.filter(job => getAdActivityJobStatus(job) === 'completed').length,
-      failed: jobs.filter(job => getAdActivityJobStatus(job) === 'failed').length,
-      running: jobs.filter(job => ['processing', 'pending'].includes(getAdActivityJobStatus(job))).length,
-      critical: jobs.filter(isAdActivityCritical).length
-    }
-  }
-
-  function getAdActivityStatCards() {
-    const stats = getAdActivityStats()
-
-    return [
-      { key: 'total', label: 'Actions chargées', value: stats.total },
-      { key: 'success', label: 'Succès', value: stats.success },
-      { key: 'failed', label: 'Échecs', value: stats.failed },
-      { key: 'running', label: 'En cours', value: stats.running },
-      { key: 'critical', label: 'Actions critiques', value: stats.critical }
-    ]
-  }
-
-  function getAdActivitySearchText(job) {
-    const result = getAdActivityResult(job)
-    const payload = getAdActivityPayload(job)
-
-    return [
-      job?.id,
-      job?.job_id,
-      job?.action,
-      job?.status,
-      job?.success,
-      job?.created_by,
-      job?.claimed_by,
-      job?.message,
-      getAdActivityActionLabel(job?.action),
-      getAdActivityStatusLabel(job),
-      getAdActivityMessage(job),
-      getAdActivityTargetLabel(job),
-      getAdActivityTargetDn(job),
-      JSON.stringify(payload),
-      JSON.stringify(result),
-      JSON.stringify(job)
-    ].filter(Boolean).join(' ').toLowerCase()
-  }
-
-  function isAdActivitySimulation(job) {
-    const result = getAdActivityResult(job)
-    const message = getAdActivityMessage(job)
-
-    return result?.simulated === true
-      || result?.simulation === true
-      || String(message || '').toLowerCase().includes('simulation')
-  }
-
-  function isAdActivityInsideTimeRange(job) {
-    if (adActivityTimeRange === 'all') return true
-
-    const dateValue = getAdActivityDate(job) || job?.created_at
-
-    if (!dateValue) return true
-
-    const timestamp = new Date(dateValue).getTime()
-
-    if (!Number.isFinite(timestamp)) return true
-
-    const ageMs = Date.now() - timestamp
-
-    if (adActivityTimeRange === '24h') return ageMs <= 24 * 60 * 60 * 1000
-    if (adActivityTimeRange === '7d') return ageMs <= 7 * 24 * 60 * 60 * 1000
-
-    return true
-  }
-
-  function sortAdActivityJobs(jobs) {
-    return [...jobs].sort((a, b) => {
-      const dateA = new Date(getAdActivityDate(a) || a?.created_at || 0).getTime() || 0
-      const dateB = new Date(getAdActivityDate(b) || b?.created_at || 0).getTime() || 0
-
-      return adActivitySortOrder === 'oldest'
-        ? dateA - dateB
-        : dateB - dateA
-    })
-  }
-
-  function getAdActivityFilteredJobs() {
-    const query = adActivitySearch.trim().toLowerCase()
-
-    const filtered = getAdActivityJobs().filter(job => {
-      const status = getAdActivityJobStatus(job)
-
-      if (adActivityScope === 'critical' && !isAdActivityCritical(job)) return false
-      if (adActivityScope === 'failed' && status !== 'failed') return false
-      if (!adActivityShowSimulations && isAdActivitySimulation(job)) return false
-      if (!isAdActivityInsideTimeRange(job)) return false
-      if (query && !getAdActivitySearchText(job).includes(query)) return false
-
-      return true
-    })
-
-    return sortAdActivityJobs(filtered)
-  }
-
-  function getAdActivityExportRows() {
-    return getAdActivityFilteredJobs().map(job => ({
-      id: job?.id || job?.job_id || '',
-      action: job?.action || '',
-      action_label: getAdActivityActionLabel(job?.action),
-      status: getAdActivityJobStatus(job),
-      status_label: getAdActivityStatusLabel(job),
-      success: job?.success,
-      created_by: job?.created_by || '',
-      claimed_by: job?.claimed_by || '',
-      created_at: job?.created_at || '',
-      claimed_at: job?.claimed_at || '',
-      completed_at: job?.completed_at || job?.updated_at || '',
-      target_label: getAdActivityTargetLabel(job),
-      target_dn: getAdActivityTargetDn(job),
-      message: getAdActivityMessage(job),
-      critical: isAdActivityCritical(job),
-      simulation: isAdActivitySimulation(job)
-    }))
-  }
-
-  function downloadAdActivityFile(filename, content, type) {
-    const blob = new Blob([content], { type })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-  }
-
-  function escapeAdActivityCsv(value) {
-    const text = value === null || value === undefined ? '' : String(value)
-
-    if (/[",\n;]/.test(text)) {
-      return `"${text.replaceAll('"', '""')}"`
-    }
-
-    return text
-  }
-
-  function resetAdActivityFilters() {
-    setAdActivitySearch('')
-    setAdActivityScope('all')
-    setAdActivityShowSimulations(true)
-    setAdActivityTimeRange('all')
-    setAdActivitySortOrder('newest')
-  }
-
-  function getAdActivityScopeLabel() {
-    if (adActivityScope === 'critical') return 'Critiques'
-    if (adActivityScope === 'failed') return 'Échecs'
-
-    return 'Tout'
-  }
-
-  function getAdActivityTimeRangeLabel() {
-    if (adActivityTimeRange === '24h') return 'Dernières 24h'
-    if (adActivityTimeRange === '7d') return 'Derniers 7j'
-
-    return 'Toute période'
-  }
-
-  function getAdActivitySortLabel() {
-    return adActivitySortOrder === 'oldest' ? 'Plus ancien' : 'Plus récent'
-  }
-
-  function getAdActivityFilterSummary() {
-    return [
-      `Résultats : ${getAdActivityFilteredJobs().length}/${getAdActivityJobs().length}`,
-      `Scope : ${getAdActivityScopeLabel()}`,
-      `Période : ${getAdActivityTimeRangeLabel()}`,
-      `Tri : ${getAdActivitySortLabel()}`,
-      `Simulations : ${adActivityShowSimulations ? 'visibles' : 'masquées'}`,
-      adActivitySearch.trim() ? `Recherche : ${adActivitySearch.trim()}` : 'Recherche : aucune'
-    ].join(' • ')
-  }
-
-  function copyAdActivitySummary() {
-    const jobs = getAdActivityFilteredJobs()
-    const lines = [
-      'Synthèse activité AD Admin',
-      getAdActivityFilterSummary(),
-      '',
-      ...jobs.slice(0, 20).map(job => [
-        `- ${getAdActivityActionLabel(job.action)}`,
-        `${getAdActivityStatusLabel(job)}`,
-        `${job.claimed_by || job.created_by || '—'}`,
-        `${formatAdActivityDate(getAdActivityDate(job))}`,
-        `${getAdActivityTargetLabel(job) || 'sans cible'}`,
-        `${getAdActivityMessage(job)}`
-      ].join(' | '))
-    ]
-
-    copyText(lines.join('\n'))
-  }
-
-  function exportAdActivityJson() {
-    const jobs = getAdActivityFilteredJobs()
-    const payload = {
-      exported_at: new Date().toISOString(),
-      search: adActivitySearch,
-      scope: adActivityScope,
-      scope_label: getAdActivityScopeLabel(),
-      time_range: adActivityTimeRange,
-      time_range_label: getAdActivityTimeRangeLabel(),
-      sort_order: adActivitySortOrder,
-      sort_label: getAdActivitySortLabel(),
-      simulations_visible: adActivityShowSimulations,
-      summary: getAdActivityFilterSummary(),
-      count: jobs.length,
-      jobs
-    }
-
-    downloadAdActivityFile(
-      `eitas-ad-activity-${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}.json`,
-      JSON.stringify(payload, null, 2),
-      'application/json;charset=utf-8'
-    )
-  }
-
-  function exportAdActivityCsv() {
-    const rows = getAdActivityExportRows()
-    const headers = [
-      'id',
-      'action',
-      'action_label',
-      'status',
-      'status_label',
-      'success',
-      'created_by',
-      'claimed_by',
-      'created_at',
-      'claimed_at',
-      'completed_at',
-      'target_label',
-      'target_dn',
-      'message',
-      'critical',
-      'simulation'
-    ]
-
-    const csv = [
-      headers.join(';'),
-      ...rows.map(row => headers.map(header => escapeAdActivityCsv(row[header])).join(';'))
-    ].join('\n')
-
-    downloadAdActivityFile(
-      `eitas-ad-activity-${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}.csv`,
-      csv,
-      'text/csv;charset=utf-8'
-    )
-  }
-
-  function getAdActivityRecentJobs(limit = 12) {
-    return getAdActivityFilteredJobs().slice(0, limit)
-  }
-
-  function getAdActivityCriticalJobs(limit = 8) {
-    return getAdActivityFilteredJobs()
-      .filter(job => isAdActivityCritical(job) || getAdActivityJobStatus(job) === 'failed')
-      .slice(0, limit)
-  }
-
-  async function openAdActivityCenter() {
-    setAdActivityModal(true)
-    await refreshAdAdminHistoryQuietly()
-  }
-
   async function runJob(action, options = {}) {
     const created = await apiFetch('/api/ad-explorer/jobs', {
       method: 'POST',
@@ -1991,79 +283,209 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     return ous
   }
 
-  async function loadNodeContent(node = selectedNode, kind = getNodeKind(node)) {
+  async function loadNodeContent(
+    node = selectedNode,
+    kind = getNodeKind(node),
+    options = {}
+  ) {
     if (!node) return
 
     const baseDn = getObjectDn(node)
+    const forceRefresh = Boolean(options.forceRefresh)
+    const requestId = nodeContentRequestIdRef.current + 1
+
+    nodeContentRequestIdRef.current = requestId
+
+    setContextMenu(null)
+    setSelectedNode(node)
+    setSelectedObject(null)
+    setObjectMembers([])
+    setMembersError('')
+    setViewType(kind)
+
+    if (!baseDn) {
+      setLoading(false)
+      setViewItems([])
+      setStatus('DN introuvable pour cet objet AD.')
+      return
+    }
+
+    const cacheKey = normalizeBaseDn(baseDn)
+      .trim()
+      .toUpperCase()
+
+    if (forceRefresh) {
+      nodeContentCacheRef.current.clear()
+    }
+
+    const cachedItems = forceRefresh
+      ? null
+      : nodeContentCacheRef.current.get(cacheKey)
+
+    if (Array.isArray(cachedItems)) {
+      setLoading(false)
+      setViewItems([...cachedItems])
+      setStatus(
+        'Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL'
+      )
+      return
+    }
 
     setLoading(true)
-    setContextMenu(null)
+
+    let contentPromise = forceRefresh
+      ? null
+      : nodeContentPromisesRef.current.get(cacheKey)
+
+    if (!contentPromise) {
+      contentPromise = (async () => {
+        const items = []
+
+        try {
+          const children = await runJob('list_children', {
+            baseDn,
+            recursive: false,
+            limit: 500
+          })
+
+          items.push(
+            ...extractExplorerItems(children)
+          )
+        } catch (childrenError) {
+          const errorMessage = String(
+            childrenError?.message || ''
+          )
+
+          const unsupportedAction =
+            errorMessage.includes('non supportée') ||
+            errorMessage.includes('non supportee') ||
+            errorMessage.includes(
+              'Action AD Explorer invalide'
+            )
+
+          if (!unsupportedAction) {
+            throw childrenError
+          }
+
+          const [
+            ousResult,
+            groupsResult,
+            usersResult
+          ] = await Promise.allSettled([
+            runJob('list_ous', {
+              baseDn,
+              recursive: false,
+              limit: 500
+            }),
+            runJob('list_groups', {
+              baseDn,
+              recursive: false,
+              limit: 500
+            }),
+            runJob('search_users', {
+              query: '',
+              baseDn,
+              recursive: false,
+              limit: 500
+            })
+          ])
+
+          if (ousResult.status === 'fulfilled') {
+            items.push(
+              ...extractExplorerItems(ousResult.value)
+            )
+          }
+
+          if (groupsResult.status === 'fulfilled') {
+            items.push(
+              ...extractExplorerItems(groupsResult.value)
+            )
+          }
+
+          if (usersResult.status === 'fulfilled') {
+            items.push(
+              ...extractExplorerItems(usersResult.value)
+            )
+          }
+        }
+
+        const seen = new Set()
+
+        return items.filter(item => {
+          const key =
+            getObjectDn(item) ||
+            item?.sam_account_name ||
+            item?.name
+
+          if (!key) return true
+          if (seen.has(key)) return false
+
+          seen.add(key)
+          return true
+        })
+      })()
+
+      nodeContentPromisesRef.current.set(
+        cacheKey,
+        contentPromise
+      )
+    }
 
     try {
-      setSelectedNode(node)
-      setSelectedObject(null)
-      setObjectMembers([])
-      setMembersError('')
-      setViewType(kind)
+      const uniqueItems = await contentPromise
 
-      if (!baseDn) {
-        setViewItems([])
-        setStatus('DN introuvable pour cet objet AD.')
+      if (
+        nodeContentPromisesRef.current.get(cacheKey) ===
+        contentPromise
+      ) {
+        nodeContentPromisesRef.current.delete(cacheKey)
+      }
+
+      if (
+        requestId !==
+        nodeContentRequestIdRef.current
+      ) {
         return
       }
 
-      const [ousResult, groupsResult, usersResult] = await Promise.allSettled([
-        runJob('list_ous', {
-          baseDn,
-          recursive: false,
-          limit: 500
-        }),
-        runJob('list_groups', {
-          baseDn,
-          recursive: false,
-          limit: 500
-        }),
-        runJob('search_users', {
-          query: '',
-          baseDn,
-          recursive: false,
-          limit: 500
-        })
-      ])
+      nodeContentCacheRef.current.set(
+        cacheKey,
+        uniqueItems
+      )
 
-      const items = []
-
-      if (ousResult.status === 'fulfilled') {
-        items.push(...extractExplorerItems(ousResult.value))
-      }
-
-      if (groupsResult.status === 'fulfilled') {
-        items.push(...extractExplorerItems(groupsResult.value))
-      }
-
-      if (usersResult.status === 'fulfilled') {
-        items.push(...extractExplorerItems(usersResult.value))
-      }
-
-      const seen = new Set()
-      const uniqueItems = items.filter(item => {
-        const key = getObjectDn(item) || item?.sam_account_name || item?.name
-
-        if (!key) return true
-        if (seen.has(key)) return false
-
-        seen.add(key)
-        return true
-      })
-
-      setViewItems(uniqueItems)
-      setStatus(`Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL`)
+      setViewItems([...uniqueItems])
+      setStatus(
+        'Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL'
+      )
     } catch (err) {
+      if (
+        nodeContentPromisesRef.current.get(cacheKey) ===
+        contentPromise
+      ) {
+        nodeContentPromisesRef.current.delete(cacheKey)
+      }
+
+      if (
+        requestId !==
+        nodeContentRequestIdRef.current
+      ) {
+        return
+      }
+
       setViewItems([])
-      setStatus(err.message || 'Erreur Active Directory')
-      setMessage?.(err.message || 'Erreur Active Directory')
+      setStatus(
+        err.message || 'Erreur Active Directory'
+      )
+      setMessage?.(
+        err.message || 'Erreur Active Directory'
+      )
     } finally {
-      setLoading(false)
+      if (
+        requestId ===
+        nodeContentRequestIdRef.current
+      ) {
+        setLoading(false)
+      }
     }
   }
 
@@ -2095,12 +517,22 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setLoading(true)
 
     try {
-      await loadTree()
-      await loadNodeContent(selectedNode, viewType)
-      await refreshAdAdminHistoryQuietly()
+      await Promise.all([
+        loadTree(),
+        loadNodeContent(
+          selectedNode,
+          viewType,
+          { forceRefresh: true }
+        ),
+        refreshAdAdminHistoryQuietly()
+      ])
     } catch (err) {
-      setStatus(err.message || 'Erreur Active Directory')
-      setMessage?.(err.message || 'Erreur Active Directory')
+      setStatus(
+        err.message || 'Erreur Active Directory'
+      )
+      setMessage?.(
+        err.message || 'Erreur Active Directory'
+      )
     } finally {
       setLoading(false)
     }
@@ -2551,7 +983,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     }
   }
 
-  
+
 
 function getAdAttributeValue(item, ...names) {
     for (const name of names) {
@@ -2905,7 +1337,11 @@ function getAdAttributeValue(item, ...names) {
       if (viewType === 'computers') {
         await loadComputersView()
       } else if (selectedNode) {
-        await loadNodeContent(selectedNode, viewType)
+        await loadNodeContent(
+          selectedNode,
+          viewType,
+          { forceRefresh: true }
+        )
       }
 
       await loadAdAdminHistory()
@@ -3029,7 +1465,11 @@ function getAdAttributeValue(item, ...names) {
       if (viewType === 'computers') {
         await loadComputersView()
       } else if (selectedNode) {
-        await loadNodeContent(selectedNode, viewType)
+        await loadNodeContent(
+          selectedNode,
+          viewType,
+          { forceRefresh: true }
+        )
       }
 
       await loadAdAdminHistory()
@@ -3135,7 +1575,11 @@ function getAdAttributeValue(item, ...names) {
       if (viewType === 'computers') {
         await loadComputersView()
       } else if (selectedNode) {
-        await loadNodeContent(selectedNode, viewType)
+        await loadNodeContent(
+          selectedNode,
+          viewType,
+          { forceRefresh: true }
+        )
       }
 
       await loadAdAdminHistory()
@@ -4389,7 +2833,8 @@ function getAdAttributeValue(item, ...names) {
       if (selectedNode) {
         await loadNodeContent(
           selectedNode,
-          viewType
+          viewType,
+          { forceRefresh: true }
         )
       }
 
@@ -5239,7 +3684,11 @@ function getAdAttributeValue(item, ...names) {
       setMessage?.(finalJob.message || 'Action AD terminée.')
 
       await loadTree()
-      await loadNodeContent(selectedNode, viewType)
+      await loadNodeContent(
+        selectedNode,
+        viewType,
+        { forceRefresh: true }
+      )
     } catch (err) {
       setMessage?.(`Job AD Admin créé, en attente de l’agent principal : ${jobId}`)
     }
@@ -5578,7 +4027,8 @@ function getAdAttributeValue(item, ...names) {
       } else if (selectedNode) {
         await loadNodeContent(
           selectedNode,
-          viewType
+          viewType,
+          { forceRefresh: true }
         )
       }
 
@@ -5703,7 +4153,8 @@ function getAdAttributeValue(item, ...names) {
       } else if (selectedNode) {
         await loadNodeContent(
           selectedNode,
-          viewType
+          viewType,
+          { forceRefresh: true }
         )
       }
 
@@ -5728,389 +4179,8 @@ function getAdAttributeValue(item, ...names) {
     }
   }
 
-  function getTestCleanupIdentity(item) {
-    return String(
-      item?.sam_account_name
-      || item?.samAccountName
-      || item?.name
-      || item?.display_name
-      || item?.displayName
-      || ''
-    ).trim()
-  }
-
-  function getTestCleanupReason(item) {
-    const identity = getTestCleanupIdentity(item)
-    const dn = getObjectDn(item)
-    const combined = `${identity} ${dn}`.toLowerCase()
-
-    if (/^gg_tmp_/i.test(identity)) return 'Groupe temporaire GG_TMP_*'
-    if (/^tmp_/i.test(identity)) return 'Objet temporaire TMP_*'
-    if (/^test_/i.test(identity)) return 'Objet test TEST_*'
-    if (/^test[._-]/i.test(identity)) return 'Identifiant test.*'
-    if (/(^|,)(cn|ou)=tmp_/i.test(dn)) return 'DN temporaire TMP_*'
-    if (/(^|,)(cn|ou)=test_/i.test(dn)) return 'DN test TEST_*'
-    if (combined.includes('tmp_react_dest')) return 'Objet créé pendant les tests React'
-
-    return 'Objet détecté comme test'
-  }
-
-  function isPotentialTestCleanupObject(item) {
-    const identity = getTestCleanupIdentity(item)
-    const dn = getObjectDn(item)
-    const combined = `${identity} ${dn}`
-
-    return (
-      /^gg_tmp_/i.test(identity)
-      || /^tmp_/i.test(identity)
-      || /^test_/i.test(identity)
-      || /^test[._-]/i.test(identity)
-      || /(^|,)(cn|ou)=tmp_/i.test(dn)
-      || /(^|,)(cn|ou)=test_/i.test(dn)
-      || /tmp_react_dest/i.test(combined)
-    )
-  }
-
-  async function runTestCleanupExplorerJob(action, payload = {}) {
-    const created = await apiFetch('/api/ad-explorer/jobs', {
-      method: 'POST',
-      body: JSON.stringify({
-        action,
-        ...payload,
-        created_by: 'react-test-cleanup-scanner'
-      })
-    })
-
-    const jobId = created?.job?.id
-
-    if (!jobId) {
-      throw new Error(`Job ${action} introuvable`)
-    }
-
-    const completedJob = await waitForAdExplorerJob(jobId)
-    return getCreateUserOuItemsFromJob(completedJob)
-  }
-
-  async function scanTestCleanupObjects() {
-    const selectedDn = getObjectDn(selectedNode)
-    const baseDn = getCreateUserSearchBaseDn(selectedDn || DOMAIN_DN) || selectedDn || DOMAIN_DN
-
-    setTestCleanupLoading(true)
-    setTestCleanupError('')
-    setTestCleanupResults({})
-
-    try {
-      const jobs = await Promise.allSettled([
-        runTestCleanupExplorerJob('list_ou_tree', {
-          base_dn: baseDn,
-          baseDn,
-          limit: 2000
-        }),
-        runTestCleanupExplorerJob('list_groups', {
-          base_dn: baseDn,
-          baseDn,
-          recursive: true,
-          limit: 2000
-        }),
-        runTestCleanupExplorerJob('search_users', {
-          query: 'test',
-          base_dn: baseDn,
-          baseDn,
-          recursive: true,
-          limit: 1000
-        }),
-        runTestCleanupExplorerJob('search_users', {
-          query: 'tmp',
-          base_dn: baseDn,
-          baseDn,
-          recursive: true,
-          limit: 1000
-        })
-      ])
-
-      const rawItems = []
-
-      for (const job of jobs) {
-        if (job.status === 'fulfilled' && Array.isArray(job.value)) {
-          rawItems.push(...job.value)
-        }
-      }
-
-      const seen = new Set()
-      const filtered = rawItems
-        .filter(isPotentialTestCleanupObject)
-        .filter(item => {
-          const key = (getObjectDn(item) || getTestCleanupIdentity(item)).toUpperCase()
-
-          if (!key) return false
-          if (seen.has(key)) return false
-
-          seen.add(key)
-          return true
-        })
-        .map(item => ({
-          ...item,
-          cleanup_reason: getTestCleanupReason(item)
-        }))
-        .sort((a, b) => {
-          const typeA = String(a?.type || a?.objectClass || '').localeCompare(String(b?.type || b?.objectClass || ''), 'fr')
-          if (typeA !== 0) return typeA
-
-          return getTestCleanupIdentity(a).localeCompare(getTestCleanupIdentity(b), 'fr', { sensitivity: 'base' })
-        })
-
-      setTestCleanupItems(filtered)
-      setStatus(`${filtered.length} objet(s) de test détecté(s).`)
-    } catch (error) {
-      setTestCleanupItems([])
-      setTestCleanupError(error?.message || 'Scan des objets de test impossible.')
-    } finally {
-      setTestCleanupLoading(false)
-    }
-  }
-
-  function isTestCleanupOu(item) {
-    const dn = getObjectDn(item)
-    const type = String(item?.type || item?.objectClass || '').toLowerCase()
-
-    return type === 'ou'
-      || type.includes('organizational')
-      || /^OU=/i.test(String(dn || '').trim())
-  }
-
-  function normalizeOuEmptyCheckOutput(job) {
-    const raw = job?.output || job?.result || job?.data || {}
-
-    if (typeof raw === 'string') {
-      try {
-        return JSON.parse(raw)
-      } catch {
-        return { message: raw }
-      }
-    }
-
-    return raw
-  }
-
-  async function checkTestCleanupOuEmpty(item) {
-    const dn = getObjectDn(item)
-
-    if (!dn) {
-      throw new Error('DN introuvable pour cette OU.')
-    }
-
-    const created = await apiFetch('/api/ad-explorer/jobs', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'check_ou_empty',
-        ou_dn: dn,
-        base_dn: dn,
-        created_by: 'react-test-cleanup-ou-check'
-      })
-    })
-
-    const jobId = created?.job?.id
-
-    if (!jobId) {
-      throw new Error('Job check_ou_empty introuvable.')
-    }
-
-    const job = await waitForAdExplorerJob(jobId)
-    const output = normalizeOuEmptyCheckOutput(job)
-
-    if (!job.success) {
-      throw new Error(output?.error || job.message || 'Verification de l OU impossible.')
-    }
-
-    return {
-      isEmpty: Boolean(output?.is_empty ?? output?.isEmpty),
-      childCount: Number(output?.child_count ?? output?.childCount ?? 0),
-      children: Array.isArray(output?.children) ? output.children : [],
-      message: output?.message || job.message || ''
-    }
-  }
-
-  async function deleteTestCleanupObject(item) {
-    const dn = getObjectDn(item)
-    const identity = getTestCleanupIdentity(item) || item?.name || 'Objet AD'
-
-    if (!dn) {
-      setTestCleanupError('DN introuvable pour cet objet.')
-      return
-    }
-
-    setTestCleanupDeletingDn(dn)
-    setTestCleanupError('')
-    setTestCleanupResults(current => ({
-      ...current,
-      [dn]: {
-        type: 'pending',
-        message: 'Action en cours...'
-      }
-    }))
-
-    try {
-      const modeData = await apiFetch('/api/agent/mode')
-      const currentMode = modeData?.mode || adAgentMode || 'Inconnu'
-      const isProduction = String(currentMode).toLowerCase() === 'production'
-      const isOu = isTestCleanupOu(item)
-
-      setAdAgentMode(currentMode)
-
-      if (isOu) {
-        setTestCleanupResults(current => ({
-          ...current,
-          [dn]: {
-            type: 'pending',
-            message: 'Verification que l OU est vide...'
-          }
-        }))
-
-        const check = await checkTestCleanupOuEmpty(item)
-
-        if (!check.isEmpty) {
-          const message = `OU non vide : ${check.childCount} objet(s) enfant(s). Suppression bloquee.`
-
-          setTestCleanupResults(current => ({
-            ...current,
-            [dn]: {
-              type: 'error',
-              message
-            }
-          }))
-
-          setTestCleanupError(message)
-          return
-        }
-
-        setTestCleanupResults(current => ({
-          ...current,
-          [dn]: {
-            type: 'pending',
-            message: 'OU vide verifiee. Suppression possible.'
-          }
-        }))
-      }
-
-      if (isProduction) {
-        const warning = isOu
-          ? `ATTENTION : mode Production AD.\n\nOU vide verifiee.\n\nSuppression reelle de l OU :\n${identity}\n\n${dn}\n\nContinuer ?`
-          : `ATTENTION : mode Production AD.\n\nSuppression reelle de l objet :\n${identity}\n\n${dn}\n\nContinuer ?`
-
-        const ok = window.confirm(warning)
-
-        if (!ok) {
-          setTestCleanupResults(current => ({
-            ...current,
-            [dn]: {
-              type: 'muted',
-              message: 'Action annulee.'
-            }
-          }))
-          return
-        }
-      }
-
-      const job = await runAdAdminJob({
-        action: 'delete_object',
-        object_identity: dn,
-        confirm_dn: dn
-      })
-
-      const message = isProduction
-        ? 'Suppression Production OK.'
-        : isOu
-          ? 'OU vide verifiee. Simulation OK — aucun objet AD reel n a ete supprime.'
-          : 'Simulation OK — aucun objet AD reel n a ete supprime.'
-
-      setStatus(job?.message || message)
-
-      setTestCleanupResults(current => ({
-        ...current,
-        [dn]: {
-          type: 'success',
-          message
-        }
-      }))
-
-      if (isProduction) {
-        setTestCleanupItems(current => current.filter(entry => getObjectDn(entry) !== dn))
-      }
-    } catch (error) {
-      const message = error?.message || `Suppression impossible : ${identity}`
-
-      setTestCleanupResults(current => ({
-        ...current,
-        [dn]: {
-          type: 'error',
-          message
-        }
-      }))
-
-      setTestCleanupError(message)
-    } finally {
-      setTestCleanupDeletingDn('')
-    }
-  }
-
-  async function runBulkTestCleanup() {
-    if (testCleanupItems.length < 1) {
-      setTestCleanupError('Aucun objet de test à traiter.')
-      return
-    }
-
-    const modeData = await apiFetch('/api/agent/mode')
-    const currentMode = modeData?.mode || adAgentMode || 'Inconnu'
-    const isProduction = String(currentMode).toLowerCase() === 'production'
-
-    setAdAgentMode(currentMode)
-
-    if (isProduction) {
-      const names = testCleanupItems
-        .map(item => `- ${getTestCleanupIdentity(item) || item?.name || getObjectDn(item)}`)
-        .join('\n')
-
-      const ok = window.confirm(
-        `ATTENTION : mode Production AD.\n\nTu vas supprimer ${testCleanupItems.length} objet(s) de test détecté(s).\n\n${names}\n\nLes OU seront vérifiées vides avant suppression.\n\nContinuer ?`
-      )
-
-      if (!ok) {
-        setTestCleanupError('Nettoyage global annulé.')
-        return
-      }
-    }
-
-    setTestCleanupBulkRunning(true)
-    setTestCleanupError('')
-
-    try {
-      const snapshot = [...testCleanupItems]
-
-      for (const item of snapshot) {
-        await deleteTestCleanupObject(item)
-      }
-
-      if (isProduction) {
-        await scanTestCleanupObjects()
-      }
-    } catch (error) {
-      setTestCleanupError(error?.message || 'Nettoyage global interrompu.')
-    } finally {
-      setTestCleanupBulkRunning(false)
-    }
-  }
-
-  function openTestCleanupScanner() {
-    loadAdAgentMode()
-    setTestCleanupModal(true)
-    setTestCleanupItems([])
-    setTestCleanupError('')
-    scanTestCleanupObjects()
-  }
-
   useEffect(() => {
     refreshAll()
-    loadAdAdminHistory()
   }, [])
 
   const selectedNodeDn =
@@ -8106,417 +6176,30 @@ function getAdAttributeValue(item, ...names) {
         </div>
       )}
 
-      {adActivityModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setAdActivityModal(false)}>
-          <section className="aduc-modal aduc-activity-center-modal" onClick={event => event.stopPropagation()}>
-            <header>
-              <div>
-                <span>Centre d’activité Active Directory</span>
-                <h3>Activité AD Admin globale</h3>
-              </div>
+      <AdActivityModal
+        open={adActivityModal}
+        activity={adActivity}
+        loading={adAdminHistoryLoading}
+        error={adAdminHistoryError}
+        onClose={() => setAdActivityModal(false)}
+        onRefresh={refreshAdAdminHistoryQuietly}
+        onSelectJob={setSelectedAdAdminHistoryJob}
+      />
 
-              <button type="button" onClick={() => setAdActivityModal(false)}>×</button>
-            </header>
+            <AdHistoryDetailModal
+        job={selectedAdAdminHistoryJob}
+        activity={adActivity}
+        onClose={() => setSelectedAdAdminHistoryJob(null)}
+      />
 
-            <div className="aduc-activity-actions">
-              <button type="button" onClick={refreshAdAdminHistoryQuietly} disabled={adAdminHistoryLoading}>
-                {adAdminHistoryLoading ? 'Chargement...' : 'Actualiser l’activité'}
-              </button>
-            </div>
+      <TestCleanupModal
+        open={testCleanupModal}
+        cleanup={testCleanup}
+        isProduction={isAdProductionMode()}
+        onClose={() => setTestCleanupModal(false)}
+      />
 
-            <div className="aduc-activity-tools">
-              <div className="aduc-activity-search">
-                <input
-                  value={adActivitySearch}
-                  onChange={event => setAdActivitySearch(event.target.value)}
-                  placeholder="Rechercher action, objet, agent, message..."
-                />
-                <span>{getAdActivityFilteredJobs().length} résultat(s)</span>
-              </div>
-
-              <div className="aduc-activity-scope">
-                {[
-                  ['all', 'Tout'],
-                  ['critical', 'Critiques'],
-                  ['failed', 'Échecs']
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={adActivityScope === value ? 'active' : ''}
-                    onClick={() => setAdActivityScope(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="aduc-activity-advanced">
-                <button
-                  type="button"
-                  className={adActivityShowSimulations ? 'active' : ''}
-                  onClick={() => setAdActivityShowSimulations(value => !value)}
-                >
-                  {adActivityShowSimulations ? 'Simulations visibles' : 'Simulations masquées'}
-                </button>
-
-                <select value={adActivityTimeRange} onChange={event => setAdActivityTimeRange(event.target.value)}>
-                  <option value="all">Toute période</option>
-                  <option value="24h">Dernières 24h</option>
-                  <option value="7d">Derniers 7j</option>
-                </select>
-
-                <select value={adActivitySortOrder} onChange={event => setAdActivitySortOrder(event.target.value)}>
-                  <option value="newest">Plus récent</option>
-                  <option value="oldest">Plus ancien</option>
-                </select>
-              </div>
-
-              <div className="aduc-activity-export">
-                <button type="button" onClick={copyAdActivitySummary} disabled={getAdActivityFilteredJobs().length === 0}>
-                  Copier synthèse
-                </button>
-                <button type="button" onClick={exportAdActivityJson} disabled={getAdActivityFilteredJobs().length === 0}>
-                  Export JSON
-                </button>
-                <button type="button" onClick={exportAdActivityCsv} disabled={getAdActivityFilteredJobs().length === 0}>
-                  Export CSV
-                </button>
-                <button type="button" className="neutral" onClick={resetAdActivityFilters}>
-                  Réinitialiser
-                </button>
-              </div>
-            </div>
-
-            <div className="aduc-activity-filter-summary">
-              {getAdActivityFilterSummary()}
-            </div>
-
-            <div className="aduc-activity-kpis">
-              {getAdActivityStatCards().map(card => (
-                <article key={card.key} className={`aduc-activity-kpi ${card.key}`}>
-                  <span>{card.label}</span>
-                  <strong>{card.value}</strong>
-                </article>
-              ))}
-            </div>
-
-            {adAdminHistoryError && (
-              <div className="aduc-admin-history-error">
-                {adAdminHistoryError}
-              </div>
-            )}
-
-            <div className="aduc-activity-grid">
-              <section>
-                <h4>Dernières actions <span>{getAdActivityRecentJobs().length}</span></h4>
-
-                {getAdActivityRecentJobs().length === 0 ? (
-                  <p className="aduc-admin-history-empty">Aucune action AD Admin récente.</p>
-                ) : (
-                  <div className="aduc-activity-list">
-                    {getAdActivityRecentJobs().map(job => (
-                      <button
-                        type="button"
-                        key={job.id || job.job_id}
-                        className={`aduc-activity-row ${getAdActivityJobStatus(job)}`}
-                        onClick={() => setSelectedAdAdminHistoryJob(job)}
-                      >
-                        <span className="aduc-activity-dot" />
-
-                        <div>
-                          <strong>{getAdActivityActionLabel(job.action)}</strong>
-                          <small>
-                            {job.claimed_by || job.created_by || '—'} • {getAdActivityStatusLabel(job)} • {formatAdActivityDate(getAdActivityDate(job))}
-                          </small>
-                          <p>{getAdActivityMessage(job)}</p>
-                          <div className="aduc-activity-tags">
-                            {getAdActivityTargetLabel(job) && (
-                              <code className="aduc-activity-target">{getAdActivityTargetLabel(job)}</code>
-                            )}
-
-                            {isAdActivitySimulation(job) && (
-                              <em className="aduc-activity-simulation-badge">Simulation</em>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <h4>Actions sensibles / erreurs <span>{getAdActivityCriticalJobs().length}</span></h4>
-
-                {getAdActivityCriticalJobs().length === 0 ? (
-                  <p className="aduc-admin-history-empty">Aucune action sensible ou erreur ne correspond aux filtres actuels.</p>
-                ) : (
-                  <div className="aduc-activity-list">
-                    {getAdActivityCriticalJobs().map(job => (
-                      <button
-                        type="button"
-                        key={job.id || job.job_id}
-                        className={`aduc-activity-row ${getAdActivityJobStatus(job)} critical`}
-                        onClick={() => setSelectedAdAdminHistoryJob(job)}
-                      >
-                        <span className="aduc-activity-dot" />
-
-                        <div>
-                          <strong>{getAdActivityActionLabel(job.action)}</strong>
-                          <small>
-                            {job.claimed_by || job.created_by || '—'} • {getAdActivityStatusLabel(job)} • {formatAdActivityDate(getAdActivityDate(job))}
-                          </small>
-                          <p>{getAdActivityMessage(job)}</p>
-                          <div className="aduc-activity-tags">
-                            {getAdActivityTargetLabel(job) && (
-                              <code className="aduc-activity-target">{getAdActivityTargetLabel(job)}</code>
-                            )}
-
-                            {isAdActivitySimulation(job) && (
-                              <em className="aduc-activity-simulation-badge">Simulation</em>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
-
-            <footer className="aduc-modal-actions">
-              <button type="button" onClick={() => setAdActivityModal(false)}>Fermer</button>
-              <button type="button" onClick={refreshAdAdminHistoryQuietly}>Actualiser</button>
-            </footer>
-          </section>
-        </div>
-      )}
-
-      {selectedAdAdminHistoryJob && (
-        <div className="aduc-modal-backdrop" onClick={() => setSelectedAdAdminHistoryJob(null)}>
-          <section className="aduc-modal aduc-history-detail-modal" onClick={event => event.stopPropagation()}>
-            <header>
-              <div>
-                <span>Historique AD Admin</span>
-                <h3>Détail de l’action</h3>
-              </div>
-
-              <button type="button" onClick={() => setSelectedAdAdminHistoryJob(null)}>×</button>
-            </header>
-
-            <div className={`aduc-history-detail-summary-card ${getAdActivityJobStatus(selectedAdAdminHistoryJob)}`}>
-              <div>
-                <span className="aduc-history-detail-action">
-                  {getAdActivityActionLabel(selectedAdAdminHistoryJob.action)}
-                </span>
-
-                <h4>{getAdActivityMessage(selectedAdAdminHistoryJob)}</h4>
-
-                <p>
-                  {selectedAdAdminHistoryJob.claimed_by || selectedAdAdminHistoryJob.created_by || '—'}
-                  {' '}• {getAdActivityStatusLabel(selectedAdAdminHistoryJob)}
-                  {' '}• {formatAdActivityDate(getAdActivityDate(selectedAdAdminHistoryJob))}
-                </p>
-              </div>
-
-              <div className="aduc-history-detail-badges">
-                <strong>{getAdActivityStatusLabel(selectedAdAdminHistoryJob)}</strong>
-                {isAdActivitySimulation(selectedAdAdminHistoryJob) && <em>Simulation</em>}
-                {isAdActivityCritical(selectedAdAdminHistoryJob) && <em>Action critique</em>}
-              </div>
-            </div>
-
-            <div className="aduc-history-detail-actions">
-              <button type="button" onClick={() => copyAdHistoryDetailSummary(selectedAdAdminHistoryJob)}>
-                Copier résumé
-              </button>
-
-              <button type="button" onClick={() => copyAdHistoryDetailJson(selectedAdAdminHistoryJob)}>
-                Copier JSON job
-              </button>
-
-              {getAdActivityTargetDn(selectedAdAdminHistoryJob) && (
-                <button type="button" onClick={() => copyText(getAdActivityTargetDn(selectedAdAdminHistoryJob))}>
-                  Copier DN cible
-                </button>
-              )}
-            </div>
-
-            <div className="aduc-history-detail-grid">
-              <div>
-                <span>Action</span>
-                <strong>{getAdActivityActionLabel(selectedAdAdminHistoryJob.action)}</strong>
-              </div>
-
-              <div>
-                <span>Statut</span>
-                <strong>{getAdActivityStatusLabel(selectedAdAdminHistoryJob)}</strong>
-              </div>
-
-              <div>
-                <span>Agent</span>
-                <strong>{selectedAdAdminHistoryJob.claimed_by || '—'}</strong>
-              </div>
-
-              <div>
-                <span>Créé par</span>
-                <strong>{selectedAdAdminHistoryJob.created_by || '—'}</strong>
-              </div>
-
-              <div>
-                <span>Création</span>
-                <strong>{formatAdActivityDate(selectedAdAdminHistoryJob.created_at)}</strong>
-              </div>
-
-              <div>
-                <span>Dernière date</span>
-                <strong>{formatAdActivityDate(getAdActivityDate(selectedAdAdminHistoryJob))}</strong>
-              </div>
-
-              {getAdActivityTargetLabel(selectedAdAdminHistoryJob) && (
-                <div>
-                  <span>Cible</span>
-                  <strong>{getAdActivityTargetLabel(selectedAdAdminHistoryJob)}</strong>
-                </div>
-              )}
-
-              {getAdActivityTargetDn(selectedAdAdminHistoryJob) && (
-                <div className="aduc-history-detail-grid-wide">
-                  <span>DN cible</span>
-                  <code>{getAdActivityTargetDn(selectedAdAdminHistoryJob)}</code>
-                </div>
-              )}
-            </div>
-
-            <div className="aduc-history-detail-message">
-              <div className="aduc-history-detail-message-head">
-                <span>Message</span>
-                <button type="button" onClick={() => copyText(getAdActivityMessage(selectedAdAdminHistoryJob))}>
-                  Copier
-                </button>
-              </div>
-
-              <strong>{getAdActivityMessage(selectedAdAdminHistoryJob)}</strong>
-            </div>
-
-            <div className="aduc-history-detail-json">
-              <div className="aduc-history-detail-json-title">
-                <h4>Résultat agent</h4>
-                <button type="button" onClick={() => copyText(formatAdHistoryJson(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {}))}>
-                  Copier
-                </button>
-              </div>
-
-              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob.result || selectedAdAdminHistoryJob.output || {})}</pre>
-            </div>
-
-            <div className="aduc-history-detail-json">
-              <div className="aduc-history-detail-json-title">
-                <h4>Job complet</h4>
-                <button type="button" onClick={() => copyAdHistoryDetailJson(selectedAdAdminHistoryJob)}>
-                  Copier
-                </button>
-              </div>
-
-              <pre>{formatAdHistoryJson(selectedAdAdminHistoryJob)}</pre>
-            </div>
-
-            <footer className="aduc-modal-actions">
-              <button type="button" onClick={() => setSelectedAdAdminHistoryJob(null)}>Fermer</button>
-            </footer>
-          </section>
-        </div>
-      )}
-
-      {testCleanupModal && (
-        <div className="aduc-modal-backdrop" onClick={() => setTestCleanupModal(false)}>
-          <section className="aduc-modal aduc-test-cleanup-modal" onClick={event => event.stopPropagation()}>
-            <header>
-              <div>
-                <span>Maintenance Active Directory</span>
-                <h3>Nettoyage des objets de test</h3>
-              </div>
-
-              <button type="button" onClick={() => setTestCleanupModal(false)}>×</button>
-            </header>
-
-            <div className="aduc-test-cleanup-summary">
-              <strong>{testCleanupLoading ? 'Scan en cours...' : `${testCleanupItems.length} objet(s) détecté(s)`}</strong>
-              <span>Patterns : TMP_*, TEST_*, GG_TMP_*, test.*</span>
-            </div>
-
-            {testCleanupError && (
-              <div className="aduc-member-submit-error">
-                {testCleanupError}
-              </div>
-            )}
-
-            {!testCleanupLoading && !testCleanupError && testCleanupItems.length === 0 && (
-              <div className="aduc-empty-state">
-                Aucun objet de test détecté dans l’arbre AD courant.
-              </div>
-            )}
-
-            {testCleanupItems.length > 0 && (
-              <div className="aduc-test-cleanup-list">
-                {testCleanupItems.map((item, index) => (
-                  <article key={getObjectDn(item) || `${getTestCleanupIdentity(item)}-${index}`} className="aduc-test-cleanup-item">
-                    <div className="aduc-test-cleanup-icon">{objectIcon(item)}</div>
-
-                    <div>
-                      <strong>{getTestCleanupIdentity(item) || item?.name || 'Objet AD'}</strong>
-                      <span>{item?.type || item?.objectClass || 'objet'} · {item.cleanup_reason}</span>
-                      <code>{getObjectDn(item)}</code>
-
-                      {testCleanupResults[getObjectDn(item)] && (
-                        <em className={`aduc-test-cleanup-result ${testCleanupResults[getObjectDn(item)].type}`}>
-                          {testCleanupResults[getObjectDn(item)].message}
-                        </em>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="aduc-test-cleanup-delete"
-                      disabled={testCleanupDeletingDn === getObjectDn(item)}
-                      onClick={() => deleteTestCleanupObject(item)}
-                    >
-                      {testCleanupDeletingDn === getObjectDn(item)
-                        ? 'Suppression...'
-                        : isAdProductionMode()
-                          ? isTestCleanupOu(item) ? 'Supprimer OU' : 'Supprimer'
-                          : 'Simuler'}
-                    </button>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            <footer className="aduc-modal-actions">
-              <button type="button" onClick={() => setTestCleanupModal(false)}>Fermer</button>
-              {testCleanupItems.length > 0 && (
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={runBulkTestCleanup}
-                  disabled={testCleanupLoading || testCleanupBulkRunning || Boolean(testCleanupDeletingDn)}
-                >
-                  {testCleanupBulkRunning
-                    ? 'Nettoyage...'
-                    : isAdProductionMode() ? 'Tout supprimer' : 'Tout simuler'}
-                </button>
-              )}
-
-              <button type="button" onClick={scanTestCleanupObjects} disabled={testCleanupLoading || testCleanupBulkRunning}>
-                {testCleanupLoading ? 'Scan...' : 'Relancer le scan'}
-              </button>
-            </footer>
-          </section>
-        </div>
-      )}
-
-      {adminModal && (
+{adminModal && (
         <div
           className="aduc-modal-backdrop"
           onClick={closeAdminCreationModal}
@@ -9110,7 +6793,7 @@ function getAdAttributeValue(item, ...names) {
               setContextMenu(null)
               openDeleteObject(contextMenu?.target || selectedObject || selectedNode)
             }}>🗑 Supprimer</button>
-          <button type="button" onClick={() => loadNodeContent(selectedNode, viewType)}>⟳ Actualiser</button>
+          <button type="button" onClick={() => loadNodeContent(selectedNode, viewType, { forceRefresh: true })}>⟳ Actualiser</button>
           <button type="button" onClick={() => copyText(contextMenu.target?.distinguished_name || '').then(() => setMessage?.('DN copié.'))}>⎙ Exporter / Copier DN</button>
 
           <hr />
