@@ -11,6 +11,7 @@ function useAdGroupMembers({
   setMessage,
   setStatus,
   setContextMenu,
+  adSnapshot,
   runJob,
   runAdAdminJob,
   loadGroupMembers,
@@ -111,7 +112,8 @@ function useAdGroupMembers({
   }
 
   async function searchMemberCandidates() {
-    const query = memberIdentity.trim()
+    const query =
+      memberIdentity.trim()
 
     setSelectedMemberCandidate(null)
     setMemberSearchError('')
@@ -119,55 +121,148 @@ function useAdGroupMembers({
 
     if (query.length < 2) {
       setMemberSearchResults([])
-      setMemberSearchError('Tape au moins 2 caractères pour rechercher un utilisateur ou un groupe.')
+
+      setMemberSearchError(
+        'Tape au moins 2 caractères pour rechercher un utilisateur ou un groupe.'
+      )
+
       return
     }
 
     setMemberSearchLoading(true)
 
     try {
-      const [users, groups] = await Promise.all([
-        runJob('search_users', {
-          query,
-          baseDn: 'OU=Users,OU=EITAS,DC=API,DC=LOCAL',
-          limit: 50,
-          recursive: true
-        }),
-        runJob('list_groups', {
-          baseDn: 'OU=Groups,OU=EITAS,DC=API,DC=LOCAL',
-          limit: 500,
-          recursive: true
-        })
-      ])
+      let users = null
+      let groups = null
 
-      const normalizedQuery = query.toLowerCase()
+      if (
+        adSnapshot &&
+        typeof adSnapshot.search ===
+          'function'
+      ) {
+        const [
+          snapshotUsers,
+          snapshotGroups,
+        ] = await Promise.all([
+          adSnapshot.search({
+            query,
+            baseDn:
+              'OU=Users,OU=EITAS,DC=API,DC=LOCAL',
+            recursive: true,
+            limit: 50,
+            types: [
+              'user',
+            ],
+          }),
+          adSnapshot.search({
+            query,
+            baseDn:
+              'OU=Groups,OU=EITAS,DC=API,DC=LOCAL',
+            recursive: true,
+            limit: 500,
+            types: [
+              'group',
+            ],
+          }),
+        ])
 
-      const matchingGroups = groups.filter(group =>
+        if (
+          Array.isArray(snapshotUsers) &&
+          Array.isArray(snapshotGroups)
+        ) {
+          users = snapshotUsers
+          groups = snapshotGroups
+        }
+      }
+
+      if (
+        !Array.isArray(users) ||
+        !Array.isArray(groups)
+      ) {
         [
-          group?.name,
-          group?.sam_account_name,
-          group?.samAccountName,
-          group?.description,
-          group?.distinguished_name,
-          group?.dn
-        ]
-          .filter(Boolean)
-          .some(value => String(value).toLowerCase().includes(normalizedQuery))
-      )
+          users,
+          groups,
+        ] = await Promise.all([
+          runJob(
+            'search_users',
+            {
+              query,
+              baseDn:
+                'OU=Users,OU=EITAS,DC=API,DC=LOCAL',
+              limit: 50,
+              recursive: true,
+            }
+          ),
+          runJob(
+            'list_groups',
+            {
+              baseDn:
+                'OU=Groups,OU=EITAS,DC=API,DC=LOCAL',
+              limit: 500,
+              recursive: true,
+            }
+          ),
+        ])
+      }
 
-      const decoratedUsers = users.map(user => decorateMemberCandidate(user, 'user'))
-      const decoratedGroups = matchingGroups.map(group => decorateMemberCandidate(group, 'group'))
+      const normalizedQuery =
+        query.toLowerCase()
 
-      const results = [...decoratedUsers, ...decoratedGroups]
+      const matchingGroups =
+        groups.filter(group =>
+          [
+            group?.name,
+            group?.sam_account_name,
+            group?.samAccountName,
+            group?.description,
+            group?.distinguished_name,
+            group?.dn,
+          ]
+            .filter(Boolean)
+            .some(value =>
+              String(value)
+                .toLowerCase()
+                .includes(
+                  normalizedQuery
+                )
+            )
+        )
+
+      const decoratedUsers =
+        users.map(user =>
+          decorateMemberCandidate(
+            user,
+            'user'
+          )
+        )
+
+      const decoratedGroups =
+        matchingGroups.map(group =>
+          decorateMemberCandidate(
+            group,
+            'group'
+          )
+        )
+
+      const results = [
+        ...decoratedUsers,
+        ...decoratedGroups,
+      ]
 
       setMemberSearchResults(results)
 
       if (!results.length) {
-        setMemberSearchError('Aucun utilisateur ou groupe trouvé.')
+        setMemberSearchError(
+          'Aucun utilisateur ou groupe trouvé.'
+        )
       }
     } catch (error) {
       setMemberSearchResults([])
-      setMemberSearchError(error.message || 'Recherche utilisateur/groupe impossible.')
+
+      setMemberSearchError(
+        error.message ||
+        'Recherche utilisateur/groupe impossible.'
+      )
     } finally {
       setMemberSearchLoading(false)
     }

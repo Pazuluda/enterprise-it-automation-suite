@@ -100,6 +100,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setMessage,
     setStatus,
     setContextMenu,
+    adSnapshot,
     runJob,
     runAdAdminJob,
     loadGroupMembers,
