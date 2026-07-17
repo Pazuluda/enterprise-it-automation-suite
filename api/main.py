@@ -226,7 +226,9 @@ def root():
 
 
 @app.get("/api/templates")
-def get_templates():
+def get_templates(
+    api_key: None = Depends(require_api_key),
+):
     return service_get_templates(TEMPLATES_FILE)
 
 
@@ -985,7 +987,9 @@ def _eitas_agent_mode_normalize(value):
 
 
 @app.get("/api/agent/mode")
-def eitas_get_agent_mode_compat():
+def eitas_get_agent_mode_compat(
+    api_key: None = Depends(require_api_key),
+):
     config = _eitas_agent_mode_load_config()
     mode = _eitas_agent_mode_normalize(
         config.get("mode") or
@@ -1000,7 +1004,10 @@ def eitas_get_agent_mode_compat():
 
 
 @app.post("/api/admin/agent/mode")
-def eitas_update_agent_mode_compat(payload: dict = Body(...)):
+def eitas_update_agent_mode_compat(
+    payload: dict = Body(...),
+    api_key: None = Depends(require_api_key),
+):
     wanted_mode = _eitas_agent_mode_normalize(payload.get("mode") if isinstance(payload, dict) else None)
     updated_by = payload.get("updated_by") if isinstance(payload, dict) else None
 
