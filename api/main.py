@@ -58,6 +58,12 @@ from app.services.ad_explorer import (
     list_ad_explorer_jobs as service_list_ad_explorer_jobs,
     submit_ad_explorer_job_result as service_submit_ad_explorer_job_result,
 )
+from app.services.ad_snapshot import (
+    ADSnapshotBadRequest,
+    ADSnapshotNotFound,
+    get_ad_snapshot as service_get_ad_snapshot,
+    receive_ad_snapshot as service_receive_ad_snapshot,
+)
 from app.services.ad_admin import (
     ADAdminBadRequest,
     ADAdminConflict,
@@ -98,8 +104,8 @@ app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
     version="0.1.0",
-    docs_url=None,
-    redoc_url=None
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # STEP176_CORS_REACT_DEV
@@ -127,6 +133,15 @@ AGENT_CONFIG_FILE = DATA_DIR / "agent-config.json"
 AD_CHECK_JOBS_FILE = DATA_DIR / "ad-check-jobs.json"
 AD_LOOKUP_JOBS_FILE = DATA_DIR / "ad-lookup-jobs.json"
 AD_EXPLORER_JOBS_FILE = DATA_DIR / "ad-explorer-jobs.json"
+AD_SNAPSHOT_FILE = DATA_DIR / "ad-snapshot.json"
+AD_SNAPSHOT_EXPECTED_BASE_DN = os.getenv(
+    "EITAS_AD_SNAPSHOT_BASE_DN",
+    "OU=EITAS,DC=API,DC=LOCAL",
+)
+AD_SNAPSHOT_STALE_AFTER_SECONDS = max(
+    3,
+    int(os.getenv("EITAS_AD_SNAPSHOT_STALE_AFTER_SECONDS", "15")),
+)
 AD_ADMIN_JOBS_FILE = DATA_DIR / "ad-admin-jobs.json"
 
 
@@ -588,6 +603,40 @@ def submit_ad_check_job_result(job_id: str, payload: dict = Body(...), api_key: 
 
     write_audit_log(**audit_event)
     return response
+
+
+@app.post("/api/agent/ad-snapshot")
+def receive_ad_snapshot(
+    payload: dict = Body(...),
+    api_key: None = Depends(require_api_key),
+):
+    try:
+        return service_receive_ad_snapshot(
+            AD_SNAPSHOT_FILE,
+            payload,
+            expected_base_dn=AD_SNAPSHOT_EXPECTED_BASE_DN,
+        )
+    except ADSnapshotBadRequest as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+
+@app.get("/api/ad-snapshot")
+def get_ad_snapshot(
+    api_key: None = Depends(require_api_key),
+):
+    try:
+        return service_get_ad_snapshot(
+            AD_SNAPSHOT_FILE,
+            stale_after_seconds=AD_SNAPSHOT_STALE_AFTER_SECONDS,
+        )
+    except ADSnapshotNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
 
 
 @app.post("/api/ad-explorer/jobs")

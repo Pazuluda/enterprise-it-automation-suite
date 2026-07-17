@@ -24,6 +24,7 @@ class ADExplorerConflict(ADExplorerError):
 
 
 ALLOWED_ACTIONS = {
+    "list_children",
     "list_ous",
     "list_ou_tree",
     "check_ou_empty",

@@ -36,3 +36,6 @@ api/data/ad-explorer-jobs.json
 api/data/ad-admin-jobs.json
 api/data/worker-status.json
 api/data/worker-events.jsonl
+
+# Runtime Active Directory snapshot
+api/data/ad-snapshot.json

@@ -359,6 +359,333 @@ function Send-EitasAdExplorerResult {
         -Config $Config
 }
 
+function Convert-EitasAdExplorerFileTime {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    try {
+        $NumericValue = [int64]$Value
+
+        if (
+            $NumericValue -le 0 -or
+            $NumericValue -eq 9223372036854775807
+        ) {
+            return $null
+        }
+
+        return [datetime]::FromFileTimeUtc(
+            $NumericValue
+        ).ToString("yyyy-MM-dd HH:mm:ss")
+    }
+    catch {
+        return $null
+    }
+}
+
+function Get-EitasAdExplorerGroupScope {
+    param([object]$GroupTypeValue)
+
+    try {
+        $GroupType = [int64]$GroupTypeValue
+
+        if (($GroupType -band 8) -ne 0) {
+            return "Universal"
+        }
+
+        if (($GroupType -band 4) -ne 0) {
+            return "DomainLocal"
+        }
+
+        if (($GroupType -band 2) -ne 0) {
+            return "Global"
+        }
+    }
+    catch {}
+
+    return $null
+}
+
+function Get-EitasAdExplorerGroupCategory {
+    param([object]$GroupTypeValue)
+
+    try {
+        $GroupType = [int64]$GroupTypeValue
+
+        if (
+            ($GroupType -band 2147483648) -ne 0
+        ) {
+            return "Security"
+        }
+
+        return "Distribution"
+    }
+    catch {
+        return $null
+    }
+}
+
+function Invoke-EitasAdExplorerListChildren {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $BaseDn = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "base_dn",
+            "baseDn",
+            "search_base",
+            "searchBase",
+            "target_dn",
+            "targetDn",
+            "dn"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$BaseDn
+        )
+    ) {
+        $BaseDn = Get-EitasAllowedBaseDn `
+            -Config $Config
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $BaseDn `
+        -Config $Config `
+        -AllowDomainRoot |
+        Out-Null
+
+    $LimitValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "limit",
+            "max_results",
+            "maxResults"
+        )
+
+    $Limit = 500
+
+    if ($null -ne $LimitValue) {
+        try {
+            $ParsedLimit = [int]$LimitValue
+
+            if ($ParsedLimit -gt 0) {
+                $Limit = [Math]::Min(
+                    $ParsedLimit,
+                    2000
+                )
+            }
+        }
+        catch {
+            $Limit = 500
+        }
+    }
+
+    $Properties = @(
+        "description",
+        "displayName",
+        "sAMAccountName",
+        "userPrincipalName",
+        "mail",
+        "userAccountControl",
+        "pwdLastSet",
+        "lastLogonTimestamp",
+        "badPasswordTime",
+        "accountExpires",
+        "lockoutTime",
+        "badPwdCount",
+        "department",
+        "title",
+        "company",
+        "manager",
+        "physicalDeliveryOfficeName",
+        "telephoneNumber",
+        "mobile",
+        "l",
+        "co",
+        "st",
+        "postalCode",
+        "streetAddress",
+        "employeeID",
+        "employeeNumber",
+        "division",
+        "memberOf",
+        "groupType",
+        "canonicalName",
+        "whenCreated",
+        "whenChanged",
+        "objectGUID",
+        "objectSid"
+    )
+
+    $LdapFilter = "(|(objectClass=organizationalUnit)(objectClass=group)(&(objectCategory=person)(objectClass=user)))"
+
+    $Objects = @(
+        Get-ADObject `
+            -LDAPFilter $LdapFilter `
+            -SearchBase $BaseDn `
+            -SearchScope OneLevel `
+            -Properties $Properties `
+            -ResultSetSize $Limit `
+            -ErrorAction Stop
+    )
+
+    $Items = @()
+
+    foreach ($Object in $Objects) {
+        $ObjectClass = (
+            [string]$Object.ObjectClass
+        ).ToLowerInvariant()
+
+        if (
+            $ObjectClass -eq
+            "organizationalunit"
+        ) {
+            $Items += [pscustomobject]@{
+                type = "ou"
+                name = [string]$Object.Name
+                distinguished_name = [string]$Object.DistinguishedName
+                dn = [string]$Object.DistinguishedName
+                canonical_name = [string]$Object.canonicalName
+                description = [string]$Object.description
+            }
+
+            continue
+        }
+
+        if ($ObjectClass -eq "group") {
+            $Items += [pscustomobject]@{
+                type = "group"
+                name = [string]$Object.Name
+                sam_account_name = [string]$Object.sAMAccountName
+                group_scope = Get-EitasAdExplorerGroupScope `
+                    -GroupTypeValue $Object.groupType
+                group_category = Get-EitasAdExplorerGroupCategory `
+                    -GroupTypeValue $Object.groupType
+                distinguished_name = [string]$Object.DistinguishedName
+                dn = [string]$Object.DistinguishedName
+                canonical_name = [string]$Object.canonicalName
+                description = [string]$Object.description
+            }
+
+            continue
+        }
+
+        if ($ObjectClass -eq "user") {
+            $UserAccountControl = 0
+            $LockoutTime = 0
+
+            try {
+                $UserAccountControl = [int64]$Object.userAccountControl
+            }
+            catch {}
+
+            try {
+                $LockoutTime = [int64]$Object.lockoutTime
+            }
+            catch {}
+
+            $SidValue = $null
+
+            if ($null -ne $Object.objectSid) {
+                try {
+                    $SidValue = (
+                        New-Object `
+                            System.Security.Principal.SecurityIdentifier(
+                                $Object.objectSid,
+                                0
+                            )
+                    ).Value
+                }
+                catch {
+                    $SidValue = [string]$Object.objectSid
+                }
+            }
+
+            $Items += [pscustomobject]@{
+                type = "user"
+                name = [string]$Object.Name
+                display_name = [string]$Object.displayName
+                sam_account_name = [string]$Object.sAMAccountName
+                user_principal_name = [string]$Object.userPrincipalName
+                mail = [string]$Object.mail
+                enabled = (
+                    ($UserAccountControl -band 2) -eq 0
+                )
+                locked_out = ($LockoutTime -gt 0)
+                password_expired = (
+                    [int64]$Object.pwdLastSet -eq 0
+                )
+                password_never_expires = (
+                    ($UserAccountControl -band 65536) -ne 0
+                )
+                cannot_change_password = $null
+                password_last_set = Convert-EitasAdExplorerFileTime `
+                    -Value $Object.pwdLastSet
+                last_logon = Convert-EitasAdExplorerFileTime `
+                    -Value $Object.lastLogonTimestamp
+                last_bad_password_attempt = Convert-EitasAdExplorerFileTime `
+                    -Value $Object.badPasswordTime
+                account_expires = Convert-EitasAdExplorerFileTime `
+                    -Value $Object.accountExpires
+                bad_logon_count = $Object.badPwdCount
+                department = [string]$Object.department
+                title = [string]$Object.title
+                company = [string]$Object.company
+                manager = [string]$Object.manager
+                office = [string]$Object.physicalDeliveryOfficeName
+                telephone_number = [string]$Object.telephoneNumber
+                mobile = [string]$Object.mobile
+                city = [string]$Object.l
+                country = [string]$Object.co
+                state = [string]$Object.st
+                postal_code = [string]$Object.postalCode
+                street_address = [string]$Object.streetAddress
+                employee_id = [string]$Object.employeeID
+                employee_number = [string]$Object.employeeNumber
+                division = [string]$Object.division
+                member_of = @($Object.memberOf)
+                object_guid = [string]$Object.ObjectGUID
+                sid = $SidValue
+                created_at = Convert-EitasAdDateValue `
+                    -Value $Object.whenCreated
+                updated_at = Convert-EitasAdDateValue `
+                    -Value $Object.whenChanged
+                canonical_name = [string]$Object.canonicalName
+                distinguished_name = [string]$Object.DistinguishedName
+                dn = [string]$Object.DistinguishedName
+                description = [string]$Object.description
+            }
+        }
+    }
+
+    $Items = @(
+        $Items |
+            Sort-Object `
+                @{Expression={$_.type}},
+                @{Expression={$_.name}}
+    )
+
+    return [pscustomobject]@{
+        action = "list_children"
+        base_dn = [string]$BaseDn
+        recursive = $false
+        search_scope = "OneLevel"
+        count = @($Items).Count
+        items = @($Items)
+        warnings = @()
+        message = "Contenu de l'OU chargé"
+    }
+}
+
+
 function Invoke-EitasAdExplorerListOus {
     param(
         [object]$Config,
@@ -970,6 +1297,10 @@ function Invoke-EitasAdExplorerJob {
     $Payload = Get-EitasLookupPayload -Job $Job
 
     switch ($Action) {
+        "list_children" {
+            return Invoke-EitasAdExplorerListChildren -Config $Config -Payload $Payload
+        }
+
         "list_ous" {
             return Invoke-EitasAdExplorerListOus -Config $Config -Payload $Payload
         }
