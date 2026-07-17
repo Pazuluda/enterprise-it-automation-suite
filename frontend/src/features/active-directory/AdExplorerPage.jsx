@@ -732,34 +732,93 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     }
   }
 
-  async function loadGroupMembers(target = selectedObject, options = {}) {
-    if (!target || !isGroupObject(target)) return
-
-    const identity = target.sam_account_name || target.name || getObjectDn(target)
-
-    if (!identity) {
-      setMembersError('Identité groupe introuvable.')
+  async function loadGroupMembers(
+    target = selectedObject,
+    options = {}
+  ) {
+    if (
+      !target ||
+      !isGroupObject(target)
+    ) {
       return
     }
+
+    const identity =
+      target.sam_account_name ||
+      target.name ||
+      getObjectDn(target)
+
+    if (!identity) {
+      setMembersError(
+        'Identité groupe introuvable.'
+      )
+      return
+    }
+
+    const forceJob =
+      Boolean(options.forceJob)
 
     setMembersLoading(true)
     setMembersError('')
 
     try {
-      const parentDn = getParentDn(getObjectDn(target)) || GROUPS_DN
+      let members = null
 
-      const members = await runJob('get_group_members', {
-        query: identity,
-        baseDn: parentDn,
-        limit: 500
-      })
+      if (!forceJob) {
+        members =
+          await adSnapshot.getGroupMembers(
+            target,
+            {
+              force: Boolean(
+                options.forceSnapshot
+              ),
+            }
+          )
+      }
+
+      if (!Array.isArray(members)) {
+        const parentDn =
+          getParentDn(
+            getObjectDn(target)
+          ) ||
+          GROUPS_DN
+
+        members = await runJob(
+          'get_group_members',
+          {
+            query: identity,
+            baseDn: parentDn,
+            limit: 500,
+          }
+        )
+      }
 
       setObjectMembers(members)
-      if (!options.silent) setMessage?.(`Membres chargés pour ${target.name || identity}.`)
+
+      if (!options.silent) {
+        setMessage?.(
+          `Membres chargés pour ${
+            target.name ||
+            identity
+          }.`
+        )
+      }
+
+      return members
     } catch (err) {
       setObjectMembers([])
-      setMembersError(err.message || 'Impossible de charger les membres du groupe.')
-      setMessage?.(err.message || 'Impossible de charger les membres du groupe.')
+
+      setMembersError(
+        err.message ||
+        'Impossible de charger les membres du groupe.'
+      )
+
+      setMessage?.(
+        err.message ||
+        'Impossible de charger les membres du groupe.'
+      )
+
+      return null
     } finally {
       setMembersLoading(false)
     }
@@ -921,18 +980,34 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setSearchOuQuery('')
   }
 
-  async function searchInOuSimple(target, forcedQuery = '') {
-    const base = target || selectedNode
-    const baseDn = getObjectDn(base)
+  async function searchInOuSimple(
+    target,
+    forcedQuery = ''
+  ) {
+    const base =
+      target ||
+      selectedNode
+
+    const baseDn =
+      getObjectDn(base)
 
     if (!baseDn) {
-      setStatus('DN introuvable pour cette recherche.')
+      setStatus(
+        'DN introuvable pour cette recherche.'
+      )
       return
     }
 
-    const query = forcedQuery || window.prompt(`Rechercher dans :\n${baseDn}`)
+    const query =
+      forcedQuery ||
+      window.prompt(
+        `Rechercher dans :\n${baseDn}`
+      )
 
-    if (!query || !query.trim()) {
+    if (
+      !query ||
+      !query.trim()
+    ) {
       return
     }
 
@@ -942,43 +1017,115 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setLoading(true)
 
     try {
-      const jobs = await Promise.allSettled([
-        runJob('list_ous', { baseDn, recursive: true, limit: 500 }),
-        runJob('list_groups', { baseDn, recursive: true, limit: 1000 }),
-        runJob('search_users', { query: search, baseDn, recursive: true, limit: 500 })
-      ])
+      let uniqueResults =
+        await adSnapshot.search({
+          query: search,
+          baseDn,
+          recursive: true,
+          limit: 2000,
+          types: [
+            'ou',
+            'group',
+            'user',
+          ],
+        })
 
-      const collected = []
+      if (!Array.isArray(uniqueResults)) {
+        const jobs =
+          await Promise.allSettled([
+            runJob(
+              'list_ous',
+              {
+                baseDn,
+                recursive: true,
+                limit: 500,
+              }
+            ),
+            runJob(
+              'list_groups',
+              {
+                baseDn,
+                recursive: true,
+                limit: 1000,
+              }
+            ),
+            runJob(
+              'search_users',
+              {
+                query: search,
+                baseDn,
+                recursive: true,
+                limit: 500,
+              }
+            ),
+          ])
 
-      jobs.forEach((result, index) => {
-        if (result.status !== 'fulfilled') return
+        const collected = []
 
-        const items = extractExplorerItems(result.value)
+        jobs.forEach(
+          (
+            result,
+            index
+          ) => {
+            if (
+              result.status !==
+              'fulfilled'
+            ) {
+              return
+            }
 
-        if (index === 2) {
-          collected.push(...items)
-        } else {
-          collected.push(...items.filter(item => itemMatchesOuSearch(item, search)))
-        }
-      })
+            const items =
+              extractExplorerItems(
+                result.value
+              )
 
-      const seen = new Set()
-      const uniqueResults = collected.filter(item => {
-        const key = getObjectDn(item) || item?.sam_account_name || item?.name
+            if (index === 2) {
+              collected.push(
+                ...items
+              )
+            } else {
+              collected.push(
+                ...items.filter(item =>
+                  itemMatchesOuSearch(
+                    item,
+                    search
+                  )
+                )
+              )
+            }
+          }
+        )
 
-        if (!key) return true
-        if (seen.has(key)) return false
+        const seen = new Set()
 
-        seen.add(key)
-        return true
-      })
+        uniqueResults =
+          collected.filter(item => {
+            const key =
+              getObjectDn(item) ||
+              item?.sam_account_name ||
+              item?.name
+
+            if (!key) {
+              return true
+            }
+
+            if (seen.has(key)) {
+              return false
+            }
+
+            seen.add(key)
+            return true
+          })
+      }
 
       setSelectedNode({
-        name: `Recherche : ${search}`,
+        name:
+          `Recherche : ${search}`,
         type: 'search',
         distinguished_name: baseDn,
         dn: baseDn,
-        canonical_name: `Recherche dans ${baseDn}`
+        canonical_name:
+          `Recherche dans ${baseDn}`,
       })
 
       setViewType('search')
@@ -986,9 +1133,15 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setSelectedObject(null)
       setObjectMembers([])
       setMembersError('')
-      setStatus(`${uniqueResults.length} résultat(s) trouvé(s)`)
+
+      setStatus(
+        `${uniqueResults.length} résultat(s) trouvé(s)`
+      )
     } catch (err) {
-      setStatus(err.message || 'Erreur pendant la recherche AD.')
+      setStatus(
+        err.message ||
+        'Erreur pendant la recherche AD.'
+      )
     } finally {
       setLoading(false)
     }

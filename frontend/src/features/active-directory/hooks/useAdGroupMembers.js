@@ -205,7 +205,10 @@ function useAdGroupMembers({
       const memberName = output.member || (selectedMemberCandidate ? getMemberCandidateTitle(selectedMemberCandidate) : identity)
       const rawMessage = cleanAdAdminMessage(output.message || job?.message || '')
 
-      await loadGroupMembers(memberModal, { silent: true })
+      await loadGroupMembers(memberModal, {
+        silent: true,
+        forceJob: true,
+      })
 
       if (output.already_member || rawMessage.toLowerCase().includes('déjà')) {
         setMemberSubmitError(`${memberName} est déjà membre de ${groupName}.`)
@@ -270,7 +273,10 @@ function useAdGroupMembers({
       }
 
       if (isGroupObject(group)) {
-        await loadGroupMembers(group, { silent: true })
+        await loadGroupMembers(group, {
+          silent: true,
+          forceJob: true,
+        })
       }
 
       if (selectedObject && !isGroupObject(selectedObject)) {

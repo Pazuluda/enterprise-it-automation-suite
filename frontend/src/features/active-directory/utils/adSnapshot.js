@@ -281,12 +281,268 @@ function findAdSnapshotObject(
   )
 }
 
+
+function searchAdSnapshot(
+  snapshot,
+  options = {}
+) {
+  const baseDn = String(
+    options.baseDn ||
+    options.base_dn ||
+    snapshot?.base_dn ||
+    ''
+  ).trim()
+
+  if (
+    !isAdSnapshotUsable(snapshot) ||
+    !adSnapshotCoversDn(
+      snapshot,
+      baseDn
+    )
+  ) {
+    return null
+  }
+
+  const query = String(
+    options.query || ''
+  )
+    .trim()
+    .toLowerCase()
+
+  const recursive =
+    options.recursive !== false
+
+  const cleanLimit = Math.max(
+    1,
+    Number(options.limit) || 1000
+  )
+
+  const requestedTypes = Array.isArray(
+    options.types
+  )
+    ? options.types
+    : []
+
+  const allowedTypes = new Set(
+    requestedTypes
+      .map(value =>
+        String(value || '')
+          .trim()
+          .toLowerCase()
+      )
+      .map(value =>
+        value === 'organizationalunit'
+          ? 'ou'
+          : value
+      )
+      .filter(Boolean)
+  )
+
+  const baseKey =
+    normalizeSnapshotDn(baseDn)
+
+  const fields = [
+    'name',
+    'display_name',
+    'displayName',
+    'sam_account_name',
+    'samAccountName',
+    'user_principal_name',
+    'userPrincipalName',
+    'upn',
+    'mail',
+    'email',
+    'description',
+    'title',
+    'department',
+    'division',
+    'company',
+    'dns_host_name',
+    'dnsHostName',
+    'distinguished_name',
+    'dn',
+    'canonical_name',
+  ]
+
+  return getAdSnapshotItems(snapshot)
+    .filter(item => {
+      const itemDn =
+        normalizeSnapshotDn(
+          getObjectDn(item)
+        )
+
+      if (
+        !itemDn ||
+        itemDn === baseKey
+      ) {
+        return false
+      }
+
+      const insideBase = recursive
+        ? itemDn.endsWith(
+            `,${baseKey}`
+          )
+        : normalizeSnapshotDn(
+            getParentDn(itemDn)
+          ) === baseKey
+
+      if (!insideBase) {
+        return false
+      }
+
+      const rawType =
+        getSnapshotObjectType(item)
+
+      const objectType =
+        rawType === 'organizationalunit'
+          ? 'ou'
+          : rawType
+
+      if (
+        allowedTypes.size > 0 &&
+        !allowedTypes.has(objectType)
+      ) {
+        return false
+      }
+
+      if (!query) {
+        return true
+      }
+
+      return fields.some(field => {
+        const value = item?.[field]
+
+        if (
+          value === undefined ||
+          value === null
+        ) {
+          return false
+        }
+
+        return String(value)
+          .toLowerCase()
+          .includes(query)
+      })
+    })
+    .sort(compareSnapshotItems)
+    .slice(0, cleanLimit)
+}
+
+function getAdSnapshotGroupMembers(
+  snapshot,
+  target
+) {
+  if (!isAdSnapshotUsable(snapshot)) {
+    return null
+  }
+
+  const targetDn = String(
+    getObjectDn(target) || ''
+  ).trim()
+
+  if (
+    !targetDn ||
+    !adSnapshotCoversDn(
+      snapshot,
+      targetDn
+    )
+  ) {
+    return null
+  }
+
+  const targetIdentity = String(
+    target?.sam_account_name ||
+    target?.samAccountName ||
+    target?.name ||
+    ''
+  )
+    .trim()
+    .toLowerCase()
+
+  const group =
+    findAdSnapshotObject(
+      snapshot,
+      targetDn
+    ) ||
+    getAdSnapshotItems(snapshot)
+      .find(item => {
+        const objectType =
+          getSnapshotObjectType(item)
+
+        if (objectType !== 'group') {
+          return false
+        }
+
+        const candidateIdentity = String(
+          item?.sam_account_name ||
+          item?.samAccountName ||
+          item?.name ||
+          ''
+        )
+          .trim()
+          .toLowerCase()
+
+        return (
+          targetIdentity &&
+          candidateIdentity ===
+            targetIdentity
+        )
+      })
+
+  if (
+    !group ||
+    !Array.isArray(group.members)
+  ) {
+    return null
+  }
+
+  const resolvedMembers = []
+  const seen = new Set()
+
+  for (const memberValue of group.members) {
+    const memberDn = String(
+      typeof memberValue === 'string'
+        ? memberValue
+        : getObjectDn(memberValue)
+    ).trim()
+
+    if (!memberDn) {
+      return null
+    }
+
+    const member =
+      findAdSnapshotObject(
+        snapshot,
+        memberDn
+      )
+
+    if (!member) {
+      return null
+    }
+
+    const memberKey =
+      normalizeSnapshotDn(memberDn)
+
+    if (seen.has(memberKey)) {
+      continue
+    }
+
+    seen.add(memberKey)
+    resolvedMembers.push(member)
+  }
+
+  return resolvedMembers
+    .sort(compareSnapshotItems)
+}
+
 export {
   adSnapshotCoversDn,
   findAdSnapshotObject,
+  getAdSnapshotGroupMembers,
   getAdSnapshotChildren,
   getAdSnapshotItems,
   getAdSnapshotOus,
   isAdSnapshotUsable,
   normalizeAdSnapshot,
+  searchAdSnapshot,
 }

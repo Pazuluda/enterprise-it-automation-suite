@@ -8,10 +8,12 @@ import {
   adSnapshotCoversDn,
   findAdSnapshotObject,
   getAdSnapshotChildren,
+  getAdSnapshotGroupMembers,
   getAdSnapshotItems,
   getAdSnapshotOus,
   isAdSnapshotUsable,
   normalizeAdSnapshot,
+  searchAdSnapshot,
 } from '../utils/adSnapshot'
 
 function useAdSnapshot({
@@ -186,6 +188,44 @@ function useAdSnapshot({
     )
   }
 
+
+  async function search(
+    options = {}
+  ) {
+    const current =
+      await resolveSnapshot({
+        force: Boolean(options.force),
+      })
+
+    if (!current) {
+      return null
+    }
+
+    return searchAdSnapshot(
+      current,
+      options
+    )
+  }
+
+  async function getGroupMembers(
+    target,
+    options = {}
+  ) {
+    const current =
+      await resolveSnapshot({
+        force: Boolean(options.force),
+      })
+
+    if (!current) {
+      return null
+    }
+
+    return getAdSnapshotGroupMembers(
+      current,
+      target
+    )
+  }
+
   function getOusSync() {
     return getAdSnapshotOus(
       snapshotRef.current
@@ -271,6 +311,8 @@ function useAdSnapshot({
     refreshSnapshot,
     getOus,
     getChildren,
+    search,
+    getGroupMembers,
     getOusSync,
     getChildrenSync,
     findByDnSync,
