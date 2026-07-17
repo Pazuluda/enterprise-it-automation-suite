@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState } from 'react'
 
 import {
   DOMAIN_DN,
@@ -24,7 +28,9 @@ import {
   buildAdBreadcrumbs,
   cleanAdHistoryText,
   copyText,
-} from './utils/adExplorerCore'
+  splitLdapDn,
+  getOuLabelFromDn,
+  } from './utils/adExplorerCore'
 
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
 import AdActivityModal from './components/AdActivityModal'
@@ -46,6 +52,13 @@ import useAdAdminCreation from './hooks/useAdAdminCreation'
 import useAdGroupMembers from './hooks/useAdGroupMembers'
 import useAdObjectDeletion from './hooks/useAdObjectDeletion'
 import useAdAccountActions from './hooks/useAdAccountActions'
+import useAdComputerCreation from './hooks/useAdComputerCreation'
+import useAdUserCreation from './hooks/useAdUserCreation'
+import {
+  dedupeCreateUserOuOptions,
+  getCreateUserSearchBaseDn,
+  sortCreateUserOuOptions,
+} from './utils/adCreationOptions'
 
 export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [treeItems, setTreeItems] = useState([])
@@ -127,24 +140,22 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const {
     prepareAccountAction,
   } = accountActions
-  const [adAgentModeLoading, setAdAgentModeLoading] = useState(false)
-  const [createUserModal, setCreateUserModal] = useState(null)
-  const [createUserLoading, setCreateUserLoading] = useState(false)
-  const [createUserOuOptions, setCreateUserOuOptions] = useState([])
-  const [createUserOuLoading, setCreateUserOuLoading] = useState(false)
-  const [createUserError, setCreateUserError] = useState('')
-  const [createUserConfirm, setCreateUserConfirm] = useState('')
-  const [createUserForm, setCreateUserForm] = useState({
-    first_name: '',
-    last_name: '',
-    sam_account_name: '',
-    user_principal_name: '',
-    temporary_password: '',
-    description: '',
-    target_ou_dn: '',
-    enabled: false,
-    force_change_at_logon: true
+
+  const computerCreation = useAdComputerCreation({
+    adAgentMode,
+    loadAdAgentMode,
+    runAdAdminJob,
+    loadComputersView,
+    setMessage,
+    cleanAdHistoryText,
+    isComputerManagedDn,
+    COMPUTERS_DN,
   })
+
+  const {
+    openCreateComputerModal,
+  } = computerCreation
+  const [adAgentModeLoading, setAdAgentModeLoading] = useState(false)
   const [adminLoading, setAdminLoading] = useState(false)
   const [adminSuccess, setAdminSuccess] = useState('')
 
@@ -155,7 +166,6 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setContextMenu,
     loadAdAgentMode,
     waitForAdExplorerJob,
-    getCreateUserOuItemsFromJob,
     getFallbackCreateUserOuOptions,
     getPreferredOuForAction,
     confirmProductionAdAction,
@@ -171,16 +181,43 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setAdminSuccess,
     getOuPathLabelFromDn,
     isOuDn,
-    dedupeCreateUserOuOptions,
-    sortCreateUserOuOptions,
     splitLdapDn,
   })
 
   const {
     getAdminCreationOuDisplayLabel,
+    normalizeAdminCreationOptions,
+    getCreateAdminParentDn,
     openCreateOu,
     openCreateGroup,
   } = adAdminCreation
+
+  const userCreation = useAdUserCreation({
+    apiFetch,
+    waitForAdExplorerJob,
+    isOuDn,
+    getSuggestedSamAccountName,
+    getSuggestedUserPrincipalName,
+    normalizeAdminCreationOptions,
+    getCreateAdminParentDn,
+    getAdminCreationOuDisplayLabel,
+    loadAdAgentMode,
+    isAdProductionMode,
+    runAdAdminJob,
+    loadTree,
+    loadNodeContent,
+    loadAdAdminHistory,
+    setMessage,
+    setStatus,
+    setContextMenu,
+    setAdminSuccess,
+    selectedNode,
+    viewType,
+  })
+
+  const {
+    openCreateUser,
+  } = userCreation
   const [moveModal, setMoveModal] = useState(null)
   const [renameModal, setRenameModal] = useState(null)
   const [updateModal, setUpdateModal] = useState(null)
@@ -200,9 +237,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const testCleanup = useTestCleanup({
     apiFetch,
     selectedNode,
-    getCreateUserSearchBaseDn,
     waitForAdExplorerJob,
-    getCreateUserOuItemsFromJob,
     setStatus,
     adAgentMode,
     setAdAgentMode,
@@ -230,17 +265,6 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setAdActivityModal,
     openAdActivityCenter,
   } = adActivity
-  const [createComputerModal, setCreateComputerModal] = useState(false)
-  const [createComputerLoading, setCreateComputerLoading] = useState(false)
-  const [createComputerError, setCreateComputerError] = useState('')
-  const [createComputerConfirm, setCreateComputerConfirm] = useState('')
-  const [createComputerForm, setCreateComputerForm] = useState({
-    name: '',
-    target_ou_dn: COMPUTERS_DN,
-    description: '',
-    location: '',
-    enabled: false
-  })
 
   const filteredTree = useMemo(() => {
     const filter = treeFilter.trim().toLowerCase()
@@ -1898,15 +1922,6 @@ function getAdAttributeValue(item, ...names) {
   }
 
 
-  function normalizeCreateUserPart(value) {
-    return String(value || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '.')
-      .replace(/^\.+|\.+$/g, '')
-  }
-
   function getSuggestedSamAccountName(firstName, lastName) {
     const first = normalizeCreateUserPart(firstName)
     const last = normalizeCreateUserPart(lastName)
@@ -1945,178 +1960,6 @@ function getAdAttributeValue(item, ...names) {
     return `${sam}@${domain}`
   }
 
-  function validateCreateUserForm(form) {
-    const errors = []
-
-    const firstName = String(
-      form?.first_name || ''
-    ).trim()
-
-    const lastName = String(
-      form?.last_name || ''
-    ).trim()
-
-    const sam = String(
-      form?.sam_account_name || ''
-    ).trim()
-
-    const upn = String(
-      form?.user_principal_name || ''
-    ).trim()
-
-    const password = String(
-      form?.temporary_password || ''
-    ).trim()
-
-    const targetOuDn = String(
-      form?.target_ou_dn || ''
-    ).trim()
-
-    if (!firstName) {
-      errors.push('Le prénom est obligatoire.')
-    }
-
-    if (!lastName) {
-      errors.push('Le nom est obligatoire.')
-    }
-
-    if (!sam) {
-      errors.push('L’identifiant AD est obligatoire.')
-    } else {
-      if (sam.length > 20) {
-        errors.push(
-          'L’identifiant AD ne doit pas dépasser '
-          + '20 caractères.'
-        )
-      }
-
-      if (!/^[A-Za-z0-9._-]+$/.test(sam)) {
-        errors.push(
-          'L’identifiant AD ne peut contenir que '
-          + 'des lettres, chiffres, points, tirets '
-          + 'ou underscores.'
-        )
-      }
-    }
-
-    if (!upn) {
-      errors.push('L’UPN est obligatoire.')
-    } else if (
-      !/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(upn)
-    ) {
-      errors.push(
-        'L’UPN doit respecter le format '
-        + 'utilisateur@domaine.'
-      )
-    }
-
-    if (!targetOuDn) {
-      errors.push('L’OU cible est obligatoire.')
-    } else if (
-      !isOuDn(targetOuDn)
-      || !isEitasManagedDn(targetOuDn)
-    ) {
-      errors.push(
-        'L’OU cible doit appartenir au périmètre '
-        + 'sécurisé OU=EITAS.'
-      )
-    }
-
-    if (!password) {
-      errors.push(
-        'Le mot de passe temporaire est obligatoire.'
-      )
-    } else {
-      if (password.length < 12) {
-        errors.push(
-          'Le mot de passe doit faire au moins '
-          + '12 caractères.'
-        )
-      }
-
-      if (
-        !/[a-z]/.test(password)
-        || !/[A-Z]/.test(password)
-        || !/[0-9]/.test(password)
-        || !/[^A-Za-z0-9]/.test(password)
-      ) {
-        errors.push(
-          'Le mot de passe doit contenir une '
-          + 'minuscule, une majuscule, un chiffre '
-          + 'et un caractère spécial.'
-        )
-      }
-
-      const normalizedPassword =
-        normalizeCreateUserPart(password)
-
-      const forbiddenParts = [
-        firstName,
-        lastName,
-        sam
-      ]
-        .map(normalizeCreateUserPart)
-        .filter(Boolean)
-
-      if (
-        forbiddenParts.some(part =>
-          normalizedPassword.includes(part)
-        )
-      ) {
-        errors.push(
-          'Le mot de passe ne doit pas contenir '
-          + 'le prénom, le nom ou l’identifiant.'
-        )
-      }
-    }
-
-    return errors
-  }
-
-
-  function getCreateUserFriendlyError(message) {
-    const raw = String(message || '')
-    const lower = raw.toLowerCase()
-
-    if (lower.includes('spécifications de longueur') || lower.includes('specifications de longueur') || lower.includes('complexité') || lower.includes('complexite') || lower.includes('historique du domaine')) {
-      return [
-        'Mot de passe refusé par la stratégie du domaine.',
-        '',
-        'Utilise un mot de passe temporaire plus fort :',
-        '- minimum 12 caractères',
-        '- une majuscule',
-        '- une minuscule',
-        '- un chiffre',
-        '- un caractère spécial',
-        '- ne pas reprendre le prénom, le nom ou l’identifiant',
-        '',
-        'Exemple de format : Temp!2026-User'
-      ].join('\n')
-    }
-
-    if (lower.includes('nom déjà utilisé') || lower.includes('nom deja utilise') || lower.includes('already exists') || lower.includes('deja existant') || lower.includes('déjà existant')) {
-      return [
-        'Impossible de créer cet utilisateur : un objet AD existe déjà avec ce nom ou cet identifiant.',
-        '',
-        'Essaie avec un identifiant unique au format prénom.nom.',
-        'Exemple : test.reactou2'
-      ].join('\n')
-    }
-
-    if (lower.includes('ou cible')) {
-      return 'OU cible invalide ou introuvable. Choisis une OU existante dans la liste.'
-    }
-
-    return raw || 'Erreur inconnue pendant la création utilisateur.'
-  }
-
-  function splitLdapDn(dn) {
-    return String(dn || '')
-      .split(',')
-      .map(part => part.trim())
-      .filter(Boolean)
-  }
-
   function isOuDn(dn) {
     return /^OU=/i.test(String(dn || '').trim())
   }
@@ -2134,36 +1977,6 @@ function getAdAttributeValue(item, ...names) {
     }
 
     return parts.slice(firstDcIndex).join(',')
-  }
-
-  function getCreateUserSearchBaseDn(dn) {
-    const parts = splitLdapDn(dn)
-    const firstDcIndex = parts.findIndex(part => /^DC=/i.test(part))
-
-    if (firstDcIndex === -1) {
-      return String(dn || '').trim()
-    }
-
-    const domainSuffix = parts.slice(firstDcIndex).join(',')
-    const beforeDc = parts.slice(0, firstDcIndex)
-    const ouParts = beforeDc.filter(part => /^OU=/i.test(part))
-
-    if (ouParts.length > 0) {
-      return `${ouParts[ouParts.length - 1]},${domainSuffix}`
-    }
-
-    return domainSuffix
-  }
-
-  function getOuLabelFromDn(dn) {
-    const cleanDn = String(dn || '').trim()
-
-    if (!cleanDn) {
-      return 'OU inconnue'
-    }
-
-    const firstOuMatch = cleanDn.match(/^OU=([^,]+)/i)
-    return firstOuMatch ? firstOuMatch[1] : cleanDn
   }
 
   function getOuPathLabelFromDn(dn, baseDn = '') {
@@ -2210,60 +2023,6 @@ function getAdAttributeValue(item, ...names) {
     }]
   }
 
-  function getCreateUserOuItemsFromJob(job) {
-    const output = job?.output || job?.result || job?.details || job || {}
-
-    if (Array.isArray(output)) return output
-    if (Array.isArray(output.items)) return output.items
-    if (Array.isArray(output.objects)) return output.objects
-    if (Array.isArray(output.ous)) return output.ous
-    if (Array.isArray(output.organizational_units)) return output.organizational_units
-    if (Array.isArray(output.data)) return output.data
-
-    return []
-  }
-
-  function dedupeCreateUserOuOptions(options) {
-    const seen = new Set()
-    const result = []
-
-    for (const option of options) {
-      const dn = String(option?.dn || option?.distinguished_name || option?.distinguishedName || '').trim()
-
-      if (!dn) {
-        continue
-      }
-
-      const key = dn.toUpperCase()
-
-      if (seen.has(key)) {
-        continue
-      }
-
-      seen.add(key)
-
-      result.push({
-        dn,
-        label: option?.label || option?.name || option?.Name || getOuLabelFromDn(dn)
-      })
-    }
-
-    return result
-  }
-
-  function sortCreateUserOuOptions(options) {
-    return [...options].sort((a, b) => {
-      const aUsers = /(^|,)OU=Users,/i.test(a.dn)
-      const bUsers = /(^|,)OU=Users,/i.test(b.dn)
-
-      if (aUsers !== bUsers) {
-        return aUsers ? -1 : 1
-      }
-
-      return String(a.label || '').localeCompare(String(b.label || ''), 'fr', { sensitivity: 'base' })
-    })
-  }
-
   async function waitForAdExplorerJob(jobId) {
     for (let index = 0; index < 24; index += 1) {
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -2281,188 +2040,6 @@ function getAdAttributeValue(item, ...names) {
 
     throw new Error('Job AD Explorer trop long')
   }
-
-  async function listOuChildrenForCreateUser(baseDn) {
-    const created = await apiFetch('/api/ad-explorer/jobs', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'list_ous',
-        base_dn: baseDn,
-        baseDn,
-        parent_dn: baseDn,
-        created_by: 'react-create-user-ou-loader'
-      })
-    })
-
-    const jobId = created?.job?.id
-
-    if (!jobId) {
-      throw new Error('Job list_ous introuvable')
-    }
-
-    const completedJob = await waitForAdExplorerJob(jobId)
-    return getCreateUserOuItemsFromJob(completedJob)
-  }
-
-  async function loadCreateUserOuOptions(initialDn = '') {
-    const searchBaseDn = EITAS_DN
-
-    setCreateUserOuLoading(true)
-
-    try {
-      const created = await apiFetch(
-        '/api/ad-explorer/jobs',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'list_ou_tree',
-            base_dn: searchBaseDn,
-            baseDn: searchBaseDn,
-            created_by:
-              'react-create-user-ou-tree'
-          })
-        }
-      )
-
-      const jobId = created?.job?.id
-
-      if (!jobId) {
-        throw new Error(
-          'Job list_ou_tree introuvable'
-        )
-      }
-
-      const completedJob =
-        await waitForAdExplorerJob(jobId)
-
-      const items =
-        getCreateUserOuItemsFromJob(
-          completedJob
-        )
-
-      let options =
-        normalizeAdminCreationOptions(items)
-          .filter(option =>
-            !splitLdapDn(option.dn).some(part =>
-              /^OU=(Groups|Computers)$/i.test(part)
-            )
-          )
-
-      if (!options.length) {
-        options =
-          normalizeAdminCreationOptions([
-            {
-              distinguished_name: EITAS_DN
-            }
-          ])
-      }
-
-      setCreateUserOuOptions(options)
-
-      const requestedDn = String(
-        initialDn
-        || createUserForm.target_ou_dn
-        || ''
-      ).trim()
-
-      const requested = options.find(option =>
-        option.dn.toUpperCase()
-        === requestedDn.toUpperCase()
-      )
-
-      const usersOption =
-        options.find(option =>
-          /(^| \/ )Users( \/ |$)/i.test(
-            option.label
-          )
-        )
-        || options.find(option =>
-          /^Users$/i.test(
-            getOuLabelFromDn(option.dn)
-          )
-        )
-
-      const requestedIsEitasRoot =
-        requested?.dn?.toUpperCase()
-        === String(EITAS_DN).toUpperCase()
-
-      const preferred =
-        (
-          requested
-          && !requestedIsEitasRoot
-            ? requested
-            : null
-        )
-        || usersOption
-        || requested
-        || options[0]
-
-
-      if (preferred) {
-        setCreateUserForm(current => {
-          const currentUpn = String(
-            current.user_principal_name || ''
-          ).trim()
-
-          const previousAutomaticUpn =
-            getSuggestedUserPrincipalName(
-              current.sam_account_name,
-              current.target_ou_dn
-            )
-
-          const upnWasAutomatic =
-            !currentUpn
-            || currentUpn.toLowerCase()
-              === previousAutomaticUpn.toLowerCase()
-
-          return {
-            ...current,
-            target_ou_dn: preferred.dn,
-            user_principal_name:
-              upnWasAutomatic
-                ? getSuggestedUserPrincipalName(
-                    current.sam_account_name,
-                    preferred.dn
-                  )
-                : current.user_principal_name
-          }
-        })
-      }
-    } catch (error) {
-      console.warn(
-        'Impossible de charger les OU EITAS',
-        error
-      )
-
-      const fallback =
-        normalizeAdminCreationOptions([
-          {
-            distinguished_name: EITAS_DN
-          }
-        ])
-
-      setCreateUserOuOptions(fallback)
-
-      setCreateUserForm(current => ({
-        ...current,
-        target_ou_dn:
-          fallback[0]?.dn || EITAS_DN,
-        user_principal_name:
-          getSuggestedUserPrincipalName(
-            current.sam_account_name,
-            fallback[0]?.dn || EITAS_DN
-          )
-      }))
-
-      setCreateUserError(
-        'Chargement complet des OU impossible. '
-        + 'La création reste limitée à OU=EITAS.'
-      )
-    } finally {
-      setCreateUserOuLoading(false)
-    }
-  }
-
 
   async function loadAdAgentMode() {
     setAdAgentModeLoading(true)
@@ -2503,307 +2080,6 @@ function getAdAttributeValue(item, ...names) {
   }
 
 
-  function getEmptyCreateUserForm(
-    targetOuDn = EITAS_DN
-  ) {
-    return {
-      first_name: '',
-      last_name: '',
-      sam_account_name: '',
-      user_principal_name: '',
-      temporary_password: '',
-      description: '',
-      target_ou_dn: targetOuDn,
-      enabled: false,
-      force_change_at_logon: true
-    }
-  }
-
-  function updateCreateUserField(name, value) {
-    setCreateUserForm(current => {
-      const next = {
-        ...current,
-        [name]: value
-      }
-
-      const previousSuggestedSam =
-        getSuggestedSamAccountName(
-          current.first_name,
-          current.last_name
-        )
-
-      if (
-        name === 'first_name'
-        || name === 'last_name'
-      ) {
-        const nextSuggestedSam =
-          getSuggestedSamAccountName(
-            next.first_name,
-            next.last_name
-          )
-
-        const currentSam = String(
-          current.sam_account_name || ''
-        ).trim()
-
-        if (
-          !currentSam
-          || currentSam.toLowerCase()
-            === previousSuggestedSam.toLowerCase()
-        ) {
-          next.sam_account_name =
-            nextSuggestedSam
-        }
-      }
-
-      const currentUpn = String(
-        current.user_principal_name || ''
-      ).trim()
-
-      const previousAutomaticUpn =
-        getSuggestedUserPrincipalName(
-          current.sam_account_name,
-          current.target_ou_dn
-        )
-
-      const upnWasAutomatic =
-        !currentUpn
-        || currentUpn.toLowerCase()
-          === previousAutomaticUpn.toLowerCase()
-
-      if (
-        name !== 'user_principal_name'
-        && upnWasAutomatic
-      ) {
-        next.user_principal_name =
-          getSuggestedUserPrincipalName(
-            next.sam_account_name,
-            next.target_ou_dn
-          )
-      }
-
-      return next
-    })
-
-    setCreateUserError('')
-  }
-
-  function getCreateUserDefaultOuDn(target) {
-    const targetDn = getObjectDn(target)
-
-    if (
-      targetDn
-      && isOuDn(targetDn)
-      && isEitasManagedDn(targetDn)
-    ) {
-      return targetDn
-    }
-
-    const parentDn =
-      getCreateAdminParentDn(target)
-
-    if (
-      parentDn
-      && isEitasManagedDn(parentDn)
-    ) {
-      return parentDn
-    }
-
-    return EITAS_DN
-  }
-
-  function openCreateUser(target = selectedNode) {
-    const base = target || selectedNode
-
-    if (!isEitasManagedObject(base)) {
-      const message =
-        'Action bloquée : sélectionne un objet '
-        + 'du périmètre OU=EITAS.'
-
-      setStatus(message)
-      setMessage?.(message)
-      setContextMenu(null)
-      return
-    }
-
-    const defaultUserOuDn =
-      getCreateUserDefaultOuDn(base)
-
-    loadAdAgentMode()
-    setContextMenu(null)
-    setCreateUserError('')
-    setCreateUserConfirm('')
-
-    setCreateUserForm(
-      getEmptyCreateUserForm(defaultUserOuDn)
-    )
-
-    setCreateUserOuOptions(
-      normalizeAdminCreationOptions([
-        {
-          distinguished_name: defaultUserOuDn
-        },
-        {
-          distinguished_name: EITAS_DN
-        }
-      ])
-    )
-
-    setCreateUserModal({
-      target: base,
-      target_ou_dn: defaultUserOuDn
-    })
-
-    window.setTimeout(
-      () =>
-        loadCreateUserOuOptions(
-          defaultUserOuDn
-        ),
-      0
-    )
-  }
-
-  function closeCreateUserModal() {
-    if (createUserLoading) {
-      return
-    }
-
-    setCreateUserModal(null)
-    setCreateUserError('')
-    setCreateUserConfirm('')
-    setCreateUserOuOptions([])
-    setCreateUserForm(
-      getEmptyCreateUserForm('')
-    )
-  }
-
-  async function submitCreateUser(event) {
-    event.preventDefault()
-
-    if (!createUserModal) {
-      return
-    }
-
-    const firstName =
-      createUserForm.first_name.trim()
-
-    const lastName =
-      createUserForm.last_name.trim()
-
-    const samAccountName =
-      createUserForm.sam_account_name.trim()
-
-    const userPrincipalName =
-      createUserForm.user_principal_name.trim()
-
-    const targetOuDn =
-      createUserForm.target_ou_dn.trim()
-
-    const temporaryPassword =
-      createUserForm.temporary_password.trim()
-
-    const validationErrors =
-      validateCreateUserForm(createUserForm)
-
-    if (validationErrors.length > 0) {
-      setCreateUserError(
-        validationErrors.join('\n')
-      )
-      return
-    }
-
-    if (
-      isAdProductionMode()
-      && createUserConfirm !== 'PRODUCTION'
-    ) {
-      setCreateUserError(
-        'Tape PRODUCTION pour confirmer '
-        + 'la création réelle du compte.'
-      )
-      return
-    }
-
-    setCreateUserLoading(true)
-    setCreateUserError('')
-
-    try {
-      const job = await runAdAdminJob({
-        action: 'create_user',
-        first_name: firstName,
-        last_name: lastName,
-        sam_account_name: samAccountName,
-        user_principal_name:
-          userPrincipalName,
-        target_ou_dn: targetOuDn,
-        temporary_password:
-          temporaryPassword,
-        description:
-          createUserForm.description.trim(),
-        enabled:
-          Boolean(createUserForm.enabled),
-        force_change_at_logon:
-          Boolean(
-            createUserForm.force_change_at_logon
-          ),
-        created_by:
-          'react-ad-explorer'
-      })
-
-      const output = job?.output || {}
-
-      const simulated =
-        output?.simulated === true
-
-      const destinationLabel =
-        getAdminCreationOuDisplayLabel(
-          targetOuDn
-        )
-
-      const message = cleanAdHistoryText(
-        simulated
-          ? `Simulation : ${firstName} ${lastName} serait créé dans ${destinationLabel}.`
-          : `Utilisateur ${firstName} ${lastName} créé dans ${destinationLabel}.`
-      )
-
-      setCreateUserModal(null)
-      setCreateUserError('')
-      setCreateUserConfirm('')
-      setCreateUserOuOptions([])
-      setCreateUserForm(
-        getEmptyCreateUserForm('')
-      )
-
-      await loadTree()
-
-      if (selectedNode) {
-        await loadNodeContent(
-          selectedNode,
-          viewType,
-          { forceRefresh: true }
-        )
-      }
-
-      await loadAdAdminHistory()
-
-      setAdminSuccess(message)
-      setStatus(message)
-      setMessage?.(message)
-    } catch (error) {
-      const message =
-        getCreateUserFriendlyError(
-          error?.message
-          || 'Erreur pendant la création utilisateur.'
-        )
-
-      setCreateUserError(message)
-      setStatus(message)
-      setMessage?.(message)
-    } finally {
-      setCreateUserLoading(false)
-    }
-  }
-
-
   function getPreferredOuForAction(options, action, currentDn = '') {
     const safeOptions = Array.isArray(options) ? options : []
     const wantedDn = String(currentDn || '').trim()
@@ -2828,167 +2104,6 @@ function getAdAttributeValue(item, ...names) {
 
     return exactCurrent || safeOptions[0]
   }
-
-  function resetCreateComputerForm() {
-    setCreateComputerForm({
-      name: '',
-      target_ou_dn: COMPUTERS_DN,
-      description: '',
-      location: '',
-      enabled: false
-    })
-
-    setCreateComputerConfirm('')
-    setCreateComputerError('')
-  }
-
-  function openCreateComputerModal() {
-    resetCreateComputerForm()
-    setCreateComputerModal(true)
-    loadAdAgentMode()
-  }
-
-  function closeCreateComputerModal() {
-    if (createComputerLoading) return
-
-    setCreateComputerModal(false)
-    resetCreateComputerForm()
-  }
-
-  function updateCreateComputerField(name, value) {
-    setCreateComputerForm(current => ({
-      ...current,
-      [name]: value
-    }))
-
-    setCreateComputerError('')
-  }
-
-  function getCreateComputerValidationError(
-    form = createComputerForm
-  ) {
-    const name = String(form?.name || '')
-      .trim()
-      .toUpperCase()
-
-    const targetOuDn = String(
-      form?.target_ou_dn || ''
-    ).trim()
-
-    if (!name) {
-      return 'Le nom de l’ordinateur est obligatoire.'
-    }
-
-    if (!/^[A-Z0-9-]{1,15}$/.test(name)) {
-      return (
-        'Le nom doit contenir 1 à 15 caractères : '
-        + 'lettres A-Z, chiffres et tirets uniquement.'
-      )
-    }
-
-    if (name.startsWith('-') || name.endsWith('-')) {
-      return (
-        'Le nom ne peut pas commencer ou finir '
-        + 'par un tiret.'
-      )
-    }
-
-    if (/^[0-9]+$/.test(name)) {
-      return (
-        'Le nom ne peut pas contenir uniquement '
-        + 'des chiffres.'
-      )
-    }
-
-    if (!targetOuDn) {
-      return 'L’OU de destination est obligatoire.'
-    }
-
-    if (!/^OU=/i.test(targetOuDn)) {
-      return 'La destination doit être une unité d’organisation.'
-    }
-
-    if (!isComputerManagedDn(targetOuDn)) {
-      return (
-        'La destination doit appartenir à '
-        + 'OU=Computers,OU=EITAS.'
-      )
-    }
-
-    return ''
-  }
-
-  async function submitCreateComputer(event) {
-    event.preventDefault()
-
-    const validationError =
-      getCreateComputerValidationError()
-
-    if (validationError) {
-      setCreateComputerError(validationError)
-      return
-    }
-
-    const name = createComputerForm.name
-      .trim()
-      .toUpperCase()
-
-    const targetOuDn =
-      createComputerForm.target_ou_dn.trim()
-
-    const productionMode =
-      String(adAgentMode).toLowerCase() === 'production'
-
-    if (
-      productionMode
-      && createComputerConfirm !== 'PRODUCTION'
-    ) {
-      setCreateComputerError(
-        'Tape PRODUCTION pour confirmer la création réelle.'
-      )
-      return
-    }
-
-    setCreateComputerLoading(true)
-    setCreateComputerError('')
-
-    try {
-      const job = await runAdAdminJob({
-        action: 'create_computer',
-        name,
-        target_ou_dn: targetOuDn,
-        description:
-          createComputerForm.description.trim(),
-        location:
-          createComputerForm.location.trim(),
-        enabled:
-          Boolean(createComputerForm.enabled),
-        created_by: 'react-ad-explorer'
-      })
-
-      setCreateComputerModal(false)
-      resetCreateComputerForm()
-
-      await loadComputersView()
-
-      setMessage?.(
-        cleanAdHistoryText(
-          job?.message
-          || `${name} créé dans Active Directory.`
-        )
-      )
-    } catch (error) {
-      setCreateComputerError(
-        cleanAdHistoryText(
-          error?.message
-          || 'Création de l’ordinateur impossible.'
-        )
-      )
-    } finally {
-      setCreateComputerLoading(false)
-    }
-  }
-
 
   function getSelectedAccountEnabledState(target) {
     const candidates = [
@@ -3690,43 +2805,22 @@ function getAdAttributeValue(item, ...names) {
 
       <CreateUserModal
         creation={{
-          createUserModal,
-          closeCreateUserModal,
-          createUserLoading,
-          submitCreateUser,
+          ...userCreation,
           getAdAgentModeLabel,
           isAdProductionMode,
-          createUserForm,
-          updateCreateUserField,
-          createUserOuLoading,
-          createUserOuOptions,
           getAdminCreationOuDisplayLabel,
-          createUserConfirm,
-          setCreateUserConfirm,
-          setCreateUserError,
-          createUserError,
         }}
       />
 
       <CreateComputerModal
         creation={{
-          createComputerModal,
-          closeCreateComputerModal,
-          createComputerLoading,
-          submitCreateComputer,
+          ...computerCreation,
           getAdAgentModeLabel,
           isAdProductionMode,
-          createComputerForm,
-          updateCreateComputerField,
           computerOuOptions,
           getOuLabelFromDn,
           COMPUTERS_DN,
-          createComputerConfirm,
-          setCreateComputerConfirm,
-          setCreateComputerError,
-          createComputerError,
           adAgentModeLoading,
-          getCreateComputerValidationError,
         }}
       />
 

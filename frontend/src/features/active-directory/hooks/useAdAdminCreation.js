@@ -7,6 +7,11 @@ import {
   isEitasManagedDn,
   isEitasManagedObject,
 } from '../utils/adExplorerCore'
+import {
+  dedupeCreateUserOuOptions,
+  getCreateUserOuItemsFromJob,
+  sortCreateUserOuOptions,
+} from '../utils/adCreationOptions'
 
 function useAdAdminCreation({
   apiFetch,
@@ -15,7 +20,6 @@ function useAdAdminCreation({
   setContextMenu,
   loadAdAgentMode,
   waitForAdExplorerJob,
-  getCreateUserOuItemsFromJob,
   getFallbackCreateUserOuOptions,
   getPreferredOuForAction,
   confirmProductionAdAction,
@@ -31,8 +35,6 @@ function useAdAdminCreation({
   setAdminSuccess,
   getOuPathLabelFromDn,
   isOuDn,
-  dedupeCreateUserOuOptions,
-  sortCreateUserOuOptions,
   splitLdapDn,
 }) {
   const [adminModal, setAdminModal] = useState(null)

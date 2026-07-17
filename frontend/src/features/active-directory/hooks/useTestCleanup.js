@@ -4,13 +4,15 @@ import {
   DOMAIN_DN,
   getObjectDn,
 } from '../utils/adExplorerCore'
+import {
+  getCreateUserOuItemsFromJob,
+  getCreateUserSearchBaseDn,
+} from '../utils/adCreationOptions'
 
 function useTestCleanup({
   apiFetch,
   selectedNode,
-  getCreateUserSearchBaseDn,
   waitForAdExplorerJob,
-  getCreateUserOuItemsFromJob,
   setStatus,
   adAgentMode,
   setAdAgentMode,
