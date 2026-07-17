@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+
+from app.core.storage import save_json
 from uuid import uuid4
 
 
@@ -41,15 +43,7 @@ def _load_json(path):
 
 
 def _save_json(path, data):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    tmp = path.with_suffix(path.suffix + ".tmp")
-
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-    tmp.replace(path)
+    save_json(path, data)
 
 
 def _append_jsonl(path, item):
