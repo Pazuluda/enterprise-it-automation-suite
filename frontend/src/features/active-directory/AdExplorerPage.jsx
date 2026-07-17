@@ -57,6 +57,7 @@ import useAdUserCreation from './hooks/useAdUserCreation'
 import useAdObjectRename from './hooks/useAdObjectRename'
 import useAdObjectUpdate from './hooks/useAdObjectUpdate'
 import useAdObjectMove from './hooks/useAdObjectMove'
+import useAdSnapshot from './hooks/useAdSnapshot'
 import {
   dedupeCreateUserOuOptions,
   getCreateUserSearchBaseDn,
@@ -89,6 +90,11 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const nodeContentRequestIdRef = useRef(0)
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
+
+  const adSnapshot = useAdSnapshot({
+    apiFetch,
+    intervalMs: 5000,
+  })
 
   const groupMembers = useAdGroupMembers({
     setMessage,
@@ -430,8 +436,24 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     throw new Error('Timeout : l’agent Windows n’a pas répondu.')
   }
 
-  async function loadTree() {
-    const ous = await runJob('list_ous', { limit: 500 })
+  async function loadTree(options = {}) {
+    const snapshotOus =
+      await adSnapshot.getOus({
+        force: Boolean(options.forceRefresh),
+      })
+
+    if (Array.isArray(snapshotOus)) {
+      setTreeItems(snapshotOus)
+      return snapshotOus
+    }
+
+    const ous = await runJob(
+      'list_ous',
+      {
+        limit: 500,
+      }
+    )
+
     setTreeItems(ous)
     return ous
   }
@@ -461,6 +483,23 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       setViewItems([])
       setStatus('DN introuvable pour cet objet AD.')
       return
+    }
+
+    const snapshotItems =
+      await adSnapshot.getChildren(
+        baseDn,
+        {
+          force: forceRefresh,
+        }
+      )
+
+    if (Array.isArray(snapshotItems)) {
+      setLoading(false)
+      setViewItems([...snapshotItems])
+      setStatus(
+        `Snapshot Active Directory : ${snapshotItems.length} objet(s)`
+      )
+      return snapshotItems
     }
 
     const cacheKey = normalizeBaseDn(baseDn)
@@ -671,7 +710,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
     try {
       await Promise.all([
-        loadTree(),
+        loadTree({
+          forceRefresh: true,
+        }),
         loadNodeContent(
           selectedNode,
           viewType,
@@ -1406,6 +1447,70 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     return cleanAdHistoryText(value)
   }
 
+
+  useEffect(() => {
+    if (
+      !adSnapshot.snapshotRevision ||
+      !adSnapshot.snapshotIsUsable
+    ) {
+      return
+    }
+
+    nodeContentCacheRef.current.clear()
+
+    const snapshotOus =
+      adSnapshot.getOusSync()
+
+    setTreeItems(snapshotOus)
+
+    const selectedNodeDn =
+      getObjectDn(selectedNode)
+
+    if (
+      !adSnapshot.canServeDn(
+        selectedNodeDn
+      ) ||
+      viewType === 'computers' ||
+      viewType === 'search'
+    ) {
+      return
+    }
+
+    const snapshotItems =
+      adSnapshot.getChildrenSync(
+        selectedNodeDn
+      )
+
+    if (!Array.isArray(snapshotItems)) {
+      return
+    }
+
+    nodeContentRequestIdRef.current += 1
+    setViewItems([...snapshotItems])
+
+    setSelectedObject(previous => {
+      if (!previous) {
+        return null
+      }
+
+      const previousDn = String(
+        getObjectDn(previous) || ''
+      ).toLowerCase()
+
+      if (!previousDn) {
+        return null
+      }
+
+      return (
+        snapshotItems.find(item =>
+          String(
+            getObjectDn(item) || ''
+          ).toLowerCase() === previousDn
+        ) ||
+        null
+      )
+    })
+  }, [adSnapshot.snapshotRevision])
 
   useEffect(() => {
     refreshAll()
