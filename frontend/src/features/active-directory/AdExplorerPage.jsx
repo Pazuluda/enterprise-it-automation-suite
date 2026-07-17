@@ -36,12 +36,16 @@ import AdContextMenu from './components/AdContextMenu'
 import UpdateObjectModal from './components/UpdateObjectModal'
 import CreateUserModal from './components/CreateUserModal'
 import CreateComputerModal from './components/CreateComputerModal'
+import DeleteObjectModal from './components/DeleteObjectModal'
+import AccountActionModal from './components/AccountActionModal'
 import MoveObjectModal from './components/MoveObjectModal'
 import RenameObjectModal from './components/RenameObjectModal'
 import useAdActivity from './hooks/useAdActivity'
 import useTestCleanup from './hooks/useTestCleanup'
 import useAdAdminCreation from './hooks/useAdAdminCreation'
 import useAdGroupMembers from './hooks/useAdGroupMembers'
+import useAdObjectDeletion from './hooks/useAdObjectDeletion'
+import useAdAccountActions from './hooks/useAdAccountActions'
 
 export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [treeItems, setTreeItems] = useState([])
@@ -86,7 +90,43 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     openAddMemberModal,
     removeGroupMember,
   } = groupMembers
+
+  const objectDeletion = useAdObjectDeletion({
+    setMessage,
+    setStatus,
+    setContextMenu,
+    setSelectedObject,
+    selectedNode,
+    viewType,
+    setLoading,
+    runAdAdminJob,
+    loadTree,
+    loadNodeContent,
+    loadAdAdminHistory,
+    loadComputersView,
+    normalizeDeleteConfirmationDn,
+    cleanAdHistoryText,
+  })
+
+  const {
+    openDeleteObject,
+  } = objectDeletion
   const [adAgentMode, setAdAgentMode] = useState('Inconnu')
+
+  const accountActions = useAdAccountActions({
+    setMessage,
+    setStatus,
+    setContextMenu,
+    adAgentMode,
+    viewType,
+    runAdAdminJob,
+    loadComputersView,
+    getSelectedAccountEnabledState,
+  })
+
+  const {
+    prepareAccountAction,
+  } = accountActions
   const [adAgentModeLoading, setAdAgentModeLoading] = useState(false)
   const [createUserModal, setCreateUserModal] = useState(null)
   const [createUserLoading, setCreateUserLoading] = useState(false)
@@ -143,7 +183,6 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   } = adAdminCreation
   const [moveModal, setMoveModal] = useState(null)
   const [renameModal, setRenameModal] = useState(null)
-  const [deleteModal, setDeleteModal] = useState(null)
   const [updateModal, setUpdateModal] = useState(null)
   const [updateForm, setUpdateForm] = useState({ description: '' })
   const [updateOriginalForm, setUpdateOriginalForm] = useState({ description: '' })
@@ -151,8 +190,6 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [managerSearchResults, setManagerSearchResults] = useState([])
   const [managerSearchLoading, setManagerSearchLoading] = useState(false)
   const [managerSearchError, setManagerSearchError] = useState('')
-  const [deleteConfirmDn, setDeleteConfirmDn] = useState('')
-  const [deleteError, setDeleteError] = useState('')
   const [renameNewName, setRenameNewName] = useState('')
   const [moveTargetDn, setMoveTargetDn] = useState('')
   const [moveOuOptions, setMoveOuOptions] = useState([])
@@ -193,10 +230,6 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     setAdActivityModal,
     openAdActivityCenter,
   } = adActivity
-  const [accountActionModal, setAccountActionModal] = useState(null)
-  const [accountActionPassword, setAccountActionPassword] = useState('')
-  const [accountActionConfirm, setAccountActionConfirm] = useState('')
-  const [accountActionLoading, setAccountActionLoading] = useState(false)
   const [createComputerModal, setCreateComputerModal] = useState(false)
   const [createComputerLoading, setCreateComputerLoading] = useState(false)
   const [createComputerError, setCreateComputerError] = useState('')
@@ -1399,136 +1432,6 @@ function getAdAttributeValue(item, ...names) {
       .trim()
       .toUpperCase()
   }
-
-  function openDeleteObject(target) {
-    if (!isEitasManagedObject(target)) {
-      const message =
-        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
-
-      setStatus(message)
-      setMessage?.(message)
-      setContextMenu(null)
-      return
-    }
-
-    if (!target) {
-      const message =
-        'Aucun objet sélectionné pour la suppression.'
-
-      setStatus(message)
-      setMessage?.(message)
-      return
-    }
-
-    const dn = getObjectDn(target)
-
-    if (!dn) {
-      const message =
-        'DN introuvable pour cet objet Active Directory.'
-
-      setStatus(message)
-      setMessage?.(message)
-      return
-    }
-
-    setContextMenu(null)
-    setDeleteModal(target)
-    setDeleteConfirmDn('')
-    setDeleteError('')
-  }
-
-  async function submitDeleteObject(event) {
-    event?.preventDefault?.()
-
-    if (!deleteModal) {
-      setDeleteError(
-        'Objet cible introuvable. Ferme puis rouvre la fenêtre.'
-      )
-      return
-    }
-
-    const objectDn = String(
-      getObjectDn(deleteModal) || ''
-    ).trim()
-
-    const confirmDn = String(
-      deleteConfirmDn || ''
-    ).trim()
-
-    if (!objectDn) {
-      const message =
-        'DN introuvable pour cet objet Active Directory.'
-
-      setDeleteError(message)
-      setStatus(message)
-      return
-    }
-
-    if (
-      normalizeDeleteConfirmationDn(confirmDn)
-      !== normalizeDeleteConfirmationDn(objectDn)
-    ) {
-      const message =
-        'Le DN de confirmation ne correspond pas au DN de l’objet.'
-
-      setDeleteError(message)
-      setStatus(message)
-      return
-    }
-
-    setLoading(true)
-    setDeleteError('')
-    setStatus('Suppression Active Directory en cours...')
-
-    try {
-      const job = await runAdAdminJob({
-        action: 'delete_object',
-        object_identity: objectDn,
-        confirm_dn: objectDn,
-        created_by: 'react-admin'
-      })
-
-      const message = cleanAdHistoryText(
-        job?.message
-        || job?.output?.message
-        || 'Objet Active Directory supprimé.'
-      )
-
-      setStatus(message)
-      setMessage?.(message)
-
-      setDeleteModal(null)
-      setDeleteConfirmDn('')
-      setDeleteError('')
-      setSelectedObject(null)
-
-      await loadTree()
-
-      if (viewType === 'computers') {
-        await loadComputersView()
-      } else if (selectedNode) {
-        await loadNodeContent(
-          selectedNode,
-          viewType,
-          { forceRefresh: true }
-        )
-      }
-
-      await loadAdAdminHistory()
-    } catch (error) {
-      const message = cleanAdHistoryText(
-        error?.message
-        || 'Erreur pendant la suppression Active Directory.'
-      )
-
-      setDeleteError(message)
-      setStatus(message)
-      setMessage?.(message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
 
   function openRenameObject(target) {
     if (!isEitasManagedObject(target)) {
@@ -3087,17 +2990,6 @@ function getAdAttributeValue(item, ...names) {
   }
 
 
-  function getAccountActionLabel(action) {
-    const labels = {
-      enable_account: 'Activer le compte',
-      disable_account: 'Désactiver le compte',
-      reset_password: 'Réinitialiser le mot de passe',
-      unlock_account: 'Déverrouiller le compte'
-    }
-
-    return labels[action] || action
-  }
-
   function getSelectedAccountEnabledState(target) {
     const candidates = [
       target?.enabled,
@@ -3112,91 +3004,6 @@ function getAdAttributeValue(item, ...names) {
     }
 
     return null
-  }
-
-  function prepareAccountAction(action, target) {
-    if (!isEitasManagedObject(target)) {
-      const message =
-        'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
-
-      setStatus(message)
-      setMessage?.(message)
-      setContextMenu(null)
-      return
-    }
-
-    const targetDn = getObjectDn(target)
-
-    if (!targetDn) {
-      setMessage?.('Impossible de préparer l’action : DN introuvable.')
-      return
-    }
-
-    let resolvedAction = action
-
-    if (action === 'toggle_enabled') {
-      const enabled = getSelectedAccountEnabledState(target)
-
-      if (enabled === null) {
-        setMessage?.('État du compte inconnu : impossible de choisir automatiquement Activer/Désactiver.')
-        return
-      }
-
-      resolvedAction = enabled ? 'disable_account' : 'enable_account'
-    }
-
-    setAccountActionModal({
-      action: resolvedAction,
-      target,
-      targetName: getObjectName(target),
-      targetDn
-    })
-
-    setAccountActionConfirm('')
-    setAccountActionPassword('')
-  }
-
-  async function submitAccountAction() {
-    if (!accountActionModal) return
-
-    if (adAgentMode === 'Production' && accountActionConfirm !== 'PRODUCTION') {
-      setMessage?.('Confirmation Production obligatoire : tape PRODUCTION.')
-      return
-    }
-
-    if (accountActionModal.action === 'reset_password' && !accountActionPassword.trim()) {
-      setMessage?.('Mot de passe temporaire obligatoire.')
-      return
-    }
-
-    const payload = {
-      action: accountActionModal.action,
-      object_dn: accountActionModal.targetDn,
-      created_by: 'react-admin'
-    }
-
-    if (accountActionModal.action === 'reset_password') {
-      payload.temporary_password = accountActionPassword.trim()
-      payload.force_change_at_logon = true
-      payload.unlock_after_reset = true
-    }
-
-    try {
-      setAccountActionLoading(true)
-      await runAdAdminJob(payload)
-
-      if (viewType === 'computers') {
-        await loadComputersView()
-      }
-
-      setAccountActionModal(null)
-      setAccountActionConfirm('')
-      setMessage?.(`${getAccountActionLabel(accountActionModal.action)} envoyé à l’agent AD Admin.`)
-    } catch (err) {
-      setMessage?.(err?.message || 'Erreur action Compte ADUC.')
-    } finally {
-      setAccountActionLoading(false)
-    }
   }
 
   async function runAdAdminJob(payload) {
@@ -3923,128 +3730,12 @@ function getAdAttributeValue(item, ...names) {
         }}
       />
 
-      {deleteModal && (
-        <div
-          className="aduc-modal-backdrop"
-          onClick={() => {
-            if (!loading) {
-              setDeleteModal(null)
-              setDeleteConfirmDn('')
-              setDeleteError('')
-            }
-          }}
-        >
-          <section
-            className="aduc-modal"
-            onClick={event => event.stopPropagation()}
-          >
-            <header>
-              <div>
-                <span>Active Directory</span>
-                <h3>Supprimer l’objet</h3>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteModal(null)
-                  setDeleteConfirmDn('')
-                  setDeleteError('')
-                }}
-                disabled={loading}
-              >
-                ×
-              </button>
-            </header>
-
-            <form onSubmit={submitDeleteObject}>
-              <div className="aduc-update-object-target">
-                <div>
-                  <span>Objet cible</span>
-                  <strong>{getObjectName(deleteModal)}</strong>
-                </div>
-
-                <div>
-                  <span>Type</span>
-                  <strong>{getObjectType(deleteModal)}</strong>
-                </div>
-
-                <div className="wide">
-                  <span>DN de l’objet</span>
-                  <code>{getObjectDn(deleteModal)}</code>
-                </div>
-              </div>
-
-              <div className="aduc-account-action-warning production">
-                <strong>Suppression définitive</strong>
-
-                <p>
-                  Cette action supprimera réellement l’objet
-                  dans Active Directory.
-                </p>
-              </div>
-
-              <label className="aduc-account-action-field">
-                <span>Confirmation par Distinguished Name</span>
-
-                <input
-                  type="text"
-                  className="mono"
-                  value={deleteConfirmDn}
-                  onChange={event => {
-                    setDeleteConfirmDn(event.target.value)
-                    setDeleteError('')
-                  }}
-                  placeholder={getObjectDn(deleteModal)}
-                  autoComplete="off"
-                  autoFocus
-                  disabled={loading}
-                />
-
-                <small>
-                  Recopie le DN affiché au-dessus. La casse
-                  des lettres n’a pas d’importance.
-                </small>
-              </label>
-
-              {deleteError && (
-                <div className="aduc-member-submit-error">
-                  <strong>Suppression impossible</strong>
-                  <span>{deleteError}</span>
-                </div>
-              )}
-
-              <footer className="aduc-modal-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeleteModal(null)
-                    setDeleteConfirmDn('')
-                    setDeleteError('')
-                  }}
-                  disabled={loading}
-                >
-                  Annuler
-                </button>
-
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={submitDeleteObject}
-                  disabled={
-                    loading ||
-                    !deleteConfirmDn.trim()
-                  }
-                >
-                  {loading
-                    ? 'Suppression...'
-                    : 'Supprimer définitivement'}
-                </button>
-              </footer>
-            </form>
-          </section>
-        </div>
-      )}
+      <DeleteObjectModal
+        deletion={{
+          ...objectDeletion,
+          loading,
+        }}
+      />
 
       <MoveObjectModal
         move={{
@@ -4104,83 +3795,12 @@ function getAdAttributeValue(item, ...names) {
         }}
       />
 
-      {accountActionModal && (
-        <div className="aduc-modal-backdrop" onClick={() => !accountActionLoading && setAccountActionModal(null)}>
-          <section className="aduc-modal aduc-account-action-modal" onClick={event => event.stopPropagation()}>
-            <header>
-              <div>
-                <span>Action Compte ADUC</span>
-                <h3>{getAccountActionLabel(accountActionModal.action)}</h3>
-              </div>
-
-              <button type="button" onClick={() => setAccountActionModal(null)} disabled={accountActionLoading}>×</button>
-            </header>
-
-            <div className={`aduc-account-action-warning ${adAgentMode === 'Production' ? 'production' : 'simulation'}`}>
-              <strong>Mode agent : {adAgentMode}</strong>
-              <p>
-                {adAgentMode === 'Production'
-                  ? 'Cette action modifiera réellement Active Directory.'
-                  : 'Simulation active : aucune modification réelle ne sera appliquée dans Active Directory.'}
-              </p>
-            </div>
-
-            <div className="aduc-account-action-target">
-              <div>
-                <span>Objet cible</span>
-                <strong>{accountActionModal.targetName}</strong>
-              </div>
-
-              <div>
-                <span>DN</span>
-                <code>{accountActionModal.targetDn}</code>
-              </div>
-            </div>
-
-            {accountActionModal.action === 'reset_password' && (
-              <label className="aduc-account-action-field">
-                <span>Mot de passe temporaire</span>
-                <input
-                  type="text"
-                  value={accountActionPassword}
-                  onChange={event => setAccountActionPassword(event.target.value)}
-                  placeholder="Mot de passe temporaire"
-                  disabled={accountActionLoading}
-                />
-                <small>Le changement au prochain logon et le déverrouillage après reset seront demandés.</small>
-              </label>
-            )}
-
-            {adAgentMode === 'Production' && (
-              <label className="aduc-account-action-field">
-                <span>Confirmation Production</span>
-                <input
-                  type="text"
-                  value={accountActionConfirm}
-                  onChange={event => setAccountActionConfirm(event.target.value)}
-                  placeholder="Tape PRODUCTION"
-                  disabled={accountActionLoading}
-                />
-              </label>
-            )}
-
-            <footer className="aduc-modal-actions">
-              <button type="button" onClick={() => setAccountActionModal(null)} disabled={accountActionLoading}>
-                Annuler
-              </button>
-
-              <button
-                type="button"
-                className={adAgentMode === 'Production' ? 'danger' : ''}
-                onClick={submitAccountAction}
-                disabled={accountActionLoading || (adAgentMode === 'Production' && accountActionConfirm !== 'PRODUCTION')}
-              >
-                {accountActionLoading ? 'Envoi...' : adAgentMode === 'Production' ? 'Confirmer en Production' : 'Lancer en Simulation'}
-              </button>
-            </footer>
-          </section>
-        </div>
-      )}
+      <AccountActionModal
+        account={{
+          ...accountActions,
+          adAgentMode,
+        }}
+      />
 
       <AdActivityModal
         open={adActivityModal}
