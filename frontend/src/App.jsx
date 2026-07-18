@@ -15,9 +15,7 @@ import ModificationPage from './features/employee-lifecycle/ModificationPage.jsx
 import AgentOperationsPage from './features/agent/AgentOperationsPage.jsx'
 import WorkerStatusPage from './features/agent/WorkerStatusPage.jsx'
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE ||
-  `${window.location.protocol}//${window.location.hostname}:8000`
+const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin
 
 
 const STATUS_LABELS = {
@@ -105,7 +103,7 @@ const PAGES = {
 
   settings: {
     title: 'Paramètres',
-    subtitle: 'Connexion API et configuration locale.'
+    subtitle: 'Session Keycloak, identité et rôles Forteresse.'
   }
 }
 
@@ -1284,12 +1282,14 @@ function BackToTopButton({ page }) {
   )
 }
 
-function App() {
+function App({ authClient }) {
   const [page, setPage] = useState(() => {
     const savedPage = localStorage.getItem('eitas_last_page')
     return savedPage && PAGES[savedPage] ? savedPage : 'overview'
   })
-  const [apiKey, setApiKey] = useState(localStorage.getItem('eitas_api_key') || '')
+  const [authIdentity, setAuthIdentity] = useState(
+    () => authClient.getIdentity()
+  )
   const [apiStatus, setApiStatus] = useState('Non testé')
   const [message, setMessage] = useState('')
   const [requests, setRequests] = useState([])
@@ -1488,16 +1488,26 @@ function App() {
       ? path
       : `${API_BASE}${path}`
 
-    const cleanApiKey = String(apiKey || '').trim()
+    async function sendRequest(forceRefresh = false) {
+      const accessToken = forceRefresh
+        ? await authClient.forceRefreshAccessToken()
+        : await authClient.getAccessToken(30)
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(cleanApiKey ? { 'X-API-Key': cleanApiKey } : {}),
-        ...(options.headers || {})
-      }
-    })
+      return fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          ...(options.headers || {})
+        }
+      })
+    }
+
+    let response = await sendRequest(false)
+
+    if (response.status === 401) {
+      response = await sendRequest(true)
+    }
 
     const rawText = await response.text()
 
@@ -1521,7 +1531,9 @@ function App() {
         response.statusText ||
         'Erreur API sans détail'
 
-      throw new Error(`${response.status} ${response.statusText || ''} · ${detail}`.trim())
+      throw new Error(
+        `${response.status} ${response.statusText || ''} · ${detail}`.trim()
+      )
     }
 
     return data
@@ -1559,7 +1571,7 @@ function App() {
     return () => {
       window.clearInterval(portalGlobalLiveRefresh)
     }
-  }, [apiKey, page, liveRefreshEnabled])
+  }, [page, liveRefreshEnabled])
 
   useEffect(() => {
     if (!message) {
@@ -1653,9 +1665,27 @@ function App() {
   }, [search, statusFilter, typeFilter])
 
 
-  function saveConfig() {
-    localStorage.setItem('eitas_api_key', String(apiKey || '').trim())
-    setMessage('Clé API enregistrée dans ce navigateur.')
+  async function refreshSession() {
+    try {
+      await authClient.forceRefreshAccessToken()
+      setAuthIdentity(authClient.getIdentity())
+      await testApi(true)
+      setMessage('Session Keycloak renouvelée.')
+    } catch (error) {
+      setMessage(
+        `Renouvellement impossible : ${error?.message || 'erreur inconnue'}`
+      )
+    }
+  }
+
+  function reauthenticate() {
+    authClient.login({
+      prompt: 'login'
+    })
+  }
+
+  async function logout() {
+    await authClient.logout()
   }
 
   async function testApi(silent = false) {
@@ -3482,13 +3512,12 @@ Write-Host "============================================================"
   }
 
   useEffect(() => {
-    if (apiKey) {
-      loadTemplates()
-      loadRequests()
-      loadAuditLogs()
-      loadAgentMode(true)
-      loadAdCheckJobs(true)
-    }
+    loadTemplates()
+    loadRequests()
+    loadAuditLogs()
+    loadAgentMode(true)
+    loadAdCheckJobs(true)
+    testApi(true)
   }, [])
 
   async function openAuditFromRequest(requestId) {
@@ -3686,6 +3715,28 @@ Write-Host "============================================================"
           </div>
 
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="auth-user-chip"
+              onClick={() => setPage('settings')}
+              title="Ouvrir la session Keycloak"
+            >
+              <span className="auth-user-avatar">
+                {String(authIdentity?.displayName || 'U')
+                  .trim()
+                  .charAt(0)
+                  .toUpperCase()}
+              </span>
+
+              <span className="auth-user-copy">
+                <strong>
+                  {authIdentity?.displayName || authIdentity?.username}
+                </strong>
+                <span>
+                  {authIdentity?.roles?.join(' · ') || 'Session Keycloak'}
+                </span>
+              </span>
+            </button>
             {page === 'overview' && (
               <span className={`api-badge ${apiStatus.startsWith('Connecté') ? 'online' : ''}`}>
                 {apiStatus}
@@ -4058,11 +4109,12 @@ Write-Host "============================================================"
 
           {page === 'settings' && (
             <SettingsPage
-              apiKey={apiKey}
-              setApiKey={setApiKey}
+              authIdentity={authIdentity}
               apiStatus={apiStatus}
-              saveConfig={saveConfig}
               testApi={testApi}
+              refreshSession={refreshSession}
+              reauthenticate={reauthenticate}
+              logout={logout}
             />
           )}
 

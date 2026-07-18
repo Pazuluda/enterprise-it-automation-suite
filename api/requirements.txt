@@ -1,3 +1,6 @@
 fastapi
 uvicorn
 pydantic
+
+PyJWT[crypto]>=2.10,<3
+cryptography==49.0.0

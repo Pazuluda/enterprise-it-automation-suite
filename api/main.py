@@ -8,7 +8,11 @@ import json
 import os
 
 from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, AUDIT_FILE
-from app.core.security import require_api_key
+from app.core.security import (
+    require_api_key,
+    require_roles,
+    require_roles_or_api_key,
+)
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
 from app.services.requests import (
@@ -98,6 +102,43 @@ from app.services.agent_runtime import (
     update_agent_config as service_update_agent_config,
 )
 from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest
+
+
+
+# PACK B2.4 — Dépendances RBAC du portail
+PORTAL_READ_ACCESS = require_roles(
+    "Viewer",
+    "Operator",
+    "ADAdmin",
+    "SecurityAdmin",
+    "Auditor",
+    "UltraAdmin",
+)
+
+OPERATOR_ACCESS = require_roles(
+    "Operator",
+    "UltraAdmin",
+)
+
+AD_ACCESS = require_roles(
+    "ADAdmin",
+    "UltraAdmin",
+)
+
+SECURITY_ACCESS = require_roles(
+    "SecurityAdmin",
+    "UltraAdmin",
+)
+
+AUDIT_ACCESS = require_roles(
+    "Auditor",
+    "UltraAdmin",
+)
+
+SECURITY_OR_API_KEY_ACCESS = require_roles_or_api_key(
+    "SecurityAdmin",
+    "UltraAdmin",
+)
 
 
 app = FastAPI(
@@ -227,13 +268,13 @@ def root():
 
 @app.get("/api/templates")
 def get_templates(
-    api_key: None = Depends(require_api_key),
+    api_key: None = Depends(PORTAL_READ_ACCESS),
 ):
     return service_get_templates(TEMPLATES_FILE)
 
 
 @app.post("/api/onboarding/request")
-def create_onboarding_request(payload: OnboardingRequest, api_key: None = Depends(require_api_key)):
+def create_onboarding_request(payload: OnboardingRequest, api_key: None = Depends(OPERATOR_ACCESS)):
     try:
         response, audit_event = service_create_onboarding_request(
             REQUESTS_FILE,
@@ -249,12 +290,12 @@ def create_onboarding_request(payload: OnboardingRequest, api_key: None = Depend
 
 
 @app.get("/api/requests")
-def list_requests(api_key: None = Depends(require_api_key)):
+def list_requests(api_key: None = Depends(PORTAL_READ_ACCESS)):
     return service_list_requests(REQUESTS_FILE)
 
 
 @app.get("/api/requests/{request_id}")
-def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key)):
+def get_request_by_id(request_id: str, api_key: None = Depends(PORTAL_READ_ACCESS)):
     try:
         return service_get_request_by_id(REQUESTS_FILE, request_id)
     except RequestNotFound as exc:
@@ -262,14 +303,14 @@ def get_request_by_id(request_id: str, api_key: None = Depends(require_api_key))
 
 
 @app.get("/api/agent/config")
-def get_agent_config(api_key: None = Depends(require_api_key)):
+def get_agent_config(api_key: None = Depends(SECURITY_OR_API_KEY_ACCESS)):
     try:
         return service_get_agent_config(AGENT_CONFIG_FILE)
     except AgentRuntimeStorageError as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
 @app.post("/api/agent/config")
-def update_agent_config(payload: dict, api_key: None = Depends(require_api_key)):
+def update_agent_config(payload: dict, api_key: None = Depends(SECURITY_OR_API_KEY_ACCESS)):
     try:
         response, audit_event = service_update_agent_config(AGENT_CONFIG_FILE, payload)
     except AgentRuntimeBadRequest as exc:
@@ -287,7 +328,7 @@ def receive_agent_heartbeat(payload: dict, api_key: None = Depends(require_api_k
     return service_receive_agent_heartbeat(AGENT_STATUS_FILE, payload)
 
 @app.get("/api/agent/status")
-def get_agent_status(api_key: None = Depends(require_api_key)):
+def get_agent_status(api_key: None = Depends(SECURITY_OR_API_KEY_ACCESS)):
     try:
         return service_get_agent_status(AGENT_STATUS_FILE)
     except AgentRuntimeStorageError as exc:
@@ -303,12 +344,12 @@ def receive_worker_heartbeat(payload: dict = Body(...), api_key: None = Depends(
 
 
 @app.get("/api/admin/worker-status")
-def get_worker_status(api_key: None = Depends(require_api_key)):
+def get_worker_status(api_key: None = Depends(SECURITY_ACCESS)):
     return service_get_worker_status(WORKER_STATUS_FILE, WORKER_EVENTS_FILE)
 
 
 @app.get("/api/admin/worker-events")
-def get_worker_events(limit: int = 100, api_key: None = Depends(require_api_key)):
+def get_worker_events(limit: int = 100, api_key: None = Depends(SECURITY_ACCESS)):
     return service_get_worker_events(WORKER_EVENTS_FILE, limit=limit)
 
 @app.get("/api/agent/pending")
@@ -348,7 +389,7 @@ def submit_agent_result(request_id: str, result: AgentResult, api_key: None = De
     return response
 
 @app.post("/api/admin/requests/reset")
-def reset_requests(payload: ResetRequestsPayload, api_key: None = Depends(require_api_key)):
+def reset_requests(payload: ResetRequestsPayload, api_key: None = Depends(OPERATOR_ACCESS)):
     if payload.confirm != "RESET":
         raise HTTPException(
             status_code=400,
@@ -383,7 +424,7 @@ def reset_requests(payload: ResetRequestsPayload, api_key: None = Depends(requir
 
 
 @app.post("/api/admin/requests/{request_id}/retry")
-def retry_request(request_id: str, api_key: None = Depends(require_api_key)):
+def retry_request(request_id: str, api_key: None = Depends(OPERATOR_ACCESS)):
     requests = load_json(REQUESTS_FILE, [])
     found = False
 
@@ -419,7 +460,7 @@ def retry_request(request_id: str, api_key: None = Depends(require_api_key)):
 
 
 @app.post("/api/admin/requests/{request_id}/approve")
-def approve_request(request_id: str, payload: ApprovalPayload, api_key: None = Depends(require_api_key)):
+def approve_request(request_id: str, payload: ApprovalPayload, api_key: None = Depends(OPERATOR_ACCESS)):
     requests = load_json(REQUESTS_FILE, [])
 
     for request in requests:
@@ -461,7 +502,7 @@ def approve_request(request_id: str, payload: ApprovalPayload, api_key: None = D
 
 
 @app.post("/api/admin/requests/{request_id}/reject")
-def reject_request(request_id: str, payload: ApprovalPayload, api_key: None = Depends(require_api_key)):
+def reject_request(request_id: str, payload: ApprovalPayload, api_key: None = Depends(OPERATOR_ACCESS)):
     requests = load_json(REQUESTS_FILE, [])
 
     for request in requests:
@@ -520,7 +561,7 @@ def get_request_id_from_payload(value):
 
 
 @app.post("/api/ad-lookup/jobs")
-def create_ad_lookup_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+def create_ad_lookup_job(payload: dict = Body(...), api_key: None = Depends(AD_ACCESS)):
     try:
         response, audit_event = service_create_ad_lookup_job(AD_LOOKUP_JOBS_FILE, payload)
     except ADJobsBadRequest as exc:
@@ -531,7 +572,7 @@ def create_ad_lookup_job(payload: dict = Body(...), api_key: None = Depends(requ
 
 
 @app.get("/api/ad-lookup/jobs/{job_id}")
-def get_ad_lookup_job(job_id: str, api_key: None = Depends(require_api_key)):
+def get_ad_lookup_job(job_id: str, api_key: None = Depends(AD_ACCESS)):
     try:
         return service_get_ad_lookup_job(AD_LOOKUP_JOBS_FILE, job_id)
     except ADJobsNotFound as exc:
@@ -568,7 +609,7 @@ def submit_ad_lookup_job_result(job_id: str, payload: dict = Body(...), api_key:
 
 
 @app.post("/api/ad-check/jobs")
-def create_ad_check_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+def create_ad_check_job(payload: dict = Body(...), api_key: None = Depends(AD_ACCESS)):
     try:
         response, audit_event = service_create_ad_check_job(
             AD_CHECK_JOBS_FILE,
@@ -585,12 +626,12 @@ def create_ad_check_job(payload: dict = Body(...), api_key: None = Depends(requi
 
 
 @app.get("/api/ad-check/jobs")
-def list_ad_check_jobs(limit: int = 200, api_key: None = Depends(require_api_key)):
+def list_ad_check_jobs(limit: int = 200, api_key: None = Depends(AD_ACCESS)):
     return service_list_ad_check_jobs(AD_CHECK_JOBS_FILE, limit)
 
 
 @app.get("/api/ad-check/jobs/{job_id}")
-def get_ad_check_job(job_id: str, api_key: None = Depends(require_api_key)):
+def get_ad_check_job(job_id: str, api_key: None = Depends(AD_ACCESS)):
     try:
         return service_get_ad_check_job(AD_CHECK_JOBS_FILE, job_id)
     except ADJobsNotFound as exc:
@@ -646,7 +687,7 @@ def receive_ad_snapshot(
 
 @app.get("/api/ad-snapshot")
 def get_ad_snapshot(
-    api_key: None = Depends(require_api_key),
+    api_key: None = Depends(AD_ACCESS),
 ):
     try:
         return service_get_ad_snapshot(
@@ -696,9 +737,7 @@ def receive_ad_domain_catalog(
     "/api/ad-domain-catalog"
 )
 def get_ad_domain_catalog(
-    api_key: None = Depends(
-        require_api_key
-    ),
+    api_key: None = Depends(AD_ACCESS),
 ):
     try:
         return service_get_ad_snapshot(
@@ -716,7 +755,7 @@ def get_ad_domain_catalog(
 
 
 @app.post("/api/ad-explorer/jobs")
-def create_ad_explorer_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+def create_ad_explorer_job(payload: dict = Body(...), api_key: None = Depends(AD_ACCESS)):
     try:
         response, audit_event = service_create_ad_explorer_job(AD_EXPLORER_JOBS_FILE, payload)
     except ADExplorerBadRequest as exc:
@@ -728,12 +767,12 @@ def create_ad_explorer_job(payload: dict = Body(...), api_key: None = Depends(re
 
 
 @app.get("/api/ad-explorer/jobs")
-def list_ad_explorer_jobs(limit: int = 100, api_key: None = Depends(require_api_key)):
+def list_ad_explorer_jobs(limit: int = 100, api_key: None = Depends(AD_ACCESS)):
     return service_list_ad_explorer_jobs(AD_EXPLORER_JOBS_FILE, limit)
 
 
 @app.get("/api/ad-explorer/jobs/{job_id}")
-def get_ad_explorer_job(job_id: str, api_key: None = Depends(require_api_key)):
+def get_ad_explorer_job(job_id: str, api_key: None = Depends(AD_ACCESS)):
     try:
         return service_get_ad_explorer_job(AD_EXPLORER_JOBS_FILE, job_id)
     except ADExplorerNotFound as exc:
@@ -772,7 +811,7 @@ def submit_ad_explorer_job_result(job_id: str, payload: dict = Body(...), api_ke
 
 
 @app.post("/api/ad-admin/jobs")
-def create_ad_admin_job(payload: dict = Body(...), api_key: None = Depends(require_api_key)):
+def create_ad_admin_job(payload: dict = Body(...), api_key: None = Depends(AD_ACCESS)):
     try:
         response, audit_event = service_create_ad_admin_job(AD_ADMIN_JOBS_FILE, payload)
     except ADAdminBadRequest as exc:
@@ -784,12 +823,12 @@ def create_ad_admin_job(payload: dict = Body(...), api_key: None = Depends(requi
 
 
 @app.get("/api/ad-admin/jobs")
-def list_ad_admin_jobs(limit: int = 100, api_key: None = Depends(require_api_key)):
+def list_ad_admin_jobs(limit: int = 100, api_key: None = Depends(AD_ACCESS)):
     return service_list_ad_admin_jobs(AD_ADMIN_JOBS_FILE, limit)
 
 
 @app.get("/api/ad-admin/jobs/{job_id}")
-def get_ad_admin_job(job_id: str, api_key: None = Depends(require_api_key)):
+def get_ad_admin_job(job_id: str, api_key: None = Depends(AD_ACCESS)):
     try:
         return service_get_ad_admin_job(AD_ADMIN_JOBS_FILE, job_id)
     except ADAdminNotFound as exc:
@@ -828,7 +867,7 @@ def submit_ad_admin_job_result(job_id: str, payload: dict = Body(...), api_key: 
 
 
 @app.get("/api/audit-logs")
-def list_audit_logs(limit: int = 50, api_key: None = Depends(require_api_key)):
+def list_audit_logs(limit: int = 50, api_key: None = Depends(AUDIT_ACCESS)):
     if not AUDIT_FILE.exists():
         return {
             "count": 0,
@@ -855,12 +894,12 @@ def list_audit_logs(limit: int = 50, api_key: None = Depends(require_api_key)):
 
 
 @app.get("/api/admin/templates")
-def admin_get_templates(api_key: None = Depends(require_api_key)):
+def admin_get_templates(api_key: None = Depends(SECURITY_ACCESS)):
     return service_get_templates(TEMPLATES_FILE)
 
 
 @app.post("/api/admin/templates/departments")
-def upsert_department_template(payload: DepartmentTemplatePayload, api_key: None = Depends(require_api_key)):
+def upsert_department_template(payload: DepartmentTemplatePayload, api_key: None = Depends(SECURITY_ACCESS)):
     response, audit_event = service_upsert_department_template(
         TEMPLATES_FILE,
         payload.name,
@@ -874,7 +913,7 @@ def upsert_department_template(payload: DepartmentTemplatePayload, api_key: None
 
 
 @app.delete("/api/admin/templates/departments/{department_name}")
-def delete_department_template(department_name: str, api_key: None = Depends(require_api_key)):
+def delete_department_template(department_name: str, api_key: None = Depends(SECURITY_ACCESS)):
     try:
         response, audit_event = service_delete_department_template(TEMPLATES_FILE, department_name)
     except TemplatesNotFound as exc:
@@ -886,7 +925,7 @@ def delete_department_template(department_name: str, api_key: None = Depends(req
 
 
 @app.post("/api/admin/templates/departments/{department_name}/roles")
-def upsert_role_template(department_name: str, payload: RoleTemplatePayload, api_key: None = Depends(require_api_key)):
+def upsert_role_template(department_name: str, payload: RoleTemplatePayload, api_key: None = Depends(SECURITY_ACCESS)):
     try:
         response, audit_event = service_upsert_role_template(
             TEMPLATES_FILE,
@@ -903,7 +942,7 @@ def upsert_role_template(department_name: str, payload: RoleTemplatePayload, api
 
 
 @app.delete("/api/admin/templates/departments/{department_name}/roles/{role_name}")
-def delete_role_template(department_name: str, role_name: str, api_key: None = Depends(require_api_key)):
+def delete_role_template(department_name: str, role_name: str, api_key: None = Depends(SECURITY_ACCESS)):
     try:
         response, audit_event = service_delete_role_template(
             TEMPLATES_FILE,
@@ -919,7 +958,7 @@ def delete_role_template(department_name: str, role_name: str, api_key: None = D
 
 
 @app.post("/api/offboarding/request")
-def create_offboarding_request(payload: OffboardingRequest, api_key: None = Depends(require_api_key)):
+def create_offboarding_request(payload: OffboardingRequest, api_key: None = Depends(OPERATOR_ACCESS)):
     response, audit_event = service_create_offboarding_request(
         REQUESTS_FILE,
         payload,
@@ -931,7 +970,7 @@ def create_offboarding_request(payload: OffboardingRequest, api_key: None = Depe
 
 
 @app.post("/api/modification/request")
-def create_modification_request(payload: ModificationRequest, api_key: None = Depends(require_api_key)):
+def create_modification_request(payload: ModificationRequest, api_key: None = Depends(OPERATOR_ACCESS)):
     response, audit_event = service_create_modification_request(
         REQUESTS_FILE,
         payload,
@@ -988,7 +1027,7 @@ def _eitas_agent_mode_normalize(value):
 
 @app.get("/api/agent/mode")
 def eitas_get_agent_mode_compat(
-    api_key: None = Depends(require_api_key),
+    api_key: None = Depends(SECURITY_OR_API_KEY_ACCESS),
 ):
     config = _eitas_agent_mode_load_config()
     mode = _eitas_agent_mode_normalize(
@@ -1006,7 +1045,7 @@ def eitas_get_agent_mode_compat(
 @app.post("/api/admin/agent/mode")
 def eitas_update_agent_mode_compat(
     payload: dict = Body(...),
-    api_key: None = Depends(require_api_key),
+    api_key: None = Depends(SECURITY_ACCESS),
 ):
     wanted_mode = _eitas_agent_mode_normalize(payload.get("mode") if isinstance(payload, dict) else None)
     updated_by = payload.get("updated_by") if isinstance(payload, dict) else None
