@@ -140,6 +140,12 @@ SECURITY_OR_API_KEY_ACCESS = require_roles_or_api_key(
     "UltraAdmin",
 )
 
+AGENT_MODE_READ_OR_API_KEY_ACCESS = require_roles_or_api_key(
+    "ADAdmin",
+    "SecurityAdmin",
+    "UltraAdmin",
+)
+
 
 app = FastAPI(
     title="Enterprise IT Automation Suite",
@@ -1027,7 +1033,9 @@ def _eitas_agent_mode_normalize(value):
 
 @app.get("/api/agent/mode")
 def eitas_get_agent_mode_compat(
-    api_key: None = Depends(SECURITY_OR_API_KEY_ACCESS),
+    api_key: None = Depends(
+        AGENT_MODE_READ_OR_API_KEY_ACCESS
+    ),
 ):
     config = _eitas_agent_mode_load_config()
     mode = _eitas_agent_mode_normalize(

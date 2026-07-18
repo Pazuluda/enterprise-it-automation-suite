@@ -5,6 +5,9 @@ import CopyTextButton from './CopyTextButton.jsx'
 export default function SmartRequestDrawer({
   request,
   auditLogs = [],
+  canOperateRequests = false,
+  canReadAudit = false,
+  canManageActiveDirectory = false,
   onClose,
   approveRequest,
   rejectRequest,
@@ -237,6 +240,10 @@ export default function SmartRequestDrawer({
   }
 
   function renderAuditEvents() {
+    if (!canReadAudit) {
+      return null
+    }
+
     return (
       <div className="detail-section drawer-audit-section">
         <div className="drawer-audit-title-row">
@@ -450,20 +457,40 @@ export default function SmartRequestDrawer({
       })
     }
 
-    lines.push('')
-    lines.push('--- Audit logs liés ---')
+    if (canReadAudit) {
+      lines.push('')
+      lines.push('--- Audit logs liés ---')
 
-    if (auditRows.length === 0) {
-      lines.push('Aucun audit log lié chargé.')
-    } else {
-      auditRows.forEach(log => {
-        const action = auditActionLabels[log.action] || log.action || 'Événement audit'
-        const date = formatDate(getAuditDate(log))
-        const actor = log.actor || log.user || log.source || 'Système'
-        const summary = renderAuditLogSummary(log)
+      if (auditRows.length === 0) {
+        lines.push(
+          'Aucun audit log lié chargé.'
+        )
+      } else {
+        auditRows.forEach(log => {
+          const action =
+            auditActionLabels[log.action]
+            || log.action
+            || 'Événement audit'
 
-        lines.push(`- ${date} | ${action} | ${actor} | ${summary}`)
-      })
+          const date = formatDate(
+            getAuditDate(log)
+          )
+
+          const actor =
+            log.actor
+            || log.user
+            || log.source
+            || 'Système'
+
+          const summary =
+            renderAuditLogSummary(log)
+
+          lines.push(
+            `- ${date} | ${action} | `
+            + `${actor} | ${summary}`
+          )
+        })
+      }
     }
 
     lines.push('')
@@ -667,6 +694,10 @@ export default function SmartRequestDrawer({
   }
 
   function goToAuditLogs() {
+    if (!canReadAudit) {
+      return
+    }
+
     if (typeof openAuditFromRequest === 'function') {
       openAuditFromRequest(requestId)
       return
@@ -691,17 +722,60 @@ export default function SmartRequestDrawer({
           </div>
 
           <div className="drawer-header-actions">
-            <CopyTextButton text={buildRequestReportText()} label="Copier rapport" copiedLabel="Rapport copié" />
-            <button type="button" className="download-report-button" onClick={downloadRequestReportText}>
+            <CopyTextButton
+              text={buildRequestReportText()}
+              label="Copier rapport"
+              copiedLabel="Rapport copié"
+            />
+
+            <button
+              type="button"
+              className="download-report-button"
+              onClick={downloadRequestReportText}
+            >
               Télécharger rapport
             </button>
-            <CopyTextButton text={buildAdCheckPowerShellCommand()} label="Copier contrôle AD" copiedLabel="Contrôle AD copié" />
-            <button type="button" className="download-ad-check-button" onClick={downloadAdCheckPowerShellFile}>
-              Télécharger contrôle AD
+
+            {canManageActiveDirectory && (
+              <>
+                <CopyTextButton
+                  text={buildAdCheckPowerShellCommand()}
+                  label="Copier contrôle AD"
+                  copiedLabel="Contrôle AD copié"
+                />
+
+                <button
+                  type="button"
+                  className="download-ad-check-button"
+                  onClick={downloadAdCheckPowerShellFile}
+                >
+                  Télécharger contrôle AD
+                </button>
+              </>
+            )}
+
+            <CopyTextButton
+              text={requestId}
+              label="Copier ID"
+              copiedLabel="ID copié"
+            />
+
+            {canReadAudit && (
+              <button
+                type="button"
+                className="audit-shortcut-button"
+                onClick={goToAuditLogs}
+              >
+                Voir audit
+              </button>
+            )}
+
+            <button
+              className="ghost-button"
+              onClick={onClose}
+            >
+              Fermer
             </button>
-            <CopyTextButton text={requestId} label="Copier ID" copiedLabel="ID copié" />
-            <button type="button" className="audit-shortcut-button" onClick={goToAuditLogs}>Voir audit</button>
-            <button className="ghost-button" onClick={onClose}>Fermer</button>
           </div>
         </div>
 
@@ -714,7 +788,7 @@ export default function SmartRequestDrawer({
 
         <RequestLifecycleTimeline request={request} details={details} />
 
-        {renderAuditEvents()}
+        {canReadAudit && renderAuditEvents()}
 
         <div className="detail-section">
           <h4>Suivi de traitement</h4>
@@ -736,18 +810,50 @@ export default function SmartRequestDrawer({
         {renderAgentResultDetails()}
 
         <div className="drawer-actions">
-          {request.status === 'waiting_approval' && (
-            <>
-              <button onClick={() => approveRequest?.(requestId)}>Approuver</button>
-              <button className="danger-button" onClick={() => rejectRequest?.(requestId)}>Rejeter</button>
-            </>
-          )}
+          {canOperateRequests
+            && request.status === 'waiting_approval'
+            && (
+              <>
+                <button
+                  onClick={() =>
+                    approveRequest?.(requestId)
+                  }
+                >
+                  Approuver
+                </button>
 
-          {(request.status === 'failed' || request.status === 'rejected') && (
-            <button onClick={() => retryRequest?.(requestId)}>Relancer</button>
-          )}
+                <button
+                  className="danger-button"
+                  onClick={() =>
+                    rejectRequest?.(requestId)
+                  }
+                >
+                  Rejeter
+                </button>
+              </>
+            )}
 
-          <button className="ghost-button" onClick={onClose}>Fermer</button>
+          {canOperateRequests
+            && (
+              request.status === 'failed'
+              || request.status === 'rejected'
+            )
+            && (
+              <button
+                onClick={() =>
+                  retryRequest?.(requestId)
+                }
+              >
+                Relancer
+              </button>
+            )}
+
+          <button
+            className="ghost-button"
+            onClick={onClose}
+          >
+            Fermer
+          </button>
         </div>
       </aside>
     </div>

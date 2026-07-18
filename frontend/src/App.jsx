@@ -14,6 +14,11 @@ import AdExplorerPage from './features/active-directory/AdExplorerPage.jsx'
 import ModificationPage from './features/employee-lifecycle/ModificationPage.jsx'
 import AgentOperationsPage from './features/agent/AgentOperationsPage.jsx'
 import WorkerStatusPage from './features/agent/WorkerStatusPage.jsx'
+import {
+  canAccessPage,
+  canPerform,
+  getDefaultPage
+} from './auth/rbac.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE || window.location.origin
 
@@ -106,6 +111,44 @@ const PAGES = {
     subtitle: 'Session Keycloak, identité et rôles Forteresse.'
   }
 }
+
+const NAV_SECTIONS = [
+  {
+    title: 'Accueil',
+    items: [
+      { page: 'overview', label: 'Vue générale' }
+    ]
+  },
+  {
+    title: 'Demandes',
+    items: [
+      { page: 'requests', label: 'Demandes' },
+      { page: 'newRequest', label: 'Nouvelle demande' },
+      { page: 'csvImport', label: 'Import CSV' },
+      { page: 'offboarding', label: 'Offboarding' },
+      { page: 'modification', label: 'Modification' }
+    ]
+  },
+  {
+    title: 'Active Directory',
+    items: [
+      { page: 'adChecks', label: 'Contrôles AD' },
+      { page: 'adExplorer', label: 'Explorateur AD' },
+      { page: 'agentMode', label: 'Mode agent' }
+    ]
+  },
+  {
+    title: 'Administration',
+    items: [
+      { page: 'templates', label: 'Templates' },
+      { page: 'audit', label: 'Audit logs' },
+      { page: 'agentOps', label: 'Exploitation agent' },
+      { page: 'workers', label: 'Santé workers' },
+      { page: 'settings', label: 'Paramètres' }
+    ]
+  }
+]
+
 
 function normalizeText(value) {
   return value
@@ -1283,13 +1326,60 @@ function BackToTopButton({ page }) {
 }
 
 function App({ authClient }) {
-  const [page, setPage] = useState(() => {
-    const savedPage = localStorage.getItem('eitas_last_page')
-    return savedPage && PAGES[savedPage] ? savedPage : 'overview'
-  })
   const [authIdentity, setAuthIdentity] = useState(
     () => authClient.getIdentity()
   )
+
+  const userRoles = useMemo(
+    () => (
+      Array.isArray(authIdentity?.roles)
+        ? authIdentity.roles
+        : []
+    ),
+    [authIdentity]
+  )
+
+  const canReadPortal = canAccessPage(
+    'overview',
+    userRoles
+  )
+
+  const canManageActiveDirectory = canPerform(
+    'adRead',
+    userRoles
+  )
+
+  const canManageSecurity = canPerform(
+    'workerSupervision',
+    userRoles
+  )
+
+  const canReadAudit = canPerform(
+    'auditRead',
+    userRoles
+  )
+
+  const canOperateRequests = canPerform(
+    'requestApprove',
+    userRoles
+  )
+
+  const [page, setPage] = useState(() => {
+    const savedPage = localStorage.getItem(
+      'eitas_last_page'
+    )
+
+    const preferredPage = (
+      savedPage && PAGES[savedPage]
+        ? savedPage
+        : 'overview'
+    )
+
+    return getDefaultPage(
+      authClient.getIdentity()?.roles,
+      preferredPage
+    )
+  })
   const [apiStatus, setApiStatus] = useState('Non testé')
   const [message, setMessage] = useState('')
   const [requests, setRequests] = useState([])
@@ -1540,28 +1630,72 @@ function App({ authClient }) {
   }
 
   useEffect(() => {
+    if (canAccessPage(page, userRoles)) {
+      return
+    }
+
+    const fallbackPage = getDefaultPage(
+      userRoles,
+      'overview'
+    )
+
+    setPage(fallbackPage)
+    setMessage(
+      'Accès refusé : cette page n’est pas autorisée '
+      + 'pour vos rôles.'
+    )
+  }, [page, userRoles])
+
+  useEffect(() => {
     const portalGlobalLiveRefresh = window.setInterval(() => {
       if (!liveRefreshEnabled) {
         return
       }
 
-      testApi(true)
-      loadRequests(true)
-      loadAgentStatus()
-      loadWorkerStatus()
-      loadAgentConfig()
+      if (canReadPortal) {
+        testApi(true)
+        loadRequests(true)
+      }
 
-      if (page === 'audit' || page === 'agentOps' || page === 'adChecks') {
+      if (canManageSecurity) {
+        loadAgentStatus()
+        loadWorkerStatus()
+        loadAgentConfig()
+
+        if (page === 'agentMode') {
+          loadAgentMode(true)
+        }
+      }
+
+      if (page === 'audit' && canReadAudit) {
         loadAuditLogs(true)
+      }
+
+      if (
+        page === 'agentOps'
+        && canManageSecurity
+        && canReadAudit
+      ) {
         loadAgentHistory()
       }
 
-      if (page === 'adChecks') {
+      if (
+        page === 'adChecks'
+        && canManageActiveDirectory
+      ) {
         loadAdCheckJobs(true)
-      loadAgentMode(true)
       }
 
-      if (page === 'templates' || page === 'newRequest' || page === 'offboarding' || page === 'modification') {
+      if (
+        canReadPortal
+        && [
+          'templates',
+          'newRequest',
+          'csvImport',
+          'offboarding',
+          'modification'
+        ].includes(page)
+      ) {
         loadTemplates(true)
       }
 
@@ -1569,9 +1703,18 @@ function App({ authClient }) {
     }, 5000)
 
     return () => {
-      window.clearInterval(portalGlobalLiveRefresh)
+      window.clearInterval(
+        portalGlobalLiveRefresh
+      )
     }
-  }, [page, liveRefreshEnabled])
+  }, [
+    page,
+    liveRefreshEnabled,
+    canReadPortal,
+    canManageSecurity,
+    canManageActiveDirectory,
+    canReadAudit
+  ])
 
   useEffect(() => {
     if (!message) {
@@ -1610,12 +1753,78 @@ function App({ authClient }) {
   }, [liveRefreshEnabled])
 
   useEffect(() => {
-    localStorage.setItem('eitas_last_page', page)
+    if (!canAccessPage(page, userRoles)) {
+      return
+    }
 
-    if (page === 'overview' || page === 'workers') {
+    localStorage.setItem(
+      'eitas_last_page',
+      page
+    )
+
+    if (
+      canManageSecurity
+      && (
+        page === 'overview'
+        || page === 'workers'
+      )
+    ) {
       loadWorkerStatus()
     }
-  }, [page])
+
+    if (
+      page === 'agentOps'
+      && canManageSecurity
+    ) {
+      loadAgentStatus()
+      loadAgentConfig()
+
+      if (canReadAudit) {
+        loadAgentHistory()
+      }
+    }
+
+    if (
+      page === 'agentMode'
+      && canManageSecurity
+    ) {
+      loadAgentMode(true)
+    }
+
+    if (
+      page === 'audit'
+      && canReadAudit
+    ) {
+      loadAuditLogs(true)
+    }
+
+    if (
+      page === 'adChecks'
+      && canManageActiveDirectory
+    ) {
+      loadAdCheckJobs(true)
+    }
+
+    if (
+      canReadPortal
+      && [
+        'templates',
+        'newRequest',
+        'csvImport',
+        'offboarding',
+        'modification'
+      ].includes(page)
+    ) {
+      loadTemplates(true)
+    }
+  }, [
+    page,
+    userRoles,
+    canReadPortal,
+    canManageSecurity,
+    canManageActiveDirectory,
+    canReadAudit
+  ])
 
 
   useEffect(() => {
@@ -1832,7 +2041,7 @@ function App({ authClient }) {
 
   async function loadTemplates(silent = false) {
     try {
-      const data = await apiFetch('/api/admin/templates')
+      const data = await apiFetch('/api/templates')
       setTemplates(data)
 
       const departmentNames = Object.keys(data.departments || {})
@@ -3156,13 +3365,30 @@ Write-Host "============================================================"
   }
 
   async function refreshAll() {
-    await loadTemplates()
-    await loadRequests()
-    loadAgentStatus()
-    loadWorkerStatus()
-    await loadAuditLogs()
-    await loadAdCheckJobs(true)
-    await testApi()
+    if (canReadPortal) {
+      await loadTemplates(true)
+      await loadRequests(true)
+      await testApi(true)
+    }
+
+    if (canManageSecurity) {
+      await loadAgentStatus()
+      await loadWorkerStatus()
+      await loadAgentConfig()
+      await loadAgentMode(true)
+    }
+
+    if (canReadAudit) {
+      await loadAuditLogs(true)
+    }
+
+    if (canManageActiveDirectory) {
+      await loadAdCheckJobs(true)
+    }
+
+    setMessage(
+      'Actualisation terminée selon vos autorisations.'
+    )
   }
 
   function buildOnboardingFormDuplicateKey(source) {
@@ -3512,15 +3738,42 @@ Write-Host "============================================================"
   }
 
   useEffect(() => {
-    loadTemplates()
-    loadRequests()
-    loadAuditLogs()
-    loadAgentMode(true)
-    loadAdCheckJobs(true)
-    testApi(true)
-  }, [])
+    if (canReadPortal) {
+      loadTemplates(true)
+      loadRequests(true)
+      testApi(true)
+    }
+
+    if (canManageSecurity) {
+      loadAgentMode(true)
+      loadAgentStatus()
+      loadAgentConfig()
+      loadWorkerStatus()
+    }
+
+    if (canManageActiveDirectory) {
+      loadAdCheckJobs(true)
+    }
+
+    if (canReadAudit) {
+      loadAuditLogs(true)
+    }
+  }, [
+    canReadPortal,
+    canManageSecurity,
+    canManageActiveDirectory,
+    canReadAudit
+  ])
 
   async function openAuditFromRequest(requestId) {
+    if (!canReadAudit) {
+      setMessage(
+        'Accès refusé : le rôle Auditor '
+        + 'ou UltraAdmin est requis.'
+      )
+      return
+    }
+
     const id = String(requestId || '').trim()
 
     setAuditFocusId(id)
@@ -3549,162 +3802,118 @@ Write-Host "============================================================"
         </div>
 
         <nav className="nav grouped-nav">
-          <div className="nav-section">
-            <span className="nav-section-title">Accueil</span>
+            {NAV_SECTIONS.map(section => {
+              const visibleItems = section.items.filter(
+                item => canAccessPage(
+                  item.page,
+                  userRoles
+                )
+              )
 
-            <button
-              type="button"
-              className={page === 'overview' ? 'active' : ''}
-              onClick={() => setPage('overview')}
-            >
-              Vue générale
-            </button>
+              if (visibleItems.length === 0) {
+                return null
+              }
+
+              return (
+                <div
+                  className="nav-section"
+                  key={section.title}
+                >
+                  <span className="nav-section-title">
+                    {section.title}
+                  </span>
+
+                  {visibleItems.map(item => (
+                    <button
+                      type="button"
+                      key={item.page}
+                      className={[
+                        page === item.page
+                          ? 'active'
+                          : '',
+                        item.page === 'workers'
+                          ? 'nav-worker-health'
+                          : ''
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => {
+                        setPage(item.page)
+
+                        if (item.page === 'agentMode') {
+                          loadAgentMode(true)
+                        }
+                      }}
+                    >
+                      {item.page === 'workers' ? (
+                        <>
+                          <span>{item.label}</span>
+
+                          <span
+                            className={`nav-worker-dot ${
+                              workerStatus?.summary
+                                ? (
+                                    Number(
+                                      workerStatus.summary.stale || 0
+                                    ) > 0
+                                    || Number(
+                                      workerStatus.summary.errors || 0
+                                    ) > 0
+                                  )
+                                  ? 'warning'
+                                  : 'ok'
+                                : 'unknown'
+                            }`}
+                            title={
+                              workerStatus?.summary
+                                ? `${
+                                    workerStatus.summary.healthy
+                                  }/${
+                                    workerStatus.summary.total
+                                  } workers OK`
+                                : 'État workers inconnu'
+                            }
+                          />
+                        </>
+                      ) : (
+                        item.label
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )
+            })}
+          </nav>
+
+        {canManageSecurity && (
+          <div
+            className={`sidebar-card ${
+              agentModeControl.mode === 'Production'
+                ? 'production'
+                : 'simulation'
+            }`}
+          >
+            <span>Environnement</span>
+
+            <strong>
+              {agentStatus?.agent_name
+                || agentStatus?.computer_name
+                || 'Lab local'}
+            </strong>
+
+            <small>
+              Mode agent : {
+                agentModeControl.mode
+                || agentStatus?.mode
+                || 'Simulation'
+              }
+
+              {agentStatus?.online === true
+                ? ' · connecté'
+                : agentStatus?.online === false
+                  ? ' · hors ligne'
+                  : ''}
+            </small>
           </div>
-
-          <div className="nav-section">
-            <span className="nav-section-title">Demandes</span>
-
-            <button
-              type="button"
-              className={page === 'requests' ? 'active' : ''}
-              onClick={() => setPage('requests')}
-            >
-              Demandes
-            </button>
-
-            <button
-              type="button"
-              className={page === 'newRequest' ? 'active' : ''}
-              onClick={() => setPage('newRequest')}
-            >
-              Nouvelle demande
-            </button>
-
-            <button
-              type="button"
-              className={page === 'csvImport' ? 'active' : ''}
-              onClick={() => setPage('csvImport')}
-            >
-              Import CSV
-            </button>
-
-            <button
-              type="button"
-              className={page === 'offboarding' ? 'active' : ''}
-              onClick={() => setPage('offboarding')}
-            >
-              Offboarding
-            </button>
-
-            <button
-              type="button"
-              className={page === 'modification' ? 'active' : ''}
-              onClick={() => setPage('modification')}
-            >
-              Modification
-            </button>
-          </div>
-
-          <div className="nav-section">
-            <span className="nav-section-title">Active Directory</span>
-
-            <button
-              type="button"
-              className={page === 'adChecks' ? 'active' : ''}
-              onClick={() => setPage('adChecks')}
-            >
-              Contrôles AD
-            </button>
-<button
-              type="button"
-              className={page === 'adExplorer' ? 'active' : ''}
-              onClick={() => setPage('adExplorer')}
-            >
-              Explorateur AD
-            </button>
-
-            <button
-              type="button"
-              className={page === 'agentMode' ? 'active' : ''}
-              onClick={() => {
-                setPage('agentMode')
-                loadAgentMode(true)
-              }}
-            >
-              Mode agent
-            </button>
-          </div>
-
-          <div className="nav-section">
-            <span className="nav-section-title">Administration</span>
-
-            <button
-              type="button"
-              className={page === 'templates' ? 'active' : ''}
-              onClick={() => setPage('templates')}
-            >
-              Templates
-            </button>
-
-            <button
-              type="button"
-              className={page === 'audit' ? 'active' : ''}
-              onClick={() => setPage('audit')}
-            >
-              Audit logs
-            </button>
-
-            <button
-              type="button"
-              className={page === 'agentOps' ? 'active' : ''}
-              onClick={() => setPage('agentOps')}
-            >
-              Exploitation agent
-            </button>
-
-              <button
-  type="button"
-  className={page === 'workers' ? 'active nav-worker-health' : 'nav-worker-health'}
-  onClick={() => setPage('workers')}
->
-  <span>Santé workers</span>
-  <span
-    className={`nav-worker-dot ${
-      workerStatus?.summary
-        ? Number(workerStatus.summary.stale || 0) > 0 || Number(workerStatus.summary.errors || 0) > 0
-          ? 'warning'
-          : 'ok'
-        : 'unknown'
-    }`}
-    title={
-      workerStatus?.summary
-        ? Number(workerStatus.summary.stale || 0) > 0 || Number(workerStatus.summary.errors || 0) > 0
-          ? `${Number(workerStatus.summary.stale || 0) + Number(workerStatus.summary.errors || 0)} alerte(s) worker`
-          : `${workerStatus.summary.healthy}/${workerStatus.summary.total} workers OK`
-        : 'État workers inconnu'
-    }
-  />
-</button>
-
-
-            <button
-              type="button"
-              className={page === 'settings' ? 'active' : ''}
-              onClick={() => setPage('settings')}
-            >
-              Paramètres
-            </button>
-          </div>
-        </nav>
-
-        <div className={`sidebar-card ${agentModeControl.mode === 'Production' ? 'production' : 'simulation'}`}>
-          <span>Environnement</span>
-          <strong>{agentStatus?.agent_name || agentStatus?.computer_name || 'Lab local'}</strong>
-          <small>
-            Mode agent : {agentModeControl.mode || agentStatus?.mode || 'Simulation'}
-            {agentStatus?.online === true ? ' · connecté' : agentStatus?.online === false ? ' · hors ligne' : ''}
-          </small>
-        </div>
+        )}
       </aside>
 
       <div className="page">
@@ -3743,10 +3952,10 @@ Write-Host "============================================================"
               </span>
             )}
 
-            {page === 'overview' && (
-              <button
-                type="button"
-                className={`worker-overview-badge ${workerStatus?.summary && Number(workerStatus.summary.stale || 0) === 0 && Number(workerStatus.summary.errors || 0) === 0 ? 'online' : 'warning'}`}
+            {page === 'overview' && canManageSecurity && (
+                <button
+                  type="button"
+                  className={`worker-overview-badge ${workerStatus?.summary && Number(workerStatus.summary.stale || 0) === 0 && Number(workerStatus.summary.errors || 0) === 0 ? 'online' : 'warning'}`}
                 onClick={() => setPage('workers')}
                 title="Voir la santé détaillée des workers Windows"
               >
@@ -3775,7 +3984,7 @@ Write-Host "============================================================"
             </span>
           )}
 
-          {page === 'requests' && approvableFilteredRequests.length > 0 && (
+          {page === 'requests' && canOperateRequests && approvableFilteredRequests.length > 0 && (
             <button
               type="button"
               className="bulk-approve-filtered-button"
@@ -3785,7 +3994,7 @@ Write-Host "============================================================"
             </button>
           )}
 
-          {page === 'requests' && retryableFilteredRequests.length > 0 && (
+          {page === 'requests' && canOperateRequests && retryableFilteredRequests.length > 0 && (
             <button
               type="button"
               className="bulk-retry-filtered-button"
@@ -3964,7 +4173,12 @@ Write-Host "============================================================"
             </div>
           )}
 
-          <AgentSystemBanner agentStatus={agentStatus} agentConfig={agentConfig} />
+          {canManageSecurity && (
+            <AgentSystemBanner
+              agentStatus={agentStatus}
+              agentConfig={agentConfig}
+            />
+          )}
 
           {page === 'overview' && (
             <OverviewPage
@@ -3973,6 +4187,9 @@ Write-Host "============================================================"
               agentStatus={agentStatus}
               workerStatus={workerStatus}
               agentModeControl={agentModeControl}
+              userRoles={userRoles}
+              canManageSecurity={canManageSecurity}
+              canOperateRequests={canOperateRequests}
               setPage={setPage}
               setSelectedRequest={setSelectedRequest}
             />
@@ -3991,6 +4208,10 @@ Write-Host "============================================================"
               approveRequest={approveRequest}
               rejectRequest={rejectRequest}
               retryRequest={retryRequest}
+              canOperateRequests={canOperateRequests}
+              canManageActiveDirectory={
+                canManageActiveDirectory
+              }
               selectedRequestIds={selectedRequestIds}
               setSelectedRequestIds={setSelectedRequestIds}
               selectedRequestCount={selectedRequests.length}
@@ -4314,7 +4535,16 @@ Write-Host "============================================================"
       {selectedRequest && (
             <SmartRequestDrawer
               request={selectedRequest}
-              auditLogs={auditLogs}
+              auditLogs={
+                canReadAudit
+                  ? auditLogs
+                  : []
+              }
+              canOperateRequests={canOperateRequests}
+              canReadAudit={canReadAudit}
+              canManageActiveDirectory={
+                canManageActiveDirectory
+              }
               onClose={() => setSelectedRequest(null)}
               approveRequest={approveRequest}
               rejectRequest={rejectRequest}
@@ -4588,7 +4818,16 @@ function WorkerOverviewAlert({ workerStatus, setPage }) {
   )
 }
 
-function OverviewPage({ requests, agentStatus, workerStatus, agentModeControl, setPage }) {
+function OverviewPage({
+  requests,
+  agentStatus,
+  workerStatus,
+  agentModeControl,
+  userRoles,
+  canManageSecurity,
+  canOperateRequests,
+  setPage
+}) {
   const safeRequests = Array.isArray(requests) ? requests : []
 
   const waitingApproval = safeRequests.filter(request => request.status === 'waiting_approval').length
@@ -4627,11 +4866,22 @@ function OverviewPage({ requests, agentStatus, workerStatus, agentModeControl, s
         </div>
       </div>
 
-      <WorkerOverviewAlert workerStatus={workerStatus} setPage={setPage} />
+      {canManageSecurity && (
+        <WorkerOverviewAlert
+          workerStatus={workerStatus}
+          setPage={setPage}
+        />
+      )}
 
       <div className="content-grid">
         <section className="panel">
-                <AgentHealthCard requests={requests} agentStatus={agentStatus} agentModeControl={agentModeControl} />
+        {canManageSecurity && (
+          <AgentHealthCard
+            requests={requests}
+            agentStatus={agentStatus}
+            agentModeControl={agentModeControl}
+          />
+        )}
 
 <div className="panel-header">
             <div>
@@ -4674,10 +4924,41 @@ function OverviewPage({ requests, agentStatus, workerStatus, agentModeControl, s
           </div>
 
           <div className="quick-action-list">
-            <button onClick={() => setPage('newRequest')}>Créer une demande</button>
-            <button onClick={() => setPage('requests')}>Gérer les validations</button>
-            <button onClick={() => setPage('templates')}>Consulter les templates</button>
-            <button onClick={() => setPage('settings')}>Configurer API</button>
+            {canAccessPage('newRequest', userRoles) && (
+              <button onClick={() => setPage('newRequest')}>
+                Créer une demande
+              </button>
+            )}
+
+            {canAccessPage('requests', userRoles) && (
+              <button onClick={() => setPage('requests')}>
+                {canOperateRequests
+                  ? 'Gérer les validations'
+                  : 'Consulter les demandes'}
+              </button>
+            )}
+
+            {canAccessPage('templates', userRoles) && (
+              <button onClick={() => setPage('templates')}>
+                Administrer les templates
+              </button>
+            )}
+
+            {canAccessPage('adExplorer', userRoles) && (
+              <button onClick={() => setPage('adExplorer')}>
+                Ouvrir l’explorateur AD
+              </button>
+            )}
+
+            {canAccessPage('audit', userRoles) && (
+              <button onClick={() => setPage('audit')}>
+                Consulter les audits
+              </button>
+            )}
+
+            <button onClick={() => setPage('settings')}>
+              Gérer la session
+            </button>
           </div>
         </section>
       </div>
@@ -4700,6 +4981,8 @@ function RequestsPage({
   approveRequest,
   rejectRequest,
   retryRequest,
+  canOperateRequests,
+  canManageActiveDirectory,
   selectedRequestIds,
   setSelectedRequestIds,
   selectedRequestCount,
@@ -4749,13 +5032,13 @@ function RequestsPage({
           <strong>{selectedRequestCount} sélectionnée(s)</strong>
 
           <div>
-            {selectedApprovableCount > 0 && (
+            {canOperateRequests && selectedApprovableCount > 0 && (
               <button type="button" className="selection-approve-button" onClick={approveSelectedRequests}>
                 Approuver sélection ({selectedApprovableCount})
               </button>
             )}
 
-            {selectedRetryableCount > 0 && (
+            {canOperateRequests && selectedRetryableCount > 0 && (
               <button type="button" className="selection-retry-button" onClick={retrySelectedRequests}>
                 Relancer sélection ({selectedRetryableCount})
               </button>
@@ -4765,9 +5048,17 @@ function RequestsPage({
               Export sélection
             </button>
 
-            <button type="button" className="selection-ad-check-button" onClick={downloadSelectedAdCheckPowerShellFile}>
-              Contrôle AD sélection
-            </button>
+            {canManageActiveDirectory && (
+              <button
+                type="button"
+                className="selection-ad-check-button"
+                onClick={
+                  downloadSelectedAdCheckPowerShellFile
+                }
+              >
+                Contrôle AD sélection
+              </button>
+            )}
 
             <button type="button" className="selection-clear-button" onClick={clearRequestSelection}>
               Vider
@@ -4781,6 +5072,7 @@ function RequestsPage({
         approveRequest={approveRequest}
         rejectRequest={rejectRequest}
         retryRequest={retryRequest}
+        canOperateRequests={canOperateRequests}
         selectedRequestIds={selectedRequestIds}
         setSelectedRequestIds={setSelectedRequestIds}
         setSelectedRequest={setSelectedRequest}
@@ -4794,6 +5086,7 @@ function RequestsTable({
   approveRequest,
   rejectRequest,
   retryRequest,
+  canOperateRequests,
   selectedRequestIds,
   setSelectedRequestIds,
   setSelectedRequest
@@ -4883,18 +5176,57 @@ function RequestsTable({
                 <td>{payload.job_title || '-'}</td>
                 <td><StatusBadge status={request.status} /></td>
                 <td>
-                  {request.status === 'waiting_approval' ? (
+                  {canOperateRequests && request.status === 'waiting_approval' ? (
                     <div className="row-actions">
-                      <button className="success" onClick={() => approveRequest(requestId)}>Approuver</button>
-                      <button className="danger" onClick={() => rejectRequest(requestId)}>Rejeter</button>
+                      <button
+                        className="success"
+                        onClick={() =>
+                          approveRequest(requestId)
+                        }
+                      >
+                        Approuver
+                      </button>
+
+                      <button
+                        className="danger"
+                        onClick={() =>
+                          rejectRequest(requestId)
+                        }
+                      >
+                        Rejeter
+                      </button>
                     </div>
-                  ) : request.status === 'failed' || request.status === 'rejected' ? (
+                  ) : canOperateRequests && (
+                    request.status === 'failed'
+                    || request.status === 'rejected'
+                  ) ? (
                     <div className="row-actions">
-                      <button onClick={() => retryRequest(requestId)}>Relancer</button>
-                      <button className="secondary" onClick={() => setSelectedRequest(request)}>Détail</button>
+                      <button
+                        onClick={() =>
+                          retryRequest(requestId)
+                        }
+                      >
+                        Relancer
+                      </button>
+
+                      <button
+                        className="secondary"
+                        onClick={() =>
+                          setSelectedRequest(request)
+                        }
+                      >
+                        Détail
+                      </button>
                     </div>
                   ) : (
-                    <button className="secondary" onClick={() => setSelectedRequest(request)}>Détail</button>
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        setSelectedRequest(request)
+                      }
+                    >
+                      Détail
+                    </button>
                   )}
                 </td>
               </tr>
