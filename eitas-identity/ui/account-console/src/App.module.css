@@ -1,0 +1,417 @@
+.shell {
+  min-height: 100vh;
+
+  color: #172033;
+  background: #f3f6f9;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  height: 74px;
+  padding: 0 28px;
+
+  box-sizing: border-box;
+
+  color: #ffffff;
+  background: #111f35;
+
+  border-bottom: 1px solid #293b55;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.18),
+    0 8px 24px rgba(16, 24, 40, 0.08);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  min-width: 0;
+}
+
+.brandShield {
+  flex: 0 0 auto;
+
+  width: 35px;
+  height: 42px;
+
+  filter: drop-shadow(
+    0 2px 3px rgba(0, 0, 0, 0.16)
+  );
+}
+
+.brandText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brandName {
+  color: #ffffff;
+
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+
+  font-size: 19px;
+  font-weight: 730;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.brandName span {
+  color: #bdcbe0;
+  font-weight: 520;
+}
+
+.brandTagline {
+  color: #8fa6c4;
+
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.13em;
+
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.headerSession {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  min-width: 0;
+}
+
+.headerSession :global(.pf-v5-c-masthead),
+.headerSession :global(.pf-c-masthead),
+.headerSession :global(.pf-v5-c-page__header),
+.headerSession :global(.pf-c-page__header) {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.headerSession :global(.pf-v5-c-masthead__main),
+.headerSession :global(.pf-c-masthead__main),
+.headerSession :global(.pf-v5-c-page__header-brand),
+.headerSession :global(.pf-c-page__header-brand),
+.headerSession :global(.pf-v5-c-masthead__toggle),
+.headerSession :global(.pf-c-masthead__toggle) {
+  display: none !important;
+}
+
+.headerSession :global(.pf-v5-c-masthead__content),
+.headerSession :global(.pf-c-masthead__content),
+.headerSession :global(.pf-v5-c-page__header-tools),
+.headerSession :global(.pf-c-page__header-tools) {
+  width: auto !important;
+  padding: 0 !important;
+}
+
+.headerSession :global(.pf-v5-c-menu-toggle),
+.headerSession :global(.pf-c-menu-toggle),
+.headerSession :global(.pf-v5-c-dropdown__toggle),
+.headerSession :global(.pf-c-dropdown__toggle) {
+  min-height: 42px !important;
+
+  color: #f8fafc !important;
+  background: #1a2d49 !important;
+
+  border: 1px solid #3b506e !important;
+  border-radius: 8px !important;
+
+  box-shadow: none !important;
+}
+
+.headerSession :global(button),
+.headerSession :global(a) {
+  color: #f8fafc !important;
+}
+
+.workspace {
+  display: grid;
+
+  grid-template-columns:
+    276px
+    minmax(0, 1fr);
+
+  min-height: calc(100vh - 74px);
+}
+
+.main {
+  min-width: 0;
+  padding: 36px 42px 64px;
+
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(77, 115, 166, 0.06),
+      transparent 340px
+    ),
+    #f3f6f9;
+
+  box-sizing: border-box;
+}
+
+.mainInner {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 17px;
+
+  min-height: 420px;
+
+  color: #667085;
+
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.loading :global(.pf-v5-c-spinner),
+.loading :global(.pf-c-spinner) {
+  color: #13233b;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 230px minmax(0, 1fr);
+  }
+
+  .main {
+    padding: 30px 25px 50px;
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    height: 68px;
+    padding: 0 15px;
+  }
+
+  .brandTagline {
+    display: none;
+  }
+
+  .brandName {
+    font-size: 17px;
+  }
+
+  .brandShield {
+    width: 30px;
+    height: 37px;
+  }
+
+  .workspace {
+    display: block;
+  }
+
+  .main {
+    padding: 25px 16px 45px;
+  }
+}
+
+/* EITAS-B3.16.14-APP-START */
+
+.topbar {
+  height: 68px !important;
+  padding: 0 24px !important;
+
+  background: #111f35 !important;
+
+  border-bottom-color: #2b3d56 !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.16),
+    0 5px 18px rgba(16, 24, 40, 0.06) !important;
+}
+
+.brandShield {
+  width: 31px !important;
+  height: 38px !important;
+}
+
+.brandName {
+  font-size: 18px !important;
+}
+
+.brandTagline {
+  font-size: 8px !important;
+}
+
+.workspace {
+  grid-template-columns:
+    248px
+    minmax(0, 1fr) !important;
+
+  min-height: calc(100vh - 68px) !important;
+}
+
+.main {
+  padding: 32px 38px 56px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(224, 231, 239, 0.18),
+      transparent 210px
+    ),
+    #f3f6f9 !important;
+}
+
+.mainInner {
+  width: 100% !important;
+  max-width: 1160px !important;
+  margin: 0 auto !important;
+}
+
+.headerSession,
+.headerSession :global(.pf-v5-c-toolbar),
+.headerSession :global(.pf-c-toolbar),
+.headerSession :global(.pf-v5-c-toolbar__content),
+.headerSession :global(.pf-c-toolbar__content),
+.headerSession :global(.pf-v5-c-toolbar__content-section),
+.headerSession :global(.pf-c-toolbar__content-section) {
+  background: transparent !important;
+
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.headerSession :global(.pf-v5-c-menu-toggle),
+.headerSession :global(.pf-c-menu-toggle),
+.headerSession :global(.pf-v5-c-dropdown__toggle),
+.headerSession :global(.pf-c-dropdown__toggle) {
+  min-height: 39px !important;
+
+  background: #192d49 !important;
+
+  border-color: #405775 !important;
+  border-radius: 7px !important;
+}
+
+@media (max-width: 1050px) {
+  .workspace {
+    grid-template-columns:
+      225px
+      minmax(0, 1fr) !important;
+  }
+
+  .main {
+    padding:
+      28px
+      28px
+      50px !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    height: 64px !important;
+  }
+
+  .workspace {
+    display: block !important;
+  }
+
+  .main {
+    padding:
+      23px
+      15px
+      42px !important;
+  }
+}
+
+/* EITAS-B3.16.14-APP-END */
+
+/* EITAS-B3.16.15-WORKSPACE-START */
+
+.workspace {
+  grid-template-columns:
+    292px
+    minmax(0, 1fr) !important;
+}
+
+.main {
+  padding:
+    34px
+    42px
+    58px !important;
+}
+
+@media (max-width: 1150px) {
+  .workspace {
+    grid-template-columns:
+      270px
+      minmax(0, 1fr) !important;
+  }
+
+  .main {
+    padding:
+      31px
+      32px
+      52px !important;
+  }
+}
+
+@media (max-width: 850px) {
+  .workspace {
+    grid-template-columns:
+      245px
+      minmax(0, 1fr) !important;
+  }
+}
+
+/* EITAS-B3.16.15-WORKSPACE-END */
+
+.interfaceSwitch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid rgba(220, 231, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.interfaceSwitch:hover,
+.interfaceSwitch:focus-visible {
+  border-color: rgba(220, 231, 255, 0.7);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}

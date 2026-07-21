@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch EITAS Identity upstream verification requests
+
+[Path]
+PathExists=/var/lib/eitas/identity-update/requests/upstream-check.json
+Unit=eitas-identity-update-source-check.service
+
+[Install]
+WantedBy=multi-user.target

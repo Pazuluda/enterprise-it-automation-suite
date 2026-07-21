@@ -1,0 +1,29 @@
+# Dépendances
+node_modules/
+
+# Builds Vite et Maven
+dist/
+target/
+
+# Caches
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Journaux
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environnement local
+.env
+.env.*
+!.env.example
+
+# Éditeurs
+.vscode/
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db

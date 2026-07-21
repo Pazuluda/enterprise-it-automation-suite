@@ -1,0 +1,894 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  width: 100%;
+  max-width: 1040px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.eyebrow {
+  display: block;
+
+  margin-bottom: 9px;
+
+  color: #6883a6;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+
+  text-transform: uppercase;
+}
+
+.pageHeader h1 {
+  margin: 0 0 7px !important;
+
+  color: #14233a !important;
+
+  font-size: 29px !important;
+  font-weight: 720 !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.032em !important;
+}
+
+.pageHeader p {
+  max-width: 650px;
+  margin: 0;
+
+  color: #68768a;
+
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.profileStatus {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 11px;
+
+  min-width: 225px;
+  padding: 12px 15px;
+
+  background: #ffffff;
+
+  border: 1px solid #dce4ed;
+  border-radius: 11px;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.03);
+
+  box-sizing: border-box;
+}
+
+.profileStatusIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  width: 37px;
+  height: 37px;
+
+  color: #4d70ae;
+  background:
+    linear-gradient(
+      145deg,
+      #edf3fb,
+      #e5edf8
+    );
+
+  border: 1px solid #d2ddec;
+  border-radius: 10px;
+}
+
+.profileStatusIcon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.profileStatus > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profileStatus strong {
+  color: #25354b;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.profileStatus > div > span {
+  color: #758296;
+
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.panel {
+  overflow: hidden;
+
+  width: 100%;
+
+  background: #ffffff;
+
+  border: 1px solid #dce4ed;
+  border-radius: 14px;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.035),
+    0 12px 30px rgba(16, 24, 40, 0.045);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  min-height: 78px;
+  padding: 16px 21px;
+
+  background: #fafbfd;
+
+  border-bottom: 1px solid #e3e9ef;
+
+  box-sizing: border-box;
+}
+
+.panelIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  width: 40px;
+  height: 40px;
+
+  color: #4d70ae;
+  background: #edf3fb;
+
+  border: 1px solid #d2ddec;
+  border-radius: 10px;
+}
+
+.panelIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.panelHeader > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panelHeader strong {
+  color: #25354b;
+
+  font-size: 14px;
+  font-weight: 690;
+}
+
+.panelHeader span {
+  color: #798698;
+
+  font-size: 11px;
+}
+
+.panelBody {
+  padding: 24px 26px 26px;
+}
+
+/*
+ * Suppression de l’en-tête officiel du composant :
+ * l’en-tête EITAS est déjà affiché au-dessus.
+ */
+
+.panelBody :global(h1),
+.panelBody :global(h1 + p) {
+  display: none !important;
+}
+
+/*
+ * Suppression de la colonne « Aller à la section ».
+ */
+
+.panelBody :global(.pf-v5-c-jump-links),
+.panelBody :global(.pf-c-jump-links) {
+  display: none !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-l-grid__item:has(
+      .pf-v5-c-jump-links
+    )
+  ),
+.panelBody
+  :global(
+    .pf-c-grid__item:has(
+      .pf-c-jump-links
+    )
+  ) {
+  display: none !important;
+}
+
+/*
+ * Annulation des limites de largeur PatternFly.
+ */
+
+.panelBody
+  :global(.pf-v5-c-page__main-section),
+.panelBody
+  :global(.pf-c-page__main-section),
+.panelBody
+  :global(.pf-v5-c-page__main-body),
+.panelBody
+  :global(.pf-c-page__main-body),
+.panelBody
+  :global(.pf-v5-l-grid),
+.panelBody
+  :global(.pf-c-grid),
+.panelBody
+  :global(.pf-v5-l-grid__item),
+.panelBody
+  :global(.pf-c-grid__item) {
+  width: 100% !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  grid-column: 1 / -1 !important;
+}
+
+.panelBody
+  :global(.pf-v5-l-grid),
+.panelBody
+  :global(.pf-c-grid) {
+  display: block !important;
+}
+
+/*
+ * Titre Général.
+ */
+
+.panelBody :global(h2),
+.panelBody
+  :global(.pf-v5-c-title.pf-m-xl),
+.panelBody
+  :global(.pf-c-title.pf-m-xl) {
+  margin: 0 0 21px !important;
+
+  color: #1d2d43 !important;
+
+  font-size: 18px !important;
+  font-weight: 710 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/*
+ * Le formulaire devient une grille moderne.
+ */
+
+.panelBody :global(form),
+.panelBody
+  :global(.pf-v5-c-form),
+.panelBody
+  :global(.pf-c-form) {
+  display: grid !important;
+
+  width: 100% !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr)) !important;
+
+  gap:
+    20px
+    22px !important;
+
+  background: transparent !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+
+  box-shadow: none !important;
+}
+
+/*
+ * Chaque champ est vertical :
+ * label au-dessus, contrôle en dessous.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form__group),
+.panelBody
+  :global(.pf-c-form__group) {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column !important;
+  gap: 8px !important;
+
+  margin: 0 !important;
+}
+
+/*
+ * La langue occupe toute la première ligne.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form__group:first-of-type),
+.panelBody
+  :global(.pf-c-form__group:first-of-type) {
+  grid-column: 1 / -1 !important;
+}
+
+/*
+ * Titre éventuel du formulaire.
+ */
+
+.panelBody :global(form > h2),
+.panelBody
+  :global(.pf-v5-c-form > h2),
+.panelBody
+  :global(.pf-c-form > h2) {
+  grid-column: 1 / -1 !important;
+}
+
+/*
+ * Labels.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form__label),
+.panelBody
+  :global(.pf-c-form__label) {
+  width: auto !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-form__label-text),
+.panelBody
+  :global(.pf-c-form__label-text) {
+  color: #415067 !important;
+
+  font-size: 10px !important;
+  font-weight: 740 !important;
+  line-height: 1.35 !important;
+  letter-spacing: 0.025em !important;
+
+  text-transform: uppercase;
+}
+
+.panelBody
+  :global(.pf-v5-c-form__label-required),
+.panelBody
+  :global(.pf-c-form__label-required) {
+  color: #b84d4d !important;
+}
+
+/*
+ * Contrôles et champs.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form-control),
+.panelBody
+  :global(.pf-c-form-control),
+.panelBody :global(input),
+.panelBody :global(select),
+.panelBody :global(textarea),
+.panelBody
+  :global(.pf-v5-c-menu-toggle),
+.panelBody
+  :global(.pf-c-menu-toggle),
+.panelBody
+  :global(.pf-v5-c-select__toggle),
+.panelBody
+  :global(.pf-c-select__toggle) {
+  width: 100% !important;
+  min-height: 46px !important;
+
+  padding:
+    10px
+    13px !important;
+
+  color: #1d2a3d !important;
+  background: #ffffff !important;
+
+  border: 1px solid #cbd6e1 !important;
+  border-radius: 8px !important;
+
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  font-size: 12px !important;
+
+  box-sizing: border-box !important;
+
+  transition:
+    border-color 130ms ease,
+    box-shadow 130ms ease,
+    background-color 130ms ease !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-form-control:hover),
+.panelBody
+  :global(.pf-c-form-control:hover),
+.panelBody :global(input:hover),
+.panelBody :global(select:hover),
+.panelBody :global(textarea:hover),
+.panelBody
+  :global(.pf-v5-c-menu-toggle:hover),
+.panelBody
+  :global(.pf-c-menu-toggle:hover) {
+  border-color: #a9bacb !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-form-control:focus),
+.panelBody
+  :global(.pf-c-form-control:focus),
+.panelBody :global(input:focus),
+.panelBody :global(select:focus),
+.panelBody :global(textarea:focus) {
+  border-color: #6384b1 !important;
+
+  box-shadow:
+    0 0 0 3px rgba(86, 119, 168, 0.13) !important;
+}
+
+/*
+ * Champs non modifiables.
+ */
+
+.panelBody :global(input:disabled),
+.panelBody :global(select:disabled),
+.panelBody :global(textarea:disabled),
+.panelBody :global(input[readonly]) {
+  color: #647287 !important;
+  background: #f4f6f8 !important;
+
+  border-color: #dbe2e9 !important;
+
+  opacity: 1 !important;
+
+  cursor: not-allowed;
+}
+
+/*
+ * Zone des boutons.
+ */
+
+.panelBody
+  :global(.pf-v5-c-action-list),
+.panelBody
+  :global(.pf-c-action-list) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+
+  grid-column: 1 / -1 !important;
+
+  margin: 3px 0 0 !important;
+  padding-top: 21px !important;
+
+  border-top: 1px solid #e6ebf0 !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-button),
+.panelBody
+  :global(.pf-c-button) {
+  min-height: 40px !important;
+
+  padding:
+    8px
+    15px !important;
+
+  border-radius: 8px !important;
+
+  font-size: 11px !important;
+  font-weight: 680 !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-button.pf-m-primary
+  ),
+.panelBody
+  :global(
+    .pf-c-button.pf-m-primary
+  ) {
+  color: #ffffff !important;
+  background: #263f68 !important;
+
+  border-color: #263f68 !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.13) !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-button.pf-m-primary:hover
+  ),
+.panelBody
+  :global(
+    .pf-c-button.pf-m-primary:hover
+  ) {
+  background: #1e3458 !important;
+  border-color: #1e3458 !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-button.pf-m-link
+  ),
+.panelBody
+  :global(
+    .pf-c-button.pf-m-link
+  ) {
+  color: #315f98 !important;
+  background: transparent !important;
+
+  border-color: transparent !important;
+}
+
+/*
+ * Alertes de sauvegarde ou de validation.
+ */
+
+.panelBody
+  :global(.pf-v5-c-alert),
+.panelBody
+  :global(.pf-c-alert) {
+  grid-column: 1 / -1 !important;
+
+  margin: 0 0 18px !important;
+
+  border-radius: 10px !important;
+
+  box-shadow: none !important;
+}
+
+@media (max-width: 800px) {
+  .pageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profileStatus {
+    width: 100%;
+  }
+
+  .panelBody {
+    padding:
+      21px
+      18px
+      23px;
+  }
+
+  .panelBody :global(form),
+  .panelBody
+    :global(.pf-v5-c-form),
+  .panelBody
+    :global(.pf-c-form) {
+    grid-template-columns: 1fr !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-form__group:first-of-type),
+  .panelBody
+    :global(.pf-c-form__group:first-of-type),
+  .panelBody
+    :global(.pf-v5-c-action-list),
+  .panelBody
+    :global(.pf-c-action-list) {
+    grid-column: 1 !important;
+  }
+}
+
+/* B3.16.32 — Profil EITAS */
+
+/* EITAS-B3.16.32-CONTROLS-FIX-START */
+
+/*
+ * PatternFly place les inputs dans un conteneur form-control.
+ * Le cadre est appliqué uniquement au conteneur.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form-control),
+.panelBody
+  :global(.pf-c-form-control) {
+  position: relative !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  width: 100% !important;
+  min-height: 46px !important;
+
+  padding: 0 !important;
+
+  overflow: hidden !important;
+
+  color: #1d2a3d !important;
+  background: #ffffff !important;
+
+  border: 1px solid #cbd6e1 !important;
+  border-radius: 9px !important;
+
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  box-sizing: border-box !important;
+
+  transition:
+    border-color 130ms ease,
+    box-shadow 130ms ease,
+    background-color 130ms ease !important;
+}
+
+/*
+ * Suppression de la ligne noire inférieure native PatternFly.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form-control::before),
+.panelBody
+  :global(.pf-v5-c-form-control::after),
+.panelBody
+  :global(.pf-c-form-control::before),
+.panelBody
+  :global(.pf-c-form-control::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+/*
+ * L’input interne ne possède plus son propre encadrement.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form-control > input),
+.panelBody
+  :global(.pf-c-form-control > input),
+.panelBody
+  :global(.pf-v5-c-form-control > textarea),
+.panelBody
+  :global(.pf-c-form-control > textarea) {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 44px !important;
+
+  margin: 0 !important;
+  padding:
+    10px
+    13px !important;
+
+  color: #1d2a3d !important;
+  background: transparent !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  font-size: 12px !important;
+
+  box-sizing: border-box !important;
+}
+
+/*
+ * Annulation des styles hover/focus génériques appliqués à l’input.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form-control > input:hover),
+.panelBody
+  :global(.pf-c-form-control > input:hover),
+.panelBody
+  :global(.pf-v5-c-form-control > input:focus),
+.panelBody
+  :global(.pf-c-form-control > input:focus) {
+  border: 0 !important;
+
+  outline: none !important;
+
+  box-shadow: none !important;
+}
+
+/*
+ * Le focus est porté par le cadre extérieur unique.
+ */
+
+.panelBody
+  :global(.pf-v5-c-form-control:hover),
+.panelBody
+  :global(.pf-c-form-control:hover) {
+  border-color: #a9bacb !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-form-control:focus-within),
+.panelBody
+  :global(.pf-c-form-control:focus-within) {
+  border-color: #6384b1 !important;
+
+  box-shadow:
+    0 0 0 3px rgba(86, 119, 168, 0.13) !important;
+}
+
+/*
+ * Champ désactivé : une seule surface grisée.
+ */
+
+.panelBody
+  :global(
+    .pf-v5-c-form-control:has(
+      input:disabled
+    )
+  ),
+.panelBody
+  :global(
+    .pf-c-form-control:has(
+      input:disabled
+    )
+  ),
+.panelBody
+  :global(
+    .pf-v5-c-form-control:has(
+      input[readonly]
+    )
+  ),
+.panelBody
+  :global(
+    .pf-c-form-control:has(
+      input[readonly]
+    )
+  ) {
+  background: #f3f5f8 !important;
+
+  border-color: #d8e0e8 !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-form-control
+    > input:disabled
+  ),
+.panelBody
+  :global(
+    .pf-c-form-control
+    > input:disabled
+  ),
+.panelBody
+  :global(
+    .pf-v5-c-form-control
+    > input[readonly]
+  ),
+.panelBody
+  :global(
+    .pf-c-form-control
+    > input[readonly]
+  ) {
+  color: #647287 !important;
+  background: transparent !important;
+
+  border: 0 !important;
+
+  opacity: 1 !important;
+}
+
+/*
+ * Sélecteur de langue : un seul cadre et aucune ligne native.
+ */
+
+.panelBody
+  :global(.pf-v5-c-menu-toggle),
+.panelBody
+  :global(.pf-c-menu-toggle),
+.panelBody
+  :global(.pf-v5-c-select__toggle),
+.panelBody
+  :global(.pf-c-select__toggle) {
+  min-height: 46px !important;
+
+  padding:
+    9px
+    13px !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #cbd6e1 !important;
+  border-radius: 9px !important;
+
+  box-shadow: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-menu-toggle::before),
+.panelBody
+  :global(.pf-v5-c-menu-toggle::after),
+.panelBody
+  :global(.pf-c-menu-toggle::before),
+.panelBody
+  :global(.pf-c-menu-toggle::after),
+.panelBody
+  :global(.pf-v5-c-select__toggle::before),
+.panelBody
+  :global(.pf-v5-c-select__toggle::after),
+.panelBody
+  :global(.pf-c-select__toggle::before),
+.panelBody
+  :global(.pf-c-select__toggle::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-menu-toggle:hover),
+.panelBody
+  :global(.pf-c-menu-toggle:hover),
+.panelBody
+  :global(.pf-v5-c-select__toggle:hover),
+.panelBody
+  :global(.pf-c-select__toggle:hover) {
+  border-color: #a9bacb !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-menu-toggle:focus),
+.panelBody
+  :global(.pf-c-menu-toggle:focus),
+.panelBody
+  :global(.pf-v5-c-select__toggle:focus),
+.panelBody
+  :global(.pf-c-select__toggle:focus) {
+  border-color: #6384b1 !important;
+
+  box-shadow:
+    0 0 0 3px rgba(86, 119, 168, 0.13) !important;
+}
+
+/*
+ * Espacement légèrement resserré.
+ */
+
+.panelBody :global(form),
+.panelBody
+  :global(.pf-v5-c-form),
+.panelBody
+  :global(.pf-c-form) {
+  gap:
+    18px
+    22px !important;
+}
+
+/* EITAS-B3.16.32-CONTROLS-FIX-END */

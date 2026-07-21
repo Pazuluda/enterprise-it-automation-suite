@@ -1,0 +1,23 @@
+# Secrets et environnements
+.env
+*.env
+*.secret
+secrets/
+overlay/config/*.local
+
+# Installation amont et artefacts
+source/keycloak/
+build/*
+releases/*
+runtime/*
+
+# Conserver les répertoires
+!build/.gitkeep
+!releases/.gitkeep
+!runtime/.gitkeep
+
+# Outils
+node_modules/
+target/
+*.log
+*.pid

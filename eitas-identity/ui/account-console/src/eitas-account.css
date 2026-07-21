@@ -1,0 +1,1483 @@
+:root {
+  --eitas-navy-950: #101c2f;
+  --eitas-navy-900: #13233b;
+  --eitas-navy-800: #172b48;
+  --eitas-navy-700: #213a5c;
+
+  --eitas-text-900: #182235;
+  --eitas-text-700: #344054;
+  --eitas-text-500: #667085;
+
+  --eitas-border: #dfe4ea;
+  --eitas-border-strong: #cbd3dd;
+
+  --eitas-surface: #ffffff;
+  --eitas-background: #f4f6f8;
+
+  --eitas-radius: 10px;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+
+  color: var(--eitas-text-900);
+  background: var(--eitas-background);
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Roboto,
+    Arial,
+    sans-serif;
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.pf-v5-c-page,
+.pf-c-page,
+.pf-v5-c-page__main,
+.pf-c-page__main {
+  background: var(--eitas-background) !important;
+}
+
+.pf-v5-c-page__sidebar,
+.pf-c-page__sidebar {
+  width: 255px !important;
+}
+
+.pf-v5-c-page__main-section,
+.pf-c-page__main-section {
+  padding: 30px 38px !important;
+
+  background: transparent !important;
+}
+
+.pf-v5-c-page__main-section:first-child,
+.pf-c-page__main-section:first-child {
+  padding-top: 34px !important;
+}
+
+.pf-v5-c-page__main-body,
+.pf-c-page__main-body {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.pf-v5-c-title,
+.pf-c-title,
+.pf-v5-c-content h1,
+.pf-c-content h1 {
+  color: var(--eitas-text-900) !important;
+
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    Arial,
+    sans-serif !important;
+
+  font-weight: 680 !important;
+  letter-spacing: -0.025em !important;
+}
+
+.pf-v5-c-content p,
+.pf-c-content p {
+  color: var(--eitas-text-500);
+}
+
+.pf-v5-c-card,
+.pf-c-card {
+  background: var(--eitas-surface) !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: 12px !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 8px 24px rgba(16, 24, 40, 0.045) !important;
+}
+
+.pf-v5-c-card__header,
+.pf-c-card__header {
+  padding: 22px 24px 12px !important;
+}
+
+.pf-v5-c-card__body,
+.pf-c-card__body {
+  padding: 20px 24px 24px !important;
+}
+
+.pf-v5-c-form__label-text,
+.pf-c-form__label-text,
+.pf-v5-c-form__label,
+.pf-c-form__label {
+  color: var(--eitas-text-700) !important;
+
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.pf-v5-c-form-control,
+.pf-c-form-control,
+input,
+select,
+textarea {
+  min-height: 43px;
+
+  color: var(--eitas-text-900) !important;
+  background: #ffffff !important;
+
+  border-color: var(--eitas-border-strong) !important;
+  border-radius: 8px !important;
+
+  box-shadow: none !important;
+}
+
+.pf-v5-c-form-control:focus,
+.pf-c-form-control:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #426b9f !important;
+
+  box-shadow:
+    0 0 0 3px rgba(66, 107, 159, 0.14) !important;
+}
+
+.pf-v5-c-button,
+.pf-c-button {
+  min-height: 40px;
+
+  border-radius: 8px !important;
+
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.pf-v5-c-button.pf-m-primary,
+.pf-c-button.pf-m-primary {
+  color: #ffffff !important;
+  background: var(--eitas-navy-900) !important;
+
+  border-color: var(--eitas-navy-900) !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.14) !important;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:hover {
+  background: var(--eitas-navy-800) !important;
+  border-color: var(--eitas-navy-800) !important;
+}
+
+.pf-v5-c-button.pf-m-secondary,
+.pf-c-button.pf-m-secondary {
+  color: var(--eitas-navy-900) !important;
+  background: #ffffff !important;
+
+  border-color: var(--eitas-border-strong) !important;
+}
+
+.pf-v5-c-button.pf-m-link,
+.pf-c-button.pf-m-link,
+a {
+  color: #315f98;
+}
+
+.pf-v5-c-tabs,
+.pf-c-tabs {
+  border-bottom-color: var(--eitas-border) !important;
+}
+
+.pf-v5-c-tabs__item.pf-m-current::after,
+.pf-c-tabs__item.pf-m-current::after {
+  border-color: var(--eitas-navy-900) !important;
+}
+
+.pf-v5-c-tabs__item.pf-m-current
+  .pf-v5-c-tabs__item-text,
+.pf-c-tabs__item.pf-m-current
+  .pf-c-tabs__item-text {
+  color: var(--eitas-navy-900) !important;
+  font-weight: 650 !important;
+}
+
+.pf-v5-c-table,
+.pf-c-table {
+  overflow: hidden;
+
+  background: #ffffff !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: var(--eitas-radius) !important;
+}
+
+.pf-v5-c-table thead,
+.pf-c-table thead {
+  background: #f8fafc !important;
+}
+
+.pf-v5-c-table tr,
+.pf-c-table tr {
+  border-color: var(--eitas-border) !important;
+}
+
+.pf-v5-c-alert,
+.pf-c-alert {
+  border-radius: 9px !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.06) !important;
+}
+
+.pf-v5-c-dropdown__menu,
+.pf-c-dropdown__menu,
+.pf-v5-c-menu,
+.pf-c-menu {
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: 9px !important;
+
+  box-shadow:
+    0 12px 32px rgba(16, 24, 40, 0.14) !important;
+}
+
+.pf-v5-c-modal-box,
+.pf-c-modal-box {
+  border-radius: 12px !important;
+
+  box-shadow:
+    0 24px 64px rgba(16, 24, 40, 0.2) !important;
+}
+
+.pf-v5-c-label,
+.pf-c-label {
+  border-radius: 999px !important;
+}
+
+@media (max-width: 900px) {
+  .pf-v5-c-page__main-section,
+  .pf-c-page__main-section {
+    padding: 25px 22px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .pf-v5-c-page__main-section,
+  .pf-c-page__main-section {
+    padding: 22px 15px !important;
+  }
+
+  .pf-v5-c-card__header,
+  .pf-c-card__header,
+  .pf-v5-c-card__body,
+  .pf-c-card__body {
+    padding-right: 18px !important;
+    padding-left: 18px !important;
+  }
+}
+
+/* EITAS-B3.16.10-REDESIGN-START */
+
+html.eitas-account-root,
+html.eitas-account-root body,
+html.eitas-account-root #app {
+  min-height: 100%;
+
+  color: #172033;
+  background: #f3f6f9;
+}
+
+html.eitas-account-root body {
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Roboto,
+    Arial,
+    sans-serif;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.eitas-account-root
+  .pf-v5-c-page,
+html.eitas-account-root
+  .pf-c-page,
+html.eitas-account-root
+  .pf-v5-c-page__main,
+html.eitas-account-root
+  .pf-c-page__main {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+
+  background: transparent !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-page__main-section,
+html.eitas-account-root
+  .pf-c-page__main-section {
+  width: 100% !important;
+  max-width: none !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-page__main-body,
+html.eitas-account-root
+  .pf-c-page__main-body {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-title,
+html.eitas-account-root
+  .pf-c-title,
+html.eitas-account-root h1 {
+  color: #162238 !important;
+
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    Arial,
+    sans-serif !important;
+
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.03em !important;
+}
+
+html.eitas-account-root h2 {
+  color: #1d2939 !important;
+
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI",
+    Arial,
+    sans-serif !important;
+
+  font-size: 21px !important;
+  font-weight: 680 !important;
+  letter-spacing: -0.018em !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-content p,
+html.eitas-account-root
+  .pf-c-content p {
+  color: #667085;
+
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+html.eitas-account-root
+  .pf-v5-c-form {
+  width: 100%;
+  max-width: 920px;
+
+  padding: 28px 30px;
+
+  background: #ffffff;
+
+  border: 1px solid #dfe5ec;
+  border-radius: 12px;
+
+  box-sizing: border-box;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 30px rgba(16, 24, 40, 0.045);
+}
+
+html.eitas-account-root
+  .pf-v5-c-card,
+html.eitas-account-root
+  .pf-c-card,
+html.eitas-account-root
+  .pf-v5-c-data-list,
+html.eitas-account-root
+  .pf-c-data-list,
+html.eitas-account-root
+  .pf-v5-c-table,
+html.eitas-account-root
+  .pf-c-table {
+  width: 100%;
+
+  overflow: hidden;
+
+  background: #ffffff !important;
+
+  border: 1px solid #dfe5ec !important;
+  border-radius: 12px !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 10px 30px rgba(16, 24, 40, 0.04) !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-card__header,
+html.eitas-account-root
+  .pf-c-card__header {
+  padding: 22px 25px 13px !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-card__body,
+html.eitas-account-root
+  .pf-c-card__body {
+  padding: 20px 25px 25px !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-form__label-text,
+html.eitas-account-root
+  .pf-c-form__label-text {
+  color: #344054 !important;
+
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-form-control,
+html.eitas-account-root
+  .pf-c-form-control,
+html.eitas-account-root input,
+html.eitas-account-root select,
+html.eitas-account-root textarea {
+  min-height: 44px;
+
+  color: #172033 !important;
+  background: #ffffff !important;
+
+  border-color: #cbd4df !important;
+  border-radius: 8px !important;
+
+  box-shadow: none !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-form-control:focus,
+html.eitas-account-root
+  .pf-c-form-control:focus,
+html.eitas-account-root input:focus,
+html.eitas-account-root select:focus,
+html.eitas-account-root textarea:focus {
+  border-color: #426b9f !important;
+
+  box-shadow:
+    0 0 0 3px rgba(66, 107, 159, 0.14) !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-button,
+html.eitas-account-root
+  .pf-c-button {
+  min-height: 41px;
+
+  border-radius: 8px !important;
+
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-button.pf-m-primary,
+html.eitas-account-root
+  .pf-c-button.pf-m-primary {
+  color: #ffffff !important;
+  background: #13233b !important;
+
+  border-color: #13233b !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.16) !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-button.pf-m-primary:hover,
+html.eitas-account-root
+  .pf-c-button.pf-m-primary:hover {
+  background: #1d3555 !important;
+  border-color: #1d3555 !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-button.pf-m-secondary,
+html.eitas-account-root
+  .pf-c-button.pf-m-secondary {
+  color: #13233b !important;
+  background: #ffffff !important;
+
+  border-color: #bdc9d7 !important;
+}
+
+html.eitas-account-root a,
+html.eitas-account-root
+  .pf-v5-c-button.pf-m-link,
+html.eitas-account-root
+  .pf-c-button.pf-m-link {
+  color: #315f98;
+}
+
+html.eitas-account-root
+  .pf-v5-c-table thead,
+html.eitas-account-root
+  .pf-c-table thead {
+  background: #f8fafc !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-table tr,
+html.eitas-account-root
+  .pf-c-table tr,
+html.eitas-account-root
+  .pf-v5-c-data-list__item,
+html.eitas-account-root
+  .pf-c-data-list__item {
+  border-color: #e2e7ed !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-tabs,
+html.eitas-account-root
+  .pf-c-tabs {
+  border-bottom-color: #dfe5ec !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-tabs__item.pf-m-current::after,
+html.eitas-account-root
+  .pf-c-tabs__item.pf-m-current::after {
+  border-color: #13233b !important;
+}
+
+html.eitas-account-root
+  .pf-v5-c-alert,
+html.eitas-account-root
+  .pf-c-alert,
+html.eitas-account-root
+  .pf-v5-c-modal-box,
+html.eitas-account-root
+  .pf-c-modal-box,
+html.eitas-account-root
+  .pf-v5-c-menu,
+html.eitas-account-root
+  .pf-c-menu {
+  border-radius: 10px !important;
+
+  box-shadow:
+    0 16px 42px rgba(16, 24, 40, 0.14) !important;
+}
+
+@media (max-width: 700px) {
+  html.eitas-account-root
+    .pf-v5-c-form {
+    padding: 22px 18px;
+  }
+
+  html.eitas-account-root
+    .pf-v5-c-title,
+  html.eitas-account-root
+    .pf-c-title,
+  html.eitas-account-root h1 {
+    font-size: 25px !important;
+  }
+}
+
+/* EITAS-B3.16.10-REDESIGN-END */
+
+/* EITAS-B3.16.13-SIDEBAR-LINKS-START */
+
+/*
+ * Les règles globales des liens Account ne doivent jamais
+ * recolorer les liens de la barre latérale EITAS.
+ */
+
+html.eitas-account-root aside a,
+html.eitas-account-root aside a:link,
+html.eitas-account-root aside a:visited {
+  color: #dce7f4 !important;
+}
+
+html.eitas-account-root aside a:hover,
+html.eitas-account-root aside a:focus-visible {
+  color: #ffffff !important;
+}
+
+/* EITAS-B3.16.13-SIDEBAR-LINKS-END */
+
+/* EITAS-B3.16.20-CONTENT-START */
+
+/*
+ * Disposition commune aux pages officielles Keycloak.
+ * La navigation EITAS n’est pas concernée par ces règles.
+ */
+
+html.eitas-account-root main {
+  --eitas-panel-background: #ffffff;
+  --eitas-panel-border: #dce4ec;
+  --eitas-panel-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.035),
+    0 9px 24px rgba(16, 24, 40, 0.035);
+
+  color: #182438;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-page__main-section,
+html.eitas-account-root main
+  .pf-c-page__main-section {
+  width: 100% !important;
+  max-width: none !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-page__main-body,
+html.eitas-account-root main
+  .pf-c-page__main-body {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/*
+ * Hiérarchie des titres.
+ */
+
+html.eitas-account-root main h1,
+html.eitas-account-root main
+  .pf-v5-c-title.pf-m-2xl,
+html.eitas-account-root main
+  .pf-c-title.pf-m-2xl {
+  margin:
+    0
+    0
+    6px !important;
+
+  color: #14233a !important;
+
+  font-size: 29px !important;
+  font-weight: 720 !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.032em !important;
+}
+
+html.eitas-account-root main h1 + p {
+  margin:
+    0
+    0
+    27px !important;
+
+  color: #66758a !important;
+
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+html.eitas-account-root main h2,
+html.eitas-account-root main
+  .pf-v5-c-title.pf-m-xl,
+html.eitas-account-root main
+  .pf-c-title.pf-m-xl {
+  margin:
+    31px
+    0
+    14px !important;
+
+  color: #17243a !important;
+
+  font-size: 21px !important;
+  font-weight: 690 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.02em !important;
+}
+
+html.eitas-account-root main h3 {
+  color: #25344a !important;
+
+  font-size: 16px !important;
+  font-weight: 680 !important;
+}
+
+/*
+ * Panneaux, listes et tableaux.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-card,
+html.eitas-account-root main
+  .pf-c-card,
+html.eitas-account-root main
+  .pf-v5-c-data-list,
+html.eitas-account-root main
+  .pf-c-data-list,
+html.eitas-account-root main
+  .pf-v5-c-table,
+html.eitas-account-root main
+  .pf-c-table {
+  overflow: hidden;
+
+  width: 100%;
+
+  background:
+    var(--eitas-panel-background) !important;
+
+  border:
+    1px solid
+    var(--eitas-panel-border) !important;
+
+  border-radius: 12px !important;
+
+  box-shadow:
+    var(--eitas-panel-shadow) !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-card__header,
+html.eitas-account-root main
+  .pf-c-card__header {
+  padding:
+    21px
+    24px
+    12px !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-card__body,
+html.eitas-account-root main
+  .pf-c-card__body {
+  padding:
+    18px
+    24px
+    24px !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-data-list__item,
+html.eitas-account-root main
+  .pf-c-data-list__item {
+  border-bottom:
+    1px solid #e5eaf0 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-data-list__item:last-child,
+html.eitas-account-root main
+  .pf-c-data-list__item:last-child {
+  border-bottom: 0 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-data-list__cell,
+html.eitas-account-root main
+  .pf-c-data-list__cell {
+  padding-top: 19px !important;
+  padding-bottom: 19px !important;
+}
+
+/*
+ * Tableaux d’applications et de fournisseurs.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-table thead,
+html.eitas-account-root main
+  .pf-c-table thead {
+  color: #435168;
+  background: #f7f9fb !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table th,
+html.eitas-account-root main
+  .pf-c-table th {
+  height: 55px;
+
+  padding:
+    14px
+    20px !important;
+
+  color: #344258 !important;
+
+  font-size: 12px !important;
+  font-weight: 700 !important;
+
+  border-bottom:
+    1px solid #dfe5ec !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table td,
+html.eitas-account-root main
+  .pf-c-table td {
+  padding:
+    18px
+    20px !important;
+
+  color: #263449 !important;
+
+  border-bottom:
+    1px solid #e6eaf0 !important;
+}
+
+/*
+ * Formulaires.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-form,
+html.eitas-account-root main
+  .pf-c-form {
+  width: 100% !important;
+  max-width: 820px !important;
+
+  padding: 0 !important;
+
+  background: transparent !important;
+
+  border: 0 !important;
+
+  box-shadow: none !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-form__group,
+html.eitas-account-root main
+  .pf-c-form__group {
+  margin-bottom: 18px !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-form__label-text,
+html.eitas-account-root main
+  .pf-c-form__label-text {
+  color: #354258 !important;
+
+  font-size: 12px !important;
+  font-weight: 680 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-form-control,
+html.eitas-account-root main
+  .pf-c-form-control,
+html.eitas-account-root main input,
+html.eitas-account-root main select,
+html.eitas-account-root main textarea {
+  min-height: 43px !important;
+
+  color: #182438 !important;
+  background: #ffffff !important;
+
+  border-color: #cbd5e0 !important;
+  border-radius: 7px !important;
+
+  box-shadow: none !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-form-control:focus,
+html.eitas-account-root main
+  .pf-c-form-control:focus,
+html.eitas-account-root main input:focus,
+html.eitas-account-root main select:focus,
+html.eitas-account-root main textarea:focus {
+  border-color: #617fa8 !important;
+
+  box-shadow:
+    0 0 0 3px rgba(88, 120, 163, 0.12) !important;
+}
+
+/*
+ * Boutons.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-button,
+html.eitas-account-root main
+  .pf-c-button {
+  min-height: 41px;
+
+  padding:
+    8px
+    16px !important;
+
+  border-radius: 7px !important;
+
+  font-size: 12px !important;
+  font-weight: 680 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-button.pf-m-primary,
+html.eitas-account-root main
+  .pf-c-button.pf-m-primary {
+  color: #ffffff !important;
+  background: #14243c !important;
+
+  border-color: #14243c !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.14) !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-button.pf-m-primary:hover,
+html.eitas-account-root main
+  .pf-c-button.pf-m-primary:hover {
+  background: #203653 !important;
+  border-color: #203653 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-button.pf-m-secondary,
+html.eitas-account-root main
+  .pf-c-button.pf-m-secondary {
+  color: #1d3552 !important;
+  background: #ffffff !important;
+
+  border-color: #b9c7d7 !important;
+}
+
+/*
+ * Badges de sessions et statuts.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-label,
+html.eitas-account-root main
+  .pf-c-label {
+  border-radius: 999px !important;
+
+  font-size: 10px !important;
+  font-weight: 650 !important;
+}
+
+/*
+ * Menus internes, sélecteurs et pagination.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-menu-toggle,
+html.eitas-account-root main
+  .pf-c-menu-toggle,
+html.eitas-account-root main
+  .pf-v5-c-select__toggle,
+html.eitas-account-root main
+  .pf-c-select__toggle {
+  min-height: 42px !important;
+
+  background: #ffffff !important;
+
+  border-color: #cbd5e0 !important;
+  border-radius: 7px !important;
+}
+
+/*
+ * Réduction de l’espace vide après les panneaux.
+ */
+
+html.eitas-account-root main
+  .pf-v5-l-stack,
+html.eitas-account-root main
+  .pf-c-stack {
+  gap: 22px !important;
+}
+
+@media (max-width: 900px) {
+  html.eitas-account-root main h1,
+  html.eitas-account-root main
+    .pf-v5-c-title.pf-m-2xl,
+  html.eitas-account-root main
+    .pf-c-title.pf-m-2xl {
+    font-size: 26px !important;
+  }
+
+  html.eitas-account-root main
+    .pf-v5-c-card__header,
+  html.eitas-account-root main
+    .pf-c-card__header,
+  html.eitas-account-root main
+    .pf-v5-c-card__body,
+  html.eitas-account-root main
+    .pf-c-card__body {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+}
+
+/* EITAS-B3.16.20-CONTENT-END */
+
+/* EITAS-B3.16.23-DATA-PAGES-START */
+
+/*
+ * Surfaces de données EITAS :
+ * Groupes, Organisations, Applications et futures vues similaires.
+ */
+
+html.eitas-account-root main {
+  --eitas-data-border: #dce4ed;
+  --eitas-data-border-soft: #e8edf2;
+  --eitas-data-header: #f6f8fb;
+  --eitas-data-hover: #f8fbff;
+  --eitas-data-text: #263449;
+  --eitas-data-muted: #68758a;
+}
+
+/*
+ * Le contenu des pages reste rapproché de leur titre.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-content + *,
+html.eitas-account-root main
+  .pf-c-content + * {
+  margin-top: 22px !important;
+}
+
+/*
+ * Barre d’outils supérieure.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-toolbar,
+html.eitas-account-root main
+  .pf-c-toolbar {
+  margin: 0 !important;
+  padding: 13px 18px !important;
+
+  background: #ffffff !important;
+
+  border:
+    1px solid
+    var(--eitas-data-border) !important;
+  border-bottom: 0 !important;
+  border-radius:
+    12px
+    12px
+    0
+    0 !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.025) !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-toolbar__content,
+html.eitas-account-root main
+  .pf-c-toolbar__content {
+  min-height: 42px;
+
+  padding: 0 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-toolbar__content-section,
+html.eitas-account-root main
+  .pf-c-toolbar__content-section {
+  align-items: center !important;
+}
+
+/*
+ * Le bouton Actualiser devient une action secondaire compacte.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-toolbar
+  .pf-v5-c-button.pf-m-link,
+html.eitas-account-root main
+  .pf-c-toolbar
+  .pf-c-button.pf-m-link {
+  min-height: 35px !important;
+  padding: 7px 10px !important;
+
+  color: #315f98 !important;
+  background: #f5f8fb !important;
+
+  border: 1px solid #dce5ee !important;
+  border-radius: 7px !important;
+
+  text-decoration: none !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-toolbar
+  .pf-v5-c-button.pf-m-link:hover,
+html.eitas-account-root main
+  .pf-c-toolbar
+  .pf-c-button.pf-m-link:hover {
+  color: #1c4d84 !important;
+  background: #edf3f9 !important;
+
+  border-color: #cad8e7 !important;
+}
+
+/*
+ * Tableau principal.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-table,
+html.eitas-account-root main
+  .pf-c-table {
+  margin: 0 !important;
+
+  background: #ffffff !important;
+
+  border:
+    1px solid
+    var(--eitas-data-border) !important;
+  border-radius: 12px !important;
+
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.025),
+    0 9px 24px rgba(16, 24, 40, 0.035) !important;
+}
+
+/*
+ * Lorsqu’une barre d’outils précède le tableau,
+ * les deux éléments deviennent une seule surface.
+ */
+
+html.eitas-account-root main:has(
+  .pf-v5-c-toolbar
+)
+  .pf-v5-c-table,
+html.eitas-account-root main:has(
+  .pf-c-toolbar
+)
+  .pf-c-table {
+  border-radius: 0 !important;
+
+  box-shadow: none !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table thead,
+html.eitas-account-root main
+  .pf-c-table thead {
+  background:
+    var(--eitas-data-header) !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table th,
+html.eitas-account-root main
+  .pf-c-table th {
+  height: 52px;
+
+  padding:
+    13px
+    20px !important;
+
+  color: #3b485d !important;
+  background:
+    var(--eitas-data-header) !important;
+
+  border-bottom:
+    1px solid
+    var(--eitas-data-border) !important;
+
+  font-size: 12px !important;
+  font-weight: 720 !important;
+  line-height: 1.3 !important;
+
+  vertical-align: middle !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table td,
+html.eitas-account-root main
+  .pf-c-table td {
+  min-height: 61px;
+
+  padding:
+    17px
+    20px !important;
+
+  color:
+    var(--eitas-data-text) !important;
+  background: #ffffff !important;
+
+  border-bottom:
+    1px solid
+    var(--eitas-data-border-soft) !important;
+
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+
+  vertical-align: middle !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table tbody tr:last-child td,
+html.eitas-account-root main
+  .pf-c-table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table tbody tr,
+html.eitas-account-root main
+  .pf-c-table tbody tr {
+  transition:
+    background-color 130ms ease;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table tbody tr:hover td,
+html.eitas-account-root main
+  .pf-c-table tbody tr:hover td {
+  background:
+    var(--eitas-data-hover) !important;
+}
+
+/*
+ * Première colonne : élément principal.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-table th:first-child,
+html.eitas-account-root main
+  .pf-c-table th:first-child {
+  min-width: 200px;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table td:first-child,
+html.eitas-account-root main
+  .pf-c-table td:first-child {
+  min-width: 200px;
+
+  color: #17253b !important;
+
+  font-weight: 650 !important;
+
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table td:first-child a,
+html.eitas-account-root main
+  .pf-c-table td:first-child a {
+  color: #28598f !important;
+
+  font-weight: 680 !important;
+
+  text-decoration: none !important;
+}
+
+/*
+ * Colonnes secondaires et descriptions.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-table td:nth-child(2),
+html.eitas-account-root main
+  .pf-c-table td:nth-child(2) {
+  color:
+    var(--eitas-data-muted) !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table th:last-child,
+html.eitas-account-root main
+  .pf-c-table th:last-child,
+html.eitas-account-root main
+  .pf-v5-c-table td:last-child,
+html.eitas-account-root main
+  .pf-c-table td:last-child {
+  min-width: 125px;
+}
+
+/*
+ * Empêche les textes utiles des organisations
+ * d’être tronqués avec des points de suspension.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-table td *,
+html.eitas-account-root main
+  .pf-c-table td * {
+  max-width: none !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-table td
+  [class*="truncate"],
+html.eitas-account-root main
+  .pf-c-table td
+  [class*="truncate"] {
+  overflow: visible !important;
+
+  white-space: normal !important;
+  text-overflow: clip !important;
+}
+
+/*
+ * Filtre d’appartenance directe sur Groupes.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-check,
+html.eitas-account-root main
+  .pf-c-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+
+  color: #3c4a60;
+
+  font-size: 13px;
+  font-weight: 570;
+}
+
+html.eitas-account-root main
+  input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+
+  accent-color: #567cc8;
+}
+
+/*
+ * Pagination haute et basse.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-pagination,
+html.eitas-account-root main
+  .pf-c-pagination {
+  color: #526075;
+
+  font-size: 12px !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-pagination.pf-m-bottom,
+html.eitas-account-root main
+  .pf-c-pagination.pf-m-bottom {
+  margin: 0 !important;
+  padding:
+    10px
+    16px !important;
+
+  background: #ffffff !important;
+
+  border:
+    1px solid
+    var(--eitas-data-border) !important;
+  border-top: 0 !important;
+  border-radius:
+    0
+    0
+    12px
+    12px !important;
+
+  box-shadow:
+    0 9px 24px rgba(16, 24, 40, 0.035) !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-pagination__nav,
+html.eitas-account-root main
+  .pf-c-pagination__nav {
+  gap: 3px !important;
+}
+
+html.eitas-account-root main
+  .pf-v5-c-pagination
+  button,
+html.eitas-account-root main
+  .pf-c-pagination
+  button {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+
+  padding: 0 !important;
+
+  border-radius: 6px !important;
+}
+
+/*
+ * Lignes vides et surfaces de résultats.
+ */
+
+html.eitas-account-root main
+  .pf-v5-c-empty-state,
+html.eitas-account-root main
+  .pf-c-empty-state {
+  padding:
+    42px
+    24px !important;
+
+  background: #ffffff;
+
+  border:
+    1px solid
+    var(--eitas-data-border);
+  border-radius: 12px;
+}
+
+/*
+ * Adaptation aux écrans moins larges.
+ */
+
+@media (max-width: 900px) {
+  html.eitas-account-root main
+    .pf-v5-c-table th,
+  html.eitas-account-root main
+    .pf-c-table th,
+  html.eitas-account-root main
+    .pf-v5-c-table td,
+  html.eitas-account-root main
+    .pf-c-table td {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  html.eitas-account-root main
+    .pf-v5-c-table th:first-child,
+  html.eitas-account-root main
+    .pf-c-table th:first-child,
+  html.eitas-account-root main
+    .pf-v5-c-table td:first-child,
+  html.eitas-account-root main
+    .pf-c-table td:first-child {
+    min-width: 150px;
+  }
+}
+
+/* EITAS-B3.16.23-DATA-PAGES-END */

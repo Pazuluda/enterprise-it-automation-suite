@@ -1,0 +1,727 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  width: 100%;
+  max-width: 1040px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.eyebrow {
+  display: block;
+
+  margin-bottom: 9px;
+
+  color: #6883a6;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+
+  text-transform: uppercase;
+}
+
+.pageHeader h1 {
+  margin: 0 0 7px !important;
+
+  color: #14233a !important;
+
+  font-size: 29px !important;
+  font-weight: 720 !important;
+  line-height: 1.18 !important;
+  letter-spacing: -0.032em !important;
+}
+
+.pageHeader p {
+  max-width: 650px;
+  margin: 0;
+
+  color: #68768a;
+
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.securityStatus {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 11px;
+
+  min-width: 210px;
+  padding: 12px 15px;
+
+  background: #ffffff;
+
+  border: 1px solid #dce4ed;
+  border-radius: 11px;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.03);
+}
+
+.securityStatusIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  width: 38px;
+  height: 38px;
+
+  color: #4d70ae;
+  background:
+    linear-gradient(
+      145deg,
+      #edf3fb,
+      #e5edf8
+    );
+
+  border: 1px solid #d2ddec;
+  border-radius: 10px;
+}
+
+.securityStatusIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.securityStatus > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.securityStatus strong {
+  color: #25354b;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.securityStatus > div > span {
+  color: #758296;
+
+  font-size: 9px;
+}
+
+.panel {
+  overflow: hidden;
+
+  width: 100%;
+
+  background: #ffffff;
+
+  border: 1px solid #dce4ed;
+  border-radius: 14px;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.035),
+    0 12px 30px rgba(16, 24, 40, 0.045);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  min-height: 78px;
+  padding: 16px 21px;
+
+  background: #fafbfd;
+
+  border-bottom: 1px solid #e3e9ef;
+}
+
+.panelIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  width: 40px;
+  height: 40px;
+
+  color: #4d70ae;
+  background: #edf3fb;
+
+  border: 1px solid #d2ddec;
+  border-radius: 10px;
+}
+
+.panelIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.panelHeader > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panelHeader strong {
+  color: #25354b;
+
+  font-size: 14px;
+  font-weight: 690;
+}
+
+.panelHeader span {
+  color: #798698;
+
+  font-size: 11px;
+}
+
+.panelBody {
+  padding: 23px;
+}
+
+/*
+ * Suppression de l'en-tête Keycloak dupliqué.
+ */
+
+.panelBody :global(h1),
+.panelBody :global(h1 + p) {
+  display: none !important;
+}
+
+/*
+ * Réinitialisation des conteneurs PatternFly internes.
+ */
+
+.panelBody
+  :global(.pf-v5-c-page__main-section),
+.panelBody
+  :global(.pf-c-page__main-section),
+.panelBody
+  :global(.pf-v5-c-page__main-body),
+.panelBody
+  :global(.pf-c-page__main-body) {
+  width: 100% !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  background: transparent !important;
+}
+
+/*
+ * Titres des catégories liées et non liées.
+ */
+
+.panelBody :global(h2),
+.panelBody
+  :global(.pf-v5-c-title),
+.panelBody
+  :global(.pf-c-title) {
+  margin:
+    0
+    0
+    13px !important;
+
+  color: #1d2d43 !important;
+
+  font-size: 17px !important;
+  font-weight: 710 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.018em !important;
+}
+
+.panelBody :global(h2:not(:first-of-type)) {
+  margin-top: 30px !important;
+}
+
+/*
+ * Barres d'outils des listes.
+ */
+
+.panelBody
+  :global(.pf-v5-c-toolbar),
+.panelBody
+  :global(.pf-c-toolbar) {
+  min-height: 60px !important;
+
+  margin: 0 !important;
+  padding:
+    10px
+    14px !important;
+
+  background: #fafbfd !important;
+
+  border:
+    1px
+    solid
+    #dfe6ed !important;
+
+  border-bottom: 0 !important;
+  border-radius:
+    11px
+    11px
+    0
+    0 !important;
+
+  box-sizing: border-box !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-toolbar__content),
+.panelBody
+  :global(.pf-c-toolbar__content) {
+  padding: 0 !important;
+}
+
+/*
+ * Barre de recherche.
+ */
+
+.panelBody
+  :global(.pf-v5-c-text-input-group),
+.panelBody
+  :global(.pf-c-text-input-group),
+.panelBody
+  :global(.pf-v5-c-input-group),
+.panelBody
+  :global(.pf-c-input-group) {
+  overflow: hidden !important;
+
+  min-height: 39px !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #d1dbe5 !important;
+  border-radius: 8px !important;
+
+  box-shadow: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-text-input-group::before),
+.panelBody
+  :global(.pf-v5-c-text-input-group::after),
+.panelBody
+  :global(.pf-c-text-input-group::before),
+.panelBody
+  :global(.pf-c-text-input-group::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+.panelBody :global(input) {
+  min-height: 37px !important;
+
+  padding:
+    8px
+    11px !important;
+
+  color: #28384e !important;
+  background: transparent !important;
+
+  border: 0 !important;
+
+  outline: 0 !important;
+
+  box-shadow: none !important;
+
+  font-size: 11px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-button),
+.panelBody
+  :global(.pf-c-button) {
+  min-height: 38px !important;
+
+  padding:
+    8px
+    12px !important;
+
+  border-radius: 8px !important;
+
+  font-size: 11px !important;
+  font-weight: 680 !important;
+}
+
+/*
+ * Pagination.
+ */
+
+.panelBody
+  :global(.pf-v5-c-pagination),
+.panelBody
+  :global(.pf-c-pagination) {
+  color: #68768a !important;
+
+  font-size: 10px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-pagination__nav),
+.panelBody
+  :global(.pf-c-pagination__nav) {
+  gap: 3px !important;
+}
+
+/*
+ * Tableaux des fournisseurs.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table),
+.panelBody
+  :global(.pf-c-table) {
+  overflow: hidden !important;
+
+  width: 100% !important;
+
+  margin: 0 0 28px !important;
+
+  background: #ffffff !important;
+
+  border:
+    1px
+    solid
+    #dfe6ed !important;
+
+  border-radius:
+    0
+    0
+    11px
+    11px !important;
+
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+
+  box-shadow:
+    0 6px 18px rgba(16, 24, 40, 0.035) !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table thead),
+.panelBody
+  :global(.pf-c-table thead) {
+  display: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody),
+.panelBody
+  :global(.pf-c-table tbody) {
+  display: table-row-group !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody tr),
+.panelBody
+  :global(.pf-c-table tbody tr) {
+  min-height: 86px !important;
+
+  background: #ffffff !important;
+
+  transition:
+    background-color 130ms ease,
+    box-shadow 130ms ease !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody tr:hover),
+.panelBody
+  :global(.pf-c-table tbody tr:hover) {
+  background: #f8fbff !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody td),
+.panelBody
+  :global(.pf-c-table tbody td) {
+  padding:
+    18px
+    14px !important;
+
+  color: #304056 !important;
+
+  border-bottom:
+    1px
+    solid
+    #e7ecf1 !important;
+
+  font-size: 11px !important;
+  vertical-align: middle !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody tr:last-child td),
+.panelBody
+  :global(.pf-c-table tbody tr:last-child td) {
+  border-bottom: 0 !important;
+}
+
+/*
+ * Icônes des fournisseurs.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table svg),
+.panelBody
+  :global(.pf-c-table svg) {
+  color: #4f70a9 !important;
+}
+
+/*
+ * Nom du fournisseur.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table strong),
+.panelBody
+  :global(.pf-c-table strong) {
+  color: #1d2e45 !important;
+
+  font-size: 12px !important;
+  font-weight: 710 !important;
+}
+
+/*
+ * Badges, dont « Défini par le système ».
+ */
+
+.panelBody
+  :global(.pf-v5-c-label),
+.panelBody
+  :global(.pf-c-label) {
+  min-height: 24px !important;
+
+  padding:
+    4px
+    8px !important;
+
+  color: #42674e !important;
+  background: #f0f8f2 !important;
+
+  border: 1px solid #cee5d4 !important;
+  border-radius: 999px !important;
+
+  font-size: 9px !important;
+  font-weight: 680 !important;
+}
+
+/*
+ * Liens Lier et Dissocier.
+ */
+
+.panelBody
+  :global(a),
+.panelBody
+  :global(.pf-v5-c-button.pf-m-link),
+.panelBody
+  :global(.pf-c-button.pf-m-link) {
+  color: #315f98 !important;
+
+  font-size: 11px !important;
+  font-weight: 680 !important;
+
+  text-decoration: none !important;
+}
+
+.panelBody
+  :global(a:hover),
+.panelBody
+  :global(.pf-v5-c-button.pf-m-link:hover),
+.panelBody
+  :global(.pf-c-button.pf-m-link:hover) {
+  color: #204f84 !important;
+
+  text-decoration: none !important;
+}
+
+/*
+ * États vides.
+ */
+
+.panelBody
+  :global(.pf-v5-c-empty-state),
+.panelBody
+  :global(.pf-c-empty-state) {
+  min-height: 130px !important;
+
+  padding: 25px !important;
+
+  color: #748196 !important;
+  background: #ffffff !important;
+
+  border:
+    1px
+    solid
+    #dfe6ed !important;
+
+  border-radius:
+    0
+    0
+    11px
+    11px !important;
+}
+
+/*
+ * Certaines versions utilisent une ligne simple
+ * pour afficher « Aucun fournisseur lié ».
+ */
+
+.panelBody
+  :global(
+    .pf-v5-c-table tbody tr:only-child
+  ),
+.panelBody
+  :global(
+    .pf-c-table tbody tr:only-child
+  ) {
+  min-height: 110px !important;
+}
+
+/*
+ * Fenêtres de confirmation de dissociation.
+ */
+
+.panelBody
+  :global(.pf-v5-c-modal-box),
+.panelBody
+  :global(.pf-c-modal-box) {
+  border-radius: 14px !important;
+
+  box-shadow:
+    0 24px 70px rgba(8, 18, 31, 0.24) !important;
+}
+
+@media (max-width: 800px) {
+  .pageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .securityStatus {
+    width: 100%;
+  }
+
+  .panelBody {
+    padding:
+      20px
+      15px;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-toolbar),
+  .panelBody
+    :global(.pf-c-toolbar) {
+    align-items: flex-start !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-table tbody tr),
+  .panelBody
+    :global(.pf-c-table tbody tr) {
+    display: grid !important;
+
+    grid-template-columns: 1fr !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-table tbody td),
+  .panelBody
+    :global(.pf-c-table tbody td) {
+    width: 100% !important;
+
+    padding:
+      10px
+      14px !important;
+
+    border-bottom: 0 !important;
+  }
+}
+
+/* B3.16.34 — Comptes associés EITAS */
+
+/* EITAS-B4.5.9-LINKED-EMPTY-START */
+
+.emptyState {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 17px;
+
+  min-height: 170px;
+  padding: 28px;
+
+  color: #33445a;
+  background:
+    linear-gradient(
+      145deg,
+      #fbfcfe,
+      #f6f9fc
+    );
+
+  border: 1px solid #dce5ee;
+  border-radius: 12px;
+}
+
+.emptyStateIcon {
+  display: grid;
+  place-items: center;
+
+  width: 50px;
+  height: 50px;
+
+  color: #5274aa;
+  background: #eaf1f9;
+
+  border: 1px solid #d0ddeb;
+  border-radius: 13px;
+}
+
+.emptyStateIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.emptyState > div {
+  min-width: 0;
+}
+
+.emptyState strong {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #1d2e45;
+
+  font-size: 15px;
+  font-weight: 710;
+  line-height: 1.35;
+}
+
+.emptyState p {
+  max-width: 620px;
+  margin: 0;
+
+  color: #69778a;
+
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 620px) {
+  .emptyState {
+    align-items: flex-start;
+    grid-template-columns: 1fr;
+
+    padding: 22px;
+  }
+}
+
+/* EITAS-B4.5.9-LINKED-EMPTY-END */

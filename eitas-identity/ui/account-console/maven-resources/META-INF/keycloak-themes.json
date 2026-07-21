@@ -1,0 +1,10 @@
+{
+  "themes": [
+    {
+      "name": "eitas-account",
+      "types": [
+        "account"
+      ]
+    }
+  ]
+}

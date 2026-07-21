@@ -1,0 +1,34 @@
+# EITAS Identity — instance parallèle
+
+location = /identity-test {
+    return 308 /identity-test/;
+}
+
+location ^~ /identity-test/ {
+    limit_req zone=eitas_keycloak burst=100 nodelay;
+    limit_conn eitas_conn 30;
+
+    proxy_pass http://127.0.0.1:8280;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header Connection "";
+
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 120s;
+    proxy_read_timeout 120s;
+
+    proxy_buffer_size 128k;
+    proxy_buffers 8 256k;
+    proxy_busy_buffers_size 256k;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "no-referrer" always;
+}

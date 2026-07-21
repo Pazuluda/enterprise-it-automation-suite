@@ -1,0 +1,44 @@
+[Unit]
+Description=EITAS Identity Parallel Test Instance
+Documentation=file:/opt/eitas-identity/docs/test-instance.md
+After=network-online.target postgresql@17-main.service
+Wants=network-online.target
+Requires=postgresql@17-main.service
+
+[Service]
+Type=simple
+
+User=eitas-identity
+Group=eitas-identity
+
+WorkingDirectory=/opt/eitas-identity/runtime/keycloak-26.7.0-eitas
+EnvironmentFile=/etc/eitas-identity/eitas-identity-test.env
+
+Environment=HOME=/var/lib/eitas-identity
+Environment="JAVA_OPTS_KC_HEAP=-Xms64m -Xmx384m"
+
+ExecStart=/opt/eitas-identity/runtime/keycloak-26.7.0-eitas/bin/kc.sh start --optimized
+
+Restart=on-failure
+RestartSec=5s
+
+TimeoutStartSec=180
+TimeoutStopSec=45
+SuccessExitStatus=143
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+
+ReadWritePaths=/opt/eitas-identity/runtime/keycloak-26.7.0-eitas/data
+ReadWritePaths=/var/lib/eitas-identity
+ReadWritePaths=/var/log/eitas-identity
+
+UMask=0027
+LimitNOFILE=65536
+
+SyslogIdentifier=eitas-identity-test
+
+[Install]
+WantedBy=multi-user.target

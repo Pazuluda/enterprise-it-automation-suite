@@ -1,0 +1,448 @@
+#!/usr/bin/python3
+
+from __future__ import annotations
+
+import fcntl
+import grp
+import json
+import os
+import pwd
+import stat
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from uuid import UUID
+
+
+ROOT = Path("/opt/eitas-identity")
+VERIFY_SCRIPT = ROOT / "scripts/verify-upstream.sh"
+
+UPDATE_ROOT = Path("/var/lib/eitas/identity-update")
+STATUS_FILE = UPDATE_ROOT / "status.json"
+REQUEST_FILE = (
+    UPDATE_ROOT
+    / "requests"
+    / "upstream-check.json"
+)
+PROCESSING_DIR = UPDATE_ROOT / "processing"
+REPORT_DIR = UPDATE_ROOT / "reports"
+LOCK_FILE = UPDATE_ROOT / "source-check.lock"
+
+MAX_REQUEST_SIZE = 16 * 1024
+MAX_REPORT_SIZE = 2 * 1024 * 1024
+
+
+def utc_iso() -> str:
+    return (
+        datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def load_json(path: Path) -> dict:
+    document = json.loads(
+        path.read_text(encoding="utf-8")
+    )
+
+    if not isinstance(document, dict):
+        raise RuntimeError(
+            f"Document JSON invalide : {path}"
+        )
+
+    return document
+
+
+def atomic_write_status(
+    document: dict,
+) -> None:
+    group_id = grp.getgrnam("eitas").gr_gid
+
+    temporary = STATUS_FILE.with_name(
+        STATUS_FILE.name + ".runner-new"
+    )
+
+    with temporary.open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        json.dump(
+            document,
+            handle,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+    os.chown(
+        temporary,
+        0,
+        group_id,
+    )
+    os.chmod(
+        temporary,
+        0o640,
+    )
+
+    os.replace(
+        temporary,
+        STATUS_FILE,
+    )
+
+    directory_fd = os.open(
+        STATUS_FILE.parent,
+        os.O_RDONLY,
+    )
+
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def set_source_state(
+    document: dict,
+    state: str,
+    verification: str,
+) -> None:
+    source = document.get("source")
+
+    if not isinstance(source, dict):
+        raise RuntimeError(
+            "Section source absente de status.json"
+        )
+
+    source["verification"] = verification
+
+    stages = document.get("stages")
+
+    if not isinstance(stages, list):
+        raise RuntimeError(
+            "Étapes absentes de status.json"
+        )
+
+    for stage in stages:
+        if (
+            isinstance(stage, dict)
+            and stage.get("id") == "source"
+        ):
+            stage["state"] = state
+            break
+
+    document["generated_at"] = utc_iso()
+
+
+def validate_request(
+    path: Path,
+) -> dict:
+    metadata = path.lstat()
+    expected_uid = pwd.getpwnam("eitas").pw_uid
+
+    if stat.S_ISLNK(metadata.st_mode):
+        raise RuntimeError(
+            "La requête ne peut pas être un lien symbolique"
+        )
+
+    if not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError(
+            "La requête n’est pas un fichier régulier"
+        )
+
+    if metadata.st_uid != expected_uid:
+        raise RuntimeError(
+            "Propriétaire de la requête invalide"
+        )
+
+    if metadata.st_mode & 0o022:
+        raise RuntimeError(
+            "Permissions de la requête trop permissives"
+        )
+
+    if metadata.st_size > MAX_REQUEST_SIZE:
+        raise RuntimeError(
+            "Requête trop volumineuse"
+        )
+
+    document = load_json(path)
+
+    if document.get("schema_version") != 1:
+        raise RuntimeError(
+            "Schéma de requête incompatible"
+        )
+
+    if document.get("action") != "verify_upstream":
+        raise RuntimeError(
+            "Action non autorisée"
+        )
+
+    request_id = document.get("request_id")
+    requested_by = document.get("requested_by")
+    requested_at = document.get("requested_at")
+
+    UUID(str(request_id))
+
+    if (
+        not isinstance(requested_by, str)
+        or not requested_by.strip()
+        or len(requested_by) > 128
+    ):
+        raise RuntimeError(
+            "Administrateur invalide"
+        )
+
+    if (
+        not isinstance(requested_at, str)
+        or not requested_at.strip()
+        or len(requested_at) > 64
+    ):
+        raise RuntimeError(
+            "Horodatage de requête invalide"
+        )
+
+    return document
+
+
+def main() -> int:
+    UPDATE_ROOT.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    PROCESSING_DIR.mkdir(
+        mode=0o700,
+        parents=True,
+        exist_ok=True,
+    )
+    REPORT_DIR.mkdir(
+        mode=0o700,
+        parents=True,
+        exist_ok=True,
+    )
+
+    lock_fd = os.open(
+        LOCK_FILE,
+        os.O_RDWR | os.O_CREAT,
+        0o600,
+    )
+
+    try:
+        fcntl.flock(
+            lock_fd,
+            fcntl.LOCK_EX | fcntl.LOCK_NB,
+        )
+    except BlockingIOError:
+        os.close(lock_fd)
+        return 0
+
+    try:
+        if not REQUEST_FILE.exists():
+            return 0
+
+        request = validate_request(
+            REQUEST_FILE
+        )
+
+        request_id = str(
+            request["request_id"]
+        )
+
+        processing_file = (
+            PROCESSING_DIR
+            / f"{request_id}.json"
+        )
+
+        os.replace(
+            REQUEST_FILE,
+            processing_file,
+        )
+        os.chown(
+            processing_file,
+            0,
+            0,
+        )
+        os.chmod(
+            processing_file,
+            0o600,
+        )
+
+        status_document = load_json(
+            STATUS_FILE
+        )
+
+        if status_document.get("schema_version") != 1:
+            raise RuntimeError(
+                "Schéma status.json incompatible"
+            )
+
+        set_source_state(
+            status_document,
+            state="current",
+            verification="running",
+        )
+
+        atomic_write_status(
+            status_document
+        )
+
+        completed_at = utc_iso()
+        report_file = (
+            REPORT_DIR
+            / f"upstream-check-{request_id}.log"
+        )
+
+        environment = {
+            "PATH": (
+                "/usr/local/sbin:/usr/local/bin:"
+                "/usr/sbin:/usr/bin:/sbin:/bin"
+            ),
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+            "HOME": "/root",
+        }
+
+        try:
+            process = subprocess.run(
+                [str(VERIFY_SCRIPT)],
+                cwd=str(ROOT),
+                env=environment,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=120,
+                check=False,
+            )
+
+            output = process.stdout or ""
+
+            if len(output.encode("utf-8")) > MAX_REPORT_SIZE:
+                output = output[-MAX_REPORT_SIZE:]
+
+            report_file.write_text(
+                output,
+                encoding="utf-8",
+            )
+
+            os.chown(
+                report_file,
+                0,
+                0,
+            )
+            os.chmod(
+                report_file,
+                0o600,
+            )
+
+            passed = process.returncode == 0
+            verification = (
+                "passed"
+                if passed
+                else "failed"
+            )
+            stage_state = (
+                "passed"
+                if passed
+                else "failed"
+            )
+
+            completed_at = utc_iso()
+
+            status_document = load_json(
+                STATUS_FILE
+            )
+
+            set_source_state(
+                status_document,
+                state=stage_state,
+                verification=verification,
+            )
+
+            source = status_document["source"]
+            source["last_verification"] = {
+                "request_id": request_id,
+                "requested_by": request[
+                    "requested_by"
+                ],
+                "requested_at": request[
+                    "requested_at"
+                ],
+                "completed_at": completed_at,
+                "result": verification,
+                "exit_code": process.returncode,
+            }
+
+            atomic_write_status(
+                status_document
+            )
+
+            processing_file.unlink(
+                missing_ok=True
+            )
+
+            # Un contrôle négatif est un résultat métier
+            # correctement enregistré dans status.json.
+            # Seules les erreurs du runner font échouer systemd.
+            return 0
+
+        except subprocess.TimeoutExpired:
+            status_document = load_json(
+                STATUS_FILE
+            )
+
+            set_source_state(
+                status_document,
+                state="failed",
+                verification="failed",
+            )
+
+            source = status_document["source"]
+            source["last_verification"] = {
+                "request_id": request_id,
+                "requested_by": request[
+                    "requested_by"
+                ],
+                "requested_at": request[
+                    "requested_at"
+                ],
+                "completed_at": utc_iso(),
+                "result": "failed",
+                "exit_code": 124,
+            }
+
+            atomic_write_status(
+                status_document
+            )
+
+            report_file.write_text(
+                "Vérification interrompue après 120 secondes.\n",
+                encoding="utf-8",
+            )
+            os.chmod(
+                report_file,
+                0o600,
+            )
+
+            processing_file.unlink(
+                missing_ok=True
+            )
+
+            # Le timeout est exposé comme résultat failed
+            # dans le statut, sans déclarer le runner cassé.
+            return 0
+
+    finally:
+        os.close(lock_fd)
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(
+            f"Échec du vérificateur upstream : {exc}",
+            file=sys.stderr,
+        )
+        raise

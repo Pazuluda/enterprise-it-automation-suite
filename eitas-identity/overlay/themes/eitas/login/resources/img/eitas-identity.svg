@@ -1,0 +1,60 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 420 96"
+  role="img"
+  aria-labelledby="title description"
+>
+  <title id="title">EITAS Identity</title>
+  <description id="description">
+    Logo de la plateforme d’identité EITAS
+  </description>
+
+  <defs>
+    <linearGradient id="shieldGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#54a8ff"/>
+      <stop offset="100%" stop-color="#806dff"/>
+    </linearGradient>
+  </defs>
+
+  <path
+    d="M48 4 82 18v25c0 23-13 39-34 49C27 82 14 66 14 43V18L48 4Z"
+    fill="url(#shieldGradient)"
+  />
+
+  <path
+    d="M48 22 66 30v14c0 12-6 22-18 29-12-7-18-17-18-29V30l18-8Z"
+    fill="#081423"
+    opacity=".92"
+  />
+
+  <path
+    d="M40 46.5 46 53l12-14"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+
+  <text
+    x="104"
+    y="44"
+    fill="#ffffff"
+    font-family="Inter, Segoe UI, Arial, sans-serif"
+    font-size="31"
+    font-weight="700"
+  >
+    EITAS
+  </text>
+
+  <text
+    x="104"
+    y="72"
+    fill="#aebed2"
+    font-family="Inter, Segoe UI, Arial, sans-serif"
+    font-size="22"
+    font-weight="500"
+  >
+    Identity
+  </text>
+</svg>

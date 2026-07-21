@@ -1,0 +1,1401 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  width: 100%;
+  max-width: 1040px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.eyebrow {
+  display: block;
+
+  margin-bottom: 9px;
+
+  color: #6883a6;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+
+  text-transform: uppercase;
+}
+
+.pageHeader h1 {
+  margin: 0 0 7px;
+
+  color: #14233a;
+
+  font-size: 29px;
+  font-weight: 720;
+  line-height: 1.18;
+  letter-spacing: -0.032em;
+}
+
+.pageHeader p {
+  max-width: 670px;
+  margin: 0;
+
+  color: #68768a;
+
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.securityStatus {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 11px;
+
+  min-width: 220px;
+  padding: 12px 15px;
+
+  background: #ffffff;
+
+  border: 1px solid #dce4ed;
+  border-radius: 11px;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.03);
+}
+
+.securityStatusIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  width: 38px;
+  height: 38px;
+
+  color: #4d70ae;
+  background:
+    linear-gradient(
+      145deg,
+      #edf3fb,
+      #e5edf8
+    );
+
+  border: 1px solid #d2ddec;
+  border-radius: 10px;
+}
+
+.securityStatusIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.securityStatus > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.securityStatus strong {
+  color: #25354b;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.securityStatus > div > span {
+  color: #758296;
+
+  font-size: 9px;
+}
+
+.panel {
+  overflow: hidden;
+
+  width: 100%;
+
+  background: #ffffff;
+
+  border: 1px solid #dce4ed;
+  border-radius: 14px;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.035),
+    0 12px 30px rgba(16, 24, 40, 0.045);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  min-height: 78px;
+  padding: 16px 21px;
+
+  background: #fafbfd;
+
+  border-bottom: 1px solid #e3e9ef;
+}
+
+.panelIcon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+
+  width: 40px;
+  height: 40px;
+
+  color: #4d70ae;
+  background: #edf3fb;
+
+  border: 1px solid #d2ddec;
+  border-radius: 10px;
+}
+
+.panelIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.panelHeader > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.panelHeader strong {
+  color: #25354b;
+
+  font-size: 14px;
+  font-weight: 690;
+}
+
+.panelHeader span {
+  color: #798698;
+
+  font-size: 11px;
+}
+
+.panelBody {
+  padding: 23px;
+}
+
+/*
+ * L’en-tête officiel est remplacé par celui de la DA EITAS.
+ */
+
+.panelBody :global(h1),
+.panelBody :global(h1 + p) {
+  display: none !important;
+}
+
+/*
+ * Suppression des contraintes et marges PatternFly héritées.
+ */
+
+.panelBody
+  :global(.pf-v5-c-page__main-section),
+.panelBody
+  :global(.pf-c-page__main-section),
+.panelBody
+  :global(.pf-v5-c-page__main-body),
+.panelBody
+  :global(.pf-c-page__main-body) {
+  width: 100% !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  background: transparent !important;
+}
+
+/*
+ * Onglets Mes ressources / Partagé avec moi.
+ */
+
+.panelBody
+  :global(.pf-v5-c-tabs),
+.panelBody
+  :global(.pf-c-tabs) {
+  margin: 0 0 18px !important;
+  padding: 4px !important;
+
+  background: #f2f5f9 !important;
+
+  border: 1px solid #dfe6ed !important;
+  border-radius: 10px !important;
+
+  box-shadow: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-tabs__list),
+.panelBody
+  :global(.pf-c-tabs__list) {
+  gap: 4px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-tabs__item),
+.panelBody
+  :global(.pf-c-tabs__item) {
+  margin: 0 !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-tabs__item::after),
+.panelBody
+  :global(.pf-c-tabs__item::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-tabs__link),
+.panelBody
+  :global(.pf-c-tabs__link) {
+  min-height: 39px !important;
+
+  padding:
+    8px
+    15px !important;
+
+  color: #68778c !important;
+  background: transparent !important;
+
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+
+  font-size: 11px !important;
+  font-weight: 660 !important;
+
+  box-shadow: none !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-tabs__item.pf-m-current
+    .pf-v5-c-tabs__link
+  ),
+.panelBody
+  :global(
+    .pf-c-tabs__item.pf-m-current
+    .pf-c-tabs__link
+  ),
+.panelBody
+  :global(
+    .pf-v5-c-tabs__item[aria-selected="true"]
+    .pf-v5-c-tabs__link
+  ),
+.panelBody
+  :global(
+    .pf-c-tabs__item[aria-selected="true"]
+    .pf-c-tabs__link
+  ) {
+  color: #203b66 !important;
+  background: #ffffff !important;
+
+  border-color: #d7e0ea !important;
+
+  box-shadow:
+    0 1px 3px rgba(16, 24, 40, 0.06) !important;
+}
+
+/*
+ * Barre de recherche et pagination.
+ */
+
+.panelBody
+  :global(.pf-v5-c-toolbar),
+.panelBody
+  :global(.pf-c-toolbar) {
+  min-height: 62px !important;
+
+  margin: 0 !important;
+  padding:
+    10px
+    14px !important;
+
+  background: #fafbfd !important;
+
+  border: 1px solid #dfe6ed !important;
+  border-radius:
+    11px
+    11px
+    0
+    0 !important;
+
+  box-sizing: border-box !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-toolbar__content),
+.panelBody
+  :global(.pf-c-toolbar__content) {
+  padding: 0 !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-input-group),
+.panelBody
+  :global(.pf-c-input-group),
+.panelBody
+  :global(.pf-v5-c-text-input-group),
+.panelBody
+  :global(.pf-c-text-input-group) {
+  overflow: hidden !important;
+
+  min-height: 40px !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #d1dbe5 !important;
+  border-radius: 8px !important;
+
+  box-shadow: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-input-group::before),
+.panelBody
+  :global(.pf-v5-c-input-group::after),
+.panelBody
+  :global(.pf-c-input-group::before),
+.panelBody
+  :global(.pf-c-input-group::after),
+.panelBody
+  :global(.pf-v5-c-text-input-group::before),
+.panelBody
+  :global(.pf-v5-c-text-input-group::after),
+.panelBody
+  :global(.pf-c-text-input-group::before),
+.panelBody
+  :global(.pf-c-text-input-group::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+.panelBody :global(input) {
+  min-height: 38px !important;
+
+  padding:
+    8px
+    11px !important;
+
+  color: #29394e !important;
+  background: transparent !important;
+
+  border: 0 !important;
+
+  outline: 0 !important;
+
+  box-shadow: none !important;
+
+  font-size: 11px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-pagination),
+.panelBody
+  :global(.pf-c-pagination) {
+  color: #778397 !important;
+
+  font-size: 10px !important;
+}
+
+/*
+ * Boutons génériques.
+ */
+
+.panelBody
+  :global(.pf-v5-c-button),
+.panelBody
+  :global(.pf-c-button) {
+  min-height: 38px !important;
+
+  padding:
+    8px
+    12px !important;
+
+  border-radius: 8px !important;
+
+  font-size: 11px !important;
+  font-weight: 680 !important;
+
+  box-shadow: none !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-button.pf-m-link
+  ),
+.panelBody
+  :global(
+    .pf-c-button.pf-m-link
+  ) {
+  color: #315f98 !important;
+  background: transparent !important;
+
+  text-decoration: none !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-button.pf-m-link:hover
+  ),
+.panelBody
+  :global(
+    .pf-c-button.pf-m-link:hover
+  ) {
+  color: #204f84 !important;
+}
+
+/*
+ * Tableau principal.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table),
+.panelBody
+  :global(.pf-c-table) {
+  overflow: hidden !important;
+
+  width: 100% !important;
+
+  margin: 0 !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #dfe6ed !important;
+  border-top: 0 !important;
+  border-radius:
+    0
+    0
+    11px
+    11px !important;
+
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+
+  box-shadow:
+    0 6px 18px rgba(16, 24, 40, 0.035) !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table thead),
+.panelBody
+  :global(.pf-c-table thead) {
+  background: #f6f8fb !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table thead th),
+.panelBody
+  :global(.pf-c-table thead th) {
+  height: 48px !important;
+
+  padding:
+    11px
+    14px !important;
+
+  color: #6d7c91 !important;
+  background: #f6f8fb !important;
+
+  border-bottom: 1px solid #e1e7ed !important;
+
+  font-size: 9px !important;
+  font-weight: 780 !important;
+  letter-spacing: 0.055em !important;
+
+  text-transform: uppercase !important;
+  vertical-align: middle !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody tr),
+.panelBody
+  :global(.pf-c-table tbody tr) {
+  min-height: 82px !important;
+
+  background: #ffffff !important;
+
+  transition:
+    background-color 130ms ease !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody tr:hover),
+.panelBody
+  :global(.pf-c-table tbody tr:hover) {
+  background: #f8fbff !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody td),
+.panelBody
+  :global(.pf-c-table tbody td) {
+  padding:
+    17px
+    14px !important;
+
+  color: #334258 !important;
+  background: transparent !important;
+
+  border: 0 !important;
+  border-bottom: 1px solid #e6ebf0 !important;
+
+  outline: 0 !important;
+
+  box-shadow: none !important;
+
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+  vertical-align: middle !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table tbody tr:last-child td),
+.panelBody
+  :global(.pf-c-table tbody tr:last-child td) {
+  border-bottom: 0 !important;
+}
+
+/*
+ * Suppression du rectangle noir de focus natif visible
+ * autour du nom de la ressource.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table td:focus),
+.panelBody
+  :global(.pf-v5-c-table td:focus-visible),
+.panelBody
+  :global(.pf-c-table td:focus),
+.panelBody
+  :global(.pf-c-table td:focus-visible),
+.panelBody
+  :global(.pf-v5-c-table a:focus),
+.panelBody
+  :global(.pf-v5-c-table a:focus-visible),
+.panelBody
+  :global(.pf-c-table a:focus),
+.panelBody
+  :global(.pf-c-table a:focus-visible),
+.panelBody
+  :global(.pf-v5-c-table button:focus),
+.panelBody
+  :global(.pf-v5-c-table button:focus-visible),
+.panelBody
+  :global(.pf-c-table button:focus),
+.panelBody
+  :global(.pf-c-table button:focus-visible) {
+  outline: none !important;
+
+  box-shadow:
+    0 0 0 3px rgba(86, 119, 168, 0.12) !important;
+}
+
+/*
+ * Nom de la ressource.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table tbody td strong),
+.panelBody
+  :global(.pf-c-table tbody td strong) {
+  color: #1d2e45 !important;
+
+  font-size: 12px !important;
+  font-weight: 710 !important;
+}
+
+/*
+ * Liens vers l’application.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table a),
+.panelBody
+  :global(.pf-c-table a) {
+  color: #315f98 !important;
+
+  font-weight: 660 !important;
+
+  text-decoration: none !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table a:hover),
+.panelBody
+  :global(.pf-c-table a:hover) {
+  color: #204f84 !important;
+}
+
+/*
+ * Action Partager.
+ */
+
+.panelBody
+  :global(
+    .pf-v5-c-table
+    .pf-v5-c-button.pf-m-link
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    .pf-c-button.pf-m-link
+  ) {
+  min-height: 34px !important;
+
+  padding:
+    7px
+    10px !important;
+
+  color: #315f98 !important;
+  background: #f1f5fb !important;
+
+  border: 1px solid #d7e1ed !important;
+  border-radius: 8px !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-table
+    .pf-v5-c-button.pf-m-link:hover
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    .pf-c-button.pf-m-link:hover
+  ) {
+  color: #254f84 !important;
+  background: #e9f0f9 !important;
+
+  border-color: #c6d5e6 !important;
+}
+
+/*
+ * Menu trois points.
+ */
+
+.panelBody
+  :global(.pf-v5-c-menu-toggle.pf-m-plain),
+.panelBody
+  :global(.pf-c-menu-toggle.pf-m-plain),
+.panelBody
+  :global(.pf-v5-c-dropdown__toggle.pf-m-plain),
+.panelBody
+  :global(.pf-c-dropdown__toggle.pf-m-plain) {
+  min-width: 34px !important;
+  min-height: 34px !important;
+
+  color: #66758a !important;
+  background: transparent !important;
+
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-menu-toggle.pf-m-plain:hover),
+.panelBody
+  :global(.pf-c-menu-toggle.pf-m-plain:hover),
+.panelBody
+  :global(.pf-v5-c-dropdown__toggle.pf-m-plain:hover),
+.panelBody
+  :global(.pf-c-dropdown__toggle.pf-m-plain:hover) {
+  color: #2e4668 !important;
+  background: #eef3f8 !important;
+
+  border-color: #dbe4ed !important;
+}
+
+/*
+ * Ligne développée et panneaux de détail.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table__expandable-row),
+.panelBody
+  :global(.pf-c-table__expandable-row) {
+  background: #f8fafc !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-table__expandable-row-content),
+.panelBody
+  :global(.pf-c-table__expandable-row-content) {
+  padding:
+    18px
+    22px !important;
+
+  color: #536176 !important;
+}
+
+/*
+ * États sans résultat.
+ */
+
+.panelBody
+  :global(.pf-v5-c-empty-state),
+.panelBody
+  :global(.pf-c-empty-state) {
+  min-height: 150px !important;
+
+  padding: 28px !important;
+
+  color: #748196 !important;
+  background: #ffffff !important;
+
+  border: 1px solid #dfe6ed !important;
+  border-top: 0 !important;
+  border-radius:
+    0
+    0
+    11px
+    11px !important;
+
+  box-shadow: none !important;
+}
+
+/*
+ * Fenêtres de partage et autres modales.
+ */
+
+.panelBody
+  :global(.pf-v5-c-modal-box),
+.panelBody
+  :global(.pf-c-modal-box) {
+  overflow: hidden !important;
+
+  border-radius: 14px !important;
+
+  box-shadow:
+    0 24px 70px rgba(8, 18, 31, 0.24) !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-modal-box__header),
+.panelBody
+  :global(.pf-c-modal-box__header) {
+  padding:
+    22px
+    24px
+    15px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-modal-box__body),
+.panelBody
+  :global(.pf-c-modal-box__body) {
+  padding:
+    0
+    24px
+    21px !important;
+}
+
+.panelBody
+  :global(.pf-v5-c-modal-box__footer),
+.panelBody
+  :global(.pf-c-modal-box__footer) {
+  padding:
+    16px
+    24px
+    22px !important;
+
+  border-top: 1px solid #e5eaf0 !important;
+}
+
+/*
+ * Menus contextuels.
+ */
+
+.panelBody
+  :global(.pf-v5-c-menu),
+.panelBody
+  :global(.pf-c-menu),
+.panelBody
+  :global(.pf-v5-c-dropdown__menu),
+.panelBody
+  :global(.pf-c-dropdown__menu) {
+  padding: 6px !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #dce4ed !important;
+  border-radius: 10px !important;
+
+  box-shadow:
+    0 14px 34px rgba(16, 24, 40, 0.13) !important;
+}
+
+@media (max-width: 800px) {
+  .pageHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .securityStatus {
+    width: 100%;
+  }
+
+  .panelBody {
+    padding:
+      20px
+      15px;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-tabs__list),
+  .panelBody
+    :global(.pf-c-tabs__list) {
+    width: 100% !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-tabs__item),
+  .panelBody
+    :global(.pf-c-tabs__item) {
+    flex: 1 1 0 !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-tabs__link),
+  .panelBody
+    :global(.pf-c-tabs__link) {
+    justify-content: center !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-table thead),
+  .panelBody
+    :global(.pf-c-table thead) {
+    display: none !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-table tbody tr),
+  .panelBody
+    :global(.pf-c-table tbody tr) {
+    display: grid !important;
+
+    grid-template-columns: 1fr !important;
+  }
+
+  .panelBody
+    :global(.pf-v5-c-table tbody td),
+  .panelBody
+    :global(.pf-c-table tbody td) {
+    width: 100% !important;
+
+    padding:
+      10px
+      14px !important;
+
+    border-bottom: 0 !important;
+  }
+}
+
+/* B3.16.36 — Ressources partagées EITAS */
+
+/* B3.16.38 START */
+
+/*
+ * Colonne contenant les portées accordées dans
+ * l’onglet « Partagé avec moi ».
+ */
+
+.panelBody
+  :global(
+    .pf-v5-c-table
+    tbody
+    td:has(.pf-v5-c-chip-group)
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    tbody
+    td:has(.pf-c-chip-group)
+  ) {
+  min-width: 220px !important;
+
+  padding:
+    13px
+    15px !important;
+
+  vertical-align: middle !important;
+}
+
+/*
+ * Carte Autorisations.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip-group),
+.panelBody
+  :global(.pf-c-chip-group) {
+  display: flex !important;
+  align-items: flex-start !important;
+  flex-direction: column !important;
+  gap: 9px !important;
+
+  width: 100% !important;
+  min-width: 190px !important;
+  max-width: 250px !important;
+
+  margin: 0 !important;
+  padding:
+    11px
+    12px !important;
+
+  color: #31425a !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      #f8faff 0%,
+      #f3f6fb 100%
+    ) !important;
+
+  border:
+    1px
+    solid
+    #dbe4ef !important;
+
+  border-radius: 10px !important;
+
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.025) !important;
+}
+
+/*
+ * Retrait des décorations PatternFly héritées.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip-group::before),
+.panelBody
+  :global(.pf-v5-c-chip-group::after),
+.panelBody
+  :global(.pf-c-chip-group::before),
+.panelBody
+  :global(.pf-c-chip-group::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+/*
+ * Libellé Autorisations.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip-group__label),
+.panelBody
+  :global(.pf-c-chip-group__label) {
+  display: block !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: #71829b !important;
+  background: transparent !important;
+
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.075em !important;
+
+  text-transform: uppercase !important;
+}
+
+/*
+ * Conteneur des permissions.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip-group__main),
+.panelBody
+  :global(.pf-c-chip-group__main) {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+
+  width: 100% !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  background: transparent !important;
+}
+
+/*
+ * Badges Consulter / Télécharger.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip),
+.panelBody
+  :global(.pf-c-chip) {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  min-height: 27px !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding:
+    5px
+    9px !important;
+
+  color: #2d5688 !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f2f7fd 0%,
+      #eaf2fb 100%
+    ) !important;
+
+  border:
+    1px
+    solid
+    #cddced !important;
+
+  border-radius: 999px !important;
+
+  box-shadow: none !important;
+}
+
+/*
+ * Suppression de la bordure interne générée
+ * par PatternFly.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip::before),
+.panelBody
+  :global(.pf-v5-c-chip::after),
+.panelBody
+  :global(.pf-c-chip::before),
+.panelBody
+  :global(.pf-c-chip::after) {
+  display: none !important;
+
+  content: none !important;
+}
+
+/*
+ * Texte des badges.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip__text),
+.panelBody
+  :global(.pf-c-chip__text) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+
+  overflow: visible !important;
+
+  max-width: none !important;
+
+  color: #2d5688 !important;
+
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
+/*
+ * Petit indicateur visuel devant chaque permission.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip__text::before),
+.panelBody
+  :global(.pf-c-chip__text::before) {
+  display: block;
+
+  width: 5px;
+  height: 5px;
+
+  background: #6181bd;
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 0 3px rgba(97, 129, 189, 0.11);
+
+  content: "";
+}
+
+/*
+ * Les badges ne sont pas des boutons d’action :
+ * aucun effet brutal au survol.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip:hover),
+.panelBody
+  :global(.pf-c-chip:hover) {
+  color: #254d7e !important;
+  background: #e7f0fa !important;
+
+  border-color: #bfd2e7 !important;
+}
+
+/*
+ * Nettoyage des boutons internes éventuels.
+ */
+
+.panelBody
+  :global(.pf-v5-c-chip .pf-v5-c-button),
+.panelBody
+  :global(.pf-c-chip .pf-c-button) {
+  min-width: 0 !important;
+  min-height: 0 !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: inherit !important;
+  background: transparent !important;
+
+  border: 0 !important;
+
+  box-shadow: none !important;
+}
+
+/*
+ * Alignement de la ligne partagée.
+ */
+
+.panelBody
+  :global(
+    .pf-v5-c-table
+    tbody
+    tr:has(.pf-v5-c-chip-group)
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    tbody
+    tr:has(.pf-c-chip-group)
+  ) {
+  min-height: 96px !important;
+}
+
+.panelBody
+  :global(
+    .pf-v5-c-table
+    tbody
+    tr:has(.pf-v5-c-chip-group)
+    td
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    tbody
+    tr:has(.pf-c-chip-group)
+    td
+  ) {
+  vertical-align: middle !important;
+}
+
+/*
+ * Mobile.
+ */
+
+@media (max-width: 800px) {
+  .panelBody
+    :global(.pf-v5-c-chip-group),
+  .panelBody
+    :global(.pf-c-chip-group) {
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .panelBody
+    :global(
+      .pf-v5-c-table
+      tbody
+      td:has(.pf-v5-c-chip-group)
+    ),
+  .panelBody
+    :global(
+      .pf-c-table
+      tbody
+      td:has(.pf-c-chip-group)
+    ) {
+    min-width: 0 !important;
+  }
+}
+
+/* B3.16.38 END */
+
+/* B3.16.39 START */
+
+/*
+ * La première colonne contient uniquement le bouton
+ * d’ouverture de la ligne.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table thead th:first-child),
+.panelBody
+  :global(.pf-v5-c-table tbody td:first-child),
+.panelBody
+  :global(.pf-c-table thead th:first-child),
+.panelBody
+  :global(.pf-c-table tbody td:first-child) {
+  width: 62px !important;
+  min-width: 62px !important;
+  max-width: 62px !important;
+}
+
+/*
+ * Colonne « Nom de la ressource ».
+ */
+
+.panelBody
+  :global(.pf-v5-c-table thead th:nth-child(2)),
+.panelBody
+  :global(.pf-v5-c-table tbody td:nth-child(2)),
+.panelBody
+  :global(.pf-c-table thead th:nth-child(2)),
+.panelBody
+  :global(.pf-c-table tbody td:nth-child(2)) {
+  width: 29% !important;
+  min-width: 205px !important;
+}
+
+/*
+ * Le titre ne doit plus être raccourci avec « ... ».
+ */
+
+.panelBody
+  :global(.pf-v5-c-table thead th:nth-child(2)),
+.panelBody
+  :global(.pf-v5-c-table thead th:nth-child(2) *),
+.panelBody
+  :global(.pf-c-table thead th:nth-child(2)),
+.panelBody
+  :global(.pf-c-table thead th:nth-child(2) *) {
+  overflow: visible !important;
+
+  width: auto !important;
+  max-width: none !important;
+
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+/*
+ * Classes internes utilisées par PatternFly pour
+ * tronquer le texte des en-têtes.
+ */
+
+.panelBody
+  :global(
+    .pf-v5-c-table
+    thead
+    th:nth-child(2)
+    .pf-v5-c-table__text
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    thead
+    th:nth-child(2)
+    .pf-c-table__text
+  ),
+.panelBody
+  :global(
+    .pf-v5-c-table
+    thead
+    th:nth-child(2)
+    .pf-v5-c-truncate
+  ),
+.panelBody
+  :global(
+    .pf-c-table
+    thead
+    th:nth-child(2)
+    .pf-c-truncate
+  ) {
+  display: block !important;
+
+  overflow: visible !important;
+
+  width: auto !important;
+  max-width: none !important;
+
+  text-overflow: clip !important;
+  white-space: normal !important;
+  word-break: normal !important;
+}
+
+/*
+ * Centrage vertical si le titre passe exceptionnellement
+ * sur deux lignes sur une petite fenêtre.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table thead th),
+.panelBody
+  :global(.pf-c-table thead th) {
+  min-height: 52px !important;
+
+  line-height: 1.35 !important;
+  vertical-align: middle !important;
+}
+
+/*
+ * Le nom de la ressource reste également lisible
+ * dans les lignes du tableau.
+ */
+
+.panelBody
+  :global(.pf-v5-c-table tbody td:nth-child(2)),
+.panelBody
+  :global(.pf-v5-c-table tbody td:nth-child(2) *),
+.panelBody
+  :global(.pf-c-table tbody td:nth-child(2)),
+.panelBody
+  :global(.pf-c-table tbody td:nth-child(2) *) {
+  overflow: visible !important;
+
+  max-width: none !important;
+
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 800px) {
+  .panelBody
+    :global(.pf-v5-c-table thead th:nth-child(2)),
+  .panelBody
+    :global(.pf-v5-c-table tbody td:nth-child(2)),
+  .panelBody
+    :global(.pf-c-table thead th:nth-child(2)),
+  .panelBody
+    :global(.pf-c-table tbody td:nth-child(2)) {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+/* B3.16.39 END */

@@ -1,0 +1,6 @@
+packages:
+  - "."
+
+allowBuilds:
+  "@swc/core@1.7.1": true
+  "esbuild@0.21.5": true

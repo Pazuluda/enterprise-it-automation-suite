@@ -1,0 +1,560 @@
+/*
+ * EITAS Identity — Administration
+ *
+ * Couche visuelle appliquée à l’Admin Console officielle Keycloak.
+ * Les routes, composants, permissions et appels API restent intacts.
+ */
+
+:root {
+  --eitas-admin-navy-950: #07182c;
+  --eitas-admin-navy-900: #0b2039;
+  --eitas-admin-navy-850: #102945;
+  --eitas-admin-blue-600: #2f6fed;
+  --eitas-admin-blue-500: #427ff1;
+  --eitas-admin-border: #dce5ef;
+  --eitas-admin-surface: #f5f7fa;
+
+  --pf-v5-global--primary-color--100: var(--eitas-admin-blue-600);
+  --pf-v5-global--primary-color--200: var(--eitas-admin-blue-500);
+}
+
+/* Barre supérieure */
+
+.pf-v5-c-masthead {
+  background:
+    linear-gradient(
+      100deg,
+      var(--eitas-admin-navy-950) 0%,
+      var(--eitas-admin-navy-900) 55%,
+      #123554 100%
+    ) !important;
+
+  border-bottom: 1px solid rgba(141, 172, 207, 0.18);
+  box-shadow: 0 5px 18px rgba(5, 18, 35, 0.22);
+}
+
+.keycloak__pageheader_brand {
+  width: 235px !important;
+  max-width: 235px !important;
+  height: 46px !important;
+  object-fit: contain;
+  object-position: left center;
+}
+
+/* Navigation latérale */
+
+.pf-v5-c-page__sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      var(--eitas-admin-navy-900),
+      var(--eitas-admin-navy-950)
+    ) !important;
+
+  border-right: 1px solid rgba(121, 151, 186, 0.17);
+}
+
+.keycloak__page_nav__nav {
+  background: transparent !important;
+}
+
+.keycloak__page_nav__nav .pf-v5-c-nav__section-title {
+  color: #8fa7c2 !important;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.keycloak__page_nav__nav .pf-v5-c-nav__link {
+  color: #c8d5e4 !important;
+  border-radius: 7px;
+}
+
+.keycloak__page_nav__nav .pf-v5-c-nav__link:hover {
+  color: #ffffff !important;
+  background: rgba(78, 119, 164, 0.2) !important;
+}
+
+.keycloak__page_nav__nav .pf-v5-c-nav__link.pf-m-current {
+  color: #ffffff !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(47, 111, 237, 0.36),
+      rgba(47, 111, 237, 0.14)
+    ) !important;
+
+  box-shadow: inset 3px 0 0 #70a2ff;
+}
+
+/* Contenu */
+
+body,
+.pf-v5-c-page,
+.pf-v5-c-page__main-section {
+  background: var(--eitas-admin-surface);
+}
+
+.pf-v5-c-card {
+  border: 1px solid var(--eitas-admin-border);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(20, 40, 65, 0.045);
+}
+
+.pf-v5-c-table {
+  --pf-v5-c-table--BorderColor: var(--eitas-admin-border);
+}
+
+.pf-v5-c-button.pf-m-primary {
+  background:
+    linear-gradient(
+      180deg,
+      var(--eitas-admin-blue-500),
+      var(--eitas-admin-blue-600)
+    ) !important;
+
+  border-color: var(--eitas-admin-blue-600) !important;
+  box-shadow: 0 3px 9px rgba(47, 111, 237, 0.18);
+}
+
+.pf-v5-c-button.pf-m-primary:hover {
+  filter: brightness(1.04);
+}
+
+.pf-v5-c-title,
+.pf-v5-c-content h1,
+.pf-v5-c-content h2 {
+  color: #172a41;
+}
+
+/* Mode sombre PatternFly */
+
+.pf-v5-theme-dark {
+  --eitas-admin-surface: #101820;
+  --eitas-admin-border: #344454;
+}
+
+.pf-v5-theme-dark .pf-v5-c-title,
+.pf-v5-theme-dark .pf-v5-c-content h1,
+.pf-v5-theme-dark .pf-v5-c-content h2 {
+  color: #eef4fb;
+}
+
+/* EITAS-ADMIN-V2-CORRECTIONS
+ *
+ * La version officielle activait le mode sombre selon le système,
+ * tandis que certaines surfaces EITAS restaient claires.
+ * Cette couche garantit une interface claire et cohérente.
+ */
+
+html {
+  color-scheme: light;
+}
+
+/* Masthead complet, y compris la partie droite */
+
+.pf-v5-c-masthead {
+  background:
+    linear-gradient(
+      100deg,
+      #07182c 0%,
+      #0b2039 56%,
+      #123554 100%
+    ) !important;
+
+  border-bottom:
+    1px solid rgba(141, 172, 207, 0.18);
+
+  box-shadow:
+    0 5px 18px rgba(5, 18, 35, 0.22);
+}
+
+.pf-v5-c-masthead__main,
+.pf-v5-c-masthead__content,
+.pf-v5-c-masthead .pf-v5-c-toolbar,
+.pf-v5-c-masthead .pf-v5-c-toolbar__content,
+.pf-v5-c-masthead .pf-v5-c-toolbar__content-section {
+  background:
+    transparent !important;
+}
+
+.pf-v5-c-masthead .pf-v5-c-button,
+.pf-v5-c-masthead .pf-v5-c-dropdown__toggle,
+.pf-v5-c-masthead .pf-v5-c-menu-toggle,
+.pf-v5-c-masthead .pf-v5-c-toolbar__item {
+  color:
+    #eef5fc !important;
+}
+
+/* Sidebar :
+ * la classe keycloak__page_nav__nav est portée par le même
+ * élément que pf-v5-c-page__sidebar. Elle ne doit pas être
+ * transparente.
+ */
+
+.pf-v5-c-page__sidebar.keycloak__page_nav__nav,
+.keycloak__page_nav__nav,
+.keycloak__page_nav__nav .pf-v5-c-page__sidebar-body {
+  --pf-v5-c-page__sidebar--BackgroundColor:
+    #0b2039;
+
+  background:
+    linear-gradient(
+      180deg,
+      #0d2743 0%,
+      #091b30 58%,
+      #07182c 100%
+    ) !important;
+
+  color:
+    #d6e2ef !important;
+}
+
+.pf-v5-c-page__sidebar.keycloak__page_nav__nav {
+  border-right:
+    1px solid rgba(141, 172, 207, 0.2);
+
+  box-shadow:
+    5px 0 16px rgba(7, 24, 44, 0.09);
+}
+
+/* Titres de sections du menu */
+
+.keycloak__page_nav__nav
+.pf-v5-c-nav__section-title {
+  color:
+    #91a9c3 !important;
+
+  font-size:
+    11px;
+
+  font-weight:
+    700;
+
+  letter-spacing:
+    0.075em;
+
+  text-transform:
+    uppercase;
+}
+
+/* Liens de navigation */
+
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link {
+  color:
+    #cfdae7 !important;
+
+  background:
+    transparent !important;
+
+  border-radius:
+    7px;
+
+  margin:
+    2px 8px;
+
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link svg {
+  color:
+    currentColor !important;
+
+  fill:
+    currentColor;
+}
+
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link:hover {
+  color:
+    #ffffff !important;
+
+  background:
+    rgba(91, 140, 255, 0.16) !important;
+}
+
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link.pf-m-current,
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link[aria-current="page"] {
+  color:
+    #ffffff !important;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(47, 111, 237, 0.48),
+      rgba(47, 111, 237, 0.21)
+    ) !important;
+
+  box-shadow:
+    inset 3px 0 0 #78a6ff;
+}
+
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link.pf-m-current::after,
+.keycloak__page_nav__nav
+.pf-v5-c-nav__link[aria-current="page"]::after {
+  background-color:
+    #78a6ff !important;
+}
+
+/* Séparateurs et éléments du sélecteur de realm */
+
+.keycloak__page_nav__nav
+.pf-v5-c-divider {
+  border-color:
+    rgba(144, 169, 196, 0.22) !important;
+}
+
+.keycloak__page_nav__nav
+.pf-v5-c-label,
+.keycloak__page_nav__nav
+.pf-v5-c-label__content {
+  color:
+    #edf5fd !important;
+
+  background:
+    #173a60 !important;
+
+  border-color:
+    #365d82 !important;
+}
+
+/* Surface principale claire et stable */
+
+body,
+.pf-v5-c-page,
+.pf-v5-c-page__main,
+.pf-v5-c-page__main-section {
+  background:
+    #f5f7fa !important;
+
+  color:
+    #172a41;
+}
+
+.pf-v5-c-card {
+  background:
+    #ffffff;
+
+  border:
+    1px solid #dce5ef;
+
+  border-radius:
+    10px;
+
+  box-shadow:
+    0 6px 18px rgba(20, 40, 65, 0.045);
+}
+
+/* Couleur EITAS des actions principales */
+
+.pf-v5-c-button.pf-m-primary {
+  background:
+    linear-gradient(
+      180deg,
+      #427ff1,
+      #2f6fed
+    ) !important;
+
+  border-color:
+    #2f6fed !important;
+
+  color:
+    #ffffff !important;
+
+  box-shadow:
+    0 3px 9px rgba(47, 111, 237, 0.2);
+}
+
+.pf-v5-c-button.pf-m-primary:hover {
+  background:
+    #255fd7 !important;
+
+  border-color:
+    #255fd7 !important;
+}
+
+/* EITAS-ADMIN-V3-STRUCTURE-FIX
+ *
+ * Nouvelle URL de feuille CSS afin d'éliminer le cache de la
+ * version précédente. Les règles ci-dessous ciblent également
+ * tous les conteneurs structurels PatternFly de la console.
+ */
+
+/* Bandeau supérieur uniformément EITAS */
+
+html body .pf-v5-c-masthead,
+html body .pf-v5-c-masthead__main,
+html body .pf-v5-c-masthead__content,
+html body .pf-v5-c-masthead .pf-v5-c-toolbar,
+html body .pf-v5-c-masthead .pf-v5-c-toolbar__content,
+html body .pf-v5-c-masthead .pf-v5-c-toolbar__content-section {
+  background-color: #0b2039 !important;
+  background-image: none !important;
+}
+
+html body .pf-v5-c-masthead {
+  border-bottom: 1px solid #23415f !important;
+  box-shadow: 0 4px 15px rgba(7, 24, 44, 0.24) !important;
+}
+
+html body .pf-v5-c-masthead button,
+html body .pf-v5-c-masthead a,
+html body .pf-v5-c-masthead svg {
+  color: #f2f7fc !important;
+}
+
+/* Tous les niveaux structurels du menu gauche */
+
+html body .pf-v5-c-page__sidebar,
+html body .pf-v5-c-page__sidebar-body,
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav,
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__list,
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__section,
+html body .keycloak__page_nav__nav,
+html body .keycloak__page_nav__nav .pf-v5-c-nav,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__list,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__section {
+  --pf-v5-c-page__sidebar--BackgroundColor: #0b2039;
+  --pf-v5-c-nav--BackgroundColor: #0b2039;
+
+  background-color: #0b2039 !important;
+  background-image: none !important;
+}
+
+/* En-tête et sélecteur de realm présents dans la colonne */
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-menu-toggle,
+html body .pf-v5-c-page__sidebar .pf-v5-c-dropdown__toggle,
+html body .pf-v5-c-page__sidebar .pf-v5-c-label,
+html body .keycloak__page_nav__nav .pf-v5-c-menu-toggle,
+html body .keycloak__page_nav__nav .pf-v5-c-dropdown__toggle,
+html body .keycloak__page_nav__nav .pf-v5-c-label {
+  background-color: #173a60 !important;
+  border-color: #365d82 !important;
+  color: #f1f6fb !important;
+}
+
+/* Sections du menu */
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__section-title,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__section-title {
+  color: #91a9c3 !important;
+  background-color: transparent !important;
+}
+
+/* Liens normaux */
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__link,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__link {
+  color: #d1deeb !important;
+  background-color: transparent !important;
+  background-image: none !important;
+
+  margin: 2px 7px;
+  border-radius: 7px;
+}
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__link span,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__link span {
+  color: inherit !important;
+}
+
+/* Survol */
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__link:hover,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__link:hover {
+  color: #ffffff !important;
+  background-color: rgba(76, 126, 226, 0.2) !important;
+}
+
+/* Élément sélectionné */
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__link.pf-m-current,
+html body .pf-v5-c-page__sidebar .pf-v5-c-nav__link[aria-current="page"],
+html body .keycloak__page_nav__nav .pf-v5-c-nav__link.pf-m-current,
+html body .keycloak__page_nav__nav .pf-v5-c-nav__link[aria-current="page"] {
+  color: #ffffff !important;
+
+  background-color: #214f82 !important;
+  background-image:
+    linear-gradient(
+      90deg,
+      #285f9d,
+      #183d67
+    ) !important;
+
+  box-shadow: inset 3px 0 0 #78a6ff !important;
+}
+
+/* Séparateurs */
+
+html body .pf-v5-c-page__sidebar .pf-v5-c-divider,
+html body .keycloak__page_nav__nav .pf-v5-c-divider {
+  border-color: rgba(157, 183, 209, 0.24) !important;
+}
+
+/* Empêche les anciennes variables PatternFly de blanchir le menu */
+
+html body .pf-v5-c-page__sidebar {
+  --pf-v5-c-nav__link--Color: #d1deeb;
+  --pf-v5-c-nav__link--hover--Color: #ffffff;
+  --pf-v5-c-nav__link--m-current--Color: #ffffff;
+  --pf-v5-c-nav__section-title--Color: #91a9c3;
+}
+
+/* Contenu principal */
+
+html body .pf-v5-c-page__main,
+html body .pf-v5-c-page__main-section {
+  background-color: #f5f7fa !important;
+}
+
+/* EITAS-B4.10-ADMIN-ACCOUNT-SWITCHER */
+
+#eitas-admin-account-switcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid #4056a6;
+  border-radius: 10px;
+  background: #263778;
+  color: #fff;
+  box-shadow:
+    0 12px 30px
+    rgba(18, 31, 68, 0.24);
+  font-family:
+    "RedHatText",
+    "Segoe UI",
+    Arial,
+    sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+#eitas-admin-account-switcher:hover,
+#eitas-admin-account-switcher:focus-visible {
+  background: #344b9a;
+  color: #fff;
+  transform: translateY(-1px);
+}

@@ -1,0 +1,1813 @@
+/* ============================================================
+   EITAS Identity
+   Interface alignée sur la direction artistique du portail EITAS
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  --eitas-page: #f4f6f9;
+  --eitas-surface: #ffffff;
+  --eitas-surface-soft: #f8fafc;
+
+  --eitas-navy-950: #0c1423;
+  --eitas-navy-900: #111b2e;
+  --eitas-navy-800: #1a2740;
+
+  --eitas-text: #182235;
+  --eitas-muted: #667085;
+  --eitas-muted-light: #98a2b3;
+
+  --eitas-border: #d9e0e9;
+  --eitas-border-hover: #aebbd0;
+
+  --eitas-blue: #2563eb;
+  --eitas-blue-hover: #1d4ed8;
+  --eitas-blue-soft: rgba(37, 99, 235, 0.14);
+
+  --eitas-danger: #c9364f;
+
+  --eitas-radius: 12px;
+  --eitas-input-radius: 8px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+html {
+  background: var(--eitas-page);
+}
+
+body,
+.login-pf body,
+#keycloak-bg {
+  min-height: 100vh !important;
+
+  color: var(--eitas-text) !important;
+  background:
+    linear-gradient(
+      180deg,
+      #f8f9fb 0%,
+      var(--eitas-page) 100%
+    ) !important;
+
+  font-family:
+    Inter,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif !important;
+}
+
+/* Suppression totale des anciens effets décoratifs */
+
+body::before,
+body::after,
+.pf-v5-c-login__main::before,
+.pf-v5-c-login__main::after,
+.pf-c-login__main::before,
+.pf-c-login__main::after,
+.card-pf::before,
+.card-pf::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* ============================================================
+   Centrage global
+   ============================================================ */
+
+.pf-v5-c-login,
+.pf-c-login,
+.login-pf {
+  display: grid !important;
+  min-height: 100vh !important;
+  padding: 32px 20px !important;
+
+  place-items: center !important;
+
+  background: transparent !important;
+}
+
+.pf-v5-c-login__container,
+.pf-c-login__container {
+  display: flex !important;
+  flex-direction: column !important;
+
+  width: 100% !important;
+  max-width: 480px !important;
+  margin: auto !important;
+
+  grid-template-areas: none !important;
+  grid-template-columns: none !important;
+}
+
+/* ============================================================
+   Bandeau de marque
+   ============================================================ */
+
+#kc-header,
+.pf-v5-c-login__header,
+.pf-c-login__header {
+  display: flex !important;
+  align-items: center !important;
+
+  width: 100% !important;
+  min-height: 76px !important;
+  margin: 0 0 14px !important;
+  padding: 14px 20px !important;
+
+  background: var(--eitas-navy-900) !important;
+  border: 1px solid var(--eitas-navy-800) !important;
+  border-radius: var(--eitas-radius) !important;
+
+  box-shadow:
+    0 5px 16px rgba(15, 23, 42, 0.10) !important;
+}
+
+#kc-header-wrapper {
+  width: 192px !important;
+  height: 46px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  overflow: hidden !important;
+
+  color: transparent !important;
+  text-indent: -9999px !important;
+  white-space: nowrap !important;
+
+  background-image: url("../img/eitas-identity.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: left center !important;
+  background-size: contain !important;
+
+  filter: none !important;
+}
+
+/* ============================================================
+   Carte de connexion
+   ============================================================ */
+
+.pf-v5-c-login__main,
+.pf-c-login__main,
+.card-pf {
+  position: relative !important;
+
+  display: block !important;
+
+  width: 100% !important;
+  max-width: 480px !important;
+  margin: 0 !important;
+
+  overflow: visible !important;
+
+  color: var(--eitas-text) !important;
+  background: var(--eitas-surface) !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: var(--eitas-radius) !important;
+
+  box-shadow:
+    0 12px 30px rgba(15, 23, 42, 0.08) !important;
+
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.pf-v5-c-login__main-header,
+.pf-c-login__main-header {
+  position: relative !important;
+
+  padding: 30px 34px 18px !important;
+
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.pf-v5-c-login__main-body,
+.pf-c-login__main-body {
+  padding: 0 34px 34px !important;
+
+  background: transparent !important;
+  border: 0 !important;
+}
+
+#kc-content,
+#kc-content-wrapper,
+#kc-form-wrapper,
+#kc-form {
+  width: 100% !important;
+  max-width: none !important;
+
+  color: var(--eitas-text) !important;
+  background: transparent !important;
+
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   Titre
+   ============================================================ */
+
+#kc-page-title {
+  max-width: 290px !important;
+  margin: 0 !important;
+
+  color: var(--eitas-text) !important;
+
+  font-size: 27px !important;
+  font-weight: 700 !important;
+  line-height: 1.22 !important;
+  letter-spacing: -0.025em !important;
+  text-align: left !important;
+}
+
+#kc-page-title::after {
+  display: block !important;
+  max-width: 330px !important;
+  margin-top: 9px !important;
+
+  color: var(--eitas-muted) !important;
+
+  content:
+    "Utilisez votre compte professionnel pour accéder au portail." !important;
+
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  letter-spacing: normal !important;
+}
+
+/* ============================================================
+   Langue
+   ============================================================ */
+
+#kc-locale {
+  position: absolute !important;
+  top: 28px !important;
+  right: 34px !important;
+  z-index: 5 !important;
+
+  width: auto !important;
+  margin: 0 !important;
+}
+
+#kc-locale select,
+#kc-locale-dropdown button,
+#kc-locale-dropdown a {
+  width: auto !important;
+  min-width: 112px !important;
+  min-height: 38px !important;
+  padding: 0 32px 0 12px !important;
+
+  color: var(--eitas-text) !important;
+  background-color: var(--eitas-surface-soft) !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: 7px !important;
+
+  outline: none !important;
+
+  font-size: 13px !important;
+  font-weight: 500 !important;
+
+  appearance: auto !important;
+}
+
+#kc-locale select:hover {
+  border-color: var(--eitas-border-hover) !important;
+}
+
+#kc-locale select:focus {
+  border-color: var(--eitas-blue) !important;
+
+  box-shadow:
+    0 0 0 3px var(--eitas-blue-soft) !important;
+}
+
+/* ============================================================
+   Formulaire
+   ============================================================ */
+
+.pf-v5-c-form,
+.pf-c-form {
+  width: 100% !important;
+}
+
+.pf-v5-c-form__group,
+.pf-c-form__group,
+.form-group {
+  margin-bottom: 20px !important;
+}
+
+label,
+.pf-v5-c-form__label,
+.pf-c-form__label,
+.pf-v5-c-form__label-text,
+.pf-c-form__label-text {
+  display: block !important;
+  margin: 0 0 7px !important;
+
+  color: var(--eitas-text) !important;
+
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* Champs */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"] {
+  width: 100% !important;
+  min-height: 46px !important;
+  padding: 0 13px !important;
+
+  color: var(--eitas-text) !important;
+  caret-color: var(--eitas-blue) !important;
+
+  background: var(--eitas-surface) !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: var(--eitas-input-radius) !important;
+
+  outline: none !important;
+
+  font-family: inherit !important;
+  font-size: 14px !important;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03) !important;
+
+  transition:
+    border-color 130ms ease,
+    box-shadow 130ms ease !important;
+}
+
+input::placeholder {
+  color: var(--eitas-muted-light) !important;
+  opacity: 1 !important;
+}
+
+input:hover {
+  border-color: var(--eitas-border-hover) !important;
+}
+
+input:focus {
+  border-color: var(--eitas-blue) !important;
+
+  box-shadow:
+    0 0 0 3px var(--eitas-blue-soft) !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--eitas-text) !important;
+
+  box-shadow:
+    0 0 0 1000px var(--eitas-surface)
+    inset !important;
+}
+
+/* Mot de passe */
+
+.pf-v5-c-input-group,
+.pf-c-input-group {
+  display: flex !important;
+  width: 100% !important;
+
+  overflow: hidden !important;
+
+  background: var(--eitas-surface) !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: var(--eitas-input-radius) !important;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03) !important;
+
+  transition:
+    border-color 130ms ease,
+    box-shadow 130ms ease !important;
+}
+
+.pf-v5-c-input-group:hover,
+.pf-c-input-group:hover {
+  border-color: var(--eitas-border-hover) !important;
+}
+
+.pf-v5-c-input-group:focus-within,
+.pf-c-input-group:focus-within {
+  border-color: var(--eitas-blue) !important;
+
+  box-shadow:
+    0 0 0 3px var(--eitas-blue-soft) !important;
+}
+
+.pf-v5-c-input-group input,
+.pf-c-input-group input {
+  flex: 1 !important;
+  min-width: 0 !important;
+
+  background: transparent !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+
+  box-shadow: none !important;
+}
+
+.pf-v5-c-input-group .pf-v5-c-button,
+.pf-c-input-group .pf-c-button,
+button[data-password-toggle] {
+  width: 46px !important;
+  min-width: 46px !important;
+  min-height: 46px !important;
+  padding: 0 !important;
+
+  color: var(--eitas-muted) !important;
+  background: var(--eitas-surface-soft) !important;
+
+  border: 0 !important;
+  border-left: 1px solid var(--eitas-border) !important;
+  border-radius: 0 !important;
+
+  box-shadow: none !important;
+}
+
+.pf-v5-c-input-group .pf-v5-c-button:hover,
+.pf-c-input-group .pf-c-button:hover,
+button[data-password-toggle]:hover {
+  color: var(--eitas-blue) !important;
+  background: #eef3fb !important;
+}
+
+/* ============================================================
+   Mémorisation et lien
+   ============================================================ */
+
+.pf-v5-c-form__group.pf-m-action:has(#kc-form-options),
+.pf-c-form__group.pf-m-action:has(#kc-form-options) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+
+  margin: -2px 0 22px !important;
+}
+
+#kc-form-options {
+  margin: 0 !important;
+}
+
+#kc-form-options label,
+#kc-form-options .checkbox label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  margin: 0 !important;
+
+  color: var(--eitas-muted) !important;
+
+  font-size: 13px !important;
+  font-weight: 400 !important;
+
+  cursor: pointer !important;
+}
+
+input[type="checkbox"] {
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+
+  background: var(--eitas-surface) !important;
+
+  border: 1px solid var(--eitas-border-hover) !important;
+  border-radius: 4px !important;
+
+  appearance: none !important;
+  cursor: pointer !important;
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--eitas-blue) !important;
+  border-color: var(--eitas-blue) !important;
+}
+
+input[type="checkbox"]:checked::after {
+  display: block !important;
+
+  width: 5px !important;
+  height: 9px !important;
+  margin: 1px 0 0 5px !important;
+
+  content: "" !important;
+
+  border: solid #ffffff !important;
+  border-width: 0 2px 2px 0 !important;
+
+  transform: rotate(45deg) !important;
+}
+
+/* ============================================================
+   Liens
+   ============================================================ */
+
+a,
+.pf-v5-c-button.pf-m-link,
+.pf-c-button.pf-m-link {
+  color: var(--eitas-blue) !important;
+
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+}
+
+a:hover,
+.pf-v5-c-button.pf-m-link:hover,
+.pf-c-button.pf-m-link:hover {
+  color: var(--eitas-blue-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* ============================================================
+   Bouton
+   ============================================================ */
+
+#kc-form-buttons {
+  margin: 0 !important;
+}
+
+#kc-login,
+input[type="submit"],
+button[type="submit"],
+.pf-v5-c-button.pf-m-primary,
+.pf-c-button.pf-m-primary {
+  width: 100% !important;
+  min-height: 46px !important;
+  padding: 0 20px !important;
+
+  color: #ffffff !important;
+  background: var(--eitas-navy-900) !important;
+
+  border: 1px solid var(--eitas-navy-900) !important;
+  border-radius: 8px !important;
+
+  font-family: inherit !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.15) !important;
+
+  cursor: pointer !important;
+
+  transition:
+    background-color 130ms ease,
+    border-color 130ms ease,
+    transform 130ms ease !important;
+}
+
+#kc-login:hover,
+input[type="submit"]:hover,
+button[type="submit"]:hover,
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-c-button.pf-m-primary:hover {
+  background: var(--eitas-navy-800) !important;
+  border-color: var(--eitas-navy-800) !important;
+
+  transform: translateY(-1px) !important;
+}
+
+#kc-login:focus-visible,
+input[type="submit"]:focus-visible,
+button[type="submit"]:focus-visible {
+  outline: none !important;
+
+  box-shadow:
+    0 0 0 3px var(--eitas-blue-soft) !important;
+}
+
+/* ============================================================
+   Messages
+   ============================================================ */
+
+.pf-v5-c-alert,
+.pf-c-alert,
+.alert {
+  margin-bottom: 18px !important;
+  padding: 12px 14px !important;
+
+  color: var(--eitas-text) !important;
+  background: var(--eitas-surface-soft) !important;
+
+  border: 1px solid var(--eitas-border) !important;
+  border-radius: 8px !important;
+}
+
+.alert-error,
+.pf-v5-c-alert.pf-m-danger,
+.pf-c-alert.pf-m-danger {
+  color: #8c2034 !important;
+  background: #fff3f5 !important;
+
+  border-color: #efbcc6 !important;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 560px) {
+  .pf-v5-c-login,
+  .pf-c-login,
+  .login-pf {
+    padding: 20px 14px !important;
+  }
+
+  #kc-header,
+  .pf-v5-c-login__header,
+  .pf-c-login__header {
+    min-height: 68px !important;
+    padding: 12px 16px !important;
+  }
+
+  #kc-header-wrapper {
+    width: 170px !important;
+    height: 40px !important;
+  }
+
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    padding: 26px 24px 16px !important;
+  }
+
+  .pf-v5-c-login__main-body,
+  .pf-c-login__main-body {
+    padding: 0 24px 28px !important;
+  }
+
+  #kc-page-title {
+    max-width: none !important;
+    padding-right: 0 !important;
+
+    font-size: 24px !important;
+  }
+
+  #kc-locale {
+    position: static !important;
+
+    margin-top: 18px !important;
+  }
+
+  #kc-locale select {
+    width: 100% !important;
+  }
+
+  .pf-v5-c-form__group.pf-m-action:has(#kc-form-options),
+  .pf-c-form__group.pf-m-action:has(#kc-form-options) {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+}
+
+/* EITAS-B3.14-WIDE-START */
+
+/* ============================================================
+   Dimensionnement large et confortable
+   ============================================================ */
+
+@media (min-width: 700px) {
+  .pf-v5-c-login__container,
+  .pf-c-login__container {
+    width: min(680px, calc(100vw - 48px)) !important;
+    max-width: 680px !important;
+  }
+
+  #kc-header,
+  .pf-v5-c-login__header,
+  .pf-c-login__header {
+    width: 100% !important;
+    max-width: 680px !important;
+    min-height: 84px !important;
+
+    margin-bottom: 16px !important;
+    padding: 16px 25px !important;
+  }
+
+  #kc-header-wrapper {
+    width: 214px !important;
+    height: 52px !important;
+  }
+
+  .pf-v5-c-login__main,
+  .pf-c-login__main,
+  .card-pf {
+    width: 100% !important;
+    max-width: 680px !important;
+  }
+
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    padding:
+      38px
+      46px
+      20px !important;
+  }
+
+  .pf-v5-c-login__main-body,
+  .pf-c-login__main-body {
+    padding:
+      0
+      46px
+      42px !important;
+  }
+
+  #kc-page-title {
+    max-width: 450px !important;
+    padding-right: 125px !important;
+
+    font-size: 31px !important;
+    line-height: 1.18 !important;
+  }
+
+  #kc-page-title::after {
+    max-width: 430px !important;
+    margin-top: 11px !important;
+
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  #kc-locale {
+    top: 36px !important;
+    right: 46px !important;
+  }
+
+  #kc-locale select,
+  #kc-locale-dropdown button,
+  #kc-locale-dropdown a {
+    width: 132px !important;
+    min-width: 132px !important;
+    min-height: 40px !important;
+
+    padding-right: 30px !important;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"] {
+    min-height: 50px !important;
+    padding-inline: 15px !important;
+
+    font-size: 15px !important;
+  }
+
+  .pf-v5-c-input-group,
+  .pf-c-input-group {
+    min-height: 50px !important;
+  }
+
+  .pf-v5-c-input-group .pf-v5-c-button,
+  .pf-c-input-group .pf-c-button,
+  button[data-password-toggle] {
+    width: 50px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+  }
+
+  .pf-v5-c-form__group,
+  .pf-c-form__group,
+  .form-group {
+    margin-bottom: 22px !important;
+  }
+
+  #kc-form-options label,
+  #kc-form-options .checkbox label {
+    white-space: nowrap !important;
+  }
+
+  #kc-login,
+  input[type="submit"],
+  button[type="submit"],
+  .pf-v5-c-button.pf-m-primary,
+  .pf-c-button.pf-m-primary {
+    min-height: 50px !important;
+
+    font-size: 15px !important;
+  }
+}
+
+/* Tablettes et petites fenêtres */
+
+@media (min-width: 561px) and (max-width: 699px) {
+  .pf-v5-c-login__container,
+  .pf-c-login__container,
+  #kc-header,
+  .pf-v5-c-login__main,
+  .pf-c-login__main,
+  .card-pf {
+    width: min(580px, calc(100vw - 36px)) !important;
+    max-width: 580px !important;
+  }
+
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    padding:
+      34px
+      38px
+      19px !important;
+  }
+
+  .pf-v5-c-login__main-body,
+  .pf-c-login__main-body {
+    padding:
+      0
+      38px
+      38px !important;
+  }
+
+  #kc-page-title {
+    max-width: 370px !important;
+    padding-right: 105px !important;
+
+    font-size: 29px !important;
+  }
+
+  #kc-locale {
+    top: 32px !important;
+    right: 38px !important;
+  }
+
+  #kc-locale select {
+    width: 112px !important;
+    min-width: 112px !important;
+  }
+}
+
+/* EITAS-B3.14-WIDE-END */
+
+/* EITAS-B3.14-TYPOGRAPHY-START */
+
+/* ============================================================
+   En-tête et typographie professionnelle
+   ============================================================ */
+
+body,
+.login-pf body,
+#keycloak-bg,
+.pf-v5-c-login,
+.pf-c-login {
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Roboto,
+    Arial,
+    sans-serif !important;
+
+  font-synthesis: none !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* En-tête organisé en deux colonnes :
+   titre à gauche, langue à droite. */
+
+.pf-v5-c-login__main-header,
+.pf-c-login__main-header {
+  display: grid !important;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    140px !important;
+
+  grid-template-rows: auto !important;
+
+  column-gap: 32px !important;
+  align-items: start !important;
+}
+
+/* Titre */
+
+#kc-page-title {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: #182235 !important;
+
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  font-variation-settings: "wght" 700 !important;
+
+  line-height: 1.16 !important;
+  letter-spacing: -0.025em !important;
+
+  text-align: left !important;
+  text-wrap: balance !important;
+
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+
+#kc-page-title *,
+#kc-page-title span {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+
+/* Sous-titre */
+
+#kc-page-title::after {
+  display: block !important;
+
+  width: 100% !important;
+  max-width: 430px !important;
+
+  margin: 12px 0 0 !important;
+  padding: 0 !important;
+
+  color: #667085 !important;
+
+  content:
+    "Utilisez votre compte professionnel pour accéder au portail." !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+  letter-spacing: normal !important;
+
+  text-align: left !important;
+  text-wrap: pretty !important;
+
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+
+/* Sélecteur de langue */
+
+#kc-locale {
+  position: static !important;
+
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+
+  align-self: start !important;
+  justify-self: end !important;
+
+  width: 140px !important;
+  margin: 1px 0 0 !important;
+}
+
+#kc-locale select,
+#kc-locale-dropdown button,
+#kc-locale-dropdown a {
+  width: 140px !important;
+  min-width: 140px !important;
+  max-width: 140px !important;
+  min-height: 40px !important;
+
+  padding:
+    0
+    34px
+    0
+    13px !important;
+
+  overflow: hidden !important;
+
+  color: #344054 !important;
+  background-color: #f8fafc !important;
+
+  border: 1px solid #d5dde8 !important;
+  border-radius: 8px !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 13px !important;
+  font-weight: 500 !important;
+
+  line-height: 38px !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Libellés du formulaire */
+
+label,
+.pf-v5-c-form__label,
+.pf-c-form__label,
+.pf-v5-c-form__label-text,
+.pf-c-form__label-text {
+  color: #263247 !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  letter-spacing: -0.005em !important;
+
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+/* Champs */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="number"] {
+  color: #182235 !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.4 !important;
+}
+
+/* Ligne Rester connecté / mot de passe oublié */
+
+.pf-v5-c-form__group.pf-m-action:has(#kc-form-options),
+.pf-c-form__group.pf-m-action:has(#kc-form-options) {
+  display: flex !important;
+
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  width: 100% !important;
+  gap: 24px !important;
+
+  margin:
+    -2px
+    0
+    24px !important;
+}
+
+#kc-form-options,
+#kc-form-options .checkbox {
+  flex: 0 0 auto !important;
+}
+
+#kc-form-options label,
+#kc-form-options .checkbox label {
+  color: #475467 !important;
+
+  font-size: 13px !important;
+  font-weight: 400 !important;
+
+  line-height: 1.35 !important;
+  white-space: nowrap !important;
+}
+
+/* Liens */
+
+a,
+.pf-v5-c-button.pf-m-link,
+.pf-c-button.pf-m-link {
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+
+  white-space: nowrap !important;
+}
+
+/* Bouton */
+
+#kc-login,
+input[type="submit"],
+button[type="submit"],
+.pf-v5-c-button.pf-m-primary,
+.pf-c-button.pf-m-primary {
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.005em !important;
+}
+
+/* Espacements plus équilibrés */
+
+.pf-v5-c-form__group,
+.pf-c-form__group,
+.form-group {
+  margin-bottom: 19px !important;
+}
+
+#kc-form-buttons {
+  margin-top: 3px !important;
+}
+
+/* Desktop large */
+
+@media (min-width: 700px) {
+  #kc-page-title {
+    font-size: 30px !important;
+  }
+}
+
+/* Tablette */
+
+@media (min-width: 561px) and (max-width: 699px) {
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    grid-template-columns:
+      minmax(0, 1fr)
+      122px !important;
+
+    column-gap: 22px !important;
+  }
+
+  #kc-page-title {
+    font-size: 28px !important;
+  }
+
+  #kc-locale,
+  #kc-locale select,
+  #kc-locale-dropdown button,
+  #kc-locale-dropdown a {
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+  }
+}
+
+/* Mobile */
+
+@media (max-width: 560px) {
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    display: grid !important;
+
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+
+    row-gap: 18px !important;
+  }
+
+  #kc-page-title {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+
+    font-size: 26px !important;
+  }
+
+  #kc-locale {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+
+    width: 100% !important;
+
+    justify-self: stretch !important;
+  }
+
+  #kc-locale select,
+  #kc-locale-dropdown button,
+  #kc-locale-dropdown a {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .pf-v5-c-form__group.pf-m-action:has(#kc-form-options),
+  .pf-c-form__group.pf-m-action:has(#kc-form-options) {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+
+    gap: 11px !important;
+  }
+
+  a {
+    white-space: normal !important;
+  }
+}
+
+/* EITAS-B3.14-TYPOGRAPHY-END */
+
+/* EITAS-B3.14-PRO-HEADER-START */
+
+/* ============================================================
+   Titre professionnel et langue dans le bandeau sombre
+   ============================================================ */
+
+/*
+ * Le sélecteur de langue reste dans le HTML du formulaire,
+ * mais il est déplacé visuellement dans le bandeau de marque.
+ */
+
+.pf-v5-c-login__container,
+.pf-c-login__container {
+  position: relative !important;
+}
+
+/* Le bandeau doit pouvoir accueillir la langue à droite. */
+
+#kc-header,
+.pf-v5-c-login__header,
+.pf-c-login__header {
+  position: relative !important;
+
+  padding-right: 190px !important;
+}
+
+/* ------------------------------------------------------------
+   Sélecteur de langue dans le bandeau sombre
+   ------------------------------------------------------------ */
+
+#kc-locale {
+  position: absolute !important;
+
+  /*
+   * La carte blanche commence sous le bandeau.
+   * Cette valeur replace le sélecteur au centre du bandeau.
+   */
+  top: -78px !important;
+  right: 25px !important;
+  z-index: 20 !important;
+
+  display: block !important;
+
+  width: 142px !important;
+  margin: 0 !important;
+}
+
+#kc-locale select,
+#kc-locale-dropdown button,
+#kc-locale-dropdown a {
+  width: 142px !important;
+  min-width: 142px !important;
+  max-width: 142px !important;
+  min-height: 42px !important;
+
+  padding:
+    0
+    38px
+    0
+    15px !important;
+
+  color: #f8fafc !important;
+
+  background-color: #17243a !important;
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent 50%,
+      #cbd5e1 50%
+    ),
+    linear-gradient(
+      135deg,
+      #cbd5e1 50%,
+      transparent 50%
+    ) !important;
+
+  background-repeat: no-repeat !important;
+
+  background-position:
+    calc(100% - 19px) 18px,
+    calc(100% - 14px) 18px !important;
+
+  background-size:
+    5px 5px,
+    5px 5px !important;
+
+  border: 1px solid #34445f !important;
+  border-radius: 8px !important;
+
+  outline: none !important;
+  appearance: none !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 40px !important;
+
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.20) !important;
+
+  cursor: pointer !important;
+
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease !important;
+}
+
+#kc-locale select:hover,
+#kc-locale-dropdown button:hover,
+#kc-locale-dropdown a:hover {
+  color: #ffffff !important;
+  background-color: #1d2d48 !important;
+  border-color: #52698d !important;
+}
+
+#kc-locale select:focus {
+  border-color: #6d9cff !important;
+
+  box-shadow:
+    0 0 0 3px rgba(82, 132, 255, 0.22) !important;
+}
+
+#kc-locale select option {
+  color: #182235 !important;
+  background: #ffffff !important;
+}
+
+/* ------------------------------------------------------------
+   En-tête blanc : une seule colonne, sans langue
+   ------------------------------------------------------------ */
+
+.pf-v5-c-login__main-header,
+.pf-c-login__main-header {
+  display: block !important;
+
+  padding:
+    38px
+    46px
+    22px !important;
+}
+
+/* ------------------------------------------------------------
+   Petit libellé professionnel au-dessus du titre
+   ------------------------------------------------------------ */
+
+#kc-page-title::before {
+  display: block !important;
+
+  width: fit-content !important;
+  margin: 0 0 11px !important;
+  padding: 5px 9px !important;
+
+  color: #2459b8 !important;
+  background: #eef4ff !important;
+
+  content: "PORTAIL SÉCURISÉ" !important;
+
+  border: 1px solid #d7e5ff !important;
+  border-radius: 5px !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.085em !important;
+
+  text-transform: uppercase !important;
+}
+
+/* ------------------------------------------------------------
+   Titre principal
+   ------------------------------------------------------------ */
+
+#kc-page-title {
+  display: block !important;
+
+  width: 100% !important;
+  max-width: none !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: #152238 !important;
+
+  font-family:
+    "Segoe UI Variable Display",
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 29px !important;
+  font-weight: 680 !important;
+  font-variation-settings: "wght" 680 !important;
+
+  line-height: 1.16 !important;
+  letter-spacing: -0.027em !important;
+
+  text-align: left !important;
+
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+
+  text-wrap: balance !important;
+}
+
+/* Nouveau sous-titre */
+
+#kc-page-title::after {
+  display: block !important;
+
+  width: 100% !important;
+  max-width: 500px !important;
+
+  margin: 12px 0 0 !important;
+  padding: 0 !important;
+
+  color: #667085 !important;
+
+  content:
+    "Authentifiez-vous avec votre compte professionnel pour accéder à votre espace EITAS." !important;
+
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    Inter,
+    Arial,
+    sans-serif !important;
+
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+  letter-spacing: normal !important;
+
+  text-align: left !important;
+
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+}
+
+/* Sur les écrans suffisamment larges, le titre tient sur une ligne. */
+
+@media (min-width: 700px) {
+  #kc-page-title {
+    font-size: 29px !important;
+    white-space: nowrap !important;
+    text-wrap: nowrap !important;
+  }
+}
+
+/* Tablettes */
+
+@media (min-width: 561px) and (max-width: 699px) {
+  #kc-header,
+  .pf-v5-c-login__header,
+  .pf-c-login__header {
+    padding-right: 160px !important;
+  }
+
+  #kc-locale {
+    top: -76px !important;
+    right: 20px !important;
+
+    width: 124px !important;
+  }
+
+  #kc-locale select,
+  #kc-locale-dropdown button,
+  #kc-locale-dropdown a {
+    width: 124px !important;
+    min-width: 124px !important;
+    max-width: 124px !important;
+  }
+
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    padding:
+      34px
+      38px
+      20px !important;
+  }
+
+  #kc-page-title {
+    font-size: 27px !important;
+    white-space: normal !important;
+    text-wrap: balance !important;
+  }
+}
+
+/* Mobile : la langue revient dans la carte sous le titre. */
+
+@media (max-width: 560px) {
+  #kc-header,
+  .pf-v5-c-login__header,
+  .pf-c-login__header {
+    padding-right: 16px !important;
+  }
+
+  #kc-locale {
+    position: static !important;
+
+    width: 100% !important;
+    margin: 20px 0 0 !important;
+  }
+
+  #kc-locale select,
+  #kc-locale-dropdown button,
+  #kc-locale-dropdown a {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+
+    color: #344054 !important;
+    background-color: #f8fafc !important;
+
+    border-color: #d5dde8 !important;
+  }
+
+  .pf-v5-c-login__main-header,
+  .pf-c-login__main-header {
+    padding:
+      28px
+      24px
+      19px !important;
+  }
+
+  #kc-page-title {
+    font-size: 25px !important;
+    white-space: normal !important;
+    text-wrap: balance !important;
+  }
+
+  #kc-page-title::after {
+    font-size: 13px !important;
+  }
+}
+
+/* EITAS-B3.14-PRO-HEADER-END */
+
+/* EITAS-B4.6.6B5-TEMPLATE-BRAND
+ *
+ * Le logo est désormais rendu directement par template.ftl.
+ * Toutes les anciennes images de fond et pseudo-couches sont neutralisées.
+ */
+
+html body #kc-header,
+html body #kc-header-wrapper,
+html body #kc-header-wrapper.eitas-login-brand {
+  background-image: none !important;
+}
+
+html body #kc-header-wrapper::before,
+html body #kc-header-wrapper::after,
+html body #kc-header::before,
+html body #kc-header::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+html body #kc-header-wrapper.eitas-login-brand {
+  display: flex !important;
+  align-items: center !important;
+
+  width: 100% !important;
+  min-height: 82px !important;
+
+  margin: 0 !important;
+  padding: 12px 24px !important;
+
+  text-indent: 0 !important;
+  overflow: hidden !important;
+}
+
+html body
+#kc-header-wrapper.eitas-login-brand
+> img.eitas-login-brand__logo {
+  display: block !important;
+  visibility: visible !important;
+
+  width: min(100%, 350px) !important;
+  height: 58px !important;
+  max-width: 350px !important;
+  max-height: 58px !important;
+
+  margin: 0 !important;
+
+  object-fit: contain !important;
+  object-position: left center !important;
+
+  background: none !important;
+}
+
+@media (max-width: 767px) {
+  html body #kc-header-wrapper.eitas-login-brand {
+    min-height: 70px !important;
+    padding: 10px 18px !important;
+  }
+
+  html body
+  #kc-header-wrapper.eitas-login-brand
+  > img.eitas-login-brand__logo {
+    height: 50px !important;
+    max-height: 50px !important;
+  }
+}
+
+/* EITAS-B4.7.2-LONG-REQUIRED-ACTIONS
+ *
+ * Centrage des pages longues d’actions requises :
+ * MFA, changement de mot de passe, WebAuthn et codes de secours.
+ * La connexion compacte identifiant/mot de passe reste inchangée.
+ */
+
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) .pf-v5-c-login__container {
+  width: min(calc(100% - 32px), 980px) !important;
+  max-width: 980px !important;
+
+  margin-inline: auto !important;
+
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-items: center !important;
+}
+
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) #kc-header {
+  width: min(100%, 760px) !important;
+  max-width: 760px !important;
+
+  margin-inline: auto !important;
+}
+
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) .pf-v5-c-login__main {
+  width: min(100%, 760px) !important;
+  max-width: 760px !important;
+
+  margin-inline: auto !important;
+}
+
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) .pf-v5-c-login__main-header,
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) .pf-v5-c-login__main-body,
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) .pf-v5-c-login__main-footer {
+  width: 100% !important;
+  max-width: none !important;
+
+  margin-inline: auto !important;
+}
+
+:where(
+  body:has(#kc-totp-settings-form),
+  body:has(#kc-passwd-update-form),
+  body:has(#kc-form-webauthn),
+  body:has(#kc-recovery-codes-settings-form),
+  body:has(form#register)
+) #kc-page-title {
+  width: 100% !important;
+
+  text-align: center !important;
+  white-space: normal !important;
+  text-wrap: balance !important;
+}
+
+#kc-totp-settings-form,
+#kc-passwd-update-form,
+#kc-form-webauthn,
+#kc-recovery-codes-settings-form,
+form#register {
+  width: 100% !important;
+  max-width: 700px !important;
+
+  margin-inline: auto !important;
+}
+
+#kc-totp-secret-qr-code,
+#kc-totp-settings-form img {
+  display: block;
+
+  max-width: 100%;
+
+  margin-inline: auto;
+}
+
+@media (max-width: 767px) {
+  :where(
+    body:has(#kc-totp-settings-form),
+    body:has(#kc-passwd-update-form),
+    body:has(#kc-form-webauthn),
+    body:has(#kc-recovery-codes-settings-form),
+    body:has(form#register)
+  ) .pf-v5-c-login__container {
+    width: min(calc(100% - 20px), 760px) !important;
+  }
+
+  :where(
+    body:has(#kc-totp-settings-form),
+    body:has(#kc-passwd-update-form),
+    body:has(#kc-form-webauthn),
+    body:has(#kc-recovery-codes-settings-form),
+    body:has(form#register)
+  ) .pf-v5-c-login__main {
+    width: 100% !important;
+  }
+}

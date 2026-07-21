@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+      http://maven.apache.org/POM/4.0.0
+      https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.eitas.identity</groupId>
+    <artifactId>eitas-identity-account-theme</artifactId>
+    <version>26.7.0-eitas.29</version>
+    <packaging>jar</packaging>
+
+    <name>EITAS Identity Account Theme</name>
+
+    <description>
+        EITAS Identity Account Console based on the official
+        Keycloak 26.7.0 Account UI.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>
+            UTF-8
+        </project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <finalName>
+            eitas-identity-account-theme-26.7.0-eitas.29
+        </finalName>
+
+        <resources>
+            <resource>
+                <directory>maven-resources</directory>
+            </resource>
+
+            <resource>
+                <directory>dist</directory>
+                <targetPath>
+                    theme/eitas-account/account/resources
+                </targetPath>
+            </resource>
+        </resources>
+    </build>
+</project>
