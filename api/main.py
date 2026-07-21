@@ -13,8 +13,21 @@ from app.core.security import (
     require_roles,
     require_roles_or_api_key,
 )
+
+from app.core.identity_update_security import (
+    require_identity_update_roles,
+)
 from app.core.storage import load_json, save_json
 from app.services.audit import write_audit_log
+from app.services.identity_update import (
+    IdentityUpdateRequestConflict,
+    IdentityUpdateRequestError,
+    IdentityUpdateStatusUnavailable,
+    create_identity_update_source_check_request as
+    service_create_identity_update_source_check_request,
+    get_identity_update_status as
+    service_get_identity_update_status,
+)
 from app.services.requests import (
     RequestNotFound,
     get_request_by_id as service_get_request_by_id,
@@ -147,6 +160,13 @@ AGENT_MODE_READ_OR_API_KEY_ACCESS = require_roles_or_api_key(
 )
 
 
+IDENTITY_UPDATE_STATUS_ACCESS = (
+    require_identity_update_roles(
+        "UltraAdmin",
+    )
+)
+
+
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
@@ -209,6 +229,20 @@ AD_DOMAIN_CATALOG_STALE_AFTER_SECONDS = max(
 )
 
 AD_ADMIN_JOBS_FILE = DATA_DIR / "ad-admin-jobs.json"
+
+IDENTITY_UPDATE_STATUS_FILE = Path(
+    os.getenv(
+        "EITAS_IDENTITY_UPDATE_STATUS_FILE",
+        "/var/lib/eitas/identity-update/status.json",
+    )
+).resolve()
+
+IDENTITY_UPDATE_SOURCE_CHECK_REQUEST_FILE = Path(
+    os.getenv(
+        "EITAS_IDENTITY_UPDATE_SOURCE_CHECK_REQUEST_FILE",
+        "/var/lib/eitas/identity-update/requests/upstream-check.json",
+    )
+).resolve()
 
 
 
@@ -868,6 +902,65 @@ def submit_ad_admin_job_result(job_id: str, payload: dict = Body(...), api_key: 
         raise HTTPException(status_code=404, detail=str(exc))
 
     write_audit_log(**audit_event)
+
+    return response
+
+
+@app.get("/api/identity-update/status")
+def get_identity_update_status(
+    _identity=Depends(
+        IDENTITY_UPDATE_STATUS_ACCESS
+    ),
+):
+    try:
+        return service_get_identity_update_status(
+            IDENTITY_UPDATE_STATUS_FILE
+        )
+    except IdentityUpdateStatusUnavailable as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+
+
+@app.post(
+    "/api/identity-update/source-check",
+    status_code=202,
+)
+def request_identity_update_source_check(
+    identity=Depends(
+        IDENTITY_UPDATE_STATUS_ACCESS
+    ),
+):
+    try:
+        response = (
+            service_create_identity_update_source_check_request(
+                IDENTITY_UPDATE_SOURCE_CHECK_REQUEST_FILE,
+                identity.username,
+            )
+        )
+    except IdentityUpdateRequestConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+    except IdentityUpdateRequestError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        ) from exc
+
+    write_audit_log(
+        "identity_update_source_check_requested",
+        actor=identity.username,
+        details={
+            "request_id": response["request_id"],
+            "action": response["action"],
+        },
+        message=(
+            "Vérification de la source upstream demandée"
+        ),
+    )
 
     return response
 
