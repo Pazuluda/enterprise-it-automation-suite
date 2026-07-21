@@ -9,7 +9,7 @@ ROOT="$(
     pwd
 )"
 
-VERSION="26.7.0-eitas.7"
+VERSION="26.7.0-eitas.10"
 THEME_NAME="eitas-admin"
 
 OFFICIAL_JAR="$ROOT/runtime/keycloak-26.7.0-eitas-preprod/lib/lib/main/org.keycloak.keycloak-admin-ui-26.7.0.jar"
@@ -40,7 +40,7 @@ install -d -m 0755 \
 test -s "$OFFICIAL_JAR"
 test -s "$OVERLAY/theme.properties"
 test -s "$OVERLAY/resources/css/eitas-admin-v3.css"
-test -s "$OVERLAY/resources/js/eitas-admin-switcher-v3.js"
+test -s "$OVERLAY/resources/js/eitas-admin-v5.js"
 test -s "$OVERLAY/resources/img/eitas-identity.svg"
 test -s "$OVERLAY/resources/img/eitas-favicon.svg"
 
@@ -74,8 +74,8 @@ install -m 0644 \
   "$PACKAGE_DIR/theme/$THEME_NAME/admin/resources/css/eitas-admin-v3.css"
 
 install -m 0644 \
-    "$OVERLAY/resources/js/eitas-admin-switcher-v3.js" \
-    "$PACKAGE_DIR/theme/$THEME_NAME/admin/resources/js/eitas-admin-switcher-v3.js"
+    "$OVERLAY/resources/js/eitas-admin-v5.js" \
+    "$PACKAGE_DIR/theme/$THEME_NAME/admin/resources/js/eitas-admin-v5.js"
 
 install -m 0644 \
   "$OVERLAY/resources/img/eitas-identity.svg" \
