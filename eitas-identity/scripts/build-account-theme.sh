@@ -5,7 +5,7 @@ ROOT="/opt/eitas-identity"
 ACCOUNT_ROOT="$ROOT/ui/account-console"
 
 THEME_NAME="eitas-account"
-THEME_VERSION="26.7.0-eitas.36"
+THEME_VERSION="26.7.0-eitas.37"
 
 STAGE="$ROOT/build/account-theme-stage"
 OUTPUT="$ROOT/build/eitas-identity-account-theme-${THEME_VERSION}.jar"

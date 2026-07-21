@@ -489,12 +489,30 @@ export const EitasUpdateCenterPage = () => {
       ? status.stages
       : defaultStages;
 
+  const runtimePath =
+    new URL(
+      environment.serverBaseUrl,
+      window.location.origin,
+    ).pathname.replace(/\/+$/, "");
+
+  const runtimeEnvironmentLabel =
+    runtimePath.endsWith("/identity-candidate")
+      ? "Candidate"
+      : runtimePath.endsWith("/identity-preprod")
+        ? "Préproduction"
+        : runtimePath.endsWith("/identity-test")
+          ? "Test"
+          : runtimePath.endsWith("/auth")
+            ? "Production"
+            : undefined;
+
   const environmentLabel =
+    runtimeEnvironmentLabel ??
     environmentLabels[
       status?.environment ?? ""
     ] ??
     status?.environment ??
-    "Préproduction";
+    "Environnement inconnu";
 
   const verificationLabel =
     verificationLabels[

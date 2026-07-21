@@ -290,15 +290,33 @@ SELECT
     WHERE r.name='eitas'
       AND c.client_id='account-console'
       AND kr.name='UltraAdmin'
-  );
+    ),
+    (
+      SELECT count(*)
+      FROM realm
+      WHERE name='eitas'
+        AND allow_user_managed_access=true
+    ),
+    (
+      SELECT count(*)
+      FROM realm_attribute AS ra
+      JOIN realm AS r
+        ON r.id=ra.realm_id
+      WHERE r.name='eitas'
+        AND ra.name IN (
+          'organizationsEnabled',
+          'verifiableCredentialsEnabled'
+        )
+        AND ra.value='true'
+    );
     "
 )"
 
 echo \
-  "master|eitas|locales|actions|périmètres|UltraAdmin"
+  "master|eitas|locales|actions|périmètres|UltraAdmin|UMA|fonctionnalités"
 echo "$VALIDATION"
 
-if [ "$VALIDATION" != "1|1|4|28|30|1" ]; then
+if [ "$VALIDATION" != "1|1|4|28|30|1|1|2" ]; then
   echo "ERREUR : validation finale incorrecte." >&2
   exit 1
 fi
@@ -307,8 +325,8 @@ echo
 echo "=== 4. EMPREINTE EXACTE DU PROFIL ==="
 
 PROFILE_STATE="$BACKUP_DIR/profile-state.txt"
-EXPECTED_PROFILE_LINES="65"
-EXPECTED_PROFILE_SHA256="ccacd20dbd6a5ab7b7c9c4934d840299a98e0f84429f5f8dc27b9e9f99f98597"
+EXPECTED_PROFILE_LINES="68"
+EXPECTED_PROFILE_SHA256="6072c14fb796ad8cc834ee0994d03406abdf21f824844f2fd889d00f1cdd586b"
 
 runuser -u postgres -- \
   psql \

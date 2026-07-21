@@ -24,6 +24,40 @@ SET
   admin_theme = 'eitas-admin'
 WHERE name = 'master';
 
+
+-- Fonctionnalités communes de l’espace personnel EITAS Identity.
+UPDATE realm
+SET allow_user_managed_access = true
+WHERE name = 'eitas';
+
+DELETE FROM realm_attribute
+WHERE realm_id = (
+  SELECT id
+  FROM realm
+  WHERE name = 'eitas'
+)
+AND name IN (
+  'organizationsEnabled',
+  'verifiableCredentialsEnabled'
+);
+
+INSERT INTO realm_attribute (
+  realm_id,
+  name,
+  value
+)
+SELECT
+  r.id,
+  feature.name,
+  'true'
+FROM realm AS r
+CROSS JOIN (
+  VALUES
+    ('organizationsEnabled'),
+    ('verifiableCredentialsEnabled')
+) AS feature(name)
+WHERE r.name = 'eitas';
+
 DELETE FROM realm_supported_locales
 WHERE realm_id IN (
   SELECT id

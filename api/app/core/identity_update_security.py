@@ -29,16 +29,66 @@ def _required_environment(name: str) -> str:
     return value
 
 
-IDENTITY_UPDATE_OIDC_ISSUER = (
-    _required_environment(
-        "EITAS_IDENTITY_UPDATE_OIDC_ISSUER"
-    ).rstrip("/")
-)
+def _load_identity_update_oidc_providers(
+) -> dict[str, str]:
+    configured = os.getenv(
+        "EITAS_IDENTITY_UPDATE_OIDC_PROVIDERS",
+        "",
+    ).strip()
 
-IDENTITY_UPDATE_OIDC_JWKS_URL = (
-    _required_environment(
-        "EITAS_IDENTITY_UPDATE_OIDC_JWKS_URL"
-    )
+    if not configured:
+        issuer = _required_environment(
+            "EITAS_IDENTITY_UPDATE_OIDC_ISSUER"
+        ).rstrip("/")
+
+        jwks_url = _required_environment(
+            "EITAS_IDENTITY_UPDATE_OIDC_JWKS_URL"
+        )
+
+        return {issuer: jwks_url}
+
+    providers: dict[str, str] = {}
+
+    for raw_entry in configured.split(","):
+        raw_entry = raw_entry.strip()
+
+        if not raw_entry:
+            continue
+
+        issuer, separator, jwks_url = (
+            raw_entry.partition("|")
+        )
+
+        issuer = issuer.strip().rstrip("/")
+        jwks_url = jwks_url.strip()
+
+        if (
+            separator != "|"
+            or not issuer
+            or not jwks_url
+        ):
+            raise RuntimeError(
+                "Configuration invalide : "
+                "EITAS_IDENTITY_UPDATE_OIDC_PROVIDERS"
+            )
+
+        if issuer in providers:
+            raise RuntimeError(
+                f"Émetteur OIDC dupliqué : {issuer}"
+            )
+
+        providers[issuer] = jwks_url
+
+    if not providers:
+        raise RuntimeError(
+            "Aucun fournisseur OIDC autorisé"
+        )
+
+    return providers
+
+
+IDENTITY_UPDATE_OIDC_PROVIDERS = (
+    _load_identity_update_oidc_providers()
 )
 
 IDENTITY_UPDATE_OIDC_CA_CERT = (
@@ -86,14 +136,25 @@ def _authorization_error(
     )
 
 
-@lru_cache(maxsize=1)
-def _get_identity_update_jwk_client() -> PyJWKClient:
+@lru_cache(maxsize=8)
+def _get_identity_update_jwk_client(
+    issuer: str,
+) -> PyJWKClient:
+    jwks_url = IDENTITY_UPDATE_OIDC_PROVIDERS.get(
+        issuer
+    )
+
+    if jwks_url is None:
+        raise _authentication_error(
+            "Émetteur EITAS Identity non autorisé"
+        )
+
     ssl_context = ssl.create_default_context(
         cafile=IDENTITY_UPDATE_OIDC_CA_CERT
     )
 
     return PyJWKClient(
-        IDENTITY_UPDATE_OIDC_JWKS_URL,
+        jwks_url,
         cache_keys=True,
         cache_jwk_set=True,
         lifespan=300,
@@ -126,8 +187,32 @@ def _validate_identity_update_token(
     token: str,
 ) -> AuthenticatedIdentity:
     try:
+        unverified_claims = jwt.decode(
+            token,
+            algorithms=list(
+                IDENTITY_UPDATE_OIDC_ALGORITHMS
+            ),
+            options={
+                "verify_signature": False,
+                "verify_aud": False,
+            },
+        )
+
+        token_issuer = unverified_claims.get("iss")
+
+        if (
+            not isinstance(token_issuer, str)
+            or token_issuer
+            not in IDENTITY_UPDATE_OIDC_PROVIDERS
+        ):
+            raise _authentication_error(
+                "Émetteur EITAS Identity non autorisé"
+            )
+
         signing_key = (
-            _get_identity_update_jwk_client()
+            _get_identity_update_jwk_client(
+                token_issuer
+            )
             .get_signing_key_from_jwt(token)
         )
 
@@ -145,7 +230,7 @@ def _validate_identity_update_token(
             "algorithms": list(
                 IDENTITY_UPDATE_OIDC_ALGORITHMS
             ),
-            "issuer": IDENTITY_UPDATE_OIDC_ISSUER,
+            "issuer": token_issuer,
             "leeway": (
                 IDENTITY_UPDATE_OIDC_LEEWAY_SECONDS
             ),

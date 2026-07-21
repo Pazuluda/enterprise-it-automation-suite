@@ -39,6 +39,27 @@ FROM (
     ON r.id=cs.realm_id
   WHERE r.name IN ('master','eitas')
 
+    UNION ALL
+
+    SELECT
+      'feature|eitas|allow_user_managed_access|' ||
+      r.allow_user_managed_access::text
+    FROM realm AS r
+    WHERE r.name='eitas'
+
+    UNION ALL
+
+    SELECT
+      'feature|eitas|' || ra.name || '|' || ra.value
+    FROM realm_attribute AS ra
+    JOIN realm AS r
+      ON r.id=ra.realm_id
+    WHERE r.name='eitas'
+      AND ra.name IN (
+        'organizationsEnabled',
+        'verifiableCredentialsEnabled'
+      )
+
   UNION ALL
 
   SELECT
