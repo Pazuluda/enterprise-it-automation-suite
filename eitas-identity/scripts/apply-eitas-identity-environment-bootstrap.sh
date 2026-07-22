@@ -186,10 +186,7 @@ if [ "$DATABASE" = "keycloak" ]; then
     exit 1
   fi
 
-  if [
-    "$CONFIRM_PRODUCTION_CHANGE" !=
-    "BOOTSTRAP-EITAS-IDENTITY-PRODUCTION"
-  ]; then
+  if [ "$CONFIRM_PRODUCTION_CHANGE" != "BOOTSTRAP-EITAS-IDENTITY-PRODUCTION" ]; then
     echo \
       "ERREUR : confirmation finale de production absente." \
       >&2

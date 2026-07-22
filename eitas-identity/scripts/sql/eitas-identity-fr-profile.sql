@@ -12,6 +12,7 @@ WHERE name IN ('master', 'eitas');
 
 UPDATE realm
 SET
+  display_name = 'Enterprise IT Automation Suite',
   login_theme = 'eitas',
   account_theme = 'eitas-account',
   admin_theme = NULL
@@ -19,6 +20,7 @@ WHERE name = 'eitas';
 
 UPDATE realm
 SET
+  display_name = 'EITAS Identity',
   login_theme = 'eitas',
   account_theme = 'eitas-account',
   admin_theme = 'eitas-admin'
