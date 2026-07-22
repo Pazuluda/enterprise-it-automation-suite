@@ -200,6 +200,8 @@ function Convert-EitasSnapshotObject {
 
         name = [string]$Object.Name
         display_name = [string]$Object.displayName
+        given_name = [string]$Object.givenName
+        surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
         dn = [string]$Object.DistinguishedName
@@ -297,6 +299,8 @@ function New-EitasAdSnapshot {
     $Properties = @(
         "description",
         "displayName",
+        "givenName",
+        "sn",
         "sAMAccountName",
         "userPrincipalName",
         "mail",
@@ -430,6 +434,8 @@ function Convert-EitasDomainCatalogObject {
 
         name = [string]$Object.Name
         display_name = [string]$Object.displayName
+        given_name = [string]$Object.givenName
+        surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
         dn = [string]$Object.DistinguishedName
@@ -501,6 +507,8 @@ function New-EitasAdDomainCatalog {
     $Properties = @(
         "description",
         "displayName",
+        "givenName",
+        "sn",
         "sAMAccountName",
         "userPrincipalName",
         "mail",

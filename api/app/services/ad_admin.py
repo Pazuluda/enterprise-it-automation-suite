@@ -643,6 +643,8 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "location",
             "displayName",
             "display_name",
+            "givenName",
+            "sn",
             "mail",
             "title",
             "department",

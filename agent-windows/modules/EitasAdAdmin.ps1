@@ -1193,6 +1193,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "description",
         "location",
         "displayName",
+        "givenName",
+        "sn",
         "mail",
         "title",
         "department",
@@ -1248,6 +1250,25 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
     $ObjectDn = ([string]$Object.DistinguishedName).Trim()
+
+    $UserOnlyProperties = @(
+        "givenName",
+        "sn"
+    )
+
+    $HasUserOnlyChanges = @(
+        $Properties.Keys |
+            Where-Object {
+                $UserOnlyProperties -contains [string]$_
+            }
+    ).Count -gt 0
+
+    if (
+        $HasUserOnlyChanges -and
+        [string]$Object.ObjectClass -ne "user"
+    ) {
+        throw "givenName et sn sont réservés aux objets utilisateur"
+    }
 
     $Replace = @{}
     $Clear = @()
@@ -1351,7 +1372,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null

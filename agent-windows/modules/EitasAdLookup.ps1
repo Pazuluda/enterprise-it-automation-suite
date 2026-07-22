@@ -113,6 +113,8 @@ function Convert-EitasAdUserItem {
         type = "user"
         name = $User.Name
         display_name = $User.DisplayName
+        given_name = [string]$User.GivenName
+        surname = [string]$User.Surname
         sam_account_name = $User.SamAccountName
         user_principal_name = $User.UserPrincipalName
         mail = $User.Mail
@@ -296,7 +298,7 @@ function Invoke-EitasAdLookupJob {
         -LDAPFilter $Filter `
         -SearchBase $SearchBase `
         -SearchScope Subtree `
-        -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
+        -Properties DisplayName, GivenName, Surname, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
         -ResultSetSize 20 `
         -ErrorAction Stop |
         Sort-Object SamAccountName |
@@ -504,6 +506,8 @@ function Invoke-EitasAdExplorerListChildren {
     $Properties = @(
         "description",
         "displayName",
+        "givenName",
+        "sn",
         "sAMAccountName",
         "userPrincipalName",
         "mail",
@@ -626,6 +630,8 @@ function Invoke-EitasAdExplorerListChildren {
                 type = "user"
                 name = [string]$Object.Name
                 display_name = [string]$Object.displayName
+                given_name = [string]$Object.givenName
+                surname = [string]$Object.sn
                 sam_account_name = [string]$Object.sAMAccountName
                 user_principal_name = [string]$Object.userPrincipalName
                 mail = [string]$Object.mail

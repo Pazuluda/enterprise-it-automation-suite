@@ -131,6 +131,13 @@ function UpdateObjectForm({
       <>
         {[
           {
+            title: 'Identité',
+            fields: [
+              ['givenName', 'Prénom'],
+              ['sn', 'Nom']
+            ]
+          },
+          {
             title: 'Organisation',
             fields: [
               ['title', 'Titre / poste'],

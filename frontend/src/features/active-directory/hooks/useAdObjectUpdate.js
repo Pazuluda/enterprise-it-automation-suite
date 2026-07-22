@@ -126,6 +126,18 @@ function useAdObjectUpdate({
         'display_name',
         'display_name_value'
       ),
+      givenName: getAdAttributeValue(
+        target,
+        'givenName',
+        'given_name',
+        'first_name'
+      ),
+      sn: getAdAttributeValue(
+        target,
+        'sn',
+        'surname',
+        'last_name'
+      ),
       mail: getAdAttributeValue(
         target,
         'mail',
