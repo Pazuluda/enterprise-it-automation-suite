@@ -6013,3 +6013,140 @@ button.aduc-admin-history-row.unknown > span {
     grid-column: auto;
   }
 }
+
+/* C1.2.4 — ADUC object properties modal */
+.aduc-object-properties-backdrop {
+  z-index: 1200;
+}
+
+.aduc-object-properties-modal {
+  width: min(1180px, calc(100vw - 32px));
+  height: min(860px, calc(100vh - 32px));
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.aduc-object-properties-modal > header {
+  flex: 0 0 auto;
+  align-items: flex-start;
+}
+
+.aduc-object-properties-title {
+  min-width: 0;
+}
+
+.aduc-object-properties-title h3 {
+  margin: 3px 0 0;
+}
+
+.aduc-object-properties-title p {
+  max-width: 920px;
+  margin: 7px 0 0;
+  overflow-wrap: anywhere;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.aduc-object-properties-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px;
+}
+
+.aduc-object-properties-modal .aduc-details-pane {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 100%;
+  border: 0;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.aduc-object-properties-modal .aduc-aduc-properties {
+  background: transparent;
+}
+
+.aduc-object-properties-modal .aduc-details-quick {
+  margin-bottom: 4px;
+}
+
+.aduc-object-properties-modal > footer {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.aduc-object-properties-modal > footer button {
+  min-width: 105px;
+}
+
+@media (max-width: 760px) {
+  .aduc-object-properties-modal {
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+    max-height: calc(100vh - 16px);
+    padding: 12px;
+  }
+
+  .aduc-object-properties-title p {
+    display: none;
+  }
+}
+
+/* C1.3.3F — integrated properties editor */
+
+.aduc-object-properties-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.aduc-object-properties-mode {
+  padding: 5px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.aduc-object-properties-editor {
+  min-height: 100%;
+  padding: 4px;
+}
+
+.aduc-object-properties-editor > form {
+  min-height: 100%;
+}
+
+.aduc-object-properties-modal
+  > footer
+  .aduc-properties-edit-button {
+  margin-right: auto;
+}
+
+@media (max-width: 760px) {
+  .aduc-object-properties-mode {
+    display: none;
+  }
+
+  .aduc-object-properties-modal
+    > footer
+    .aduc-properties-edit-button {
+    margin-right: 0;
+  }
+}

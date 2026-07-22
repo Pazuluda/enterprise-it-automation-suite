@@ -24,6 +24,7 @@ function useAdObjectUpdate({
   getMemberCandidateTitle,
 }) {
   const [updateModal, setUpdateModal] = useState(null)
+  const [updateEditorOpen, setUpdateEditorOpen] = useState(false)
   const [updateForm, setUpdateForm] = useState({ description: '' })
   const [updateOriginalForm, setUpdateOriginalForm] = useState({ description: '' })
   const [managerSearchQuery, setManagerSearchQuery] = useState('')
@@ -69,7 +70,10 @@ function useAdObjectUpdate({
       || getObjectType(target) === 'Ordinateur'
   }
 
-  function openUpdateObject(target) {
+  function prepareUpdateObject(
+    target,
+    { openModal = true } = {}
+  ) {
     if (!isEitasManagedObject(target)) {
       const message =
         'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
@@ -89,7 +93,7 @@ function useAdObjectUpdate({
 
     if (!dn) {
       setStatus('DN introuvable pour cet objet AD.')
-      return
+      return false
     }
 
     const form = {
@@ -197,6 +201,16 @@ function useAdObjectUpdate({
     setUpdateModal(target)
     setUpdateForm(form)
     setUpdateOriginalForm(form)
+    setUpdateEditorOpen(openModal)
+
+    return true
+  }
+
+  function openUpdateObject(target) {
+    return prepareUpdateObject(
+      target,
+      { openModal: true }
+    )
   }
 
   function updateObjectFormField(name, value) {
@@ -212,6 +226,39 @@ function useAdObjectUpdate({
     setManagerSearchLoading(false)
     setManagerSearchError('')
   }
+
+  function getChangedUpdateProperties(
+    form = updateForm,
+    originalForm = updateOriginalForm
+  ) {
+    const properties = {}
+
+    Object.entries(form || {}).forEach(([key, value]) => {
+      const currentValue = value ?? ''
+      const originalValue = originalForm?.[key] ?? ''
+
+      if (
+        String(currentValue) !==
+        String(originalValue)
+      ) {
+        properties[key] = currentValue
+      }
+    })
+
+    return properties
+  }
+
+  const hasUpdateChanges =
+    Object.keys(
+      getChangedUpdateProperties()
+    ).length > 0
+
+  function closeUpdateObject() {
+    setUpdateEditorOpen(false)
+    setUpdateModal(null)
+    resetManagerPicker()
+  }
+
 
   function getManagerCandidateDn(candidate) {
     return String(
@@ -353,10 +400,13 @@ function useAdObjectUpdate({
     }
   }
 
-  async function submitUpdateObject(event) {
-    event.preventDefault()
+  async function submitUpdateObject(
+    event,
+    { closeOnSuccess = true } = {}
+  ) {
+    event?.preventDefault?.()
 
-    if (!updateModal) return
+    if (!updateModal) return false
 
     const objectDn = getObjectDn(updateModal)
 
@@ -365,20 +415,12 @@ function useAdObjectUpdate({
       return
     }
 
-    const properties = {}
-
-    Object.entries(updateForm).forEach(([key, value]) => {
-      const currentValue = value || ''
-      const originalValue = updateOriginalForm?.[key] || ''
-
-      if (currentValue !== originalValue) {
-        properties[key] = currentValue
-      }
-    })
+    const properties =
+      getChangedUpdateProperties()
 
     if (Object.keys(properties).length === 0) {
       setStatus('Aucune modification à enregistrer.')
-      return
+      return false
     }
 
     setLoading(true)
@@ -393,8 +435,14 @@ function useAdObjectUpdate({
 
       const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Propriétés objet AD modifiées')
       setStatus(message)
-      setUpdateModal(null)
-      resetManagerPicker()
+      if (closeOnSuccess) {
+        closeUpdateObject()
+      } else {
+        setUpdateOriginalForm({
+          ...updateForm
+        })
+        setUpdateEditorOpen(false)
+      }
 
       await loadTree()
 
@@ -409,17 +457,31 @@ function useAdObjectUpdate({
       }
 
       await loadAdAdminHistory()
+
+      return true
     } catch (err) {
       setStatus(err.message || 'Erreur pendant la modification AD.')
+      return false
     } finally {
       setLoading(false)
     }
   }
 
   return {
-    updateModal,
+    updateModal:
+      updateEditorOpen
+        ? updateModal
+        : null,
+    updateTarget: updateModal,
+    updateEditorOpen,
     setUpdateModal,
+    setUpdateEditorOpen,
+    prepareUpdateObject,
+    closeUpdateObject,
     submitUpdateObject,
+    hasUpdateChanges,
+    getChangedUpdateProperties,
+    updateOriginalForm,
     isUpdateComputerTarget,
     updateForm,
     updateObjectFormField,

@@ -33,6 +33,7 @@ import {
   } from './utils/adExplorerCore'
 
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
+import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
 import AdActivityModal from './components/AdActivityModal'
 import AdHistoryDetailModal from './components/AdHistoryDetailModal'
 import TestCleanupModal from './components/TestCleanupModal'
@@ -2187,15 +2188,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                             return
                           }
 
-                          if (
-                            getObjectType(item)
-                              .includes('Groupe')
-                          ) {
-                            loadNodeContent(
-                              item,
-                              'groups'
-                            )
-                          }
+                          openProperties(item)
                         }}
                         onContextMenu={event => openContextMenu(event, item, 'object')}
                       >
@@ -2281,6 +2274,97 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           getOuLabelFromDn,
           COMPUTERS_DN,
           adAgentModeLoading,
+        }}
+      />
+
+      <AdObjectPropertiesModal
+        object={propertiesModal}
+        selectedNode={selectedNode}
+        onClose={() => setPropertiesModal(null)}
+        update={{
+          ...objectUpdate,
+          loading,
+          getMemberCandidateTitle:
+            groupMembers.getMemberCandidateTitle,
+          getMemberCandidateSubtitle:
+            groupMembers.getMemberCandidateSubtitle,
+        }}
+        details={{
+          memberItems: objectMembers,
+          membersLoading,
+          membersError,
+          historyItems: adAdminHistory,
+          historyLoading: adAdminHistoryLoading,
+          historyError: adAdminHistoryError,
+          historyFilter: adAdminHistoryFilter,
+          onHistoryFilterChange:
+            setAdAdminHistoryFilter,
+          onOpenHistoryJob: job => {
+            setPropertiesModal(null)
+            setSelectedAdAdminHistoryJob(job)
+          },
+          onLoadHistory: () =>
+            loadAdAdminHistory(),
+          onCopyDn: target =>
+            copyText(getObjectDn(target))
+              .then(() =>
+                setMessage?.('DN copié.')
+              ),
+          onExplore: target => {
+            setPropertiesModal(null)
+            loadNodeContent(
+              target,
+              getNodeKind(target)
+            )
+          },
+          onCreateOu: target => {
+            setPropertiesModal(null)
+            openCreateOu(target)
+          },
+          onCreateGroup: target => {
+            setPropertiesModal(null)
+            openCreateGroup(target)
+          },
+          onOpenMoveObject: target => {
+            setPropertiesModal(null)
+            openMoveObject(target)
+          },
+          onOpenUpdateObject: target => {
+            setPropertiesModal(null)
+            openUpdateObject(target)
+          },
+          onOpenRenameObject: target => {
+            setPropertiesModal(null)
+            openRenameObject(target)
+          },
+          onOpenDeleteObject: target => {
+            setPropertiesModal(null)
+            openDeleteObject(target)
+          },
+          onPrepareAccountAction: (
+            action,
+            target
+          ) => {
+            setPropertiesModal(null)
+            prepareAccountAction(
+              action,
+              target
+            )
+          },
+          onLoadMembers: target =>
+            loadGroupMembers(target),
+          onOpenAddMember: target => {
+            setPropertiesModal(null)
+            openAddMemberModal(target)
+          },
+          onRemoveMember: (
+            group,
+            member
+          ) =>
+            removeGroupMember(
+              group,
+              member
+            ),
         }}
       />
 
