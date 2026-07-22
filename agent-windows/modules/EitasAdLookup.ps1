@@ -165,6 +165,19 @@ function Convert-EitasAdGroupItem {
         distinguished_name = $Group.DistinguishedName
         dn = $Group.DistinguishedName
         description = $Group.Description
+        managed_by = [string]$Group.ManagedBy
+        member_of = @($Group.MemberOf)
+        object_guid = "$($Group.ObjectGUID)"
+        sid = if ($Group.SID) {
+            $Group.SID.Value
+        } else {
+            $null
+        }
+        created_at = Convert-EitasAdDateValue `
+            -Value $Group.whenCreated
+        updated_at = Convert-EitasAdDateValue `
+            -Value $Group.whenChanged
+        canonical_name = [string]$Group.CanonicalName
     }
 }
 
@@ -1041,7 +1054,7 @@ function Invoke-EitasAdExplorerGetGroupMembers {
         throw "Identité groupe manquante"
     }
 
-    $Group = Get-ADGroup -Identity $Identity -Properties Description, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, GroupScope, GroupCategory, ManagedBy -ErrorAction Stop
+    $Group = Get-ADGroup -Identity $Identity -Properties Description, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, GroupScope, GroupCategory, ManagedBy, MemberOf -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $Group.DistinguishedName -Config $Config | Out-Null
 

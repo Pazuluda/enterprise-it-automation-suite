@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import {
+  useEffect,
+  useState,
+} from 'react'
 
 import {
   isEitasManagedDn,
@@ -216,16 +219,108 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       ['Manager', managerDn, true]
     ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
-    const contactRows = [
-      ['E-mail', orgValue(['mail', 'email', 'emailAddress'])],
-      ['Téléphone', orgValue(['telephone_number', 'telephoneNumber', 'phone'])],
-      ['Mobile', orgValue(['mobile', 'mobilePhone'])],
-      ['Adresse', orgValue(['street_address', 'streetAddress']), true],
-      ['Code postal', orgValue(['postal_code', 'postalCode'])],
-      ['Ville', orgValue(['city', 'l'])],
-      ['Région / département', orgValue(['state', 'st'])],
-      ['Pays', orgValue(['country', 'co', 'c'])]
-    ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+  const addressRows = [
+    [
+      'Adresse',
+      orgValue([
+        'street_address',
+        'streetAddress',
+      ]),
+      true,
+    ],
+    [
+      'Boîte postale',
+      orgValue([
+        'post_office_box',
+        'postOfficeBox',
+      ]),
+    ],
+    [
+      'Ville',
+      orgValue([
+        'city',
+        'l',
+      ]),
+    ],
+    [
+      'Région / département',
+      orgValue([
+        'state',
+        'st',
+      ]),
+    ],
+    [
+      'Code postal',
+      orgValue([
+        'postal_code',
+        'postalCode',
+      ]),
+    ],
+    [
+      'Pays',
+      orgValue([
+        'country',
+        'co',
+        'c',
+      ]),
+    ],
+  ].filter(
+    ([, value]) =>
+      value !== '' &&
+      value !== null &&
+      value !== undefined
+  )
+
+  const phoneRows = [
+    [
+      'Téléphone professionnel',
+      orgValue([
+        'telephone_number',
+        'telephoneNumber',
+        'phone',
+      ]),
+    ],
+    [
+      'Mobile',
+      orgValue([
+        'mobile',
+        'mobilePhone',
+      ]),
+    ],
+    [
+      'Télécopie',
+      orgValue([
+        'facsimile_telephone_number',
+        'facsimileTelephoneNumber',
+      ]),
+    ],
+    [
+      'Pager',
+      orgValue([
+        'pager',
+      ]),
+    ],
+    [
+      'Téléphone IP',
+      orgValue([
+        'ip_phone',
+        'ipPhone',
+      ]),
+    ],
+    [
+      'E-mail',
+      orgValue([
+        'mail',
+        'email',
+        'emailAddress',
+      ]),
+    ],
+  ].filter(
+    ([, value]) =>
+      value !== '' &&
+      value !== null &&
+      value !== undefined
+  )
 
   const computerEnabledValue = orgValue([
     'enabled',
@@ -298,14 +393,6 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
         ])
       )
     ],
-    ['Emplacement', orgValue(['location'])],
-    [
-      'Géré par',
-      orgValue([
-        'managed_by',
-        'managedBy'
-      ])
-    ]
   ].filter(
     ([, value]) =>
       value !== '' &&
@@ -313,15 +400,75 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       value !== undefined
   )
 
+  const locationRows = [
+    [
+      'Emplacement',
+      orgValue([
+        'location',
+      ]),
+    ],
+    [
+      'Nom DNS',
+      orgValue([
+        'dns_host_name',
+        'dnsHostName',
+      ]),
+    ],
+  ].filter(
+    ([, value]) =>
+      value !== '' &&
+      value !== null &&
+      value !== undefined
+  )
+
+  const managedByDn = orgValue([
+    'managed_by',
+    'managedBy',
+  ])
+
   const tabs = [
     ['general', 'Général'],
-    ...(isUser || isComputer ? [['account', 'Compte']] : []),
-    ...(isComputer ? [['machine', 'Machine']] : []),
+
+    ...(isUser
+      ? [
+          ['account', 'Compte'],
+          ['address', 'Adresse'],
+          ['phones', 'Téléphones'],
+          ['organization', 'Organisation'],
+          ['membership', 'Membre de'],
+        ]
+      : []),
+
+    ...(isGroup
+      ? [
+          ['members', 'Membres'],
+          ['membership', 'Membre de'],
+          ['managedBy', 'Géré par'],
+        ]
+      : []),
+
+    ...(isComputer
+      ? [
+          ['account', 'Compte'],
+          ['machine', 'Système'],
+          ['location', 'Emplacement'],
+          ['membership', 'Membre de'],
+        ]
+      : []),
+
     ['object', 'Objet'],
-    ['organization', 'Organisation'],
-    ['groups', isGroup ? 'Membres' : 'Groupes'],
-    ['history', 'Historique']
+    ['history', 'Historique'],
   ]
+
+  const displayedIdentity = [
+    dn,
+    objectName,
+    type,
+  ].join('|')
+
+  useEffect(() => {
+    setActiveDetailsTab('general')
+  }, [displayedIdentity])
 
   function renderGrid(gridRows, emptyText = 'Aucune propriété disponible.') {
     const cleanRows = gridRows.filter(([, value]) => value !== '' && value !== null && value !== undefined)
@@ -385,13 +532,13 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       </div>
     )
   }
-    function getGroupNameFromDn(groupDn) {
+  function getGroupNameFromDn(groupDn) {
       const text = String(groupDn || '').trim()
       const firstPart = text.split(',')[0] || text
       return firstPart.replace(/^(CN|OU)=/i, '').replace(/\\,/g, ',') || text
     }
 
-    function getUserGroupMemberships() {
+  function getGroupMemberships() {
       const raw = displayed?.member_of || displayed?.memberOf || displayed?.groups || []
       const values = Array.isArray(raw) ? raw : [raw]
 
@@ -424,51 +571,144 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
         .filter(group => group.dn || group.name)
     }
 
-    function renderGroupsTab() {
-      if (!isGroup) {
-        const groupMemberships = getUserGroupMemberships()
+  function renderMembershipsTab() {
+      const groupMemberships =
+        getGroupMemberships()
 
-        return (
-          <div className="aduc-members-card aduc-tab-card">
-            <div className="aduc-members-head">
-              <div>
-                <h4>Groupes de l’utilisateur</h4>
-                <span>{groupMemberships.length} appartenance(s)</span>
-              </div>
+      const subjectLabel =
+        isComputer
+          ? 'ordinateur'
+          : isGroup
+            ? 'groupe'
+            : 'utilisateur'
 
-              <div className="aduc-members-buttons">
-                <button type="button" onClick={() => onReloadObject?.(displayed)} title="Actualiser les groupes">⟳</button>
-              </div>
+      return (
+        <div className="aduc-members-card aduc-tab-card">
+          <div className="aduc-members-head">
+            <div>
+              <h4>
+                Groupes du {subjectLabel}
+              </h4>
+
+              <span>
+                {groupMemberships.length}
+                {' '}appartenance(s)
+              </span>
             </div>
 
-            {groupMemberships.length === 0 ? (
-              <p className="aduc-members-empty">Aucune appartenance de groupe remontée par Active Directory.</p>
-            ) : (
-              <div className="aduc-members-list">
-                {groupMemberships.map(group => (
-                  <div className="aduc-member-row aduc-user-group-row" key={group.key || group.dn || group.name}>
-                    <div className="aduc-member-main">
-                      <strong>{group.name || getGroupNameFromDn(group.dn)}</strong>
-                      <span>{group.dn || group.distinguished_name || 'DN non disponible'}</span>
-                    </div>
+            <div className="aduc-members-buttons">
+              <button
+                type="button"
+                onClick={() =>
+                  onReloadObject?.(displayed)
+                }
+                title="Actualiser les appartenances"
+              >
+                ⟳
+              </button>
+            </div>
+          </div>
 
-                    <div className="aduc-member-actions">
-                      <button type="button" onClick={() => onCopyDn?.(group.dn || group.distinguished_name)}>
-                        Copier DN
-                      </button>
+          {groupMemberships.length === 0 ? (
+            <p className="aduc-members-empty">
+              Aucune appartenance de groupe
+              remontée par Active Directory.
+            </p>
+          ) : (
+            <div className="aduc-members-list">
+              {groupMemberships.map(group => (
+                <div
+                  className="aduc-member-row aduc-user-group-row"
+                  key={
+                    group.key ||
+                    group.dn ||
+                    group.name
+                  }
+                >
+                  <div className="aduc-member-main">
+                    <strong>
+                      {group.name ||
+                        getGroupNameFromDn(
+                          group.dn
+                        )}
+                    </strong>
 
-                      <button type="button" className="danger" onClick={() => onRemoveMember?.(group, displayed)}>
+                    <span>
+                      {group.dn ||
+                        group.distinguished_name ||
+                        'DN non disponible'}
+                    </span>
+                  </div>
+
+                  <div className="aduc-member-actions">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onCopyDn?.(
+                          group.dn ||
+                          group.distinguished_name
+                        )
+                      }
+                    >
+                      Copier DN
+                    </button>
+
+                    {isManagedScope && (
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() =>
+                          onRemoveMember?.(
+                            group,
+                            displayed
+                          )
+                        }
+                      >
                         Retirer
                       </button>
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      }
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    }
 
+  function renderManagedByTab() {
+      return (
+        <div className="aduc-tab-card">
+          <h4>Géré par</h4>
+
+          {renderGrid(
+            [
+              [
+                'Gestionnaire',
+                managedByDn,
+                true,
+              ],
+            ],
+            'Aucun gestionnaire défini.'
+          )}
+
+          {managedByDn && (
+            <div className="aduc-aduc-actionbar">
+              <button
+                type="button"
+                onClick={() =>
+                  onCopyDn?.(managedByDn)
+                }
+              >
+                Copier le DN du gestionnaire
+              </button>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+  function renderGroupsTab() {
       return (
         <div className="aduc-members-card aduc-tab-card">
           <div className="aduc-members-head">
@@ -609,7 +849,30 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
               </div>
             )}
 
-            {activeDetailsTab === 'account' && renderAccountTab()}
+            {activeDetailsTab === 'account' &&
+              renderAccountTab()}
+
+            {activeDetailsTab === 'address' && (
+              <div className="aduc-tab-card">
+                <h4>Adresse</h4>
+
+                {renderGrid(
+                  addressRows,
+                  'Aucune adresse disponible.'
+                )}
+              </div>
+            )}
+
+            {activeDetailsTab === 'phones' && (
+              <div className="aduc-tab-card">
+                <h4>Téléphones</h4>
+
+                {renderGrid(
+                  phoneRows,
+                  'Aucune coordonnée téléphonique disponible.'
+                )}
+              </div>
+            )}
 
             {activeDetailsTab === 'object' && (
               <div className="aduc-tab-card">
@@ -643,11 +906,6 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                     </div>
                   )}
 
-                  <h4>Coordonnées</h4>
-                  {renderGrid(
-                    contactRows,
-                    'Aucune coordonnée disponible.'
-                  )}
                 </div>
               )}
 
@@ -680,8 +938,28 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
               </div>
             )}
 
-            {activeDetailsTab === 'groups' && renderGroupsTab()}
-            {activeDetailsTab === 'history' && renderHistoryTab()}
+            {activeDetailsTab === 'location' && (
+              <div className="aduc-tab-card">
+                <h4>Emplacement</h4>
+
+                {renderGrid(
+                  locationRows,
+                  'Aucun emplacement disponible.'
+                )}
+              </div>
+            )}
+
+            {activeDetailsTab === 'members' &&
+              renderGroupsTab()}
+
+            {activeDetailsTab === 'membership' &&
+              renderMembershipsTab()}
+
+            {activeDetailsTab === 'managedBy' &&
+              renderManagedByTab()}
+
+            {activeDetailsTab === 'history' &&
+              renderHistoryTab()}
           </div>
 
           {isEitasManagedDn(

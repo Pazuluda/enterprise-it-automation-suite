@@ -475,7 +475,7 @@ function Convert-EitasDomainCatalogObject {
 
         members = @()
         member_count = 0
-        member_of = @()
+        member_of = @($Object.memberOf)
     }
 }
 
@@ -520,6 +520,7 @@ function New-EitasAdDomainCatalog {
         "operatingSystemServicePack",
         "location",
         "managedBy",
+        "memberOf",
         "objectGUID",
         "objectSid"
     )
