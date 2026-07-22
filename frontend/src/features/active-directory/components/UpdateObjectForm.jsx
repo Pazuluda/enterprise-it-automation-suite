@@ -22,6 +22,7 @@ function UpdateObjectForm({
     updateForm,
     updateObjectFormField,
     isUpdateUserTarget,
+    isUpdateGroupTarget,
     clearManagerSelection,
     managerSearchQuery,
     setManagerSearchQuery,
@@ -338,6 +339,167 @@ function UpdateObjectForm({
           </section>
         ))}
       </>
+    )}
+    {isUpdateGroupTarget(currentTarget) && (
+      <section>
+        <h4>Paramètres du groupe</h4>
+
+        <div className="aduc-update-object-grid">
+          <label>
+            <span>Étendue du groupe</span>
+
+            <select
+              value={updateForm.groupScope || ''}
+              onChange={event => updateObjectFormField(
+                'groupScope',
+                event.target.value
+              )}
+              disabled={loading}
+            >
+              <option value="" disabled>
+                Sélectionner une étendue
+              </option>
+              <option value="Global">Globale</option>
+              <option value="Universal">Universelle</option>
+              <option value="DomainLocal">
+                Domaine local
+              </option>
+            </select>
+          </label>
+
+          <label>
+            <span>Catégorie du groupe</span>
+
+            <select
+              value={updateForm.groupCategory || ''}
+              onChange={event => updateObjectFormField(
+                'groupCategory',
+                event.target.value
+              )}
+              disabled={loading}
+            >
+              <option value="" disabled>
+                Sélectionner une catégorie
+              </option>
+              <option value="Security">Sécurité</option>
+              <option value="Distribution">
+                Distribution
+              </option>
+            </select>
+          </label>
+          <label className="wide aduc-manager-field">
+            <span>Géré par — Distinguished Name</span>
+
+            <div className="aduc-manager-current-row">
+              <input
+                className="mono"
+                value={updateForm.managedBy || ''}
+                placeholder="Aucun gestionnaire défini"
+                readOnly
+                disabled={loading}
+              />
+
+              <button
+                type="button"
+                className="aduc-manager-clear-button"
+                onClick={clearManagerSelection}
+                disabled={
+                  loading ||
+                  !updateForm.managedBy
+                }
+              >
+                Retirer
+              </button>
+            </div>
+
+            <div className="aduc-member-picker-row">
+              <input
+                value={managerSearchQuery}
+                onChange={event => {
+                  setManagerSearchQuery(
+                    event.target.value
+                  )
+                  setManagerSearchResults([])
+                  setManagerSearchError('')
+                }}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    searchManagerCandidates()
+                  }
+                }}
+                placeholder="Nom, identifiant ou e-mail du gestionnaire..."
+                disabled={
+                  loading ||
+                  managerSearchLoading
+                }
+              />
+
+              <button
+                type="button"
+                className="aduc-member-search-button"
+                onClick={searchManagerCandidates}
+                disabled={
+                  loading ||
+                  managerSearchLoading ||
+                  managerSearchQuery.trim().length < 2
+                }
+              >
+                {managerSearchLoading
+                  ? 'Recherche...'
+                  : 'Rechercher'}
+              </button>
+            </div>
+
+            {managerSearchError && (
+              <div className="aduc-member-search-error">
+                {managerSearchError}
+              </div>
+            )}
+
+            {managerSearchResults.length > 0 && (
+              <div className="aduc-member-search-results aduc-manager-search-results">
+                {managerSearchResults.map(
+                  candidate => {
+                    const candidateDn =
+                      getManagerCandidateDn(candidate)
+
+                    return (
+                      <button
+                        type="button"
+                        key={candidateDn}
+                        data-kind-label="Gestionnaire possible"
+                        onClick={() =>
+                          selectManagerCandidate(
+                            candidate
+                          )
+                        }
+                      >
+                        <strong>
+                          {getMemberCandidateTitle(
+                            candidate
+                          )}
+                        </strong>
+
+                        <small>
+                          {getMemberCandidateSubtitle(
+                            candidate
+                          )}
+                        </small>
+                      </button>
+                    )
+                  }
+                )}
+              </div>
+            )}
+
+            <small>
+              Recherche des utilisateurs actifs dans
+              le domaine API.LOCAL.
+            </small>
+          </label>
+        </div>
+      </section>
     )}
   </div>
 

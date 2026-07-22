@@ -1204,6 +1204,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "employeeID",
         "employeeNumber",
         "manager",
+        "groupScope",
+        "groupCategory",
+        "managedBy",
         "streetAddress",
         "postalCode",
         "l",
@@ -1249,14 +1252,57 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $Replace = @{}
     $Clear = @()
 
+    $GroupScope = $null
+    $GroupCategory = $null
+    $ManagedBy = $null
+    $ClearManagedBy = $false
+
     foreach ($Key in $Properties.Keys) {
         $Value = Repair-EitasTextEncoding -Value $Properties[$Key]
 
-        if ($null -eq $Value -or [string]::IsNullOrWhiteSpace([string]$Value)) {
+        if ($Key -eq "groupScope") {
+            $GroupScope = [string]$Value
+
+            if (@("Global", "Universal", "DomainLocal") -notcontains $GroupScope) {
+                throw "groupScope doit être Global, Universal ou DomainLocal"
+            }
+        } elseif ($Key -eq "groupCategory") {
+            $GroupCategory = [string]$Value
+
+            if (@("Security", "Distribution") -notcontains $GroupCategory) {
+                throw "groupCategory doit être Security ou Distribution"
+            }
+        } elseif ($Key -eq "managedBy") {
+            if (
+                $null -eq $Value -or
+                [string]::IsNullOrWhiteSpace([string]$Value)
+            ) {
+                $ClearManagedBy = $true
+            } else {
+                $ManagedBy = [string]$Value
+            }
+        } elseif (
+            $null -eq $Value -or
+            [string]::IsNullOrWhiteSpace([string]$Value)
+        ) {
             $Clear += $Key
         } else {
             $Replace[$Key] = [string]$Value
         }
+    }
+
+    $HasGroupChanges = (
+        $null -ne $GroupScope -or
+        $null -ne $GroupCategory -or
+        $null -ne $ManagedBy -or
+        $ClearManagedBy
+    )
+
+    if (
+        $HasGroupChanges -and
+        [string]$Object.ObjectClass -ne "group"
+    ) {
+        throw "Les propriétés de groupe sont réservées aux objets groupe"
     }
 
     if ($Replace.Count -gt 0) {
@@ -1273,10 +1319,55 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             -ErrorAction Stop
     }
 
+    if ($HasGroupChanges) {
+        $SetGroupParameters = @{
+            Identity = $ObjectDn
+            ErrorAction = "Stop"
+        }
+
+        if ($null -ne $GroupScope) {
+            $SetGroupParameters["GroupScope"] = $GroupScope
+        }
+
+        if ($null -ne $GroupCategory) {
+            $SetGroupParameters["GroupCategory"] = $GroupCategory
+        }
+
+        if ($null -ne $ManagedBy) {
+            $SetGroupParameters["ManagedBy"] = $ManagedBy
+        }
+
+        if ($SetGroupParameters.Count -gt 2) {
+            Set-ADGroup @SetGroupParameters
+        }
+
+        if ($ClearManagedBy) {
+            Set-ADGroup `
+                -Identity $ObjectDn `
+                -Clear "managedBy" `
+                -ErrorAction Stop
+        }
+    }
+
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
         -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
         -ErrorAction Stop
+
+    $UpdatedGroupScope = $null
+    $UpdatedGroupCategory = $null
+    $UpdatedManagedBy = $null
+
+    if ([string]$Object.ObjectClass -eq "group") {
+        $UpdatedGroup = Get-ADGroup `
+            -Identity $ObjectDn `
+            -Properties ManagedBy `
+            -ErrorAction Stop
+
+        $UpdatedGroupScope = [string]$UpdatedGroup.GroupScope
+        $UpdatedGroupCategory = [string]$UpdatedGroup.GroupCategory
+        $UpdatedManagedBy = [string]$UpdatedGroup.ManagedBy
+    }
 
     return [pscustomobject]@{
         action = "update_object_properties"
@@ -1286,6 +1377,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         object_dn = $ObjectDn
         replaced = $Replace
         cleared = $Clear
+        group_scope = $UpdatedGroupScope
+        group_category = $UpdatedGroupCategory
+        managed_by = $UpdatedManagedBy
         updated_object = Convert-EitasAdAdminObjectItem -Object $UpdatedObject
         message = "Propriétés objet AD modifiées"
     }

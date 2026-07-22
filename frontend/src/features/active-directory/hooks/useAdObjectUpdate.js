@@ -31,6 +31,7 @@ function useAdObjectUpdate({
   const [managerSearchResults, setManagerSearchResults] = useState([])
   const [managerSearchLoading, setManagerSearchLoading] = useState(false)
   const [managerSearchError, setManagerSearchError] = useState('')
+  const [updateSaveNotice, setUpdateSaveNotice] = useState('')
 
   function getAdAttributeValue(item, ...names) {
       for (const name of names) {
@@ -56,6 +57,20 @@ function useAdObjectUpdate({
       || getObjectType(target)
         .toLowerCase()
         .includes('utilisateur')
+  }
+
+  function isUpdateGroupTarget(target) {
+    const objectClass = String(
+      target?.objectClass
+      || target?.object_class
+      || target?.type
+      || ''
+    ).trim().toLowerCase()
+
+    return objectClass === 'group'
+      || getObjectType(target)
+        .toLowerCase()
+        .includes('groupe')
   }
 
   function isUpdateComputerTarget(target) {
@@ -158,6 +173,23 @@ function useAdObjectUpdate({
         'manager_dn',
         'managerDn'
       ),
+      groupScope: getAdAttributeValue(
+        target,
+        'groupScope',
+        'group_scope'
+      ),
+      groupCategory: getAdAttributeValue(
+        target,
+        'groupCategory',
+        'group_category'
+      ),
+      managedBy: getAdAttributeValue(
+        target,
+        'managedBy',
+        'managed_by',
+        'managed_by_dn',
+        'managedByDn'
+      ),
       telephoneNumber: getAdAttributeValue(
         target,
         'telephoneNumber',
@@ -196,6 +228,7 @@ function useAdObjectUpdate({
       )
     }
 
+    setUpdateSaveNotice('')
     resetManagerPicker()
     setContextMenu(null)
     setUpdateModal(target)
@@ -214,6 +247,8 @@ function useAdObjectUpdate({
   }
 
   function updateObjectFormField(name, value) {
+    setUpdateSaveNotice('')
+
     setUpdateForm(previous => ({
       ...previous,
       [name]: value
@@ -254,6 +289,7 @@ function useAdObjectUpdate({
     ).length > 0
 
   function closeUpdateObject() {
+    setUpdateSaveNotice('')
     setUpdateEditorOpen(false)
     setUpdateModal(null)
     resetManagerPicker()
@@ -268,6 +304,14 @@ function useAdObjectUpdate({
     )
   }
 
+  function getManagerPropertyName(
+    target = updateModal
+  ) {
+    return isUpdateGroupTarget(target)
+      ? 'managedBy'
+      : 'manager'
+  }
+
   function selectManagerCandidate(candidate) {
     const managerDn = getManagerCandidateDn(candidate)
 
@@ -278,14 +322,26 @@ function useAdObjectUpdate({
       return
     }
 
-    updateObjectFormField('manager', managerDn)
+    const propertyName =
+      getManagerPropertyName()
+
+    updateObjectFormField(
+      propertyName,
+      managerDn
+    )
     setManagerSearchQuery('')
     setManagerSearchResults([])
     setManagerSearchError('')
   }
 
   function clearManagerSelection() {
-    updateObjectFormField('manager', '')
+    const propertyName =
+      getManagerPropertyName()
+
+    updateObjectFormField(
+      propertyName,
+      ''
+    )
     resetManagerPicker()
   }
 
@@ -435,6 +491,12 @@ function useAdObjectUpdate({
 
       const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Propriétés objet AD modifiées')
       setStatus(message)
+
+      setUpdateSaveNotice(
+        message.toLowerCase().includes('simulation')
+          ? 'Simulation réussie : Active Directory n’a pas été modifié.'
+          : 'Propriétés enregistrées avec succès.'
+      )
       if (closeOnSuccess) {
         closeUpdateObject()
       } else {
@@ -482,10 +544,12 @@ function useAdObjectUpdate({
     hasUpdateChanges,
     getChangedUpdateProperties,
     updateOriginalForm,
+    updateSaveNotice,
     isUpdateComputerTarget,
     updateForm,
     updateObjectFormField,
     isUpdateUserTarget,
+    isUpdateGroupTarget,
     clearManagerSelection,
     managerSearchQuery,
     setManagerSearchQuery,

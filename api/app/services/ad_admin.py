@@ -670,6 +670,12 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "state",
             "co",
             "country",
+            "groupScope",
+            "group_scope",
+            "groupCategory",
+            "group_category",
+            "managedBy",
+            "managed_by",
         }
 
         normalized_properties = {}
@@ -687,6 +693,9 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "city": "l",
             "state": "st",
             "country": "co",
+            "group_scope": "groupScope",
+            "group_category": "groupCategory",
+            "managed_by": "managedBy",
         }
 
         for key, value in raw_properties.items():
@@ -696,9 +705,54 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             normalized_key = property_aliases.get(key, key)
 
             if value is None:
+                if normalized_key in {
+                    "groupScope",
+                    "groupCategory",
+                }:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{normalized_key} ne peut pas être vide",
+                    )
+
                 normalized_properties[normalized_key] = None
-            else:
-                normalized_properties[normalized_key] = clean_string(str(value))
+                continue
+
+            normalized_value = clean_string(str(value))
+
+            if normalized_key == "groupScope":
+                if normalized_value not in {
+                    "Global",
+                    "Universal",
+                    "DomainLocal",
+                }:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "groupScope doit être Global, "
+                            "Universal ou DomainLocal"
+                        ),
+                    )
+
+            if normalized_key == "groupCategory":
+                if normalized_value not in {
+                    "Security",
+                    "Distribution",
+                }:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "groupCategory doit être Security "
+                            "ou Distribution"
+                        ),
+                    )
+
+            if normalized_key == "managedBy" and normalized_value:
+                normalized_value = validate_dn(
+                    normalized_value,
+                    "managedBy",
+                )
+
+            normalized_properties[normalized_key] = normalized_value
 
         if not object_identity:
             raise HTTPException(status_code=400, detail="object_identity est obligatoire")

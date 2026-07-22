@@ -20,14 +20,25 @@ function AdObjectPropertiesModal({
 }) {
   const [editing, setEditing] = useState(false)
 
+  const [saveNotice, setSaveNotice] = useState('')
   const loading = Boolean(update?.loading)
   const hasChanges = Boolean(
     update?.hasUpdateChanges
   )
 
+  const visibleSaveNotice =
+    update?.updateSaveNotice || saveNotice
+
   useEffect(() => {
     setEditing(false)
+    setSaveNotice('')
   }, [object])
+
+  useEffect(() => {
+    if (hasChanges) {
+      setSaveNotice('')
+    }
+  }, [hasChanges])
 
   function discardAndClose() {
     if (loading) return
@@ -39,6 +50,8 @@ function AdObjectPropertiesModal({
 
   function beginEditing(target = object) {
     if (loading || editing) return
+
+    setSaveNotice('')
 
     const prepared =
       update?.prepareUpdateObject?.(
@@ -60,12 +73,22 @@ function AdObjectPropertiesModal({
       return false
     }
 
-    return (
+    setSaveNotice('')
+
+    const saved = (
       await update?.submitUpdateObject?.(
         null,
         { closeOnSuccess: false }
       )
     ) === true
+
+    if (saved) {
+      setSaveNotice(
+        'Propriétés enregistrées avec succès.'
+      )
+    }
+
+    return saved
   }
 
   async function handleOk() {
@@ -174,6 +197,16 @@ function AdObjectPropertiesModal({
             </button>
           </div>
         </header>
+          {visibleSaveNotice && (
+            <div
+              className="aduc-object-properties-notice"
+              role="status"
+              aria-live="polite"
+            >
+              <span aria-hidden="true">✓</span>
+              <strong>{visibleSaveNotice}</strong>
+            </div>
+          )}
 
         <div className="aduc-object-properties-body">
           {editing ? (
