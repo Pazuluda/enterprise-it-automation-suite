@@ -188,10 +188,20 @@ function Convert-EitasAdOuItem {
 
     return [pscustomobject]@{
         type = "ou"
+        object_class = "organizationalunit"
         name = $Ou.Name
+        display_name = [string]$Ou.DisplayName
         distinguished_name = $Ou.DistinguishedName
         dn = $Ou.DistinguishedName
+        canonical_name = [string]$Ou.CanonicalName
         description = $Ou.Description
+        managed_by = [string]$Ou.ManagedBy
+        street_address = [string]$Ou.StreetAddress
+        postal_code = [string]$Ou.PostalCode
+        city = [string]$Ou.l
+        state = [string]$Ou.st
+        country = [string]$Ou.co
+        protected_from_accidental_deletion = [bool]$Ou.ProtectedFromAccidentalDeletion
     }
 }
 
@@ -539,6 +549,8 @@ function Invoke-EitasAdExplorerListChildren {
         "whenCreated",
         "whenChanged",
         "objectGUID",
+        "managedBy",
+        "ProtectedFromAccidentalDeletion",
         "objectSid"
     )
 
@@ -567,11 +579,20 @@ function Invoke-EitasAdExplorerListChildren {
         ) {
             $Items += [pscustomobject]@{
                 type = "ou"
+                object_class = "organizationalunit"
                 name = [string]$Object.Name
+                display_name = [string]$Object.displayName
                 distinguished_name = [string]$Object.DistinguishedName
                 dn = [string]$Object.DistinguishedName
                 canonical_name = [string]$Object.canonicalName
                 description = [string]$Object.description
+                managed_by = [string]$Object.managedBy
+                street_address = [string]$Object.streetAddress
+                postal_code = [string]$Object.postalCode
+                city = [string]$Object.l
+                state = [string]$Object.st
+                country = [string]$Object.co
+                protected_from_accidental_deletion = [bool]$Object.ProtectedFromAccidentalDeletion
             }
 
             continue
@@ -725,7 +746,7 @@ function Invoke-EitasAdExplorerListOus {
         -Filter * `
         -SearchBase $BaseDn `
         -SearchScope OneLevel `
-        -Properties Description `
+        -Properties Description,DisplayName,ManagedBy,StreetAddress,PostalCode,l,st,co,ProtectedFromAccidentalDeletion,CanonicalName `
         -ErrorAction Stop |
         Sort-Object Name |
         ForEach-Object { Convert-EitasAdOuItem -Ou $_ }
@@ -779,13 +800,23 @@ function Convert-EitasAdOuTreeItem {
 
     return [pscustomobject]@{
         type = "ou"
+        object_class = "organizationalunit"
         name = $Ou.Name
+        display_name = [string]$Ou.DisplayName
         distinguished_name = $Ou.DistinguishedName
         dn = $Ou.DistinguishedName
+        canonical_name = [string]$Ou.CanonicalName
         parent_dn = Get-EitasOuParentDn -DistinguishedName $Ou.DistinguishedName
         path_label = Get-EitasOuPathLabel -DistinguishedName $Ou.DistinguishedName
         depth = Get-EitasOuDepth -DistinguishedName $Ou.DistinguishedName
         description = $Ou.Description
+        managed_by = [string]$Ou.ManagedBy
+        street_address = [string]$Ou.StreetAddress
+        postal_code = [string]$Ou.PostalCode
+        city = [string]$Ou.l
+        state = [string]$Ou.st
+        country = [string]$Ou.co
+        protected_from_accidental_deletion = [bool]$Ou.ProtectedFromAccidentalDeletion
     }
 }
 
@@ -811,7 +842,7 @@ function Invoke-EitasAdExplorerListOuTree {
         try {
             $BaseOu = Get-ADOrganizationalUnit `
                 -Identity $BaseDn `
-                -Properties Description `
+                -Properties Description,DisplayName,ManagedBy,StreetAddress,PostalCode,l,st,co,ProtectedFromAccidentalDeletion,CanonicalName `
                 -ErrorAction Stop
 
             $AllOus += $BaseOu
@@ -825,7 +856,7 @@ function Invoke-EitasAdExplorerListOuTree {
         -Filter * `
         -SearchBase $BaseDn `
         -SearchScope Subtree `
-        -Properties Description `
+        -Properties Description,DisplayName,ManagedBy,StreetAddress,PostalCode,l,st,co,ProtectedFromAccidentalDeletion,CanonicalName `
         -ErrorAction Stop
 
     $AllOus += @($ChildOus)

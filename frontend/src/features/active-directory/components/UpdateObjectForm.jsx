@@ -82,7 +82,6 @@ function UpdateObjectForm({
       <h4>Informations générales</h4>
 
       <div className="aduc-update-object-grid">
-        {!isUpdateComputerTarget(currentTarget) && (
           <label>
             <span>Nom d’affichage</span>
             <input
@@ -95,7 +94,6 @@ function UpdateObjectForm({
               disabled={loading}
             />
           </label>
-        )}
 
         {isUpdateComputerTarget(currentTarget) && (
           <label>
@@ -348,6 +346,37 @@ function UpdateObjectForm({
         ))}
       </>
     )}
+    {isUpdateOrganizationalUnitTarget(currentTarget) && (
+      <section>
+        <h4>Adresse de l’unité d’organisation</h4>
+
+        <div className="aduc-update-object-grid">
+          {[
+            ["streetAddress", "Adresse", true],
+            ["postalCode", "Code postal"],
+            ["l", "Ville"],
+            ["st", "Région / département"],
+            ["co", "Pays"]
+          ].map(([name, label, wide]) => (
+            <label
+              key={name}
+              className={wide ? "wide" : ""}
+            >
+              <span>{label}</span>
+              <input
+                type="text"
+                value={updateForm[name] || ""}
+                onChange={event =>
+                  updateObjectFormField(name, event.target.value)
+                }
+                disabled={loading}
+              />
+            </label>
+          ))}
+        </div>
+      </section>
+    )}
+
     {(
       isUpdateGroupTarget(currentTarget) ||
       isUpdateComputerTarget(currentTarget) ||
