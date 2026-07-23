@@ -177,12 +177,12 @@ function formatAdValue(value) {
 
 function formatGroupScope(value) {
   const map = {
-    0: 'DomainLocal',
-    1: 'Global',
-    2: 'Universal',
-    DomainLocal: 'DomainLocal',
-    Global: 'Global',
-    Universal: 'Universal'
+    0: 'Domaine local',
+    1: 'Globale',
+    2: 'Universelle',
+    DomainLocal: 'Domaine local',
+    Global: 'Globale',
+    Universal: 'Universelle'
   }
 
   return map[value] || value
@@ -191,9 +191,9 @@ function formatGroupScope(value) {
 function formatGroupCategory(value) {
   const map = {
     0: 'Distribution',
-    1: 'Security',
+    1: 'Sécurité',
     Distribution: 'Distribution',
-    Security: 'Security'
+    Security: 'Sécurité'
   }
 
   return map[value] || value
@@ -205,7 +205,7 @@ function getObjectMetaRows(item) {
   const rows = [
     { label: 'Nom', value: getObjectName(item) },
     { label: 'Type', value: getObjectType(item) },
-    { label: 'SamAccountName', value: item?.sam_account_name },
+    { label: 'Nom de compte SAM', value: item?.sam_account_name },
     { label: 'UPN', value: item?.user_principal_name },
     {
       label: 'Nom DNS',
@@ -225,7 +225,7 @@ function getObjectMetaRows(item) {
         item?.operating_system_version ||
         item?.operatingSystemVersion
     },
-    { label: 'Scope', value: item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
+    { label: 'Étendue', value: item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
     { label: 'Catégorie', value: item?.group_category !== undefined ? formatGroupCategory(item.group_category) : '' },
     { label: 'Description', value: item?.description },
     { label: 'DN', value: getObjectDn(item), long: true }

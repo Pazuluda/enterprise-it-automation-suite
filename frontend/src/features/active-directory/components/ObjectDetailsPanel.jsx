@@ -159,13 +159,13 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Nom', objectName],
     ['Type', type],
     ['Description', pickAdField(['description'])],
-    ['SamAccountName', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
+    ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
     ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])]
   ]
 
   const accountRows = [
     ['État du compte', getAccountStatus()],
-    ['SamAccountName', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
+    ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
     ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])],
     ['Activé', boolLabel(pickAdField(['enabled', 'Enabled']))],
     ['Verrouillé', boolLabel(pickAdField(['locked_out', 'lockedOut', 'LockedOut']))],
@@ -181,9 +181,9 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
   const objectRows = [
     ['DN', dn, true],
-    ['Canonical name', pickAdField(['canonical_name', 'canonicalName'])],
-    ['ObjectClass', pickAdField(['objectClass', 'object_class', 'type'])],
-    ['ObjectGUID', pickAdField(['object_guid', 'objectGUID', 'guid'])],
+    ['Nom canonique', pickAdField(['canonical_name', 'canonicalName']), true],
+    ['Classe d’objet', type],
+    ['GUID de l’objet', pickAdField(['object_guid', 'objectGUID', 'guid'])],
     ['SID', pickAdField(['sid', 'objectSid'])],
     ['Créé le', formatAdHistoryDate(pickAdField(['created_at', 'whenCreated', 'created']))],
     ['Modifié le', formatAdHistoryDate(pickAdField(['updated_at', 'whenChanged', 'modified']))],
