@@ -279,7 +279,7 @@ function AdminCreationModal({
                       <label
                         className="aduc-admin-field"
                       >
-                        <span>SamAccountName</span>
+                        <span>Nom de compte SAM</span>
 
                         <input
                           value={

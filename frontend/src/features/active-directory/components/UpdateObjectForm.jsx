@@ -152,14 +152,14 @@ function UpdateObjectForm({
           {
             title: 'Informations RH',
             fields: [
-              ['employeeID', 'Employee ID'],
+              ['employeeID', 'Identifiant salarié'],
               [
                 'employeeNumber',
                 'Numéro employé'
               ],
               [
                 'manager',
-                'Manager — Distinguished Name',
+                'Gestionnaire — Nom distinctif',
                 true
               ]
             ]
@@ -240,7 +240,7 @@ function UpdateObjectForm({
                                 searchManagerCandidates()
                               }
                             }}
-                            placeholder="Nom, identifiant ou e-mail du manager..."
+                            placeholder="Nom, identifiant ou e-mail du gestionnaire..."
                             disabled={
                               loading ||
                               managerSearchLoading
@@ -280,7 +280,7 @@ function UpdateObjectForm({
                                   <button
                                     type="button"
                                     key={candidateDn}
-                                    data-kind-label="Manager possible"
+                                    data-kind-label="Gestionnaire possible"
                                     onClick={() =>
                                       selectManagerCandidate(
                                         candidate

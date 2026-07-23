@@ -208,7 +208,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
     const hrRows = [
       [
-        'Employee ID',
+        'Identifiant salarié',
         orgValue([
           'employee_id',
           'employeeID',
@@ -217,7 +217,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
           'employeeNumber'
         ])
       ],
-      ['Manager', managerDn, true]
+      ['Gestionnaire', managerDn, true]
     ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
   const addressRows = [

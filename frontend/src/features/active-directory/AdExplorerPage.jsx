@@ -2046,7 +2046,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                     }`}
                     onClick={loadComputersView}
                   >
-                    › 💻 Computers
+                    › 💻 Ordinateurs
                   </button>
                   <button type="button" className="aduc-node system">› 📁 Domain Controllers</button>
 

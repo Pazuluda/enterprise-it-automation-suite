@@ -391,7 +391,7 @@ function useAdActivity({
   function getAdActivityFilterSummary() {
     return [
       `Résultats : ${getAdActivityFilteredJobs().length}/${getAdActivityJobs().length}`,
-      `Scope : ${getAdActivityScopeLabel()}`,
+      `Périmètre : ${getAdActivityScopeLabel()}`,
       `Période : ${getAdActivityTimeRangeLabel()}`,
       `Tri : ${getAdActivitySortLabel()}`,
       `Simulations : ${adActivityShowSimulations ? 'visibles' : 'masquées'}`,
