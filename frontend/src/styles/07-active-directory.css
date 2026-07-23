@@ -6184,3 +6184,38 @@ button.aduc-admin-history-row.unknown > span {
     margin-right: 0;
   }
 }
+
+/* Protection contre la suppression accidentelle des OU */
+.aduc-update-object-grid label.aduc-ou-protection-field {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.aduc-update-object-grid label.aduc-ou-protection-field:hover {
+  border-color: #a5b4fc;
+  background: #f5f7ff;
+}
+
+.aduc-update-object-grid label.aduc-ou-protection-field > span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.aduc-update-object-grid label.aduc-ou-protection-field input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: #6366f1;
+}

@@ -1209,6 +1209,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "groupScope",
         "groupCategory",
         "managedBy",
+        "protectedFromAccidentalDeletion",
         "streetAddress",
         "postalCode",
         "l",
@@ -1277,9 +1278,21 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $GroupCategory = $null
     $ManagedBy = $null
     $ClearManagedBy = $false
+    $ProtectedFromAccidentalDeletion = $null
 
     foreach ($Key in $Properties.Keys) {
-        $Value = Repair-EitasTextEncoding -Value $Properties[$Key]
+        $RawValue = $Properties[$Key]
+
+        if ($Key -eq "protectedFromAccidentalDeletion") {
+            if ($RawValue -isnot [bool]) {
+                throw "protectedFromAccidentalDeletion doit être un booléen"
+            }
+
+            $ProtectedFromAccidentalDeletion = [bool]$RawValue
+            continue
+        }
+
+        $Value = Repair-EitasTextEncoding -Value $RawValue
 
         if ($Key -eq "groupScope") {
             $GroupScope = [string]$Value
@@ -1342,6 +1355,13 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         ) -notcontains $ObjectClassName
     ) {
         throw "managedBy est réservé aux groupes, ordinateurs et unités d'organisation"
+    }
+
+    if (
+        $null -ne $ProtectedFromAccidentalDeletion -and
+        $ObjectClassName -ne "organizationalunit"
+    ) {
+        throw "La protection contre la suppression accidentelle est réservée aux unités d'organisation"
     }
 
 
@@ -1433,6 +1453,13 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    if ($null -ne $ProtectedFromAccidentalDeletion) {
+        Set-ADOrganizationalUnit `
+            -Identity $ObjectDn `
+            -ProtectedFromAccidentalDeletion $ProtectedFromAccidentalDeletion `
+            -ErrorAction Stop
+    }
+
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
@@ -1442,6 +1469,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $UpdatedGroupScope = $null
     $UpdatedGroupCategory = $null
     $UpdatedManagedBy = [string]$UpdatedObject.managedBy
+    $UpdatedProtectedFromAccidentalDeletion = $null
 
     if ([string]$Object.ObjectClass -eq "group") {
         $UpdatedGroup = Get-ADGroup `
@@ -1451,6 +1479,16 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
         $UpdatedGroupScope = [string]$UpdatedGroup.GroupScope
         $UpdatedGroupCategory = [string]$UpdatedGroup.GroupCategory
+    }
+
+    if ($ObjectClassName -eq "organizationalunit") {
+        $UpdatedOu = Get-ADOrganizationalUnit `
+            -Identity $ObjectDn `
+            -Properties ProtectedFromAccidentalDeletion `
+            -ErrorAction Stop
+
+        $UpdatedProtectedFromAccidentalDeletion = `
+            [bool]$UpdatedOu.ProtectedFromAccidentalDeletion
     }
 
     return [pscustomobject]@{
@@ -1464,6 +1502,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         group_scope = $UpdatedGroupScope
         group_category = $UpdatedGroupCategory
         managed_by = $UpdatedManagedBy
+        protected_from_accidental_deletion = $UpdatedProtectedFromAccidentalDeletion
         updated_object = Convert-EitasAdAdminObjectItem -Object $UpdatedObject
         message = "Propriétés objet AD modifiées"
     }

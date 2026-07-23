@@ -133,6 +133,13 @@ function Convert-EitasSnapshotObject {
     $Type = Get-EitasSnapshotObjectType `
         -Object $Object
 
+    $ProtectedFromAccidentalDeletion = $null
+
+    if ($Type -eq "ou") {
+        $ProtectedFromAccidentalDeletion =
+            [bool]$Object.ProtectedFromAccidentalDeletion
+    }
+
     $Members = @(
         $Object.member |
             ForEach-Object {
@@ -266,6 +273,7 @@ function Convert-EitasSnapshotObject {
         operating_system_service_pack = [string]$Object.operatingSystemServicePack
         location = [string]$Object.location
         managed_by = [string]$Object.managedBy
+        protected_from_accidental_deletion = $ProtectedFromAccidentalDeletion
 
         created_at = Convert-EitasSnapshotDateValue `
             -Value $Object.whenCreated
@@ -338,6 +346,7 @@ function New-EitasAdSnapshot {
         "operatingSystemServicePack",
         "location",
         "managedBy",
+        "ProtectedFromAccidentalDeletion",
         "objectGUID",
         "objectSid"
     )

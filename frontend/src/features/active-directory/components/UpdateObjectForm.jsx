@@ -437,6 +437,25 @@ function UpdateObjectForm({
             </>
           )}
 
+            {isUpdateOrganizationalUnitTarget(currentTarget) && (
+              <label className="wide aduc-ou-protection-field">
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(
+                      updateForm.protectedFromAccidentalDeletion
+                    )}
+                    onChange={event => updateObjectFormField(
+                      'protectedFromAccidentalDeletion',
+                      event.target.checked
+                    )}
+                    disabled={loading}
+                  />
+                  Protéger contre la suppression accidentelle
+                </span>
+              </label>
+            )}
+
           <label className="wide aduc-manager-field">
             <span>Géré par — Distinguished Name</span>
 

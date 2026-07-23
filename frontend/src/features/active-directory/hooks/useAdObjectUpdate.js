@@ -46,6 +46,18 @@ function useAdObjectUpdate({
       return ''
     }
 
+  function getAdBooleanAttributeValue(item, ...names) {
+    for (const name of names) {
+      const value = item?.[name]
+
+      if (typeof value === 'boolean') return value
+      if (String(value).toLowerCase() === 'true') return true
+      if (String(value).toLowerCase() === 'false') return false
+    }
+
+    return false
+  }
+
   function isUpdateUserTarget(target) {
     const objectClass = String(
       target?.objectClass
@@ -242,6 +254,11 @@ function useAdObjectUpdate({
         target,
         'co',
         'country'
+      ),
+      protectedFromAccidentalDeletion: getAdBooleanAttributeValue(
+        target,
+        'protectedFromAccidentalDeletion',
+        'protected_from_accidental_deletion'
       )
     }
 

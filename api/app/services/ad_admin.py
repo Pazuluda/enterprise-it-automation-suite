@@ -678,6 +678,8 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "group_category",
             "managedBy",
             "managed_by",
+            "protectedFromAccidentalDeletion",
+            "protected_from_accidental_deletion",
         }
 
         normalized_properties = {}
@@ -698,6 +700,7 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "group_scope": "groupScope",
             "group_category": "groupCategory",
             "managed_by": "managedBy",
+            "protected_from_accidental_deletion": "protectedFromAccidentalDeletion",
         }
 
         for key, value in raw_properties.items():
@@ -705,6 +708,19 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 raise HTTPException(status_code=400, detail=f"Attribut non autorisé : {key}")
 
             normalized_key = property_aliases.get(key, key)
+
+            if normalized_key == "protectedFromAccidentalDeletion":
+                if not isinstance(value, bool):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "protectedFromAccidentalDeletion doit être "
+                            "un booléen"
+                        ),
+                    )
+
+                normalized_properties[normalized_key] = value
+                continue
 
             if value is None:
                 if normalized_key in {

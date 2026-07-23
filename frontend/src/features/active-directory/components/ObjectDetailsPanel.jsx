@@ -186,7 +186,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['SID', pickAdField(['sid', 'objectSid'])],
     ['Créé le', formatAdHistoryDate(pickAdField(['created_at', 'whenCreated', 'created']))],
     ['Modifié le', formatAdHistoryDate(pickAdField(['updated_at', 'whenChanged', 'modified']))],
-    ['Protection suppression accidentelle', pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion'])]
+    ['Protection suppression accidentelle', boolLabel(pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion']))]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
     const orgValue = names => pickAdField(names)
@@ -452,10 +452,12 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
           ['account', 'Compte'],
           ['machine', 'Système'],
           ['location', 'Emplacement'],
+          ['managedBy', 'Géré par'],
           ['membership', 'Membre de'],
         ]
       : []),
 
+    ...(isOu ? [['managedBy', 'Géré par']] : []),
     ['object', 'Objet'],
     ['history', 'Historique'],
   ]
