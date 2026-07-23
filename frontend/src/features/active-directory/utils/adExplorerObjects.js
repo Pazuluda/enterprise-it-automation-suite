@@ -165,8 +165,13 @@ function getObjectDn(item) {
 }
 
 function isOuObject(item) {
-  const dn = String(getObjectDn(item)).toUpperCase()
-  return item?.type === 'ou' || dn.startsWith('OU=')
+  const dn = String(getObjectDn(item)).trim().toUpperCase()
+
+  if (dn) {
+    return dn.startsWith('OU=')
+  }
+
+  return String(item?.type || '').toLowerCase() === 'ou'
 }
 
 function formatAdValue(value) {

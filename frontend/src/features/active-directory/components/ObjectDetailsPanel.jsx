@@ -996,15 +996,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
               renderHistoryTab()}
           </div>
 
-          {isEitasManagedDn(
-            getObjectDn(isOu ? displayed : selectedNode)
-          ) && (
-            <div className="aduc-details-quick">
-              <button type="button" onClick={() => onCreateOu(isOu ? displayed : selectedNode)}>＋ OU ici</button>
-              <button type="button" onClick={() => onCreateGroup(isOu ? displayed : selectedNode)}>＋ Groupe ici</button>
-              {object && <button type="button" onClick={() => onOpenMoveObject(displayed)}>↪ Déplacer</button>}
-            </div>
-          )}
+          {isOu &&
+            isEitasManagedDn(
+              getObjectDn(displayed)
+            ) && (
+              <div className="aduc-details-quick">
+                <button type="button" onClick={() => onCreateOu(displayed)}>＋ OU ici</button>
+                <button type="button" onClick={() => onCreateGroup(displayed)}>＋ Groupe ici</button>
+              </div>
+            )}
         </>
       ) : (
         <div className="aduc-details-empty">
