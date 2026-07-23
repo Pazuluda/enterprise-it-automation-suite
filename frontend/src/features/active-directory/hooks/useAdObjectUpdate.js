@@ -4,6 +4,7 @@ import {
   cleanAdHistoryText,
   getObjectDn,
   getObjectType,
+  isOuObject,
   isEitasManagedObject,
 } from '../utils/adExplorerCore'
 
@@ -83,6 +84,10 @@ function useAdObjectUpdate({
 
     return objectClass === 'computer'
       || getObjectType(target) === 'Ordinateur'
+  }
+
+  function isUpdateOrganizationalUnitTarget(target) {
+    return isOuObject(target)
   }
 
   function prepareUpdateObject(
@@ -319,9 +324,19 @@ function useAdObjectUpdate({
   function getManagerPropertyName(
     target = updateModal
   ) {
-    return isUpdateGroupTarget(target)
-      ? 'managedBy'
-      : 'manager'
+    if (isUpdateUserTarget(target)) {
+      return 'manager'
+    }
+
+    if (
+      isUpdateGroupTarget(target) ||
+      isUpdateComputerTarget(target) ||
+      isUpdateOrganizationalUnitTarget(target)
+    ) {
+      return 'managedBy'
+    }
+
+    return 'manager'
   }
 
   function selectManagerCandidate(candidate) {
@@ -365,7 +380,7 @@ function useAdObjectUpdate({
 
     if (query.length < 2) {
       setManagerSearchError(
-        'Tape au moins 2 caractères pour rechercher un manager.'
+        'Tape au moins 2 caractères pour rechercher un gestionnaire.'
       )
       return
     }
@@ -461,7 +476,7 @@ function useAdObjectUpdate({
       setManagerSearchResults([])
       setManagerSearchError(
         error.message ||
-        'Recherche de manager impossible.'
+        'Recherche de gestionnaire impossible.'
       )
     } finally {
       setManagerSearchLoading(false)
@@ -558,6 +573,7 @@ function useAdObjectUpdate({
     updateOriginalForm,
     updateSaveNotice,
     isUpdateComputerTarget,
+    isUpdateOrganizationalUnitTarget,
     updateForm,
     updateObjectFormField,
     isUpdateUserTarget,

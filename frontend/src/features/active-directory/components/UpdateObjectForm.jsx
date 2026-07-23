@@ -19,6 +19,7 @@ function UpdateObjectForm({
     submitUpdateObject,
     hasUpdateChanges,
     isUpdateComputerTarget,
+    isUpdateOrganizationalUnitTarget,
     updateForm,
     updateObjectFormField,
     isUpdateUserTarget,
@@ -347,13 +348,23 @@ function UpdateObjectForm({
         ))}
       </>
     )}
-    {isUpdateGroupTarget(currentTarget) && (
+    {(
+      isUpdateGroupTarget(currentTarget) ||
+      isUpdateComputerTarget(currentTarget) ||
+      isUpdateOrganizationalUnitTarget(currentTarget)
+    ) && (
       <section>
-        <h4>Paramètres du groupe</h4>
+        <h4>
+          {isUpdateGroupTarget(currentTarget)
+            ? "Paramètres du groupe"
+            : "Gestion de l’objet"}
+        </h4>
 
         <div className="aduc-update-object-grid">
-          <label>
-            <span>Étendue du groupe</span>
+          {isUpdateGroupTarget(currentTarget) && (
+            <>
+              <label>
+                <span>Étendue du groupe</span>
 
             <select
               value={updateForm.groupScope || ''}
@@ -393,7 +404,10 @@ function UpdateObjectForm({
                 Distribution
               </option>
             </select>
-          </label>
+              </label>
+            </>
+          )}
+
           <label className="wide aduc-manager-field">
             <span>Géré par — Distinguished Name</span>
 

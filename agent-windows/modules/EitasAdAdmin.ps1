@@ -1312,19 +1312,38 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
-    $HasGroupChanges = (
+    $ObjectClassName = (
+        [string]$Object.ObjectClass
+    ).Trim().ToLowerInvariant()
+
+    $HasGroupSpecificChanges = (
         $null -ne $GroupScope -or
-        $null -ne $GroupCategory -or
+        $null -ne $GroupCategory
+    )
+
+    if (
+        $HasGroupSpecificChanges -and
+        $ObjectClassName -ne "group"
+    ) {
+        throw "groupScope et groupCategory sont réservés aux objets groupe"
+    }
+
+    $HasManagedByChanges = (
         $null -ne $ManagedBy -or
         $ClearManagedBy
     )
 
     if (
-        $HasGroupChanges -and
-        [string]$Object.ObjectClass -ne "group"
+        $HasManagedByChanges -and
+        @(
+            "group",
+            "computer",
+            "organizationalunit"
+        ) -notcontains $ObjectClassName
     ) {
-        throw "Les propriétés de groupe sont réservées aux objets groupe"
+        throw "managedBy est réservé aux groupes, ordinateurs et unités d'organisation"
     }
+
 
     if ($Replace.Count -gt 0) {
         Set-ADObject `
@@ -1340,7 +1359,13 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             -ErrorAction Stop
     }
 
-    if ($HasGroupChanges) {
+    if (
+        $HasGroupSpecificChanges -or
+        (
+            $HasManagedByChanges -and
+            $ObjectClassName -eq "group"
+        )
+    ) {
         $SetGroupParameters = @{
             Identity = $ObjectDn
             ErrorAction = "Stop"
@@ -1370,14 +1395,53 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    if (
+        $HasManagedByChanges -and
+        $ObjectClassName -eq "computer"
+    ) {
+        if ($null -ne $ManagedBy) {
+            Set-ADComputer `
+                -Identity $ObjectDn `
+                -ManagedBy $ManagedBy `
+                -ErrorAction Stop
+        }
+
+        if ($ClearManagedBy) {
+            Set-ADComputer `
+                -Identity $ObjectDn `
+                -Clear "managedBy" `
+                -ErrorAction Stop
+        }
+    }
+
+    if (
+        $HasManagedByChanges -and
+        $ObjectClassName -eq "organizationalunit"
+    ) {
+        if ($null -ne $ManagedBy) {
+            Set-ADOrganizationalUnit `
+                -Identity $ObjectDn `
+                -ManagedBy $ManagedBy `
+                -ErrorAction Stop
+        }
+
+        if ($ClearManagedBy) {
+            Set-ADOrganizationalUnit `
+                -Identity $ObjectDn `
+                -Clear "managedBy" `
+                -ErrorAction Stop
+        }
+    }
+
+
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, streetAddress, postalCode, l, st, co `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
     $UpdatedGroupCategory = $null
-    $UpdatedManagedBy = $null
+    $UpdatedManagedBy = [string]$UpdatedObject.managedBy
 
     if ([string]$Object.ObjectClass -eq "group") {
         $UpdatedGroup = Get-ADGroup `
@@ -1387,7 +1451,6 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
         $UpdatedGroupScope = [string]$UpdatedGroup.GroupScope
         $UpdatedGroupCategory = [string]$UpdatedGroup.GroupCategory
-        $UpdatedManagedBy = [string]$UpdatedGroup.ManagedBy
     }
 
     return [pscustomobject]@{
