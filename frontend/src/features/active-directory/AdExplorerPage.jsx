@@ -848,6 +848,32 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
 
+  function openLinkedObject(target) {
+    const targetDn =
+      typeof target === "string"
+        ? target
+        : getObjectDn(target)
+
+    const linkedObject =
+      adSnapshot.findByDnSync(targetDn) ||
+      adDomainCatalog.findByDnSync(targetDn) ||
+      (target && typeof target === "object"
+        ? target
+        : null)
+
+    if (!linkedObject) {
+      const message =
+        "Objet lié introuvable dans les données Active Directory."
+
+      setStatus(message)
+      setMessage?.(message)
+      return
+    }
+
+    selectObject(linkedObject)
+    setPropertiesModal(linkedObject)
+  }
+
   function navigateToAdDn(dn) {
     const node = buildAdNavigationNode(dn)
 
@@ -2232,6 +2258,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 onLoadHistory={() => loadAdAdminHistory()}
                 onCopyDn={target => copyText(getObjectDn(target)).then(() => setMessage?.('DN copié.'))}
                 onExplore={target => loadNodeContent(target, getNodeKind(target))}
+                onOpenLinkedObject={openLinkedObject}
                 onCreateOu={target => openCreateOu(target)}
                 onCreateGroup={target => openCreateGroup(target)}
                 onOpenMoveObject={target => openMoveObject(target)}
@@ -2290,6 +2317,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
             groupMembers.getMemberCandidateSubtitle,
         }}
         details={{
+          onOpenLinkedObject: openLinkedObject,
           memberItems: objectMembers,
           membersLoading,
           membersError,

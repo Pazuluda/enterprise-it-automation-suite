@@ -18,7 +18,7 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject, onOpenLinkedObject }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -49,6 +49,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       type === 'Ordinateur' ||
       objectClass === 'computer'
     )
+  const isContact = type === 'Contact' || objectClass === 'contact'
   const members = Array.isArray(memberItems) ? memberItems : []
   const history = Array.isArray(historyItems) ? historyItems : []
 
@@ -457,6 +458,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
         ]
       : []),
 
+    ...(isContact ? [['address', 'Adresse'], ['phones', 'Téléphones'], ['organization', 'Organisation'], ['managedBy', 'Géré par']] : []),
     ...(isOu ? [['managedBy', 'Géré par']] : []),
     ['object', 'Objet'],
     ['history', 'Historique'],
@@ -646,6 +648,18 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                     <button
                       type="button"
                       onClick={() =>
+                        onOpenLinkedObject?.(
+                          group.dn ||
+                          group.distinguished_name
+                        )
+                      }
+                    >
+                      Ouvrir l’objet
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
                         onCopyDn?.(
                           group.dn ||
                           group.distinguished_name
@@ -699,6 +713,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
               <button
                 type="button"
                 onClick={() =>
+                  onOpenLinkedObject?.(managedByDn)
+                }
+              >
+                Ouvrir l’objet
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
                   onCopyDn?.(managedByDn)
                 }
               >
@@ -741,6 +764,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                   </div>
 
                   <div className="aduc-member-actions">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onOpenLinkedObject?.(member)
+                      }
+                    >
+                      Ouvrir l’objet
+                    </button>
+
                     <button type="button" onClick={() => onCopyDn?.(getObjectDn(member))}>
                       Copier DN
                     </button>
