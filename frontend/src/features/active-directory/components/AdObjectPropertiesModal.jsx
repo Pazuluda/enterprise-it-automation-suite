@@ -47,6 +47,14 @@ function AdObjectPropertiesModal({
     setEditing(false)
     onClose?.()
   }
+  function cancelEditing() {
+    if (loading) return
+
+    update?.closeUpdateObject?.()
+    setEditing(false)
+    setSaveNotice('')
+  }
+
 
   function beginEditing(target = object) {
     if (loading || editing) return
@@ -234,33 +242,21 @@ function AdObjectPropertiesModal({
         </div>
 
         <footer className="aduc-modal-actions">
-          <button
-            type="button"
-            className="aduc-properties-edit-button"
-            onClick={() =>
-              beginEditing(object)
-            }
-            disabled={
-              loading ||
-              editing
-            }
-          >
-            Modifier
-          </button>
+
+          {!editing ? (
+            <button
+              type="button"
+              onClick={discardAndClose}
+              disabled={loading}
+            >
+              Fermer
+            </button>
+          ) : (
+            <>
 
           <button
             type="button"
-            onClick={handleOk}
-            disabled={loading}
-          >
-            {loading
-              ? 'Enregistrement...'
-              : 'OK'}
-          </button>
-
-          <button
-            type="button"
-            onClick={discardAndClose}
+            onClick={cancelEditing}
             disabled={loading}
           >
             Annuler
@@ -279,6 +275,20 @@ function AdObjectPropertiesModal({
               ? 'Enregistrement...'
               : 'Appliquer'}
           </button>
+              <button
+                type="button"
+                onClick={handleOk}
+                disabled={
+                  loading ||
+                  !hasChanges
+                }
+              >
+                {loading
+                  ? "Enregistrement..."
+                  : "Enregistrer et fermer"}
+              </button>
+            </>
+          )}
         </footer>
       </section>
     </div>
