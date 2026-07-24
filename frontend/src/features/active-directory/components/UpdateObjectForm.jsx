@@ -206,7 +206,7 @@ function UpdateObjectForm({
                           <input
                             className="mono"
                             value={updateForm.manager || ''}
-                            placeholder="Aucun manager défini"
+                            placeholder="Aucun gestionnaire défini"
                             readOnly
                             disabled={loading}
                           />
@@ -457,7 +457,7 @@ function UpdateObjectForm({
             )}
 
           <label className="wide aduc-manager-field">
-            <span>Géré par — Distinguished Name</span>
+            <span>Gestionnaire — Nom distinctif</span>
 
             <div className="aduc-manager-current-row">
               <input

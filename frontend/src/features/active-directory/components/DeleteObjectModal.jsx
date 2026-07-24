@@ -82,7 +82,7 @@ function DeleteObjectModal({
             </div>
 
             <label className="aduc-account-action-field">
-              <span>Confirmation par Distinguished Name</span>
+              <span>Confirmation par nom distinctif</span>
 
               <input
                 type="text"

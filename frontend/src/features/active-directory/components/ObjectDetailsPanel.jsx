@@ -935,7 +935,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
                         type="button"
                         onClick={() => onCopyDn?.(managerDn)}
                       >
-                        Copier manager DN
+                        Copier le DN du gestionnaire
                       </button>
                     </div>
                   )}

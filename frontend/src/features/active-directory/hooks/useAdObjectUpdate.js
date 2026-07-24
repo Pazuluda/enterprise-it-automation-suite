@@ -361,7 +361,7 @@ function useAdObjectUpdate({
 
     if (!managerDn) {
       setManagerSearchError(
-        'Le Distinguished Name de cet utilisateur est introuvable.'
+        'Le nom distinctif de cet utilisateur est introuvable.'
       )
       return
     }
