@@ -10,6 +10,7 @@ import {
   USERS_DN,
   GROUPS_DN,
   COMPUTERS_DN,
+  DOMAIN_CONTROLLERS_DN,
   isEitasManagedDn,
   isEitasManagedObject,
   normalizeBaseDn,
@@ -1271,6 +1272,68 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
 
+  async function loadDomainControllersView() {
+    setLoading(true)
+    setStatus(
+      'Chargement des contrôleurs de domaine...'
+    )
+
+    try {
+      let items = await adDomainCatalog.search({
+        query: '',
+        baseDn: DOMAIN_CONTROLLERS_DN,
+        recursive: true,
+        types: ['computer'],
+        limit: 100,
+      })
+
+      const loadedFromCatalog =
+        Array.isArray(items)
+
+      if (!loadedFromCatalog) {
+        const result = await runJob(
+          'list_computers',
+          {
+            query: '',
+            baseDn: DOMAIN_CONTROLLERS_DN,
+            recursive: true,
+            limit: 100
+          }
+        )
+
+        items = extractExplorerItems(result)
+      }
+
+      setSelectedNode({
+        name: 'Contrôleurs de domaine',
+        type: 'domain-controllers-container',
+        distinguished_name: DOMAIN_CONTROLLERS_DN,
+        dn: DOMAIN_CONTROLLERS_DN,
+        canonical_name: 'API.LOCAL/Domain Controllers'
+      })
+
+      setViewType('domain-controllers')
+      setViewItems(items)
+      setSelectedObject(null)
+      setObjectMembers([])
+      setMembersError('')
+
+      setStatus(
+        `${items.length} contrôleur(s) de domaine chargé(s)`
+      )
+    } catch (error) {
+      setViewItems([])
+      setSelectedObject(null)
+
+      setStatus(
+        error.message ||
+        'Chargement des contrôleurs de domaine impossible.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function loadContactsView() {
     setLoading(true)
     setStatus(
@@ -1785,6 +1848,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       ) ||
       viewType === 'computers' ||
         viewType === 'contacts' ||
+        viewType === 'domain-controllers' ||
       viewType === 'search'
     ) {
       return
@@ -2131,7 +2195,13 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                     >
                       › 📇 Contacts
                     </button>
-                  <button type="button" className="aduc-node system">› 📁 Domain Controllers</button>
+                  <button
+                    type="button"
+                    className={`aduc-node system ${viewType === 'domain-controllers' ? 'selected' : ''}`}
+                    onClick={loadDomainControllersView}
+                  >
+                    › 🖥️ Contrôleurs de domaine
+                  </button>
 
                   {filteredTree.map((item, index) => {
                     const kind = getNodeKind(item)
@@ -2307,7 +2377,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                               ? '👥'
                               : getObjectType(item).includes('Utilisateur')
                                 ? '👤'
-                                : getObjectType(item) === 'Ordinateur'
+                                : ['Ordinateur', 'Contrôleur de domaine'].includes(getObjectType(item))
                                   ? '💻'
                                   : '📁'}
                           </i>

@@ -77,6 +77,15 @@ function Get-EitasSnapshotGroupScope {
 function Get-EitasSnapshotGroupCategory {
     param([object]$GroupTypeValue)
 
+    if (
+        $null -eq $GroupTypeValue -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$GroupTypeValue
+        )
+    ) {
+        return $null
+    }
+
     try {
         $GroupType = [int64]$GroupTypeValue
 
@@ -445,12 +454,37 @@ function Convert-EitasDomainCatalogObject {
         )
     }
 
+    $ObjectName = [string]$Object.Name
+    $SamAccountName = [string]$Object.sAMAccountName
+    $DisplayName = [string]$Object.displayName
+
+    if (
+        $Type -eq "computer" -and
+        (
+            [string]::IsNullOrWhiteSpace($DisplayName) -or
+            $DisplayName -ieq $SamAccountName
+        )
+    ) {
+        $DisplayName = $ObjectName
+    }
+
+    $GroupScope = $null
+    $GroupCategory = $null
+
+    if ($Type -eq "group") {
+        $GroupScope = Get-EitasSnapshotGroupScope `
+            -GroupTypeValue $Object.groupType
+
+        $GroupCategory = Get-EitasSnapshotGroupCategory `
+            -GroupTypeValue $Object.groupType
+    }
+
     return [pscustomobject]@{
         type = $Type
         object_class = $Type
 
-        name = [string]$Object.Name
-        display_name = [string]$Object.displayName
+        name = $ObjectName
+        display_name = $DisplayName
         given_name = [string]$Object.givenName
         surname = [string]$Object.sn
 
@@ -458,7 +492,7 @@ function Convert-EitasDomainCatalogObject {
         dn = [string]$Object.DistinguishedName
         canonical_name = [string]$Object.canonicalName
 
-        sam_account_name = [string]$Object.sAMAccountName
+        sam_account_name = $SamAccountName
         user_principal_name = [string]$Object.userPrincipalName
         mail = [string]$Object.mail
 
@@ -470,11 +504,8 @@ function Convert-EitasDomainCatalogObject {
 
         enabled = $Enabled
 
-        group_scope = Get-EitasSnapshotGroupScope `
-            -GroupTypeValue $Object.groupType
-
-        group_category = Get-EitasSnapshotGroupCategory `
-            -GroupTypeValue $Object.groupType
+        group_scope = $GroupScope
+        group_category = $GroupCategory
 
         dns_host_name = [string]$Object.dNSHostName
         operating_system = [string]$Object.operatingSystem
@@ -496,8 +527,10 @@ function Convert-EitasDomainCatalogObject {
         object_guid = [string]$Object.ObjectGUID
         sid = [string]$Object.objectSid
 
-        members = @()
-        member_count = 0
+        # Le catalogue ne collecte pas l’attribut member.
+        # Une liste vide signifierait à tort que le groupe est vide.
+        members = $null
+        member_count = $null
         member_of = @($Object.memberOf)
     }
 }

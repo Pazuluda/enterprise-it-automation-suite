@@ -3,6 +3,7 @@ const EITAS_DN = `OU=EITAS,${DOMAIN_DN}`
 const USERS_DN = `OU=Users,${EITAS_DN}`
 const GROUPS_DN = `OU=Groups,${EITAS_DN}`
 const COMPUTERS_DN = `OU=Computers,${EITAS_DN}`
+const DOMAIN_CONTROLLERS_DN = `OU=Domain Controllers,${DOMAIN_DN}`
 
 function isEitasManagedDn(value) {
   const dn = String(value || '')
@@ -92,7 +93,7 @@ function getObjectName(item) {
 }
 
 function getGroupDescription(item) {
-  if (getObjectType(item) === 'Ordinateur') {
+  if (['Ordinateur', 'Contrôleur de domaine'].includes(getObjectType(item))) {
     return (
       item?.description ||
       [
@@ -125,15 +126,42 @@ function getObjectType(item) {
     ''
   ).toLowerCase()
 
-  if (rawType === 'computer-container') {
-    return 'Conteneur d’ordinateurs'
+  const syntheticTypeLabels = {
+    domain: 'Domaine Active Directory',
+    'users-container': 'Conteneur des utilisateurs',
+    'groups-container': 'Conteneur des groupes',
+    'computer-container': 'Conteneur d’ordinateurs',
+    'domain-controllers-container':
+      'Conteneur des contrôleurs de domaine',
+    'builtin-container': 'Conteneur Builtin',
+    container: 'Conteneur Active Directory',
   }
 
-  if (
+  if (syntheticTypeLabels[rawType]) {
+    return syntheticTypeLabels[rawType]
+  }
+
+  const objectDn = String(
+    item?.distinguished_name ||
+    item?.dn ||
+    ''
+  ).trim().toUpperCase()
+
+  const isComputer =
     rawType === 'computer' ||
-    item?.dns_host_name ||
-    item?.dnsHostName
+    Boolean(item?.dns_host_name) ||
+    Boolean(item?.dnsHostName)
+
+  if (
+    isComputer &&
+    objectDn.endsWith(
+      `,${DOMAIN_CONTROLLERS_DN.toUpperCase()}`
+    )
   ) {
+    return 'Contrôleur de domaine'
+  }
+
+  if (isComputer) {
     return 'Ordinateur'
   }
 
@@ -209,6 +237,10 @@ function getObjectMetaRows(item) {
 
   const rows = [
     { label: 'Nom', value: getObjectName(item) },
+    {
+      label: 'Nom d’affichage',
+      value: item?.display_name || item?.displayName
+    },
     { label: 'Type', value: getObjectType(item) },
     { label: 'Nom de compte SAM', value: item?.sam_account_name },
     { label: 'UPN', value: item?.user_principal_name },
@@ -382,6 +414,7 @@ export {
   USERS_DN,
   GROUPS_DN,
   COMPUTERS_DN,
+  DOMAIN_CONTROLLERS_DN,
   isEitasManagedDn,
   isEitasManagedObject,
   normalizeBaseDn,

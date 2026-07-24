@@ -167,16 +167,18 @@ def _normalize_item(item: Any, base_dn: str) -> dict[str, Any]:
     normalized["distinguished_name"] = distinguished_name
     normalized["dn"] = distinguished_name
 
-    normalized["members"] = _normalize_string_list(
-        normalized.get("members")
-    )
+    raw_members = normalized.get("members")
+
+    if raw_members is None:
+        normalized["members"] = None
+        normalized["member_count"] = None
+    else:
+        members = _normalize_string_list(raw_members)
+        normalized["members"] = members
+        normalized["member_count"] = len(members)
 
     normalized["member_of"] = _normalize_string_list(
         normalized.get("member_of")
-    )
-
-    normalized["member_count"] = len(
-        normalized["members"]
     )
 
     return normalized
