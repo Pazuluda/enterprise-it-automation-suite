@@ -393,7 +393,7 @@ function UpdateObjectForm({
           {isUpdateGroupTarget(currentTarget) && (
             <>
               <label>
-                <span>Étendue du groupe</span>
+                <span>Portée du groupe</span>
 
             <select
               value={updateForm.groupScope || ''}
@@ -404,7 +404,7 @@ function UpdateObjectForm({
               disabled={loading}
             >
               <option value="" disabled>
-                Sélectionner une étendue
+                Sélectionner une portée
               </option>
               <option value="Global">Globale</option>
               <option value="Universal">Universelle</option>

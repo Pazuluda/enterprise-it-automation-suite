@@ -230,8 +230,8 @@ function getObjectMetaRows(item) {
         item?.operating_system_version ||
         item?.operatingSystemVersion
     },
-    { label: 'Étendue', value: item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
-    { label: 'Catégorie', value: item?.group_category !== undefined ? formatGroupCategory(item.group_category) : '' },
+    { label: 'Portée', value: isGroupObject(item) && item?.group_scope !== undefined ? formatGroupScope(item.group_scope) : '' },
+    { label: 'Catégorie', value: isGroupObject(item) && item?.group_category !== undefined ? formatGroupCategory(item.group_category) : '' },
     { label: 'Description', value: item?.description },
     { label: 'DN', value: getObjectDn(item), long: true }
   ]
