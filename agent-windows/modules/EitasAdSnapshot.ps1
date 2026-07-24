@@ -226,6 +226,9 @@ function Convert-EitasSnapshotObject {
 
         office = [string]$Object.physicalDeliveryOfficeName
         telephone_number = [string]$Object.telephoneNumber
+        facsimile_telephone_number = [string]$Object.facsimileTelephoneNumber
+        pager = [string]$Object.pager
+        ip_phone = [string]$Object.ipPhone
         mobile = [string]$Object.mobile
 
         city = [string]$Object.l
@@ -233,6 +236,7 @@ function Convert-EitasSnapshotObject {
         state = [string]$Object.st
         postal_code = [string]$Object.postalCode
         street_address = [string]$Object.streetAddress
+        post_office_box = [string]$Object.postOfficeBox
 
         employee_id = [string]$Object.employeeID
         employee_number = [string]$Object.employeeNumber
@@ -325,12 +329,16 @@ function New-EitasAdSnapshot {
         "manager",
         "physicalDeliveryOfficeName",
         "telephoneNumber",
+        "facsimileTelephoneNumber",
+        "pager",
+        "ipPhone",
         "mobile",
         "l",
         "co",
         "st",
         "postalCode",
         "streetAddress",
+        "postOfficeBox",
         "employeeID",
         "employeeNumber",
         "division",

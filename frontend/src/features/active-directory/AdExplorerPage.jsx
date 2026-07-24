@@ -1271,6 +1271,57 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
 
+  async function loadContactsView() {
+    setLoading(true)
+    setStatus(
+      'Chargement des contacts Active Directory...'
+    )
+
+    try {
+      const items = await adSnapshot.search({
+        query: '',
+        baseDn: EITAS_DN,
+        recursive: true,
+        types: ['contact'],
+        limit: 1000,
+      })
+
+      if (!Array.isArray(items)) {
+        throw new Error(
+          'Snapshot des contacts indisponible.'
+        )
+      }
+
+      setSelectedNode({
+        name: 'Contacts',
+        type: 'contact-container',
+        distinguished_name: EITAS_DN,
+        dn: EITAS_DN,
+        canonical_name: 'API.LOCAL/EITAS/Contacts'
+      })
+
+      setViewType('contacts')
+      setViewItems(items)
+      setSelectedObject(null)
+      setObjectMembers([])
+      setMembersError('')
+
+      setStatus(
+        `${items.length} contact(s) chargé(s) depuis le snapshot EITAS`
+      )
+    } catch (error) {
+      setViewItems([])
+      setSelectedObject(null)
+
+      setStatus(
+        error.message ||
+        'Chargement des contacts Active Directory impossible.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function openProperties(target) {
     setContextMenu(null)
 
@@ -1384,6 +1435,18 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         }
       }
 
+      const contacts = await adSnapshot.search({
+        query,
+        baseDn: EITAS_DN,
+        recursive: true,
+        types: ['contact'],
+        limit: 1000,
+      })
+
+      if (Array.isArray(contacts)) {
+        results.push(...contacts)
+      }
+
       const seen = new Set()
 
       const uniqueResults = results.filter(item => {
@@ -1414,7 +1477,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
       setStatus(
         loadedFromCatalog
-          ? `${uniqueResults.length} résultat(s) pour ${query} depuis le catalogue du domaine`
+          ? `${uniqueResults.length} résultat(s) pour ${query} depuis les sources AD disponibles`
           : `${uniqueResults.length} résultat(s) pour ${query}`
       )
     } catch (error) {
@@ -1721,6 +1784,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         selectedNodeDn
       ) ||
       viewType === 'computers' ||
+        viewType === 'contacts' ||
       viewType === 'search'
     ) {
       return
@@ -1840,6 +1904,14 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 onClick={loadComputersView}
               >
                 Ordinateurs
+              </button>
+
+              <button
+                type="button"
+                className={viewType === 'contacts' ? 'active' : ''}
+                onClick={loadContactsView}
+              >
+                Contacts
               </button>
 
               <button
@@ -2011,7 +2083,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
           <form className="aduc-global-search-panel" onSubmit={runGlobalAdSearch}>
             <div>
               <strong>Recherche globale AD</strong>
-              <span>Cherche dans tous les groupes et utilisateurs de API.LOCAL. Les objets hors OU=EITAS sont en lecture seule.</span>
+              <span>Cherche les utilisateurs, groupes et ordinateurs de API.LOCAL, ainsi que les contacts du périmètre EITAS. Les objets hors OU=EITAS sont en lecture seule.</span>
             </div>
 
             <input
@@ -2048,6 +2120,17 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                   >
                     › 💻 Ordinateurs
                   </button>
+                    <button
+                      type="button"
+                      className={`aduc-node system ${
+                        viewType === 'contacts'
+                          ? 'selected'
+                          : ''
+                      }`}
+                      onClick={loadContactsView}
+                    >
+                      › 📇 Contacts
+                    </button>
                   <button type="button" className="aduc-node system">› 📁 Domain Controllers</button>
 
                   {filteredTree.map((item, index) => {

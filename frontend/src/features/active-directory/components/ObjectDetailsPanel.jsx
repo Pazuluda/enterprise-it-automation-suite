@@ -154,6 +154,10 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
     return 'unknown'
   }
+  function formatOptionalDateValue(value) {
+    return value ? formatAdHistoryDate(value) : ''
+  }
+
 
   const generalRows = rows.length ? rows.map(row => [row.label, row.value, row.long]) : [
     ['Nom', objectName],
@@ -172,7 +176,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Mot de passe expiré', boolLabel(pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired']))],
     ['Mot de passe jamais expiré', boolLabel(pickAdField(['password_never_expires', 'passwordNeverExpires', 'PasswordNeverExpires']))],
     ['Ne peut pas changer MDP', boolLabel(pickAdField(['cannot_change_password', 'cannotChangePassword', 'CannotChangePassword']))],
-    ['Dernier changement MDP', formatAdHistoryDate(pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet']))],
+    ['Dernier changement MDP', formatOptionalDateValue(pickAdField(['password_last_set', 'passwordLastSet', 'PasswordLastSet']))],
     ['Dernière connexion', formatAdHistoryDate(pickAdField(['last_logon_date', 'lastLogonDate', 'last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate']))],
     ['Dernière erreur MDP', pickAdField(['last_bad_password_attempt', 'lastBadPasswordAttempt', 'LastBadPasswordAttempt'])],
     ['Tentatives échouées', pickAdField(['bad_logon_count', 'badLogonCount', 'BadLogonCount'])],
@@ -381,13 +385,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       formatAdHistoryDate(
         orgValue([
           'last_logon_date',
+          'last_logon',
+          'lastLogonTimestamp',
           'lastLogonDate'
         ])
       )
     ],
     [
       'Mot de passe machine modifié',
-      formatAdHistoryDate(
+      formatOptionalDateValue(
         orgValue([
           'password_last_set',
           'passwordLastSet'
@@ -403,16 +409,16 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
   const locationRows = [
     [
-      'Emplacement',
+      'Emplacement physique',
       orgValue([
         'location',
       ]),
     ],
     [
-      'Nom DNS',
+      'Bureau',
       orgValue([
-        'dns_host_name',
-        'dnsHostName',
+        'office',
+        'physicalDeliveryOfficeName',
       ]),
     ],
   ].filter(
