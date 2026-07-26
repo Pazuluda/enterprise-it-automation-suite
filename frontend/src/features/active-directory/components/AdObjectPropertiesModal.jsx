@@ -72,6 +72,25 @@ function AdObjectPropertiesModal({
     }
   }
 
+  function beginClearingManager(
+    target = object
+  ) {
+    if (loading || editing) return
+
+    setSaveNotice('')
+
+    const prepared =
+      update?.prepareClearManager?.(
+        target,
+        { openModal: false }
+      )
+
+    if (prepared) {
+      setEditing(true)
+    }
+  }
+
+
   async function applyChanges() {
     if (
       loading ||
@@ -234,6 +253,11 @@ function AdObjectPropertiesModal({
               {...details}
               onOpenUpdateObject={target =>
                 beginEditing(
+                  target || object
+                )
+              }
+              onClearManagedBy={target =>
+                beginClearingManager(
                   target || object
                 )
               }

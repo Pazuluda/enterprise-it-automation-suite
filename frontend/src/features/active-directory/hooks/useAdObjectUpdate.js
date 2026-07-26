@@ -378,6 +378,31 @@ function useAdObjectUpdate({
     setManagerSearchError('')
   }
 
+  function prepareClearManager(
+    target,
+    { openModal = true } = {}
+  ) {
+    const prepared = prepareUpdateObject(
+      target,
+      { openModal }
+    )
+
+    if (!prepared) return false
+
+    const propertyName =
+      getManagerPropertyName(target)
+
+    setUpdateForm(previous => ({
+      ...previous,
+      [propertyName]: '',
+    }))
+
+    resetManagerPicker()
+
+    return true
+  }
+
+
   function clearManagerSelection() {
     const propertyName =
       getManagerPropertyName()
@@ -596,6 +621,7 @@ function useAdObjectUpdate({
     isUpdateUserTarget,
     isUpdateGroupTarget,
     clearManagerSelection,
+    prepareClearManager,
     managerSearchQuery,
     setManagerSearchQuery,
     setManagerSearchResults,

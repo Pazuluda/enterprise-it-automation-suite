@@ -294,6 +294,9 @@ function Convert-EitasSnapshotObject {
         updated_at = Convert-EitasSnapshotDateValue `
             -Value $Object.whenChanged
 
+        usn_changed = [int64]$Object.uSNChanged
+        usn_created = [int64]$Object.uSNCreated
+
         object_guid = [string]$Object.ObjectGUID
         sid = [string]$Object.objectSid
     }
@@ -357,6 +360,8 @@ function New-EitasAdSnapshot {
         "canonicalName",
         "whenCreated",
         "whenChanged",
+        "uSNChanged",
+        "uSNCreated",
         "dNSHostName",
         "operatingSystem",
         "operatingSystemVersion",

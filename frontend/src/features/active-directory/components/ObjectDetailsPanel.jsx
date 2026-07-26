@@ -18,7 +18,7 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject, onOpenLinkedObject }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -183,16 +183,121 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
+  const objectProtectionValue = pickAdField([
+    'protected_from_accidental_deletion',
+    'protectedFromAccidentalDeletion',
+  ])
+
+  const objectProtectionChecked =
+    objectProtectionValue === true ||
+    String(objectProtectionValue).toLowerCase() === 'true' ||
+    String(objectProtectionValue).trim() === '1'
+
+  const nativeObjectClass =
+    isOu
+      ? 'Unité d’organisation'
+      : isGroup
+        ? 'Groupe'
+        : isUser
+          ? 'Utilisateur'
+          : isComputer
+            ? 'Ordinateur'
+            : isContact
+              ? 'Contact'
+              : type
+
   const objectRows = [
-    ['DN', dn, true],
-    ['Nom canonique', pickAdField(['canonical_name', 'canonicalName']), true],
-    ['Classe d’objet', type],
-    ['GUID de l’objet', pickAdField(['object_guid', 'objectGUID', 'guid'])],
-    ['SID', pickAdField(['sid', 'objectSid'])],
-    ['Créé le', formatAdHistoryDate(pickAdField(['created_at', 'whenCreated', 'created']))],
-    ['Modifié le', formatAdHistoryDate(pickAdField(['updated_at', 'whenChanged', 'modified']))],
-    ['Protection suppression accidentelle', boolLabel(pickAdField(['protected_from_accidental_deletion', 'protectedFromAccidentalDeletion']))]
-  ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
+    [
+      'Nom canonique de l’objet',
+      pickAdField([
+        'canonical_name',
+        'canonicalName',
+      ]),
+      true,
+    ],
+    [
+      'Classe d’objets',
+      nativeObjectClass,
+    ],
+    [
+      'Créé le',
+      formatAdHistoryDate(
+        pickAdField([
+          'created_at',
+          'whenCreated',
+          'created',
+        ])
+      ),
+    ],
+    [
+      'Modifié le',
+      formatAdHistoryDate(
+        pickAdField([
+          'updated_at',
+          'whenChanged',
+          'modified',
+        ])
+      ),
+    ],
+  ].filter(
+    ([, value]) =>
+      value !== '' &&
+      value !== null &&
+      value !== undefined
+  )
+
+  const objectUsnRows = [
+    [
+      'Actuel',
+      pickAdField([
+        'usn_changed',
+        'uSNChanged',
+        'usnChanged',
+      ]),
+    ],
+    [
+      'Original',
+      pickAdField([
+        'usn_created',
+        'uSNCreated',
+        'usnCreated',
+      ]),
+    ],
+  ].filter(
+    ([, value]) =>
+      value !== '' &&
+      value !== null &&
+      value !== undefined
+  )
+
+const objectSidValue = pickAdField([
+  'sid',
+  'objectSid',
+])
+
+const objectTechnicalRows = [
+  [
+    'GUID de l’objet',
+    pickAdField([
+      'object_guid',
+      'objectGUID',
+      'guid',
+    ]),
+  ],
+  [
+    'SID',
+    objectSidValue || (
+      isOu
+        ? 'Non applicable à une unité d’organisation'
+        : ''
+    ),
+  ],
+].filter(
+  ([, value]) =>
+    value !== '' &&
+    value !== null &&
+    value !== undefined
+)
 
     const orgValue = names => pickAdField(names)
 
@@ -275,6 +380,52 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       value !== null &&
       value !== undefined
   )
+
+  const ouGeneralRows = [
+    [
+      'Description',
+      orgValue([
+        'description',
+      ]) || '—',
+    ],
+    [
+      'Adresse',
+      orgValue([
+        'street_address',
+        'streetAddress',
+      ]) || '—',
+      true,
+    ],
+    [
+      'Ville',
+      orgValue([
+        'city',
+        'l',
+      ]) || '—',
+    ],
+    [
+      'Département ou région',
+      orgValue([
+        'state',
+        'st',
+      ]) || '—',
+    ],
+    [
+      'Code postal',
+      orgValue([
+        'postal_code',
+        'postalCode',
+      ]) || '—',
+    ],
+    [
+      'Pays/région',
+      orgValue([
+        'country',
+        'co',
+        'c',
+      ]) || '—',
+    ],
+  ]
 
   const phoneRows = [
     [
@@ -432,6 +583,103 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     'managed_by',
     'managedBy',
   ])
+
+
+  const managedByObject =
+    managedByDn
+      ? (
+          onResolveLinkedObject?.(
+            managedByDn
+          ) || null
+        )
+      : null
+
+  const managedByRdn = String(
+    managedByDn || ''
+  ).split(',')[0]
+
+  const managedByFallbackName =
+    managedByRdn.includes('=')
+      ? managedByRdn.slice(
+          managedByRdn.indexOf('=') + 1
+        )
+      : managedByDn
+
+  const managedByName =
+    managedByObject
+      ? getObjectName(managedByObject)
+      : managedByFallbackName
+
+  function pickManagedByField(names) {
+    for (const name of names) {
+      const value = managedByObject?.[name]
+
+      if (
+        value !== '' &&
+        value !== null &&
+        value !== undefined
+      ) {
+        return value
+      }
+    }
+
+    return ''
+  }
+
+  const managedByRows = [
+    [
+      'Bureau',
+      pickManagedByField([
+        'office',
+        'physicalDeliveryOfficeName',
+      ]) || '—',
+    ],
+    [
+      'Adresse',
+      pickManagedByField([
+        'street_address',
+        'streetAddress',
+      ]) || '—',
+      true,
+    ],
+    [
+      'Ville',
+      pickManagedByField([
+        'city',
+        'l',
+      ]) || '—',
+    ],
+    [
+      'Département ou région',
+      pickManagedByField([
+        'state',
+        'st',
+      ]) || '—',
+    ],
+    [
+      'Pays/région',
+      pickManagedByField([
+        'country',
+        'co',
+      ]) || '—',
+    ],
+    [
+      'Numéro de téléphone',
+      pickManagedByField([
+        'telephone_number',
+        'telephoneNumber',
+        'phone',
+      ]) || '—',
+    ],
+    [
+      'Numéro de télécopie',
+      pickManagedByField([
+        'facsimile_telephone_number',
+        'facsimileTelephoneNumber',
+        'fax',
+      ]) || '—',
+    ],
+  ]
 
   const tabs = [
     ['general', 'Général'],
@@ -699,45 +947,88 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     }
 
   function renderManagedByTab() {
-      return (
-        <div className="aduc-tab-card">
-          <h4>Géré par</h4>
+    const canModifyManager =
+      Boolean(
+        isManagedScope &&
+        onOpenUpdateObject
+      )
 
-          {renderGrid(
-            [
-              [
-                'Gestionnaire',
-                managedByDn,
-                true,
-              ],
-            ],
-            'Aucun gestionnaire défini.'
-          )}
+    const canOpenManager =
+      Boolean(
+        managedByDn &&
+        managedByObject &&
+        onOpenLinkedObject
+      )
 
-          {managedByDn && (
-            <div className="aduc-aduc-actionbar">
+    const canClearManager =
+      Boolean(
+        isManagedScope &&
+        managedByDn &&
+        onClearManagedBy
+      )
+
+    return (
+      <div className="
+        aduc-tab-card
+        aduc-managed-by-card
+      ">
+        <h4>Géré par</h4>
+
+        <div className="aduc-managed-by-name-row">
+          <span>Nom</span>
+
+          <div className="aduc-managed-by-name-control">
+            <strong>
+              {managedByName || '—'}
+            </strong>
+
+            <div className="aduc-managed-by-buttons">
               <button
                 type="button"
                 onClick={() =>
-                  onOpenLinkedObject?.(managedByDn)
+                  onOpenUpdateObject?.(
+                    displayed
+                  )
                 }
+                disabled={!canModifyManager}
               >
-                Ouvrir l’objet
+                Modifier…
               </button>
 
               <button
                 type="button"
                 onClick={() =>
-                  onCopyDn?.(managedByDn)
+                  onOpenLinkedObject?.(
+                    managedByObject
+                  )
                 }
+                disabled={!canOpenManager}
               >
-                Copier le DN du gestionnaire
+                Propriétés
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  onClearManagedBy?.(
+                    displayed
+                  )
+                }
+                disabled={!canClearManager}
+              >
+                Effacer
               </button>
             </div>
-          )}
+          </div>
         </div>
-      )
-    }
+
+        <div className="aduc-managed-by-details">
+          {renderGrid(managedByRows)}
+        </div>
+      </div>
+    )
+  }
+
 
   function renderGroupsTab() {
       return (
@@ -885,7 +1176,9 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             {activeDetailsTab === 'general' && (
               <div className="aduc-tab-card">
                 <h4>Général</h4>
-                {renderGrid(generalRows)}
+                {renderGrid(
+                  isOu ? ouGeneralRows : generalRows
+                )}
               </div>
             )}
 
@@ -917,7 +1210,47 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
             {activeDetailsTab === 'object' && (
               <div className="aduc-tab-card">
                 <h4>Objet</h4>
+
                 {renderGrid(objectRows)}
+
+                <h4>
+                  Nombres de séquences de mise à jour (USN)
+                </h4>
+
+                {renderGrid(
+                  objectUsnRows,
+                  'Informations USN non disponibles.'
+                )}
+
+                {objectProtectionValue !== '' &&
+                  objectProtectionValue !== null &&
+                  objectProtectionValue !== undefined && (
+                    <div className="aduc-object-protection">
+                      <span className="aduc-object-protection-text">
+                        Protéger l’objet des suppressions accidentelles
+                      </span>
+
+                      <input
+                        className="aduc-object-protection-checkbox"
+                        type="checkbox"
+                        checked={objectProtectionChecked}
+                        readOnly
+                        tabIndex={-1}
+                        aria-label="Protection contre les suppressions accidentelles"
+                        onClick={event => event.preventDefault()}
+                      />
+                    </div>
+                  )}
+
+                {objectTechnicalRows.length > 0 && (
+                  <details className="aduc-object-technical">
+                    <summary>
+                      Informations techniques — Extension EITAS
+                    </summary>
+
+                    {renderGrid(objectTechnicalRows)}
+                  </details>
+                )}
               </div>
             )}
 

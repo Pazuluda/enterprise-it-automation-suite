@@ -849,22 +849,41 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   }
 
 
-  function openLinkedObject(target) {
+  function resolveLinkedObject(target) {
     const targetDn =
-      typeof target === "string"
+      typeof target === 'string'
         ? target
         : getObjectDn(target)
 
-    const linkedObject =
+    if (!targetDn) {
+      return (
+        target &&
+        typeof target === 'object'
+          ? target
+          : null
+      )
+    }
+
+    return (
       adSnapshot.findByDnSync(targetDn) ||
       adDomainCatalog.findByDnSync(targetDn) ||
-      (target && typeof target === "object"
-        ? target
-        : null)
+      (
+        target &&
+        typeof target === 'object'
+          ? target
+          : null
+      )
+    )
+  }
+
+
+  function openLinkedObject(target) {
+    const linkedObject =
+      resolveLinkedObject(target)
 
     if (!linkedObject) {
       const message =
-        "Objet lié introuvable dans les données Active Directory."
+        'Objet lié introuvable dans les données Active Directory.'
 
       setStatus(message)
       setMessage?.(message)
@@ -874,6 +893,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
     selectObject(linkedObject)
     setPropertiesModal(linkedObject)
   }
+
 
   function navigateToAdDn(dn) {
     const node = buildAdNavigationNode(dn)
@@ -2412,6 +2432,13 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                 onCopyDn={target => copyText(getObjectDn(target)).then(() => setMessage?.('DN copié.'))}
                 onExplore={target => loadNodeContent(target, getNodeKind(target))}
                 onOpenLinkedObject={openLinkedObject}
+                onResolveLinkedObject={resolveLinkedObject}
+                onClearManagedBy={target =>
+                  objectUpdate.prepareClearManager(
+                    target,
+                    { openModal: true }
+                  )
+                }
                 onCreateOu={target => openCreateOu(target)}
                 onCreateGroup={target => openCreateGroup(target)}
                 onOpenMoveObject={target => openMoveObject(target)}
@@ -2471,6 +2498,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         }}
         details={{
           onOpenLinkedObject: openLinkedObject,
+          onResolveLinkedObject: resolveLinkedObject,
           memberItems: objectMembers,
           membersLoading,
           membersError,

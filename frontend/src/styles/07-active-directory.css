@@ -6219,3 +6219,217 @@ button.aduc-admin-history-row.unknown > span {
   padding: 0;
   accent-color: #6366f1;
 }
+
+/* C1.21G — onglet Objet ADUC */
+.aduc-object-protection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 1px solid #dce3ee;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #1f2937;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.aduc-object-protection-checkbox {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin: 0;
+  accent-color: #4f46e5;
+  cursor: default;
+}
+
+.aduc-object-protection span {
+  display: block;
+  margin: 0;
+}
+
+.aduc-object-technical {
+  margin-top: 16px;
+  overflow: hidden;
+  border: 1px solid #dce3ee;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.aduc-object-technical summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 12px 16px;
+  color: #334155;
+  font-weight: 750;
+  line-height: 1.35;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.aduc-object-technical summary::-webkit-details-marker {
+  display: none;
+}
+
+.aduc-object-technical summary::before {
+  content: "›";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #4f46e5;
+  font-size: 22px;
+  font-weight: 900;
+  transform-origin: center;
+  transition:
+    transform 160ms ease,
+    color 160ms ease;
+}
+
+.aduc-object-technical summary:hover {
+  background: #f1f5f9;
+}
+
+.aduc-object-technical summary:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
+}
+
+.aduc-object-technical[open] summary {
+  border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.aduc-object-technical[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.aduc-object-technical > div {
+  margin: 14px;
+}
+
+/* C1.21H — alignement horizontal protection objet */
+div.aduc-object-protection {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+}
+
+div.aduc-object-protection >
+.aduc-object-protection-text {
+  order: 1;
+  display: inline-block !important;
+  flex: 0 1 auto !important;
+  margin: 0 !important;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+div.aduc-object-protection >
+input.aduc-object-protection-checkbox {
+  order: 2;
+  position: static !important;
+  display: inline-block !important;
+  flex: 0 0 18px !important;
+  width: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  height: 18px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: #4f46e5;
+  cursor: default;
+}
+/* FIN C1.21H */
+
+/* C1.22D — onglet Géré par ADUC */
+.aduc-managed-by-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.aduc-managed-by-name-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.aduc-managed-by-name-row > span {
+  padding-top: 11px;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.aduc-managed-by-name-control {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.aduc-managed-by-name-control > strong {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #172033;
+}
+
+.aduc-managed-by-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.aduc-managed-by-buttons button {
+  min-width: 105px;
+}
+
+.aduc-managed-by-details {
+  padding-top: 17px;
+  border-top: 1px solid #dbe3ee;
+}
+
+@media (max-width: 720px) {
+  .aduc-managed-by-name-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .aduc-managed-by-name-row > span {
+    padding-top: 0;
+  }
+}
+
+/* C1.22G — boutons Géré par désactivés */
+.aduc-managed-by-buttons button:disabled,
+.aduc-managed-by-buttons button:disabled:hover,
+.aduc-managed-by-buttons button:disabled:active {
+  border-color: #d8dee8 !important;
+  background: #e8edf3 !important;
+  color: #8994a5 !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  filter: none !important;
+  pointer-events: none;
+}
