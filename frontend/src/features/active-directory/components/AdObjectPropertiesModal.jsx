@@ -29,6 +29,9 @@ function AdObjectPropertiesModal({
   const visibleSaveNotice =
     update?.updateSaveNotice || saveNotice
 
+  const visibleSaveError =
+    update?.updateSaveError || ''
+
   useEffect(() => {
     setEditing(false)
     setSaveNotice('')
@@ -224,6 +227,17 @@ function AdObjectPropertiesModal({
             </button>
           </div>
         </header>
+          {visibleSaveError && (
+            <div
+              className="aduc-object-properties-notice error"
+              role="alert"
+              aria-live="assertive"
+            >
+              <span aria-hidden="true">!</span>
+              <strong>{visibleSaveError}</strong>
+            </div>
+          )}
+
           {visibleSaveNotice && (
             <div
               className="aduc-object-properties-notice"

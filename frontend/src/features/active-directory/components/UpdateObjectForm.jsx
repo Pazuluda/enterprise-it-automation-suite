@@ -82,18 +82,20 @@ function UpdateObjectForm({
       <h4>Informations générales</h4>
 
       <div className="aduc-update-object-grid">
-          <label>
-            <span>Nom d’affichage</span>
-            <input
-              type="text"
-              value={updateForm.displayName || ''}
-              onChange={event => updateObjectFormField(
-                'displayName',
-                event.target.value
-              )}
-              disabled={loading}
-            />
-          </label>
+          {!isUpdateGroupTarget(currentTarget) && (
+            <label>
+              <span>Nom d’affichage</span>
+              <input
+                type="text"
+                value={updateForm.displayName || ''}
+                onChange={event => updateObjectFormField(
+                  'displayName',
+                  event.target.value
+                )}
+                disabled={loading}
+              />
+            </label>
+          )}
 
         {isUpdateComputerTarget(currentTarget) && (
           <label>
@@ -392,6 +394,43 @@ function UpdateObjectForm({
         <div className="aduc-update-object-grid">
           {isUpdateGroupTarget(currentTarget) && (
             <>
+              <label className="wide">
+                <span>
+                  Nom de groupe (antérieur à Windows 2000)
+                </span>
+                <input
+                  type="text"
+                  value={updateForm.samAccountName || ''}
+                  maxLength={256}
+                  onChange={event =>
+                    updateObjectFormField(
+                      'samAccountName',
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+                <small>
+                  Modifie uniquement le nom de compte SAM.
+                  Le nom CN du groupe reste inchangé.
+                </small>
+              </label>
+
+              <label className="wide">
+                <span>Adresse de messagerie</span>
+                <input
+                  type="email"
+                  value={updateForm.mail || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      'mail',
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+
               <label>
                 <span>Portée du groupe</span>
 
@@ -433,6 +472,21 @@ function UpdateObjectForm({
                 Distribution
               </option>
             </select>
+              </label>
+
+              <label className="wide">
+                <span>Remarques</span>
+                <textarea
+                  rows="4"
+                  value={updateForm.info || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      'info',
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
               </label>
             </>
           )}

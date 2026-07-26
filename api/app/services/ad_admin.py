@@ -646,6 +646,9 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "givenName",
             "sn",
             "mail",
+            "info",
+            "samAccountName",
+            "sam_account_name",
             "title",
             "department",
             "division",
@@ -700,6 +703,7 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "group_scope": "groupScope",
             "group_category": "groupCategory",
             "managed_by": "managedBy",
+            "sam_account_name": "samAccountName",
             "protected_from_accidental_deletion": "protectedFromAccidentalDeletion",
         }
 
@@ -726,6 +730,7 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 if normalized_key in {
                     "groupScope",
                     "groupCategory",
+                    "samAccountName",
                 }:
                     raise HTTPException(
                         status_code=400,
@@ -736,6 +741,24 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 continue
 
             normalized_value = clean_string(str(value))
+
+            if normalized_key == "samAccountName":
+                if not normalized_value:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "samAccountName ne peut pas être vide"
+                        ),
+                    )
+
+                if len(normalized_value) > 256:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "samAccountName est limité à "
+                            "256 caractères par le schéma AD"
+                        ),
+                    )
 
             if normalized_key == "groupScope":
                 if normalized_value not in {

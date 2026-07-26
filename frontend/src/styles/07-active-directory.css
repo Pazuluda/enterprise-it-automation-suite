@@ -6433,3 +6433,30 @@ input.aduc-object-protection-checkbox {
   filter: none !important;
   pointer-events: none;
 }
+
+/* C1.23C — onglet COM+ des OU */
+.aduc-com-plus-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.aduc-com-plus-description {
+  max-width: 720px;
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+/* C1.24G7 — erreur de modification AD */
+.aduc-object-properties-notice.error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(254, 226, 226, 0.92);
+  color: #991b1b;
+}
+
+.aduc-object-properties-notice.error span {
+  background: #dc2626;
+  color: #ffffff;
+}

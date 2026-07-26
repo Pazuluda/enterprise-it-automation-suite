@@ -10,6 +10,8 @@ import {
   getObjectDn,
   isOuObject,
   formatAdValue,
+  formatGroupScope,
+  formatGroupCategory,
   getObjectMetaRows,
   isGroupObject,
   formatAdHistoryAction,
@@ -165,6 +167,62 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Description', pickAdField(['description'])],
     ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
     ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])]
+  ]
+
+  const groupGeneralRows = [
+    [
+      'Nom de groupe (antérieur à Windows 2000)',
+      pickAdField([
+        'sam_account_name',
+        'samAccountName',
+        'sAMAccountName',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Description',
+      pickAdField([
+        'description',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Adresse de messagerie',
+      pickAdField([
+        'mail',
+        'email',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Étendue du groupe',
+      formatGroupScope(
+        pickAdField([
+          'group_scope',
+          'groupScope',
+          'scope',
+        ])
+      ) || '\u00a0',
+    ],
+    [
+      'Type de groupe',
+      formatGroupCategory(
+        pickAdField([
+          'group_category',
+          'groupCategory',
+          'category',
+        ])
+      ) || '\u00a0',
+    ],
+    [
+      'Remarques',
+      pickAdField([
+        'info',
+        'notes',
+        'remarks',
+      ]) || '\u00a0',
+      true,
+    ],
   ]
 
   const accountRows = [
@@ -585,6 +643,43 @@ const objectTechnicalRows = [
   ])
 
 
+  const comPlusPartitionSetDn = pickAdField([
+    'com_plus_partition_set_dn',
+    'msCOM-UserPartitionSetLink',
+    'msCOMUserPartitionSetLink',
+  ])
+
+  const comPlusPartitionSetObject =
+    comPlusPartitionSetDn
+      ? (
+          onResolveLinkedObject?.(
+            comPlusPartitionSetDn
+          ) || null
+        )
+      : null
+
+  const comPlusPartitionSetRdn = String(
+    comPlusPartitionSetDn || ''
+  ).split(',')[0]
+
+  const comPlusPartitionSetFallbackName =
+    comPlusPartitionSetRdn.includes('=')
+      ? comPlusPartitionSetRdn.slice(
+          comPlusPartitionSetRdn.indexOf('=') + 1
+        )
+      : comPlusPartitionSetDn
+
+  const comPlusPartitionSetName =
+    comPlusPartitionSetObject
+      ? getObjectName(
+          comPlusPartitionSetObject
+        )
+      : (
+          comPlusPartitionSetFallbackName
+          || '<aucun(e)>'
+        )
+
+
   const managedByObject =
     managedByDn
       ? (
@@ -713,7 +808,12 @@ const objectTechnicalRows = [
       : []),
 
     ...(isContact ? [['address', 'Adresse'], ['phones', 'Téléphones'], ['organization', 'Organisation'], ['managedBy', 'Géré par']] : []),
-    ...(isOu ? [['managedBy', 'Géré par']] : []),
+    ...(isOu
+      ? [
+          ['managedBy', 'Géré par'],
+          ['comPlus', 'COM+'],
+        ]
+      : []),
     ['object', 'Objet'],
     ['history', 'Historique'],
   ]
@@ -946,6 +1046,31 @@ const objectTechnicalRows = [
       )
     }
 
+  function renderComPlusTab() {
+    return (
+      <div className="
+        aduc-tab-card
+        aduc-com-plus-card
+      ">
+        <h4>COM+</h4>
+
+        <p className="aduc-com-plus-description">
+          Cette unité d’organisation est membre du groupe
+          de partitions COM+ suivant :
+        </p>
+
+        {renderGrid([
+          [
+            'Groupe de partitions',
+            comPlusPartitionSetName,
+            true,
+          ],
+        ])}
+      </div>
+    )
+  }
+
+
   function renderManagedByTab() {
     const canModifyManager =
       Boolean(
@@ -1177,7 +1302,11 @@ const objectTechnicalRows = [
               <div className="aduc-tab-card">
                 <h4>Général</h4>
                 {renderGrid(
-                  isOu ? ouGeneralRows : generalRows
+                  isOu
+                    ? ouGeneralRows
+                    : isGroup
+                      ? groupGeneralRows
+                      : generalRows
                 )}
               </div>
             )}
@@ -1330,6 +1459,9 @@ const objectTechnicalRows = [
 
             {activeDetailsTab === 'managedBy' &&
               renderManagedByTab()}
+
+            {activeDetailsTab === 'comPlus' &&
+              renderComPlusTab()}
 
             {activeDetailsTab === 'history' &&
               renderHistoryTab()}

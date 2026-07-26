@@ -1196,6 +1196,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "givenName",
         "sn",
         "mail",
+        "info",
+        "samAccountName",
         "title",
         "department",
         "division",
@@ -1276,6 +1278,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $GroupScope = $null
     $GroupCategory = $null
+    $GroupSamAccountName = $null
     $ManagedBy = $null
     $ClearManagedBy = $false
     $ProtectedFromAccidentalDeletion = $null
@@ -1294,7 +1297,23 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
         $Value = Repair-EitasTextEncoding -Value $RawValue
 
-        if ($Key -eq "groupScope") {
+        if ($Key -eq "samAccountName") {
+            $GroupSamAccountName = (
+                [string]$Value
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $GroupSamAccountName
+                )
+            ) {
+                throw "samAccountName ne peut pas être vide"
+            }
+
+            if ($GroupSamAccountName.Length -gt 256) {
+                throw "samAccountName est limité à 256 caractères par le schéma AD"
+            }
+        } elseif ($Key -eq "groupScope") {
             $GroupScope = [string]$Value
 
             if (@("Global", "Universal", "DomainLocal") -notcontains $GroupScope) {
@@ -1329,9 +1348,30 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         [string]$Object.ObjectClass
     ).Trim().ToLowerInvariant()
 
+    $HasGroupSamChanges =
+        $null -ne $GroupSamAccountName
+
+    if (
+        $HasGroupSamChanges -and
+        $ObjectClassName -ne "group"
+    ) {
+        throw "samAccountName est réservé aux objets groupe dans ce formulaire"
+    }
+
+    $HasGroupInfoChanges =
+        $Properties.ContainsKey("info")
+
+    if (
+        $HasGroupInfoChanges -and
+        $ObjectClassName -ne "group"
+    ) {
+        throw "info est réservé aux objets groupe"
+    }
+
     $HasGroupSpecificChanges = (
         $null -ne $GroupScope -or
-        $null -ne $GroupCategory
+        $null -ne $GroupCategory -or
+        $null -ne $GroupSamAccountName
     )
 
     if (
@@ -1365,6 +1405,32 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     }
 
 
+    if ($null -ne $GroupSamAccountName) {
+        $RootDse = Get-ADRootDSE `
+            -ErrorAction Stop
+
+        $EscapedSamAccountName = (
+            Escape-EitasLdapFilterValue `
+                -Value $GroupSamAccountName
+        )
+
+        $SamConflict = Get-ADObject `
+            -SearchBase $RootDse.defaultNamingContext `
+            -SearchScope Subtree `
+            -LDAPFilter "(sAMAccountName=$EscapedSamAccountName)" `
+            -Properties distinguishedName `
+            -ResultSetSize 2 `
+            -ErrorAction Stop |
+            Where-Object {
+                [string]$_.DistinguishedName -ine $ObjectDn
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $SamConflict) {
+            throw "Un objet Active Directory utilise déjà le nom de compte antérieur à Windows 2000 : $GroupSamAccountName"
+        }
+    }
+
     if ($Replace.Count -gt 0) {
         Set-ADObject `
             -Identity $ObjectDn `
@@ -1389,6 +1455,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         $SetGroupParameters = @{
             Identity = $ObjectDn
             ErrorAction = "Stop"
+        }
+
+        if ($null -ne $GroupSamAccountName) {
+            $SetGroupParameters["SamAccountName"] = (
+                $GroupSamAccountName
+            )
         }
 
         if ($null -ne $GroupScope) {
@@ -1463,7 +1535,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, info, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
@@ -1474,9 +1546,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     if ([string]$Object.ObjectClass -eq "group") {
         $UpdatedGroup = Get-ADGroup `
             -Identity $ObjectDn `
-            -Properties ManagedBy `
+            -Properties ManagedBy, sAMAccountName `
             -ErrorAction Stop
 
+        $UpdatedGroupSamAccountName = (
+            [string]$UpdatedGroup.SamAccountName
+        )
         $UpdatedGroupScope = [string]$UpdatedGroup.GroupScope
         $UpdatedGroupCategory = [string]$UpdatedGroup.GroupCategory
     }
@@ -1499,6 +1574,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         object_dn = $ObjectDn
         replaced = $Replace
         cleared = $Clear
+        sam_account_name = $UpdatedGroupSamAccountName
         group_scope = $UpdatedGroupScope
         group_category = $UpdatedGroupCategory
         managed_by = $UpdatedManagedBy

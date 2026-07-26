@@ -226,6 +226,7 @@ function Convert-EitasSnapshotObject {
         sam_account_name = [string]$Object.sAMAccountName
         user_principal_name = [string]$Object.userPrincipalName
         mail = [string]$Object.mail
+        info = [string]$Object.info
 
         description = [string]$Object.description
         department = [string]$Object.department
@@ -286,6 +287,7 @@ function Convert-EitasSnapshotObject {
         operating_system_service_pack = [string]$Object.operatingSystemServicePack
         location = [string]$Object.location
         managed_by = [string]$Object.managedBy
+        com_plus_partition_set_dn = [string]$Object.'msCOM-UserPartitionSetLink'
         protected_from_accidental_deletion = $ProtectedFromAccidentalDeletion
 
         created_at = Convert-EitasSnapshotDateValue `
@@ -328,6 +330,7 @@ function New-EitasAdSnapshot {
         "sAMAccountName",
         "userPrincipalName",
         "mail",
+        "info",
         "userAccountControl",
         "pwdLastSet",
         "lastLogonTimestamp",
@@ -368,6 +371,7 @@ function New-EitasAdSnapshot {
         "operatingSystemServicePack",
         "location",
         "managedBy",
+        "msCOM-UserPartitionSetLink",
         "ProtectedFromAccidentalDeletion",
         "objectGUID",
         "objectSid"
@@ -500,6 +504,7 @@ function Convert-EitasDomainCatalogObject {
         sam_account_name = $SamAccountName
         user_principal_name = [string]$Object.userPrincipalName
         mail = [string]$Object.mail
+        info = [string]$Object.info
 
         description = [string]$Object.description
         department = [string]$Object.department
@@ -567,6 +572,7 @@ function New-EitasAdDomainCatalog {
         "sAMAccountName",
         "userPrincipalName",
         "mail",
+        "info",
         "userAccountControl",
         "lastLogonTimestamp",
         "department",

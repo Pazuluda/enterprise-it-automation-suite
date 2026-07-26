@@ -165,12 +165,42 @@ function getObjectType(item) {
     return 'Ordinateur'
   }
 
-  if (
-    item?.type === 'group' ||
-    item?.scope ||
+  const groupCategory =
+    item?.group_category ??
+    item?.groupCategory ??
     item?.category
-  ) {
-    return 'Groupe de sécurité'
+
+  const normalizedGroupCategory = String(
+    groupCategory ?? ''
+  ).trim().toLowerCase()
+
+  const isGroup =
+    rawType === 'group' ||
+    item?.group_scope !== undefined ||
+    item?.groupScope !== undefined ||
+    item?.scope !== undefined ||
+    item?.group_category !== undefined ||
+    item?.groupCategory !== undefined ||
+    item?.category !== undefined
+
+  if (isGroup) {
+    if (
+      normalizedGroupCategory === 'distribution' ||
+      normalizedGroupCategory === '0'
+    ) {
+      return 'Groupe de distribution'
+    }
+
+    if (
+      normalizedGroupCategory === 'security' ||
+      normalizedGroupCategory === 'sécurité' ||
+      normalizedGroupCategory === 'securite' ||
+      normalizedGroupCategory === '1'
+    ) {
+      return 'Groupe de sécurité'
+    }
+
+    return 'Groupe'
   }
 
   if (

@@ -33,6 +33,7 @@ function useAdObjectUpdate({
   const [managerSearchLoading, setManagerSearchLoading] = useState(false)
   const [managerSearchError, setManagerSearchError] = useState('')
   const [updateSaveNotice, setUpdateSaveNotice] = useState('')
+  const [updateSaveError, setUpdateSaveError] = useState('')
 
   function getAdAttributeValue(item, ...names) {
       for (const name of names) {
@@ -160,6 +161,12 @@ function useAdObjectUpdate({
         'mail',
         'email'
       ),
+      info: getAdAttributeValue(
+        target,
+        'info',
+        'notes',
+        'remarks'
+      ),
       title: getAdAttributeValue(
         target,
         'title',
@@ -201,6 +208,12 @@ function useAdObjectUpdate({
         'manager',
         'manager_dn',
         'managerDn'
+      ),
+      samAccountName: getAdAttributeValue(
+        target,
+        'samAccountName',
+        'sam_account_name',
+        'sAMAccountName'
       ),
       groupScope: getAdAttributeValue(
         target,
@@ -263,6 +276,7 @@ function useAdObjectUpdate({
     }
 
     setUpdateSaveNotice('')
+    setUpdateSaveError('')
     resetManagerPicker()
     setContextMenu(null)
     setUpdateModal(target)
@@ -282,6 +296,7 @@ function useAdObjectUpdate({
 
   function updateObjectFormField(name, value) {
     setUpdateSaveNotice('')
+    setUpdateSaveError('')
 
     setUpdateForm(previous => ({
       ...previous,
@@ -324,6 +339,7 @@ function useAdObjectUpdate({
 
   function closeUpdateObject() {
     setUpdateSaveNotice('')
+    setUpdateSaveError('')
     setUpdateEditorOpen(false)
     setUpdateModal(null)
     resetManagerPicker()
@@ -548,6 +564,8 @@ function useAdObjectUpdate({
       return false
     }
 
+    setUpdateSaveNotice('')
+    setUpdateSaveError('')
     setLoading(true)
 
     try {
@@ -557,6 +575,21 @@ function useAdObjectUpdate({
         properties,
         created_by: 'react-admin'
       })
+
+      const failed =
+        String(job?.status || '').toLowerCase() === 'failed' ||
+        job?.success === false
+
+      if (failed) {
+        const failureMessage = cleanAdHistoryText(
+          job?.message ||
+          job?.output?.error ||
+          job?.error ||
+          'La modification Active Directory a échoué.'
+        )
+
+        throw new Error(failureMessage)
+      }
 
       const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Propriétés objet AD modifiées')
       setStatus(message)
@@ -591,7 +624,22 @@ function useAdObjectUpdate({
 
       return true
     } catch (err) {
-      setStatus(err.message || 'Erreur pendant la modification AD.')
+      const errorMessage = cleanAdHistoryText(
+        err?.message ||
+        'Erreur pendant la modification AD.'
+      )
+
+      setUpdateSaveNotice('')
+      setUpdateSaveError(errorMessage)
+      setStatus(errorMessage)
+      setMessage?.(errorMessage)
+
+      try {
+        await loadAdAdminHistory()
+      } catch {
+        // L’erreur principale doit rester visible.
+      }
+
       return false
     } finally {
       setLoading(false)
@@ -614,6 +662,7 @@ function useAdObjectUpdate({
     getChangedUpdateProperties,
     updateOriginalForm,
     updateSaveNotice,
+    updateSaveError,
     isUpdateComputerTarget,
     isUpdateOrganizationalUnitTarget,
     updateForm,
