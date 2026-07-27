@@ -169,6 +169,48 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])]
   ]
 
+  const computerSamAccountName = pickAdField([
+    'sam_account_name',
+    'samAccountName',
+    'sAMAccountName',
+  ])
+
+  const computerGeneralRows = [
+    [
+      'Nom de l’ordinateur (antérieur à Windows 2000)',
+      String(computerSamAccountName || '')
+        .replace(/\$$/, '') || '\u00a0',
+      true,
+    ],
+    [
+      'Nom DNS complet',
+      pickAdField([
+        'dns_host_name',
+        'dnsHostName',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Type',
+      type || 'Ordinateur',
+    ],
+    [
+      'Site',
+      pickAdField([
+        'site',
+        'site_name',
+        'siteName',
+      ]) || '\u00a0',
+    ],
+    [
+      'Description',
+      pickAdField([
+        'description',
+      ]) || '\u00a0',
+      true,
+    ],
+  ]
+
   const groupGeneralRows = [
     [
       'Nom de groupe (antérieur à Windows 2000)',
@@ -536,106 +578,39 @@ const objectTechnicalRows = [
       value !== undefined
   )
 
-  const computerEnabledValue = orgValue([
-    'enabled',
-    'Enabled'
-  ])
-
-  const computerEnabledText =
-    computerEnabledValue === true ||
-    String(computerEnabledValue || '')
-      .toLowerCase() === 'true'
-      ? 'Activé'
-      : computerEnabledValue === false ||
-          String(computerEnabledValue || '')
-            .toLowerCase() === 'false'
-        ? 'Désactivé'
-        : ''
-
-  const machineRows = [
-    ['État du compte machine', computerEnabledText],
+  const computerOperatingSystemRows = [
     [
-      'Nom DNS',
-      orgValue([
-        'dns_host_name',
-        'dnsHostName'
-      ])
-    ],
-    [
-      'Adresse IPv4',
-      orgValue([
-        'ipv4_address',
-        'ipv4Address'
-      ])
-    ],
-    [
-      'Système d’exploitation',
+      'Nom',
       orgValue([
         'operating_system',
-        'operatingSystem'
-      ])
+        'operatingSystem',
+      ]) || '\u00a0',
     ],
     [
-      'Version du système',
+      'Version',
       orgValue([
         'operating_system_version',
-        'operatingSystemVersion'
-      ])
+        'operatingSystemVersion',
+      ]) || '\u00a0',
     ],
     [
       'Service Pack',
       orgValue([
         'operating_system_service_pack',
-        'operatingSystemServicePack'
-      ])
+        'operatingSystemServicePack',
+      ]) || '\u00a0',
     ],
-    [
-      'Dernière connexion',
-      formatAdHistoryDate(
-        orgValue([
-          'last_logon_date',
-          'last_logon',
-          'lastLogonTimestamp',
-          'lastLogonDate'
-        ])
-      )
-    ],
-    [
-      'Mot de passe machine modifié',
-      formatOptionalDateValue(
-        orgValue([
-          'password_last_set',
-          'passwordLastSet'
-        ])
-      )
-    ],
-  ].filter(
-    ([, value]) =>
-      value !== '' &&
-      value !== null &&
-      value !== undefined
-  )
+  ]
 
   const locationRows = [
     [
-      'Emplacement physique',
+      'Emplacement',
       orgValue([
         'location',
-      ]),
+      ]) || '\u00a0',
+      true,
     ],
-    [
-      'Bureau',
-      orgValue([
-        'office',
-        'physicalDeliveryOfficeName',
-      ]),
-    ],
-  ].filter(
-    ([, value]) =>
-      value !== '' &&
-      value !== null &&
-      value !== undefined
-  )
+  ]
 
   const managedByDn = orgValue([
     'managed_by',
@@ -799,11 +774,13 @@ const objectTechnicalRows = [
 
     ...(isComputer
       ? [
-          ['account', 'Compte'],
-          ['machine', 'Système'],
+          [
+            'machine',
+            'Système d’exploitation',
+          ],
+          ['membership', 'Membre de'],
           ['location', 'Emplacement'],
           ['managedBy', 'Géré par'],
-          ['membership', 'Membre de'],
         ]
       : []),
 
@@ -815,7 +792,12 @@ const objectTechnicalRows = [
         ]
       : []),
     ['object', 'Objet'],
-    ['history', 'Historique'],
+    [
+      'history',
+      isComputer
+        ? 'Historique EITAS'
+        : 'Historique',
+    ],
   ]
 
   const displayedIdentity = [
@@ -897,10 +879,18 @@ const objectTechnicalRows = [
     }
 
   function getGroupMemberships() {
-      const raw = displayed?.member_of || displayed?.memberOf || displayed?.groups || []
-      const values = Array.isArray(raw) ? raw : [raw]
+      const raw =
+        displayed?.member_of ||
+        displayed?.memberOf ||
+        displayed?.groups ||
+        []
 
-      return values
+      const values =
+        Array.isArray(raw)
+          ? raw
+          : [raw]
+
+      const memberships = values
         .filter(Boolean)
         .map((groupDn, index) => {
           if (typeof groupDn === 'object') {
@@ -909,24 +899,110 @@ const objectTechnicalRows = [
             return {
               ...groupDn,
               type: groupDn.type || 'group',
-              name: groupDn.name || getGroupNameFromDn(dnValue),
+              name:
+                groupDn.name ||
+                getGroupNameFromDn(dnValue),
               distinguished_name: dnValue,
               dn: dnValue,
-              key: dnValue || groupDn.name || `group-${index}`
+              is_primary_group: false,
+              key:
+                dnValue ||
+                groupDn.name ||
+                `group-${index}`,
             }
           }
 
-          const dnValue = String(groupDn || '').trim()
+          const dnValue =
+            String(groupDn || '').trim()
 
           return {
             type: 'group',
             name: getGroupNameFromDn(dnValue),
             distinguished_name: dnValue,
             dn: dnValue,
-            key: dnValue || `group-${index}`
+            is_primary_group: false,
+            key: dnValue || `group-${index}`,
           }
         })
-        .filter(group => group.dn || group.name)
+
+      const primaryGroupDn = String(
+        displayed?.primary_group_dn ||
+        displayed?.primaryGroupDn ||
+        ''
+      ).trim()
+
+      const primaryGroupName = String(
+        displayed?.primary_group_name ||
+        displayed?.primaryGroupName ||
+        ''
+      ).trim()
+
+      const primaryGroupSam = String(
+        displayed
+          ?.primary_group_sam_account_name ||
+        displayed
+          ?.primaryGroupSamAccountName ||
+        ''
+      ).trim()
+
+      const primaryGroupSid = String(
+        displayed?.primary_group_sid ||
+        displayed?.primaryGroupSid ||
+        ''
+      ).trim()
+
+      const primaryGroupId =
+        displayed?.primary_group_id ??
+        displayed?.primaryGroupID ??
+        null
+
+      if (
+        primaryGroupDn ||
+        primaryGroupName ||
+        primaryGroupSam
+      ) {
+        memberships.unshift({
+          type: 'group',
+          name:
+            primaryGroupName ||
+            primaryGroupSam ||
+            getGroupNameFromDn(primaryGroupDn),
+          sam_account_name: primaryGroupSam,
+          distinguished_name: primaryGroupDn,
+          dn: primaryGroupDn,
+          sid: primaryGroupSid,
+          primary_group_id: primaryGroupId,
+          is_primary_group: true,
+          key:
+            primaryGroupDn ||
+            primaryGroupSid ||
+            `primary-group-${primaryGroupId}`,
+        })
+      }
+
+      const seen = new Set()
+
+      return memberships.filter(group => {
+        const identity = String(
+          group.dn ||
+          group.distinguished_name ||
+          group.sid ||
+          group.name ||
+          ''
+        )
+          .trim()
+          .toLowerCase()
+
+        if (
+          !identity ||
+          seen.has(identity)
+        ) {
+          return false
+        }
+
+        seen.add(identity)
+        return true
+      })
     }
 
   function renderMembershipsTab() {
@@ -992,6 +1068,9 @@ const objectTechnicalRows = [
                     </strong>
 
                     <span>
+                      {group.is_primary_group
+                        ? 'Groupe principal • '
+                        : ''}
                       {group.dn ||
                         group.distinguished_name ||
                         'DN non disponible'}
@@ -1023,7 +1102,8 @@ const objectTechnicalRows = [
                       Copier DN
                     </button>
 
-                    {isManagedScope && (
+                    {isManagedScope &&
+                      !group.is_primary_group && (
                       <button
                         type="button"
                         className="danger"
@@ -1216,7 +1296,11 @@ const objectTechnicalRows = [
       <div className="aduc-admin-history-card">
         <div className="aduc-admin-history-head">
           <div>
-            <h4>Historique AD Admin</h4>
+            <h4>
+              {isComputer
+                ? 'Historique EITAS'
+                : 'Historique AD Admin'}
+            </h4>
             <span>{historyLoading ? 'Chargement...' : `${filteredHistory.length}/${history.length} action(s)`}</span>
           </div>
 
@@ -1306,7 +1390,9 @@ const objectTechnicalRows = [
                     ? ouGeneralRows
                     : isGroup
                       ? groupGeneralRows
-                      : generalRows
+                      : isComputer
+                        ? computerGeneralRows
+                        : generalRows
                 )}
               </div>
             )}
@@ -1413,29 +1499,11 @@ const objectTechnicalRows = [
 
             {activeDetailsTab === 'machine' && (
               <div className="aduc-tab-card">
-                <div className="aduc-machine-card-head">
-                  <h4>Informations machine</h4>
-
-                  {isManagedScope && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onPrepareAccountAction?.(
-                          'toggle_enabled',
-                          displayed
-                        )
-                      }
-                    >
-                      {computerEnabledText === 'Activé'
-                        ? 'Désactiver la machine'
-                        : 'Activer la machine'}
-                    </button>
-                  )}
-                </div>
+                <h4>Système d’exploitation</h4>
 
                 {renderGrid(
-                  machineRows,
-                  'Aucune information machine disponible.'
+                  computerOperatingSystemRows,
+                  'Aucune information de système d’exploitation disponible.'
                 )}
               </div>
             )}

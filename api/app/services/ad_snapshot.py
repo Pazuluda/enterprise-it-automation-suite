@@ -181,6 +181,63 @@ def _normalize_item(item: Any, base_dn: str) -> dict[str, Any]:
         normalized.get("member_of")
     )
 
+    raw_primary_group_id = (
+        normalized.get("primary_group_id")
+        if normalized.get("primary_group_id")
+        not in (None, "")
+        else normalized.get("primaryGroupID")
+    )
+
+    if raw_primary_group_id in (None, ""):
+        normalized["primary_group_id"] = None
+    else:
+        try:
+            primary_group_id = int(
+                raw_primary_group_id
+            )
+        except (TypeError, ValueError) as exc:
+            raise ADSnapshotBadRequest(
+                "primary_group_id doit être un entier."
+            ) from exc
+
+        if primary_group_id <= 0:
+            raise ADSnapshotBadRequest(
+                "primary_group_id doit être supérieur à zéro."
+            )
+
+        normalized["primary_group_id"] = (
+            primary_group_id
+        )
+
+    normalized["primary_group_name"] = str(
+        normalized.get("primary_group_name")
+        or normalized.get("primaryGroupName")
+        or ""
+    ).strip()
+
+    normalized[
+        "primary_group_sam_account_name"
+    ] = str(
+        normalized.get(
+            "primary_group_sam_account_name"
+        )
+        or normalized.get(
+            "primaryGroupSamAccountName"
+        )
+        or ""
+    ).strip()
+
+    normalized["primary_group_dn"] = _normalize_dn(
+        normalized.get("primary_group_dn")
+        or normalized.get("primaryGroupDn")
+    )
+
+    normalized["primary_group_sid"] = str(
+        normalized.get("primary_group_sid")
+        or normalized.get("primaryGroupSid")
+        or ""
+    ).strip()
+
     return normalized
 
 

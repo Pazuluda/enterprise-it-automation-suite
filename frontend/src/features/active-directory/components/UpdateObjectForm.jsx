@@ -82,7 +82,8 @@ function UpdateObjectForm({
       <h4>Informations générales</h4>
 
       <div className="aduc-update-object-grid">
-          {!isUpdateGroupTarget(currentTarget) && (
+          {!isUpdateGroupTarget(currentTarget) &&
+            !isUpdateComputerTarget(currentTarget) && (
             <label>
               <span>Nom d’affichage</span>
               <input
@@ -98,18 +99,30 @@ function UpdateObjectForm({
           )}
 
         {isUpdateComputerTarget(currentTarget) && (
-          <label>
-            <span>Emplacement</span>
+          <label className="wide">
+            <span>
+              Nom de l’ordinateur
+              {' '}
+              (antérieur à Windows 2000)
+            </span>
+
             <input
               type="text"
-              value={updateForm.location || ''}
-              onChange={event => updateObjectFormField(
-                'location',
-                event.target.value
-              )}
-              placeholder="Ex : Salle informatique"
+              value={updateForm.samAccountName || ''}
+              maxLength={255}
+              onChange={event =>
+                updateObjectFormField(
+                  'samAccountName',
+                  event.target.value
+                )
+              }
               disabled={loading}
             />
+
+            <small>
+              Le suffixe $ est ajouté automatiquement
+              par EITAS lors de l’enregistrement.
+            </small>
           </label>
         )}
 
@@ -127,6 +140,70 @@ function UpdateObjectForm({
         </label>
       </div>
     </section>
+
+    {isUpdateComputerTarget(currentTarget) && (
+      <>
+        <section>
+          <h4>Système d’exploitation</h4>
+
+          <div className="aduc-update-object-grid">
+            {[
+              [
+                'operatingSystem',
+                'Nom',
+              ],
+              [
+                'operatingSystemVersion',
+                'Version',
+              ],
+              [
+                'operatingSystemServicePack',
+                'Service Pack',
+              ],
+            ].map(([name, label]) => (
+              <label key={name}>
+                <span>{label}</span>
+
+                <input
+                  type="text"
+                  value={updateForm[name] || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      name,
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>Emplacement</h4>
+
+          <div className="aduc-update-object-grid">
+            <label className="wide">
+              <span>Emplacement</span>
+
+              <input
+                type="text"
+                value={updateForm.location || ''}
+                onChange={event =>
+                  updateObjectFormField(
+                    'location',
+                    event.target.value
+                  )
+                }
+                placeholder="Ex : Salle informatique"
+                disabled={loading}
+              />
+            </label>
+          </div>
+        </section>
+      </>
+    )}
 
     {isUpdateUserTarget(currentTarget) && (
       <>
@@ -387,8 +464,10 @@ function UpdateObjectForm({
       <section>
         <h4>
           {isUpdateGroupTarget(currentTarget)
-            ? "Paramètres du groupe"
-            : "Gestion de l’objet"}
+            ? 'Paramètres du groupe'
+            : isUpdateComputerTarget(currentTarget)
+              ? 'Géré par et objet'
+              : 'Gestion de l’objet'}
         </h4>
 
         <div className="aduc-update-object-grid">
@@ -491,7 +570,10 @@ function UpdateObjectForm({
             </>
           )}
 
-            {isUpdateOrganizationalUnitTarget(currentTarget) && (
+            {(
+              isUpdateOrganizationalUnitTarget(currentTarget) ||
+              isUpdateComputerTarget(currentTarget)
+            ) && (
               <label className="wide aduc-ou-protection-field">
                 <span>
                   <input

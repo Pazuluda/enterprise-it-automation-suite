@@ -641,6 +641,12 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         allowed_properties = {
             "description",
             "location",
+            "operatingSystem",
+            "operating_system",
+            "operatingSystemVersion",
+            "operating_system_version",
+            "operatingSystemServicePack",
+            "operating_system_service_pack",
             "displayName",
             "display_name",
             "givenName",
@@ -689,6 +695,9 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
 
         property_aliases = {
             "display_name": "displayName",
+            "operating_system": "operatingSystem",
+            "operating_system_version": "operatingSystemVersion",
+            "operating_system_service_pack": "operatingSystemServicePack",
             "telephone_number": "telephoneNumber",
             "mobile_phone": "mobile",
             "office": "physicalDeliveryOfficeName",

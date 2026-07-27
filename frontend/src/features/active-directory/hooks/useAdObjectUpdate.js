@@ -129,6 +129,14 @@ function useAdObjectUpdate({
       return false
     }
 
+    const rawSamAccountName =
+      getAdAttributeValue(
+        target,
+        'samAccountName',
+        'sam_account_name',
+        'sAMAccountName'
+      )
+
     const form = {
       description: getAdAttributeValue(
         target,
@@ -137,6 +145,21 @@ function useAdObjectUpdate({
       location: getAdAttributeValue(
         target,
         'location'
+      ),
+      operatingSystem: getAdAttributeValue(
+        target,
+        'operatingSystem',
+        'operating_system'
+      ),
+      operatingSystemVersion: getAdAttributeValue(
+        target,
+        'operatingSystemVersion',
+        'operating_system_version'
+      ),
+      operatingSystemServicePack: getAdAttributeValue(
+        target,
+        'operatingSystemServicePack',
+        'operating_system_service_pack'
       ),
       displayName: getAdAttributeValue(
         target,
@@ -209,12 +232,10 @@ function useAdObjectUpdate({
         'manager_dn',
         'managerDn'
       ),
-      samAccountName: getAdAttributeValue(
-        target,
-        'samAccountName',
-        'sam_account_name',
-        'sAMAccountName'
-      ),
+      samAccountName:
+        isUpdateComputerTarget(target)
+          ? rawSamAccountName.replace(/\$$/, '')
+          : rawSamAccountName,
       groupScope: getAdAttributeValue(
         target,
         'groupScope',

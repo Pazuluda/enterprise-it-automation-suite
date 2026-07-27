@@ -136,15 +136,129 @@ function Get-EitasSnapshotObjectType {
 }
 
 
+
+function Get-EitasSnapshotPrimaryGroup {
+    param(
+        [object]$Object,
+        [string]$ObjectType,
+        [string]$DomainSid,
+        [hashtable]$Cache
+    )
+
+    if (
+        $ObjectType -notin @(
+            "user",
+            "computer"
+        )
+    ) {
+        return $null
+    }
+
+    $PrimaryGroupId = 0
+
+    try {
+        $PrimaryGroupId =
+            [int64]$Object.primaryGroupID
+    }
+    catch {}
+
+    if (
+        $PrimaryGroupId -le 0 -or
+        [string]::IsNullOrWhiteSpace(
+            $DomainSid
+        )
+    ) {
+        return $null
+    }
+
+    $CacheKey = [string]$PrimaryGroupId
+
+    if ($Cache.ContainsKey($CacheKey)) {
+        return $Cache[$CacheKey]
+    }
+
+    $PrimaryGroupSid = (
+        "{0}-{1}" -f
+        $DomainSid,
+        $PrimaryGroupId
+    )
+
+    $Result = [pscustomobject]@{
+        id = $PrimaryGroupId
+        name = ""
+        sam_account_name = ""
+        distinguished_name = ""
+        sid = $PrimaryGroupSid
+    }
+
+    try {
+        $Group = Get-ADGroup `
+            -Identity $PrimaryGroupSid `
+            -Properties sAMAccountName `
+            -ErrorAction Stop
+
+        $Result = [pscustomobject]@{
+            id = $PrimaryGroupId
+            name = [string]$Group.Name
+            sam_account_name = `
+                [string]$Group.sAMAccountName
+            distinguished_name = `
+                [string]$Group.DistinguishedName
+            sid = [string]$Group.SID
+        }
+    }
+    catch {
+        # La génération reste disponible si le groupe
+        # principal ne peut pas être résolu.
+    }
+
+    $Cache[$CacheKey] = $Result
+
+    return $Result
+}
+
 function Convert-EitasSnapshotObject {
-    param([object]$Object)
+    param(
+        [object]$Object,
+        [string]$DomainSid,
+        [hashtable]$PrimaryGroupCache
+    )
 
     $Type = Get-EitasSnapshotObjectType `
         -Object $Object
 
+    $PrimaryGroup = Get-EitasSnapshotPrimaryGroup `
+        -Object $Object `
+        -ObjectType $Type `
+        -DomainSid $DomainSid `
+        -Cache $PrimaryGroupCache
+
+    $PrimaryGroupId = $null
+    $PrimaryGroupName = ""
+    $PrimaryGroupSamAccountName = ""
+    $PrimaryGroupDn = ""
+    $PrimaryGroupSid = ""
+
+    if ($null -ne $PrimaryGroup) {
+        $PrimaryGroupId = $PrimaryGroup.id
+        $PrimaryGroupName = `
+            [string]$PrimaryGroup.name
+        $PrimaryGroupSamAccountName = `
+            [string]$PrimaryGroup.sam_account_name
+        $PrimaryGroupDn = `
+            [string]$PrimaryGroup.distinguished_name
+        $PrimaryGroupSid = `
+            [string]$PrimaryGroup.sid
+    }
+
     $ProtectedFromAccidentalDeletion = $null
 
-    if ($Type -eq "ou") {
+    if (
+        $Type -in @(
+            "ou",
+            "computer"
+        )
+    ) {
         $ProtectedFromAccidentalDeletion =
             [bool]$Object.ProtectedFromAccidentalDeletion
     }
@@ -281,6 +395,13 @@ function Convert-EitasSnapshotObject {
         member_count = $Members.Count
         member_of = $MemberOf
 
+        primary_group_id = $PrimaryGroupId
+        primary_group_name = $PrimaryGroupName
+        primary_group_sam_account_name = `
+            $PrimaryGroupSamAccountName
+        primary_group_dn = $PrimaryGroupDn
+        primary_group_sid = $PrimaryGroupSid
+
         dns_host_name = [string]$Object.dNSHostName
         operating_system = [string]$Object.operatingSystem
         operating_system_version = [string]$Object.operatingSystemVersion
@@ -322,6 +443,19 @@ function New-EitasAdSnapshot {
     $Domain = Get-ADDomain `
         -ErrorAction Stop
 
+    $DomainSid = [string]$Domain.DomainSID.Value
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $DomainSid
+        )
+    ) {
+        $DomainSid =
+            [string]$Domain.DomainSID
+    }
+
+    $PrimaryGroupCache = @{}
+
     $Properties = @(
         "description",
         "displayName",
@@ -359,6 +493,7 @@ function New-EitasAdSnapshot {
         "division",
         "member",
         "memberOf",
+        "primaryGroupID",
         "groupType",
         "canonicalName",
         "whenCreated",
@@ -393,7 +528,9 @@ function New-EitasAdSnapshot {
     $Items = @(
         foreach ($Object in $Objects) {
             Convert-EitasSnapshotObject `
-                -Object $Object
+                -Object $Object `
+                -DomainSid $DomainSid `
+                -PrimaryGroupCache $PrimaryGroupCache
         }
     )
 
@@ -430,7 +567,11 @@ function New-EitasAdSnapshot {
 
 
 function Convert-EitasDomainCatalogObject {
-    param([object]$Object)
+    param(
+        [object]$Object,
+        [string]$DomainSid,
+        [hashtable]$PrimaryGroupCache
+    )
 
     $Type = Get-EitasSnapshotObjectType `
         -Object $Object
@@ -443,6 +584,30 @@ function Convert-EitasDomainCatalogObject {
         )
     ) {
         return $null
+    }
+
+    $PrimaryGroup = Get-EitasSnapshotPrimaryGroup `
+        -Object $Object `
+        -ObjectType $Type `
+        -DomainSid $DomainSid `
+        -Cache $PrimaryGroupCache
+
+    $PrimaryGroupId = $null
+    $PrimaryGroupName = ""
+    $PrimaryGroupSamAccountName = ""
+    $PrimaryGroupDn = ""
+    $PrimaryGroupSid = ""
+
+    if ($null -ne $PrimaryGroup) {
+        $PrimaryGroupId = $PrimaryGroup.id
+        $PrimaryGroupName = `
+            [string]$PrimaryGroup.name
+        $PrimaryGroupSamAccountName = `
+            [string]$PrimaryGroup.sam_account_name
+        $PrimaryGroupDn = `
+            [string]$PrimaryGroup.distinguished_name
+        $PrimaryGroupSid = `
+            [string]$PrimaryGroup.sid
     }
 
     $UserAccountControl = 0
@@ -488,6 +653,13 @@ function Convert-EitasDomainCatalogObject {
             -GroupTypeValue $Object.groupType
     }
 
+    $ProtectedFromAccidentalDeletion = $null
+
+    if ($Type -eq "computer") {
+        $ProtectedFromAccidentalDeletion =
+            [bool]$Object.ProtectedFromAccidentalDeletion
+    }
+
     return [pscustomobject]@{
         type = $Type
         object_class = $Type
@@ -524,6 +696,8 @@ function Convert-EitasDomainCatalogObject {
 
         location = [string]$Object.location
         managed_by = [string]$Object.managedBy
+        protected_from_accidental_deletion = `
+            $ProtectedFromAccidentalDeletion
 
         last_logon = Convert-EitasSnapshotFileTimeValue `
             -Value $Object.lastLogonTimestamp
@@ -542,6 +716,13 @@ function Convert-EitasDomainCatalogObject {
         members = $null
         member_count = $null
         member_of = @($Object.memberOf)
+
+        primary_group_id = $PrimaryGroupId
+        primary_group_name = $PrimaryGroupName
+        primary_group_sam_account_name = `
+            $PrimaryGroupSamAccountName
+        primary_group_dn = $PrimaryGroupDn
+        primary_group_sid = $PrimaryGroupSid
     }
 }
 
@@ -563,6 +744,19 @@ function New-EitasAdDomainCatalog {
 
     $Domain = Get-ADDomain `
         -ErrorAction Stop
+
+    $DomainSid = [string]$Domain.DomainSID.Value
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $DomainSid
+        )
+    ) {
+        $DomainSid =
+            [string]$Domain.DomainSID
+    }
+
+    $PrimaryGroupCache = @{}
 
     $Properties = @(
         "description",
@@ -589,7 +783,9 @@ function New-EitasAdDomainCatalog {
         "operatingSystemServicePack",
         "location",
         "managedBy",
+        "ProtectedFromAccidentalDeletion",
         "memberOf",
+        "primaryGroupID",
         "objectGUID",
         "objectSid"
     )
@@ -618,7 +814,9 @@ function New-EitasAdDomainCatalog {
     $Items = @(
         foreach ($Object in $Objects) {
             $Item = Convert-EitasDomainCatalogObject `
-                -Object $Object
+                -Object $Object `
+                -DomainSid $DomainSid `
+                -PrimaryGroupCache $PrimaryGroupCache
 
             if ($null -ne $Item) {
                 $Item

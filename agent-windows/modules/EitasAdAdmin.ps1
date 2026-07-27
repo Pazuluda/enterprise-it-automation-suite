@@ -1192,6 +1192,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $AllowedProperties = @(
         "description",
         "location",
+        "operatingSystem",
+        "operatingSystemVersion",
+        "operatingSystemServicePack",
         "displayName",
         "givenName",
         "sn",
@@ -1279,6 +1282,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $GroupScope = $null
     $GroupCategory = $null
     $GroupSamAccountName = $null
+    $ComputerProperties = @{}
+    $ComputerClear = @()
     $ManagedBy = $null
     $ClearManagedBy = $false
     $ProtectedFromAccidentalDeletion = $null
@@ -1312,6 +1317,23 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
             if ($GroupSamAccountName.Length -gt 256) {
                 throw "samAccountName est limité à 256 caractères par le schéma AD"
+            }
+        } elseif (
+            $Key -in @(
+                "operatingSystem",
+                "operatingSystemVersion",
+                "operatingSystemServicePack"
+            )
+        ) {
+            if (
+                $null -eq $Value -or
+                [string]::IsNullOrWhiteSpace(
+                    [string]$Value
+                )
+            ) {
+                $ComputerClear += $Key
+            } else {
+                $ComputerProperties[$Key] = [string]$Value
             }
         } elseif ($Key -eq "groupScope") {
             $GroupScope = [string]$Value
@@ -1353,9 +1375,42 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     if (
         $HasGroupSamChanges -and
-        $ObjectClassName -ne "group"
+        @(
+            "group",
+            "computer"
+        ) -notcontains $ObjectClassName
     ) {
-        throw "samAccountName est réservé aux objets groupe dans ce formulaire"
+        throw "samAccountName est réservé aux groupes et ordinateurs dans ce formulaire"
+    }
+
+    if (
+        $HasGroupSamChanges -and
+        $ObjectClassName -eq "computer" -and
+        -not $GroupSamAccountName.EndsWith(
+            '$'
+        )
+    ) {
+        $GroupSamAccountName += '$'
+    }
+
+    if (
+        $HasGroupSamChanges -and
+        $ObjectClassName -eq "computer" -and
+        $GroupSamAccountName.Length -gt 256
+    ) {
+        throw "samAccountName ordinateur est limité à 256 caractères, suffixe `$ compris"
+    }
+
+    $HasComputerSystemChanges = (
+        $ComputerProperties.Count -gt 0 -or
+        $ComputerClear.Count -gt 0
+    )
+
+    if (
+        $HasComputerSystemChanges -and
+        $ObjectClassName -ne "computer"
+    ) {
+        throw "Les propriétés de système d’exploitation sont réservées aux ordinateurs"
     }
 
     $HasGroupInfoChanges =
@@ -1370,8 +1425,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $HasGroupSpecificChanges = (
         $null -ne $GroupScope -or
-        $null -ne $GroupCategory -or
-        $null -ne $GroupSamAccountName
+        $null -ne $GroupCategory
     )
 
     if (
@@ -1399,9 +1453,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     if (
         $null -ne $ProtectedFromAccidentalDeletion -and
-        $ObjectClassName -ne "organizationalunit"
+        @(
+            "organizationalunit",
+            "computer"
+        ) -notcontains $ObjectClassName
     ) {
-        throw "La protection contre la suppression accidentelle est réservée aux unités d'organisation"
+        throw "La protection contre la suppression accidentelle est réservée aux unités d'organisation et ordinateurs"
     }
 
 
@@ -1448,6 +1505,10 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     if (
         $HasGroupSpecificChanges -or
         (
+            $HasGroupSamChanges -and
+            $ObjectClassName -eq "group"
+        ) -or
+        (
             $HasManagedByChanges -and
             $ObjectClassName -eq "group"
         )
@@ -1487,21 +1548,42 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
-    if (
-        $HasManagedByChanges -and
-        $ObjectClassName -eq "computer"
-    ) {
-        if ($null -ne $ManagedBy) {
-            Set-ADComputer `
-                -Identity $ObjectDn `
-                -ManagedBy $ManagedBy `
-                -ErrorAction Stop
+    if ($ObjectClassName -eq "computer") {
+        $SetComputerParameters = @{
+            Identity = $ObjectDn
+            ErrorAction = "Stop"
         }
 
+        if ($HasGroupSamChanges) {
+            $SetComputerParameters["SamAccountName"] = `
+                $GroupSamAccountName
+        }
+
+        foreach ($ComputerKey in $ComputerProperties.Keys) {
+            $SetComputerParameters[$ComputerKey] = `
+                $ComputerProperties[$ComputerKey]
+        }
+
+        if ($null -ne $ManagedBy) {
+            $SetComputerParameters["ManagedBy"] = $ManagedBy
+        }
+
+        if ($SetComputerParameters.Count -gt 2) {
+            Set-ADComputer @SetComputerParameters
+        }
+
+        $ComputerClearAttributes = @(
+            $ComputerClear
+        )
+
         if ($ClearManagedBy) {
+            $ComputerClearAttributes += "managedBy"
+        }
+
+        if ($ComputerClearAttributes.Count -gt 0) {
             Set-ADComputer `
                 -Identity $ObjectDn `
-                -Clear "managedBy" `
+                -Clear $ComputerClearAttributes `
                 -ErrorAction Stop
         }
     }
@@ -1526,21 +1608,29 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     }
 
     if ($null -ne $ProtectedFromAccidentalDeletion) {
-        Set-ADOrganizationalUnit `
-            -Identity $ObjectDn `
-            -ProtectedFromAccidentalDeletion $ProtectedFromAccidentalDeletion `
-            -ErrorAction Stop
+        if ($ObjectClassName -eq "organizationalunit") {
+            Set-ADOrganizationalUnit `
+                -Identity $ObjectDn `
+                -ProtectedFromAccidentalDeletion $ProtectedFromAccidentalDeletion `
+                -ErrorAction Stop
+        } elseif ($ObjectClassName -eq "computer") {
+            Set-ADObject `
+                -Identity $ObjectDn `
+                -ProtectedFromAccidentalDeletion $ProtectedFromAccidentalDeletion `
+                -ErrorAction Stop
+        }
     }
 
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, info, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, info, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
     $UpdatedGroupCategory = $null
     $UpdatedManagedBy = [string]$UpdatedObject.managedBy
+    $UpdatedSamAccountName = $null
     $UpdatedProtectedFromAccidentalDeletion = $null
 
     if ([string]$Object.ObjectClass -eq "group") {
@@ -1549,11 +1639,20 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             -Properties ManagedBy, sAMAccountName `
             -ErrorAction Stop
 
-        $UpdatedGroupSamAccountName = (
+        $UpdatedSamAccountName = (
             [string]$UpdatedGroup.SamAccountName
         )
         $UpdatedGroupScope = [string]$UpdatedGroup.GroupScope
         $UpdatedGroupCategory = [string]$UpdatedGroup.GroupCategory
+    }
+
+    if ($ObjectClassName -eq "computer") {
+        $UpdatedSamAccountName = (
+            [string]$UpdatedObject.sAMAccountName
+        )
+
+        $UpdatedProtectedFromAccidentalDeletion = `
+            [bool]$UpdatedObject.ProtectedFromAccidentalDeletion
     }
 
     if ($ObjectClassName -eq "organizationalunit") {
@@ -1574,7 +1673,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         object_dn = $ObjectDn
         replaced = $Replace
         cleared = $Clear
-        sam_account_name = $UpdatedGroupSamAccountName
+        sam_account_name = $UpdatedSamAccountName
         group_scope = $UpdatedGroupScope
         group_category = $UpdatedGroupCategory
         managed_by = $UpdatedManagedBy
