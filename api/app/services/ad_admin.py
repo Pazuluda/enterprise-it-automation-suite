@@ -332,6 +332,373 @@ def validate_computer_target_ou(value) -> str:
     return clean
 
 
+def normalize_update_object_properties(
+    raw_properties,
+) -> dict:
+    if not isinstance(raw_properties, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="properties doit être un objet JSON",
+        )
+
+    allowed_properties = {
+        "description",
+        "location",
+        "operatingSystem",
+        "operating_system",
+        "operatingSystemVersion",
+        "operating_system_version",
+        "operatingSystemServicePack",
+        "operating_system_service_pack",
+        "displayName",
+        "display_name",
+        "givenName",
+        "initials",
+        "sn",
+        "mail",
+        "wWWHomePage",
+        "info",
+        "samAccountName",
+        "sam_account_name",
+        "title",
+        "department",
+        "division",
+        "company",
+        "telephoneNumber",
+        "telephone_number",
+        "homePhone",
+        "facsimileTelephoneNumber",
+        "pager",
+        "ipPhone",
+        "mobile",
+        "mobile_phone",
+        "office",
+        "physicalDeliveryOfficeName",
+        "employeeID",
+        "employee_id",
+        "employeeNumber",
+        "employee_number",
+        "manager",
+        "manager_dn",
+        "streetAddress",
+        "street_address",
+        "postalCode",
+        "postal_code",
+        "postOfficeBox",
+        "post_office_box",
+        "l",
+        "city",
+        "st",
+        "state",
+        "c",
+        "country_alpha2",
+        "co",
+        "country",
+        "countryCode",
+        "country_numeric_code",
+        "groupScope",
+        "group_scope",
+        "groupCategory",
+        "group_category",
+        "managedBy",
+        "managed_by",
+        "protectedFromAccidentalDeletion",
+        "protected_from_accidental_deletion",
+    }
+
+    property_aliases = {
+        "display_name": "displayName",
+        "operating_system": "operatingSystem",
+        "operating_system_version":
+            "operatingSystemVersion",
+        "operating_system_service_pack":
+            "operatingSystemServicePack",
+        "telephone_number": "telephoneNumber",
+        "mobile_phone": "mobile",
+        "office": "physicalDeliveryOfficeName",
+        "employee_id": "employeeID",
+        "employee_number": "employeeNumber",
+        "manager_dn": "manager",
+        "street_address": "streetAddress",
+        "postal_code": "postalCode",
+        "post_office_box": "postOfficeBox",
+        "city": "l",
+        "state": "st",
+        "country_alpha2": "c",
+        "country": "co",
+        "country_numeric_code": "countryCode",
+        "group_scope": "groupScope",
+        "group_category": "groupCategory",
+        "managed_by": "managedBy",
+        "sam_account_name": "samAccountName",
+        "protected_from_accidental_deletion":
+            "protectedFromAccidentalDeletion",
+    }
+
+    property_max_lengths = {
+        "initials": 6,
+        "wWWHomePage": 2048,
+        "telephoneNumber": 64,
+        "homePhone": 64,
+        "facsimileTelephoneNumber": 64,
+        "pager": 64,
+        "mobile": 64,
+        "ipPhone": 64,
+        "info": 1024,
+        "postOfficeBox": 40,
+        "co": 128,
+    }
+
+    normalized_properties = {}
+
+    for key, value in raw_properties.items():
+        if key not in allowed_properties:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Attribut non autorisé : {key}",
+            )
+
+        normalized_key = property_aliases.get(
+            key,
+            key,
+        )
+
+        if normalized_key == (
+            "protectedFromAccidentalDeletion"
+        ):
+            if not isinstance(value, bool):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "protectedFromAccidentalDeletion "
+                        "doit être un booléen"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = value
+            continue
+
+        if (
+            normalized_key == "postOfficeBox"
+            and isinstance(
+                value,
+                (list, tuple, set, dict),
+            )
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "postOfficeBox doit contenir une seule "
+                    "valeur dans C1"
+                ),
+            )
+
+        if normalized_key == "countryCode":
+            if value is None:
+                normalized_properties[normalized_key] = ""
+                continue
+
+            normalized_value = str(value).strip()
+
+            if not normalized_value:
+                normalized_properties[normalized_key] = ""
+                continue
+
+            if not normalized_value.isdigit():
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "countryCode doit être un entier "
+                        "compris entre 0 et 65535"
+                    ),
+                )
+
+            numeric_code = int(normalized_value)
+
+            if not 0 <= numeric_code <= 65535:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "countryCode doit être un entier "
+                        "compris entre 0 et 65535"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = (
+                numeric_code
+            )
+            continue
+
+        if value is None:
+            if normalized_key in {
+                "groupScope",
+                "groupCategory",
+                "samAccountName",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} "
+                        "ne peut pas être vide"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = None
+            continue
+
+        normalized_value = clean_string(value)
+
+        if normalized_key == "c":
+            normalized_value = normalized_value.upper()
+
+            if (
+                normalized_value
+                and not re.fullmatch(
+                    r"[A-Z]{2}",
+                    normalized_value,
+                )
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "c doit être un code pays ISO "
+                        "alpha-2"
+                    ),
+                )
+
+        maximum_length = property_max_lengths.get(
+            normalized_key
+        )
+
+        if (
+            maximum_length is not None
+            and len(normalized_value) > maximum_length
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{normalized_key} est limité à "
+                    f"{maximum_length} caractères"
+                ),
+            )
+
+        if normalized_key == "samAccountName":
+            if not normalized_value:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "samAccountName ne peut pas être vide"
+                    ),
+                )
+
+            if len(normalized_value) > 256:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "samAccountName est limité à "
+                        "256 caractères par le schéma AD"
+                    ),
+                )
+
+        if normalized_key == "groupScope":
+            if normalized_value not in {
+                "Global",
+                "Universal",
+                "DomainLocal",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "groupScope doit être Global, "
+                        "Universal ou DomainLocal"
+                    ),
+                )
+
+        if normalized_key == "groupCategory":
+            if normalized_value not in {
+                "Security",
+                "Distribution",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "groupCategory doit être Security "
+                        "ou Distribution"
+                    ),
+                )
+
+        if (
+            normalized_key in {
+                "manager",
+                "managedBy",
+            }
+            and normalized_value
+        ):
+            normalized_value = validate_dn(
+                normalized_value,
+                normalized_key,
+            )
+
+        normalized_properties[normalized_key] = (
+            normalized_value
+        )
+
+    country_triplet_requested = (
+        "c" in normalized_properties
+        or "countryCode" in normalized_properties
+    )
+
+    if country_triplet_requested:
+        required_country_keys = {
+            "c",
+            "co",
+            "countryCode",
+        }
+
+        missing_country_keys = (
+            required_country_keys
+            - set(normalized_properties)
+        )
+
+        if missing_country_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Le pays doit être envoyé avec c, "
+                    "co et countryCode"
+                ),
+            )
+
+        country_values = [
+            normalized_properties["c"],
+            normalized_properties["co"],
+            normalized_properties["countryCode"],
+        ]
+
+        empty_states = [
+            value is None or value == ""
+            for value in country_values
+        ]
+
+        if any(empty_states) and not all(empty_states):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "c, co et countryCode doivent être "
+                    "tous renseignés ou tous vidés"
+                ),
+            )
+
+        if all(empty_states):
+            normalized_properties.update({
+                "c": "",
+                "co": "",
+                "countryCode": "",
+            })
+
+    return normalized_properties
+
+
 def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
     payload = payload or {}
 
@@ -633,210 +1000,15 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             or payload.get("name")
         )
 
-        raw_properties = payload.get("properties") or {}
+        raw_properties = (
+            payload.get("properties") or {}
+        )
 
-        if not isinstance(raw_properties, dict):
-            raise HTTPException(status_code=400, detail="properties doit être un objet JSON")
-
-        allowed_properties = {
-            "description",
-            "location",
-            "operatingSystem",
-            "operating_system",
-            "operatingSystemVersion",
-            "operating_system_version",
-            "operatingSystemServicePack",
-            "operating_system_service_pack",
-            "displayName",
-            "display_name",
-            "givenName",
-            "initials",
-            "sn",
-            "mail",
-            "wWWHomePage",
-            "info",
-            "samAccountName",
-            "sam_account_name",
-            "title",
-            "department",
-            "division",
-            "company",
-            "telephoneNumber",
-            "telephone_number",
-            "homePhone",
-            "facsimileTelephoneNumber",
-            "pager",
-            "ipPhone",
-            "mobile",
-            "mobile_phone",
-            "office",
-            "physicalDeliveryOfficeName",
-            "employeeID",
-            "employee_id",
-            "employeeNumber",
-            "employee_number",
-            "manager",
-            "manager_dn",
-            "streetAddress",
-            "street_address",
-            "postalCode",
-            "postal_code",
-            "l",
-            "city",
-            "st",
-            "state",
-            "co",
-            "country",
-            "groupScope",
-            "group_scope",
-            "groupCategory",
-            "group_category",
-            "managedBy",
-            "managed_by",
-            "protectedFromAccidentalDeletion",
-            "protected_from_accidental_deletion",
-        }
-
-        normalized_properties = {}
-
-        property_aliases = {
-            "display_name": "displayName",
-            "operating_system": "operatingSystem",
-            "operating_system_version": "operatingSystemVersion",
-            "operating_system_service_pack": "operatingSystemServicePack",
-            "telephone_number": "telephoneNumber",
-            "mobile_phone": "mobile",
-            "office": "physicalDeliveryOfficeName",
-            "employee_id": "employeeID",
-            "employee_number": "employeeNumber",
-            "manager_dn": "manager",
-            "street_address": "streetAddress",
-            "postal_code": "postalCode",
-            "city": "l",
-            "state": "st",
-            "country": "co",
-            "group_scope": "groupScope",
-            "group_category": "groupCategory",
-            "managed_by": "managedBy",
-            "sam_account_name": "samAccountName",
-            "protected_from_accidental_deletion": "protectedFromAccidentalDeletion",
-        }
-
-        property_max_lengths = {
-            "initials": 6,
-            "wWWHomePage": 2048,
-            "telephoneNumber": 64,
-            "homePhone": 64,
-            "facsimileTelephoneNumber": 64,
-            "pager": 64,
-            "mobile": 64,
-            "ipPhone": 64,
-            "info": 1024,
-        }
-
-        for key, value in raw_properties.items():
-            if key not in allowed_properties:
-                raise HTTPException(status_code=400, detail=f"Attribut non autorisé : {key}")
-
-            normalized_key = property_aliases.get(key, key)
-
-            if normalized_key == "protectedFromAccidentalDeletion":
-                if not isinstance(value, bool):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            "protectedFromAccidentalDeletion doit être "
-                            "un booléen"
-                        ),
-                    )
-
-                normalized_properties[normalized_key] = value
-                continue
-
-            if value is None:
-                if normalized_key in {
-                    "groupScope",
-                    "groupCategory",
-                    "samAccountName",
-                }:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"{normalized_key} ne peut pas être vide",
-                    )
-
-                normalized_properties[normalized_key] = None
-                continue
-
-            normalized_value = clean_string(str(value))
-
-            maximum_length = property_max_lengths.get(
-                normalized_key
+        normalized_properties = (
+            normalize_update_object_properties(
+                raw_properties
             )
-
-            if (
-                maximum_length is not None
-                and len(normalized_value) > maximum_length
-            ):
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        f"{normalized_key} est limité à "
-                        f"{maximum_length} caractères"
-                    ),
-                )
-
-            if normalized_key == "samAccountName":
-                if not normalized_value:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            "samAccountName ne peut pas être vide"
-                        ),
-                    )
-
-                if len(normalized_value) > 256:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            "samAccountName est limité à "
-                            "256 caractères par le schéma AD"
-                        ),
-                    )
-
-            if normalized_key == "groupScope":
-                if normalized_value not in {
-                    "Global",
-                    "Universal",
-                    "DomainLocal",
-                }:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            "groupScope doit être Global, "
-                            "Universal ou DomainLocal"
-                        ),
-                    )
-
-            if normalized_key == "groupCategory":
-                if normalized_value not in {
-                    "Security",
-                    "Distribution",
-                }:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(
-                            "groupCategory doit être Security "
-                            "ou Distribution"
-                        ),
-                    )
-
-            if normalized_key == "managedBy" and normalized_value:
-                normalized_value = validate_dn(
-                    normalized_value,
-                    "managedBy",
-                )
-
-            normalized_properties[normalized_key] = normalized_value
+        )
 
         if not object_identity:
             raise HTTPException(status_code=400, detail="object_identity est obligatoire")

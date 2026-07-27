@@ -1223,9 +1223,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "protectedFromAccidentalDeletion",
         "streetAddress",
         "postalCode",
+        "postOfficeBox",
         "l",
         "st",
-        "co"
+        "c",
+        "co",
+        "countryCode"
     )
 
     $Properties = @{}
@@ -1262,6 +1265,25 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
     $ObjectDn = ([string]$Object.DistinguishedName).Trim()
+
+    $CurrentPostOfficeBoxes = @()
+
+    if ($Properties.ContainsKey("postOfficeBox")) {
+        $CurrentPostOfficeBoxes = @(
+            (
+                Get-ADObject `
+                    -Identity $ObjectDn `
+                    -Properties postOfficeBox `
+                    -ErrorAction Stop
+            ).postOfficeBox |
+                ForEach-Object {
+                    ([string]$_).Trim()
+                } |
+                Where-Object {
+                    -not [string]::IsNullOrWhiteSpace($_)
+                }
+        )
+    }
 
     $PersonNameProperties = @(
         "givenName",
@@ -1303,10 +1325,122 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         mobile = 64
         ipPhone = 64
         info = 1024
+        postOfficeBox = 40
+        co = 128
     }
 
     $Replace = @{}
     $Clear = @()
+
+    $HasCountryTripletChanges = (
+        $Properties.ContainsKey("c") -or
+        $Properties.ContainsKey("countryCode")
+    )
+
+    if ($HasCountryTripletChanges) {
+        foreach (
+            $RequiredCountryKey in @(
+                "c",
+                "co",
+                "countryCode"
+            )
+        ) {
+            if (
+                -not $Properties.ContainsKey(
+                    $RequiredCountryKey
+                )
+            ) {
+                throw (
+                    "Le pays doit être envoyé avec " +
+                    "c, co et countryCode"
+                )
+            }
+        }
+
+        $CountryAlpha2 = (
+            [string](
+                Repair-EitasTextEncoding `
+                    -Value $Properties["c"]
+            )
+        ).Trim().ToUpperInvariant()
+
+        $CountryName = (
+            [string](
+                Repair-EitasTextEncoding `
+                    -Value $Properties["co"]
+            )
+        ).Trim()
+
+        $CountryNumericValue = (
+            [string]$Properties["countryCode"]
+        ).Trim()
+
+        $EmptyCountryCount = @(
+            @(
+                [string]::IsNullOrWhiteSpace(
+                    $CountryAlpha2
+                ),
+                [string]::IsNullOrWhiteSpace(
+                    $CountryName
+                ),
+                [string]::IsNullOrWhiteSpace(
+                    $CountryNumericValue
+                )
+            ) |
+                Where-Object {
+                    $_
+                }
+        ).Count
+
+        if ($EmptyCountryCount -eq 3) {
+            $Clear += @(
+                "c",
+                "co",
+                "countryCode"
+            )
+        } elseif ($EmptyCountryCount -gt 0) {
+            throw (
+                "c, co et countryCode doivent être " +
+                "tous renseignés ou tous vidés"
+            )
+        } else {
+            if (
+                $CountryAlpha2 -notmatch "^[A-Z]{2}$"
+            ) {
+                throw (
+                    "c doit être un code pays ISO alpha-2"
+                )
+            }
+
+            if ($CountryName.Length -gt 128) {
+                throw (
+                    "co est limité à 128 caractères"
+                )
+            }
+
+            $CountryNumericCode = 0
+
+            if (
+                -not [int]::TryParse(
+                    $CountryNumericValue,
+                    [ref]$CountryNumericCode
+                ) -or
+                $CountryNumericCode -lt 0 -or
+                $CountryNumericCode -gt 65535
+            ) {
+                throw (
+                    "countryCode doit être un entier " +
+                    "compris entre 0 et 65535"
+                )
+            }
+
+            $Replace["c"] = $CountryAlpha2
+            $Replace["co"] = $CountryName
+            $Replace["countryCode"] = (
+                $CountryNumericCode
+            )
+        }
+    }
 
     $GroupScope = $null
     $GroupCategory = $null
@@ -1319,6 +1453,56 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     foreach ($Key in $Properties.Keys) {
         $RawValue = $Properties[$Key]
+
+        if (
+            $HasCountryTripletChanges -and
+            $Key -in @(
+                "c",
+                "co",
+                "countryCode"
+            )
+        ) {
+            continue
+        }
+
+        if ($Key -eq "postOfficeBox") {
+            if ($CurrentPostOfficeBoxes.Count -gt 1) {
+                throw (
+                    "postOfficeBox contient plusieurs " +
+                    "valeurs. Utiliser l’éditeur LDAP C2."
+                )
+            }
+
+            $PostOfficeBoxValue = (
+                [string](
+                    Repair-EitasTextEncoding `
+                        -Value $RawValue
+                )
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $PostOfficeBoxValue
+                )
+            ) {
+                $Clear += "postOfficeBox"
+            } else {
+                if (
+                    $PostOfficeBoxValue.Length -gt 40
+                ) {
+                    throw (
+                        "postOfficeBox est limité à " +
+                        "40 caractères"
+                    )
+                }
+
+                $Replace["postOfficeBox"] = @(
+                    $PostOfficeBoxValue
+                )
+            }
+
+            continue
+        }
 
         if ($Key -eq "protectedFromAccidentalDeletion") {
             if ($RawValue -isnot [bool]) {
@@ -1674,7 +1858,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null

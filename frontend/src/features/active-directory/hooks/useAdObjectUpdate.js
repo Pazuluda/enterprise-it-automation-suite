@@ -316,6 +316,11 @@ function useAdObjectUpdate({
         'postalCode',
         'postal_code'
       ),
+      postOfficeBox: getAdAttributeValue(
+        target,
+        'postOfficeBox',
+        'post_office_box'
+      ),
       l: getAdAttributeValue(
         target,
         'l',
@@ -326,10 +331,20 @@ function useAdObjectUpdate({
         'st',
         'state'
       ),
+      c: getAdAttributeValue(
+        target,
+        'c',
+        'country_alpha2'
+      ).toUpperCase(),
       co: getAdAttributeValue(
         target,
         'co',
         'country'
+      ),
+      countryCode: getAdAttributeValue(
+        target,
+        'countryCode',
+        'country_numeric_code'
       ),
       protectedFromAccidentalDeletion: getAdBooleanAttributeValue(
         target,

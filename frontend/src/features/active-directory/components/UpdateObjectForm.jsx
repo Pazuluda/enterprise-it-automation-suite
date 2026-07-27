@@ -3,6 +3,10 @@ import {
   getObjectName,
   getObjectType,
 } from '../utils/adExplorerCore'
+import {
+  COUNTRIES_FR,
+  getCountryByAlpha2,
+} from '../utils/countriesFr'
 
 function UpdateObjectForm({
   update,
@@ -42,6 +46,15 @@ function UpdateObjectForm({
 
   const currentTarget =
     target || updateModal
+
+  const postOfficeBoxValueCount = Number(
+    currentTarget?.post_office_box_count
+    ?? currentTarget?.postOfficeBoxCount
+    ?? 0
+  )
+
+  const hasMultiplePostOfficeBoxes =
+    postOfficeBoxValueCount > 1
 
   const handleSubmit =
     onSubmit || submitUpdateObject
@@ -565,6 +578,96 @@ function UpdateObjectForm({
                 />
               </label>
             ))}
+
+            <label>
+              <span>Boîte postale</span>
+
+              <input
+                type="text"
+                maxLength={40}
+                value={
+                  updateForm.postOfficeBox || ''
+                }
+                onChange={event =>
+                  updateObjectFormField(
+                    'postOfficeBox',
+                    event.target.value
+                  )
+                }
+                disabled={
+                  loading ||
+                  hasMultiplePostOfficeBoxes
+                }
+              />
+
+              {hasMultiplePostOfficeBoxes && (
+                <small>
+                  Cet objet contient
+                  {' '}
+                  {postOfficeBoxValueCount}
+                  {' '}
+                  valeurs. Leur modification sera
+                  disponible dans l’éditeur LDAP C2.
+                </small>
+              )}
+            </label>
+
+            <label>
+              <span>Pays/région</span>
+
+              <select
+                value={updateForm.c || ''}
+                onChange={event => {
+                  const country =
+                    getCountryByAlpha2(
+                      event.target.value
+                    )
+
+                  updateObjectFormField(
+                    'c',
+                    country?.alpha2 || ''
+                  )
+
+                  updateObjectFormField(
+                    'co',
+                    country?.name || ''
+                  )
+
+                  updateObjectFormField(
+                    'countryCode',
+                    country
+                      ? String(country.numeric)
+                      : ''
+                  )
+                }}
+                disabled={loading}
+              >
+                <option value="">
+                  Aucun pays défini
+                </option>
+
+                {COUNTRIES_FR.map(country => (
+                  <option
+                    key={country.alpha2}
+                    value={country.alpha2}
+                  >
+                    {country.name}
+                    {' — '}
+                    {country.alpha2}
+                  </option>
+                ))}
+              </select>
+
+              <small>
+                Attributs AD :
+                {' '}
+                {updateForm.c || '—'}
+                {' / '}
+                {updateForm.co || '—'}
+                {' / '}
+                {updateForm.countryCode || '—'}
+              </small>
+            </label>
           </div>
         </section>
 
@@ -665,6 +768,125 @@ function UpdateObjectForm({
                 />
               </label>
             ))}
+
+            <label className="wide aduc-manager-field">
+              <span>
+                Gestionnaire — Nom distinctif
+              </span>
+
+              <div className="aduc-manager-current-row">
+                <input
+                  className="mono"
+                  value={updateForm.manager || ''}
+                  placeholder="Aucun gestionnaire défini"
+                  readOnly
+                  disabled={loading}
+                />
+
+                <button
+                  type="button"
+                  className="aduc-manager-clear-button"
+                  onClick={clearManagerSelection}
+                  disabled={
+                    loading ||
+                    !updateForm.manager
+                  }
+                >
+                  Retirer
+                </button>
+              </div>
+
+              <div className="aduc-member-picker-row">
+                <input
+                  value={managerSearchQuery}
+                  onChange={event => {
+                    setManagerSearchQuery(
+                      event.target.value
+                    )
+                    setManagerSearchResults([])
+                    setManagerSearchError('')
+                  }}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      searchManagerCandidates()
+                    }
+                  }}
+                  placeholder={
+                    'Nom, identifiant ou e-mail ' +
+                    'du gestionnaire...'
+                  }
+                  disabled={
+                    loading ||
+                    managerSearchLoading
+                  }
+                />
+
+                <button
+                  type="button"
+                  className="aduc-member-search-button"
+                  onClick={searchManagerCandidates}
+                  disabled={
+                    loading ||
+                    managerSearchLoading ||
+                    managerSearchQuery.trim().length < 2
+                  }
+                >
+                  {managerSearchLoading
+                    ? 'Recherche...'
+                    : 'Rechercher'}
+                </button>
+              </div>
+
+              {managerSearchError && (
+                <div className="aduc-member-search-error">
+                  {managerSearchError}
+                </div>
+              )}
+
+              {managerSearchResults.length > 0 && (
+                <div className={
+                  'aduc-member-search-results ' +
+                  'aduc-manager-search-results'
+                }>
+                  {managerSearchResults.map(
+                    candidate => {
+                      const candidateDn =
+                        getManagerCandidateDn(
+                          candidate
+                        )
+
+                      return (
+                        <button
+                          type="button"
+                          key={candidateDn}
+                          data-kind-label={
+                            'Gestionnaire possible'
+                          }
+                          onClick={() =>
+                            selectManagerCandidate(
+                              candidate
+                            )
+                          }
+                        >
+                          <strong>
+                            {getMemberCandidateTitle(
+                              candidate
+                            )}
+                          </strong>
+
+                          <span>
+                            {getMemberCandidateSubtitle(
+                              candidate
+                            )}
+                          </span>
+                        </button>
+                      )
+                    }
+                  )}
+                </div>
+              )}
+            </label>
           </div>
         </section>
       </>

@@ -325,6 +325,37 @@ function Convert-EitasSnapshotObject {
         )
     }
 
+    $PostOfficeBoxValues = @(
+        $Object.postOfficeBox |
+            ForEach-Object {
+                ([string]$_).Trim()
+            } |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_)
+            }
+    )
+
+    $PostOfficeBoxValue = ""
+
+    if ($PostOfficeBoxValues.Count -eq 1) {
+        $PostOfficeBoxValue = (
+            [string]$PostOfficeBoxValues[0]
+        )
+    }
+
+    $CountryNumericCode = $null
+
+    if (
+        $null -ne $Object.countryCode -and
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Object.countryCode
+        )
+    ) {
+        $CountryNumericCode = (
+            [int]$Object.countryCode
+        )
+    }
+
     return [pscustomobject]@{
         type = $Type
         object_class = $Type
@@ -361,10 +392,18 @@ function Convert-EitasSnapshotObject {
 
         city = [string]$Object.l
         country = [string]$Object.co
+        country_alpha2 = [string]$Object.c
+        country_numeric_code = $CountryNumericCode
         state = [string]$Object.st
         postal_code = [string]$Object.postalCode
         street_address = [string]$Object.streetAddress
-        post_office_box = [string]$Object.postOfficeBox
+        post_office_box = $PostOfficeBoxValue
+        post_office_boxes = @(
+            $PostOfficeBoxValues
+        )
+        post_office_box_count = (
+            [int]$PostOfficeBoxValues.Count
+        )
 
         employee_id = [string]$Object.employeeID
         employee_number = [string]$Object.employeeNumber
@@ -490,7 +529,9 @@ function New-EitasAdSnapshot {
         "ipPhone",
         "mobile",
         "l",
+        "c",
         "co",
+        "countryCode",
         "st",
         "postalCode",
         "streetAddress",
