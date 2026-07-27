@@ -256,7 +256,8 @@ function Convert-EitasSnapshotObject {
     if (
         $Type -in @(
             "ou",
-            "computer"
+            "computer",
+            "contact"
         )
     ) {
         $ProtectedFromAccidentalDeletion =

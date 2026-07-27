@@ -1499,10 +1499,11 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         $null -ne $ProtectedFromAccidentalDeletion -and
         @(
             "organizationalunit",
-            "computer"
+            "computer",
+            "contact"
         ) -notcontains $ObjectClassName
     ) {
-        throw "La protection contre la suppression accidentelle est réservée aux unités d'organisation et ordinateurs"
+        throw "La protection contre la suppression accidentelle est réservée aux unités d'organisation, ordinateurs et contacts"
     }
 
 
@@ -1657,7 +1658,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                 -Identity $ObjectDn `
                 -ProtectedFromAccidentalDeletion $ProtectedFromAccidentalDeletion `
                 -ErrorAction Stop
-        } elseif ($ObjectClassName -eq "computer") {
+        } elseif (
+            $ObjectClassName -in @(
+                "computer",
+                "contact"
+            )
+        ) {
             Set-ADObject `
                 -Identity $ObjectDn `
                 -ProtectedFromAccidentalDeletion $ProtectedFromAccidentalDeletion `
@@ -1694,7 +1700,14 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         $UpdatedSamAccountName = (
             [string]$UpdatedObject.sAMAccountName
         )
+    }
 
+    if (
+        $ObjectClassName -in @(
+            "computer",
+            "contact"
+        )
+    ) {
         $UpdatedProtectedFromAccidentalDeletion = `
             [bool]$UpdatedObject.ProtectedFromAccidentalDeletion
     }

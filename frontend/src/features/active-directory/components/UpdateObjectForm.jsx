@@ -670,6 +670,32 @@ function UpdateObjectForm({
       </>
     )}
 
+    {isUpdateContactTarget(currentTarget) && (
+      <section>
+        <h4>Objet</h4>
+
+        <div className="aduc-update-object-grid">
+          <label className="wide aduc-ou-protection-field">
+            <span>
+              <input
+                type="checkbox"
+                checked={Boolean(
+                  updateForm.protectedFromAccidentalDeletion
+                )}
+                onChange={event => updateObjectFormField(
+                  'protectedFromAccidentalDeletion',
+                  event.target.checked
+                )}
+                disabled={loading}
+              />
+
+              Protéger contre la suppression accidentelle
+            </span>
+          </label>
+        </div>
+      </section>
+    )}
+
     {isUpdateOrganizationalUnitTarget(currentTarget) && (
       <section>
         <h4>Adresse de l’unité d’organisation</h4>
