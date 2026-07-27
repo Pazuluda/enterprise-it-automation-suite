@@ -141,6 +141,10 @@ function getObjectType(item) {
     return syntheticTypeLabels[rawType]
   }
 
+  if (rawType === 'contact') {
+    return 'Contact'
+  }
+
   const objectDn = String(
     item?.distinguished_name ||
     item?.dn ||
@@ -174,14 +178,25 @@ function getObjectType(item) {
     groupCategory ?? ''
   ).trim().toLowerCase()
 
+  const hasGroupMetadata = [
+    item?.group_scope,
+    item?.groupScope,
+    item?.scope,
+    item?.group_category,
+    item?.groupCategory,
+    item?.category,
+  ].some(value =>
+    value !== undefined &&
+    value !== null &&
+    String(value).trim() !== ''
+  )
+
   const isGroup =
     rawType === 'group' ||
-    item?.group_scope !== undefined ||
-    item?.groupScope !== undefined ||
-    item?.scope !== undefined ||
-    item?.group_category !== undefined ||
-    item?.groupCategory !== undefined ||
-    item?.category !== undefined
+    (
+      !rawType &&
+      hasGroupMetadata
+    )
 
   if (isGroup) {
     if (
@@ -303,8 +318,20 @@ function getObjectMetaRows(item) {
 
 
 function isGroupObject(item) {
-  const type = getObjectType(item)
-  return item?.type === 'group' || type.includes('Groupe')
+  const rawType = String(
+    item?.type ||
+    item?.object_class ||
+    item?.objectClass ||
+    ''
+  )
+    .trim()
+    .toLowerCase()
+
+  if (rawType) {
+    return rawType === 'group'
+  }
+
+  return getObjectType(item).includes('Groupe')
 }
 
 function getRenameDefaultName(item) {

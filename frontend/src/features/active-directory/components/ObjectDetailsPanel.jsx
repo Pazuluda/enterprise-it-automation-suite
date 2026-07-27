@@ -40,7 +40,15 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     objectClass === 'computer-container'
 
   const isOu = isOuObject(displayed)
-  const isGroup = isGroupObject(displayed)
+
+  const isContact =
+    type === 'Contact' ||
+    objectClass === 'contact'
+
+  const isGroup =
+    !isContact &&
+    isGroupObject(displayed)
+
   const isUser =
     type.includes('Utilisateur') ||
     objectClass === 'user'
@@ -51,7 +59,6 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       type === 'Ordinateur' ||
       objectClass === 'computer'
     )
-  const isContact = type === 'Contact' || objectClass === 'contact'
   const members = Array.isArray(memberItems) ? memberItems : []
   const history = Array.isArray(historyItems) ? historyItems : []
 
@@ -429,6 +436,168 @@ const objectTechnicalRows = [
       ['Gestionnaire', managerDn, true]
     ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
+  const contactGeneralRows = [
+    [
+      'Prénom',
+      orgValue([
+        'given_name',
+        'givenName',
+      ]) || '\u00a0',
+    ],
+    [
+      'Initiales',
+      orgValue([
+        'initials',
+      ]) || '\u00a0',
+    ],
+    [
+      'Nom',
+      orgValue([
+        'surname',
+        'sn',
+      ]) || '\u00a0',
+    ],
+    [
+      'Nom complet',
+      orgValue([
+        'display_name',
+        'displayName',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Description',
+      orgValue([
+        'description',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Bureau',
+      orgValue([
+        'office',
+        'physicalDeliveryOfficeName',
+      ]) || '\u00a0',
+    ],
+    [
+      'Numéro de téléphone',
+      orgValue([
+        'telephone_number',
+        'telephoneNumber',
+      ]) || '\u00a0',
+    ],
+    [
+      'Adresse de messagerie',
+      orgValue([
+        'mail',
+        'email',
+      ]) || '\u00a0',
+      true,
+    ],
+    [
+      'Page Web',
+      orgValue([
+        'www_home_page',
+        'wWWHomePage',
+        'website',
+      ]) || '\u00a0',
+      true,
+    ],
+  ]
+
+  const contactPhoneRows = [
+    [
+      'Domicile',
+      orgValue([
+        'home_phone',
+        'homePhone',
+      ]) || '\u00a0',
+    ],
+    [
+      'Radiomessagerie',
+      orgValue([
+        'pager',
+      ]) || '\u00a0',
+    ],
+    [
+      'Tél. mobile',
+      orgValue([
+        'mobile',
+        'mobilePhone',
+      ]) || '\u00a0',
+    ],
+    [
+      'Télécopie',
+      orgValue([
+        'facsimile_telephone_number',
+        'facsimileTelephoneNumber',
+        'fax',
+      ]) || '\u00a0',
+    ],
+    [
+      'Téléphone IP',
+      orgValue([
+        'ip_phone',
+        'ipPhone',
+      ]) || '\u00a0',
+    ],
+    [
+      'Remarques',
+      orgValue([
+        'info',
+        'notes',
+        'remarks',
+      ]) || '\u00a0',
+      true,
+    ],
+  ]
+
+  const contactDirectReportsValue = orgValue([
+    'direct_reports',
+    'directReports',
+  ])
+
+  const contactDirectReports = (
+    Array.isArray(contactDirectReportsValue)
+      ? contactDirectReportsValue
+      : contactDirectReportsValue
+        ? [contactDirectReportsValue]
+        : []
+  )
+    .filter(Boolean)
+    .map(value => getGroupNameFromDn(value))
+    .join('\n')
+
+  const contactOrganizationRows = [
+    [
+      'Fonction',
+      orgValue([
+        'title',
+        'job_title',
+      ]) || '\u00a0',
+    ],
+    [
+      'Service',
+      orgValue([
+        'department',
+        'service',
+      ]) || '\u00a0',
+    ],
+    [
+      'Société',
+      orgValue([
+        'company',
+      ]) || '\u00a0',
+    ],
+    [
+      'Gestionnaire',
+      managerDn
+        ? getGroupNameFromDn(managerDn)
+        : '\u00a0',
+      true,
+    ],
+  ]
+
   const addressRows = [
     [
       'Adresse',
@@ -784,7 +953,14 @@ const objectTechnicalRows = [
         ]
       : []),
 
-    ...(isContact ? [['address', 'Adresse'], ['phones', 'Téléphones'], ['organization', 'Organisation'], ['managedBy', 'Géré par']] : []),
+    ...(isContact
+      ? [
+          ['address', 'Adresse'],
+          ['phones', 'Téléphones'],
+          ['organization', 'Organisation'],
+          ['membership', 'Membre de'],
+        ]
+      : []),
     ...(isOu
       ? [
           ['managedBy', 'Géré par'],
@@ -794,7 +970,7 @@ const objectTechnicalRows = [
     ['object', 'Objet'],
     [
       'history',
-      isComputer
+      isComputer || isContact
         ? 'Historique EITAS'
         : 'Historique',
     ],
@@ -1014,7 +1190,9 @@ const objectTechnicalRows = [
           ? 'ordinateur'
           : isGroup
             ? 'groupe'
-            : 'utilisateur'
+            : isContact
+              ? 'contact'
+              : 'utilisateur'
 
       return (
         <div className="aduc-members-card aduc-tab-card">
@@ -1341,8 +1519,8 @@ const objectTechnicalRows = [
   return (
     <aside className="aduc-details-pane aduc-aduc-properties">
       <div className="aduc-details-header">
-        <span className={`aduc-object-avatar ${isOu ? 'ou' : isGroup ? 'group' : isUser ? 'user' : isComputer ? 'computer' : ''}`}>
-          {isOu ? '📁' : isGroup ? '👥' : isUser ? '👤' : isComputer ? '💻' : 'ⓘ'}
+        <span className={`aduc-object-avatar ${isOu ? 'ou' : isGroup ? 'group' : isUser ? 'user' : isComputer ? 'computer' : isContact ? 'contact' : ''}`}>
+          {isOu ? '📁' : isGroup ? '👥' : isUser ? '👤' : isComputer ? '💻' : isContact ? '📇' : 'ⓘ'}
         </span>
 
         <div>
@@ -1392,7 +1570,9 @@ const objectTechnicalRows = [
                       ? groupGeneralRows
                       : isComputer
                         ? computerGeneralRows
-                        : generalRows
+                        : isContact
+                          ? contactGeneralRows
+                          : generalRows
                 )}
               </div>
             )}
@@ -1416,7 +1596,9 @@ const objectTechnicalRows = [
                 <h4>Téléphones</h4>
 
                 {renderGrid(
-                  phoneRows,
+                  isContact
+                    ? contactPhoneRows
+                    : phoneRows,
                   'Aucune coordonnée téléphonique disponible.'
                 )}
               </div>
@@ -1473,14 +1655,37 @@ const objectTechnicalRows = [
                 <div className="aduc-tab-card">
                   <h4>Organisation</h4>
                   {renderGrid(
-                    orgRows,
+                    isContact
+                      ? contactOrganizationRows
+                      : orgRows,
                     'Aucune information organisationnelle disponible.'
                   )}
 
-                  <h4>Informations RH</h4>
-                  {renderGrid(
-                    hrRows,
-                    'Aucune information RH disponible.'
+                  {!isContact && (
+                    <>
+                      <h4>Informations RH</h4>
+                      {renderGrid(
+                        hrRows,
+                        'Aucune information RH disponible.'
+                      )}
+                    </>
+                  )}
+
+                  {isContact && (
+                    <>
+                      <h4>Collaborateurs</h4>
+
+                      {contactDirectReports ? (
+                        <div className="aduc-contact-direct-reports">
+                          <pre>{contactDirectReports}</pre>
+                        </div>
+                      ) : (
+                        <p className="aduc-details-empty-mini">
+                          Aucun collaborateur remonté
+                          par Active Directory.
+                        </p>
+                      )}
+                    </>
                   )}
 
                   {managerDn && (

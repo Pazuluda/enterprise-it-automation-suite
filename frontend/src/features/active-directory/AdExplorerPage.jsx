@@ -2399,7 +2399,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
                                 ? '👤'
                                 : ['Ordinateur', 'Contrôleur de domaine'].includes(getObjectType(item))
                                   ? '💻'
-                                  : '📁'}
+                                  : getObjectType(item) === 'Contact'
+                                    ? '📇'
+                                    : '📁'}
                           </i>
                           {getObjectName(item)}
                         </span>

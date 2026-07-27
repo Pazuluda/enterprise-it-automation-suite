@@ -19,6 +19,7 @@ function UpdateObjectForm({
     submitUpdateObject,
     hasUpdateChanges,
     isUpdateComputerTarget,
+    isUpdateContactTarget,
     isUpdateOrganizationalUnitTarget,
     updateForm,
     updateObjectFormField,
@@ -425,6 +426,250 @@ function UpdateObjectForm({
         ))}
       </>
     )}
+    {isUpdateContactTarget(currentTarget) && (
+      <>
+        <section>
+          <h4>Identité du contact</h4>
+
+          <div className="aduc-update-object-grid">
+            {[
+              ['givenName', 'Prénom'],
+              ['initials', 'Initiales', 6],
+              ['sn', 'Nom'],
+            ].map(([name, label, maxLength]) => (
+              <label key={name}>
+                <span>{label}</span>
+
+                <input
+                  type="text"
+                  maxLength={maxLength || undefined}
+                  value={updateForm[name] || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      name,
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>Coordonnées générales</h4>
+
+          <div className="aduc-update-object-grid">
+            {[
+              [
+                'physicalDeliveryOfficeName',
+                'Bureau',
+                128,
+                false,
+                'text',
+              ],
+              [
+                'telephoneNumber',
+                'Numéro de téléphone',
+                64,
+                false,
+                'text',
+              ],
+              [
+                'mail',
+                'Adresse de messagerie',
+                256,
+                true,
+                'email',
+              ],
+              [
+                'wWWHomePage',
+                'Page Web',
+                2048,
+                true,
+                'text',
+              ],
+            ].map(([
+              name,
+              label,
+              maxLength,
+              wide,
+              inputType,
+            ]) => (
+              <label
+                key={name}
+                className={wide ? 'wide' : ''}
+              >
+                <span>{label}</span>
+
+                <input
+                  type={inputType}
+                  maxLength={maxLength}
+                  value={updateForm[name] || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      name,
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>Adresse</h4>
+
+          <div className="aduc-update-object-grid">
+            {[
+              [
+                'streetAddress',
+                'Adresse',
+                true,
+              ],
+              [
+                'postalCode',
+                'Code postal',
+                false,
+              ],
+              [
+                'l',
+                'Ville',
+                false,
+              ],
+              [
+                'st',
+                'Département ou région',
+                false,
+              ],
+            ].map(([name, label, wide]) => (
+              <label
+                key={name}
+                className={wide ? 'wide' : ''}
+              >
+                <span>{label}</span>
+
+                <input
+                  type="text"
+                  value={updateForm[name] || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      name,
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h4>Téléphones</h4>
+
+          <div className="aduc-update-object-grid">
+            {[
+              [
+                'homePhone',
+                'Domicile',
+              ],
+              [
+                'pager',
+                'Radiomessagerie',
+              ],
+              [
+                'mobile',
+                'Tél. mobile',
+              ],
+              [
+                'facsimileTelephoneNumber',
+                'Télécopie',
+              ],
+              [
+                'ipPhone',
+                'Téléphone IP',
+              ],
+            ].map(([name, label]) => (
+              <label key={name}>
+                <span>{label}</span>
+
+                <input
+                  type="text"
+                  maxLength={64}
+                  value={updateForm[name] || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      name,
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+            ))}
+
+            <label className="wide">
+              <span>Remarques</span>
+
+              <textarea
+                rows="4"
+                maxLength={1024}
+                value={updateForm.info || ''}
+                onChange={event =>
+                  updateObjectFormField(
+                    'info',
+                    event.target.value
+                  )
+                }
+                disabled={loading}
+              />
+            </label>
+          </div>
+        </section>
+
+        <section>
+          <h4>Organisation</h4>
+
+          <div className="aduc-update-object-grid">
+            {[
+              [
+                'title',
+                'Fonction',
+              ],
+              [
+                'department',
+                'Service',
+              ],
+              [
+                'company',
+                'Société',
+              ],
+            ].map(([name, label]) => (
+              <label key={name}>
+                <span>{label}</span>
+
+                <input
+                  type="text"
+                  value={updateForm[name] || ''}
+                  onChange={event =>
+                    updateObjectFormField(
+                      name,
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                />
+              </label>
+            ))}
+          </div>
+        </section>
+      </>
+    )}
+
     {isUpdateOrganizationalUnitTarget(currentTarget) && (
       <section>
         <h4>Adresse de l’unité d’organisation</h4>

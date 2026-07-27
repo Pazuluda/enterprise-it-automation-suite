@@ -650,8 +650,10 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "displayName",
             "display_name",
             "givenName",
+            "initials",
             "sn",
             "mail",
+            "wWWHomePage",
             "info",
             "samAccountName",
             "sam_account_name",
@@ -661,6 +663,10 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "company",
             "telephoneNumber",
             "telephone_number",
+            "homePhone",
+            "facsimileTelephoneNumber",
+            "pager",
+            "ipPhone",
             "mobile",
             "mobile_phone",
             "office",
@@ -716,6 +722,18 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "protected_from_accidental_deletion": "protectedFromAccidentalDeletion",
         }
 
+        property_max_lengths = {
+            "initials": 6,
+            "wWWHomePage": 2048,
+            "telephoneNumber": 64,
+            "homePhone": 64,
+            "facsimileTelephoneNumber": 64,
+            "pager": 64,
+            "mobile": 64,
+            "ipPhone": 64,
+            "info": 1024,
+        }
+
         for key, value in raw_properties.items():
             if key not in allowed_properties:
                 raise HTTPException(status_code=400, detail=f"Attribut non autorisé : {key}")
@@ -750,6 +768,22 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 continue
 
             normalized_value = clean_string(str(value))
+
+            maximum_length = property_max_lengths.get(
+                normalized_key
+            )
+
+            if (
+                maximum_length is not None
+                and len(normalized_value) > maximum_length
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} est limité à "
+                        f"{maximum_length} caractères"
+                    ),
+                )
 
             if normalized_key == "samAccountName":
                 if not normalized_value:

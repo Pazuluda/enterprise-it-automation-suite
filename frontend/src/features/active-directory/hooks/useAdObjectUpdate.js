@@ -99,6 +99,18 @@ function useAdObjectUpdate({
       || getObjectType(target) === 'Ordinateur'
   }
 
+  function isUpdateContactTarget(target) {
+    const objectClass = String(
+      target?.objectClass
+      || target?.object_class
+      || target?.type
+      || ''
+    ).trim().toLowerCase()
+
+    return objectClass === 'contact'
+      || getObjectType(target) === 'Contact'
+  }
+
   function isUpdateOrganizationalUnitTarget(target) {
     return isOuObject(target)
   }
@@ -173,6 +185,10 @@ function useAdObjectUpdate({
         'given_name',
         'first_name'
       ),
+      initials: getAdAttributeValue(
+        target,
+        'initials'
+      ),
       sn: getAdAttributeValue(
         target,
         'sn',
@@ -183,6 +199,12 @@ function useAdObjectUpdate({
         target,
         'mail',
         'email'
+      ),
+      wWWHomePage: getAdAttributeValue(
+        target,
+        'wWWHomePage',
+        'www_home_page',
+        'website'
       ),
       info: getAdAttributeValue(
         target,
@@ -258,6 +280,26 @@ function useAdObjectUpdate({
         'telephoneNumber',
         'telephone_number',
         'phone'
+      ),
+      homePhone: getAdAttributeValue(
+        target,
+        'homePhone',
+        'home_phone'
+      ),
+      facsimileTelephoneNumber: getAdAttributeValue(
+        target,
+        'facsimileTelephoneNumber',
+        'facsimile_telephone_number',
+        'fax'
+      ),
+      pager: getAdAttributeValue(
+        target,
+        'pager'
+      ),
+      ipPhone: getAdAttributeValue(
+        target,
+        'ipPhone',
+        'ip_phone'
       ),
       mobile: getAdAttributeValue(
         target,
@@ -685,6 +727,7 @@ function useAdObjectUpdate({
     updateSaveNotice,
     updateSaveError,
     isUpdateComputerTarget,
+    isUpdateContactTarget,
     isUpdateOrganizationalUnitTarget,
     updateForm,
     updateObjectFormField,

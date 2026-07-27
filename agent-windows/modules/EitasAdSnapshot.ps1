@@ -331,6 +331,7 @@ function Convert-EitasSnapshotObject {
         name = [string]$Object.Name
         display_name = [string]$Object.displayName
         given_name = [string]$Object.givenName
+        initials = [string]$Object.initials
         surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
@@ -340,6 +341,7 @@ function Convert-EitasSnapshotObject {
         sam_account_name = [string]$Object.sAMAccountName
         user_principal_name = [string]$Object.userPrincipalName
         mail = [string]$Object.mail
+        www_home_page = [string]$Object.wWWHomePage
         info = [string]$Object.info
 
         description = [string]$Object.description
@@ -350,6 +352,7 @@ function Convert-EitasSnapshotObject {
 
         office = [string]$Object.physicalDeliveryOfficeName
         telephone_number = [string]$Object.telephoneNumber
+        home_phone = [string]$Object.homePhone
         facsimile_telephone_number = [string]$Object.facsimileTelephoneNumber
         pager = [string]$Object.pager
         ip_phone = [string]$Object.ipPhone
@@ -460,10 +463,12 @@ function New-EitasAdSnapshot {
         "description",
         "displayName",
         "givenName",
+        "initials",
         "sn",
         "sAMAccountName",
         "userPrincipalName",
         "mail",
+        "wWWHomePage",
         "info",
         "userAccountControl",
         "pwdLastSet",
@@ -478,6 +483,7 @@ function New-EitasAdSnapshot {
         "manager",
         "physicalDeliveryOfficeName",
         "telephoneNumber",
+        "homePhone",
         "facsimileTelephoneNumber",
         "pager",
         "ipPhone",

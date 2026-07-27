@@ -1197,8 +1197,10 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "operatingSystemServicePack",
         "displayName",
         "givenName",
+        "initials",
         "sn",
         "mail",
+        "wWWHomePage",
         "info",
         "samAccountName",
         "title",
@@ -1206,6 +1208,10 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "division",
         "company",
         "telephoneNumber",
+        "homePhone",
+        "facsimileTelephoneNumber",
+        "pager",
+        "ipPhone",
         "mobile",
         "physicalDeliveryOfficeName",
         "employeeID",
@@ -1257,23 +1263,46 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
     $ObjectDn = ([string]$Object.DistinguishedName).Trim()
 
-    $UserOnlyProperties = @(
+    $PersonNameProperties = @(
         "givenName",
+        "initials",
         "sn"
     )
 
-    $HasUserOnlyChanges = @(
+    $HasPersonNameChanges = @(
         $Properties.Keys |
             Where-Object {
-                $UserOnlyProperties -contains [string]$_
+                $PersonNameProperties -contains [string]$_
             }
     ).Count -gt 0
 
+    $PersonObjectClass = (
+        [string]$Object.ObjectClass
+    ).Trim().ToLowerInvariant()
+
     if (
-        $HasUserOnlyChanges -and
-        [string]$Object.ObjectClass -ne "user"
+        $HasPersonNameChanges -and
+        @(
+            "user",
+            "contact"
+        ) -notcontains $PersonObjectClass
     ) {
-        throw "givenName et sn sont réservés aux objets utilisateur"
+        throw (
+            "givenName, initials et sn sont " +
+            "réservés aux utilisateurs et contacts"
+        )
+    }
+
+    $MaximumAttributeLengths = @{
+        initials = 6
+        wWWHomePage = 2048
+        telephoneNumber = 64
+        homePhone = 64
+        facsimileTelephoneNumber = 64
+        pager = 64
+        mobile = 64
+        ipPhone = 64
+        info = 1024
     }
 
     $Replace = @{}
@@ -1301,6 +1330,18 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
 
         $Value = Repair-EitasTextEncoding -Value $RawValue
+
+        if (
+            $null -ne $Value -and
+            $MaximumAttributeLengths.ContainsKey($Key) -and
+            ([string]$Value).Length -gt
+                [int]$MaximumAttributeLengths[$Key]
+        ) {
+            throw (
+                "$Key est limité à " +
+                "$($MaximumAttributeLengths[$Key]) caractères"
+            )
+        }
 
         if ($Key -eq "samAccountName") {
             $GroupSamAccountName = (
@@ -1413,14 +1454,17 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         throw "Les propriétés de système d’exploitation sont réservées aux ordinateurs"
     }
 
-    $HasGroupInfoChanges =
+    $HasInfoChanges =
         $Properties.ContainsKey("info")
 
     if (
-        $HasGroupInfoChanges -and
-        $ObjectClassName -ne "group"
+        $HasInfoChanges -and
+        @(
+            "group",
+            "contact"
+        ) -notcontains $ObjectClassName
     ) {
-        throw "info est réservé aux objets groupe"
+        throw "info est réservé aux groupes et contacts"
     }
 
     $HasGroupSpecificChanges = (
@@ -1624,7 +1668,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, sn, description, location, mail, info, title, department, division, company, telephoneNumber, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, l, st, co, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
