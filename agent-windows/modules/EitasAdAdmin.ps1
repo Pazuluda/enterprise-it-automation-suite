@@ -1205,6 +1205,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "samAccountName",
         "userPrincipalName",
         "accountExpires",
+        "userWorkstations",
+        "logonHours",
         "title",
         "department",
         "division",
@@ -1347,7 +1349,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $AccountProperties = @(
         "userPrincipalName",
-        "accountExpires"
+        "accountExpires",
+        "userWorkstations",
+        "logonHours"
     )
 
     $HasAccountChanges = @(
@@ -1362,8 +1366,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         $PersonObjectClass -ne "user"
     ) {
         throw (
-            "userPrincipalName et accountExpires " +
-            "sont réservés aux utilisateurs"
+            "userPrincipalName, accountExpires, " +
+            "userWorkstations et logonHours sont " +
+            "réservés aux utilisateurs"
         )
     }
 
@@ -1505,6 +1510,10 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $UserPrincipalNameValue = $null
     $AccountExpirationDate = $null
     $ClearAccountExpiration = $false
+    $UserWorkstationsValue = $null
+    $ClearUserWorkstations = $false
+    $LogonHoursBytes = $null
+    $ClearLogonHours = $false
 
     foreach ($Key in $Properties.Keys) {
         $RawValue = $Properties[$Key]
@@ -1673,6 +1682,134 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                 }
 
                 $AccountExpirationDate = $ParsedExpirationDate.Date.AddDays(1).AddSeconds(-1)
+            }
+        } elseif ($Key -eq "userWorkstations") {
+            $WorkstationsText = (
+                [string]$Value
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $WorkstationsText
+                )
+            ) {
+                $ClearUserWorkstations = $true
+            } else {
+                $NormalizedWorkstations =
+                    New-Object `
+                        "System.Collections.Generic.List[string]"
+
+                foreach (
+                    $RawWorkstationName in @(
+                        $WorkstationsText -split "[,;]"
+                    )
+                ) {
+                    $WorkstationName = (
+                        [string]$RawWorkstationName
+                    ).Trim().ToUpperInvariant()
+
+                    if (
+                        [string]::IsNullOrWhiteSpace(
+                            $WorkstationName
+                        )
+                    ) {
+                        continue
+                    }
+
+                    if (
+                        $WorkstationName.Length -gt 15 -or
+                        $WorkstationName -notmatch (
+                            "^[A-Z0-9]" +
+                            "(?:[A-Z0-9-]*[A-Z0-9])?$"
+                        )
+                    ) {
+                        throw (
+                            "Nom NetBIOS de station invalide : " +
+                            $WorkstationName
+                        )
+                    }
+
+                    if (
+                        -not $NormalizedWorkstations.Contains(
+                            $WorkstationName
+                        )
+                    ) {
+                        $NormalizedWorkstations.Add(
+                            $WorkstationName
+                        )
+                    }
+                }
+
+                $UserWorkstationsValue = (
+                    $NormalizedWorkstations -join ","
+                )
+
+                if ($UserWorkstationsValue.Length -gt 1024) {
+                    throw (
+                        "userWorkstations est limité à " +
+                        "1024 caractères par le schéma AD"
+                    )
+                }
+            }
+        } elseif ($Key -eq "logonHours") {
+            $LogonHoursText = (
+                [string]$Value
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $LogonHoursText
+                )
+            ) {
+                $ClearLogonHours = $true
+            } else {
+                $LogonHourTokens = @(
+                    $LogonHoursText -split "[\s,;]+" |
+                        Where-Object {
+                            -not [string]::IsNullOrWhiteSpace(
+                                [string]$_
+                            )
+                        }
+                )
+
+                if ($LogonHourTokens.Count -ne 21) {
+                    throw (
+                        "logonHours doit contenir exactement " +
+                        "21 octets hexadécimaux"
+                    )
+                }
+
+                [byte[]]$ParsedLogonHours =
+                    New-Object byte[] 21
+
+                for (
+                    $Index = 0;
+                    $Index -lt 21;
+                    $Index++
+                ) {
+                    $Token = (
+                        [string]$LogonHourTokens[$Index]
+                    ).Trim()
+
+                    if (
+                        $Token -notmatch
+                        "^[0-9A-Fa-f]{2}$"
+                    ) {
+                        throw (
+                            "Octet logonHours invalide : " +
+                            $Token
+                        )
+                    }
+
+                    $ParsedLogonHours[$Index] = (
+                        [System.Convert]::ToByte(
+                            $Token,
+                            16
+                        )
+                    )
+                }
+
+                $LogonHoursBytes = $ParsedLogonHours
             }
         } elseif ($Key -eq "homeDrive") {
             if (
@@ -1930,6 +2067,28 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    if ($null -ne $UserWorkstationsValue) {
+        foreach (
+            $WorkstationName in @(
+                $UserWorkstationsValue -split ","
+            )
+        ) {
+            try {
+                Get-ADComputer `
+                    -Identity $WorkstationName `
+                    -ErrorAction Stop |
+                    Out-Null
+            }
+            catch {
+                throw (
+                    "Ordinateur Active Directory introuvable " +
+                    "pour userWorkstations : " +
+                    $WorkstationName
+                )
+            }
+        }
+    }
+
     if ($Replace.Count -gt 0) {
         Set-ADObject `
             -Identity $ObjectDn `
@@ -1968,6 +2127,36 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     if ($ClearAccountExpiration) {
         Clear-ADAccountExpiration `
             -Identity $ObjectDn `
+            -ErrorAction Stop
+    }
+
+    if ($null -ne $UserWorkstationsValue) {
+        Set-ADUser `
+            -Identity $ObjectDn `
+            -LogonWorkstations $UserWorkstationsValue `
+            -ErrorAction Stop
+    }
+
+    if ($ClearUserWorkstations) {
+        Set-ADUser `
+            -Identity $ObjectDn `
+            -Clear @("userWorkstations") `
+            -ErrorAction Stop
+    }
+
+    if ($null -ne $LogonHoursBytes) {
+        Set-ADUser `
+            -Identity $ObjectDn `
+            -Replace @{
+                logonHours = [byte[]]$LogonHoursBytes
+            } `
+            -ErrorAction Stop
+    }
+
+    if ($ClearLogonHours) {
+        Set-ADUser `
+            -Identity $ObjectDn `
+            -Clear @("logonHours") `
             -ErrorAction Stop
     }
 
@@ -2098,7 +2287,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
@@ -2160,6 +2349,18 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
         account_expires = (
             [string]$UpdatedObject.accountExpires
+        )
+        user_workstations = (
+            [string]$UpdatedObject.userWorkstations
+        )
+        logon_hours = (
+            @($UpdatedObject.logonHours) |
+                ForEach-Object {
+                    ([byte]$_).ToString("X2")
+                }
+        ) -join " "
+        direct_reports = @(
+            $UpdatedObject.directReports
         )
         group_scope = $UpdatedGroupScope
         group_category = $UpdatedGroupCategory

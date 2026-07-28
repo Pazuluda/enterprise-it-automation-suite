@@ -1,3 +1,9 @@
+import {
+  AD_LOGON_HOURS_CLEAR_VALUE,
+  getLogonHoursSubmissionValue,
+  normalizeLogonHoursHex,
+} from '../utils/adLogonRestrictions'
+
 import { useState } from 'react'
 
 import {
@@ -297,6 +303,19 @@ function useAdObjectUpdate({
         'account_expires',
         'AccountExpirationDate'
       ),
+      userWorkstations: getAdAttributeValue(
+        target,
+        'userWorkstations',
+        'user_workstations',
+        'LogonWorkstations'
+      ),
+      logonHours: normalizeLogonHoursHex(
+        getAdAttributeValue(
+          target,
+          'logonHours',
+          'logon_hours'
+        )
+      ),
       profilePath: getAdAttributeValue(
         target,
         'profilePath',
@@ -459,8 +478,23 @@ function useAdObjectUpdate({
     const properties = {}
 
     Object.entries(form || {}).forEach(([key, value]) => {
-      const currentValue = value ?? ''
-      const originalValue = originalForm?.[key] ?? ''
+      const rawCurrentValue = value ?? ''
+      const rawOriginalValue =
+        originalForm?.[key] ?? ''
+
+      const currentValue =
+        key === 'logonHours'
+          ? getLogonHoursSubmissionValue(
+              rawCurrentValue
+            )
+          : rawCurrentValue
+
+      const originalValue =
+        key === 'logonHours'
+          ? getLogonHoursSubmissionValue(
+              rawOriginalValue
+            )
+          : rawOriginalValue
 
       if (
         String(currentValue) !==
@@ -743,9 +777,16 @@ function useAdObjectUpdate({
       if (closeOnSuccess) {
         closeUpdateObject()
       } else {
-        setUpdateOriginalForm({
-          ...updateForm
-        })
+        const savedForm = {
+          ...updateForm,
+          logonHours:
+            getLogonHoursSubmissionValue(
+              updateForm.logonHours
+            ),
+        }
+
+        setUpdateForm(savedForm)
+        setUpdateOriginalForm(savedForm)
         setUpdateEditorOpen(false)
       }
 
@@ -802,6 +843,8 @@ function useAdObjectUpdate({
     hasUpdateChanges,
     getChangedUpdateProperties,
     updateOriginalForm,
+    logonHoursClearValue:
+      AD_LOGON_HOURS_CLEAR_VALUE,
     updateSaveNotice,
     updateSaveError,
     isUpdateComputerTarget,

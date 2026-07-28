@@ -365,6 +365,10 @@ def normalize_update_object_properties(
         "upn",
         "accountExpires",
         "account_expires",
+        "userWorkstations",
+        "user_workstations",
+        "logonHours",
+        "logon_hours",
         "title",
         "department",
         "division",
@@ -451,6 +455,8 @@ def normalize_update_object_properties(
         "user_principal_name": "userPrincipalName",
         "upn": "userPrincipalName",
         "account_expires": "accountExpires",
+        "user_workstations": "userWorkstations",
+        "logon_hours": "logonHours",
         "protected_from_accidental_deletion":
             "protectedFromAccidentalDeletion",
     }
@@ -471,7 +477,21 @@ def normalize_update_object_properties(
 
     normalized_properties = {}
 
+    read_only_properties = {
+        "directReports",
+        "direct_reports",
+    }
+
     for key, value in raw_properties.items():
+        if key in read_only_properties:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "directReports est calculé automatiquement "
+                    "par Active Directory et reste en lecture seule"
+                ),
+            )
+
         if key not in allowed_properties:
             raise HTTPException(
                 status_code=400,
@@ -546,6 +566,125 @@ def normalize_update_object_properties(
 
             normalized_properties[normalized_key] = (
                 numeric_code
+            )
+            continue
+
+        if normalized_key == "userWorkstations":
+            if isinstance(
+                value,
+                (list, tuple, set, dict),
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "userWorkstations doit être une liste "
+                        "de noms NetBIOS séparés par des virgules"
+                    ),
+                )
+
+            normalized_value = clean_string(value)
+
+            if not normalized_value:
+                normalized_properties[normalized_key] = ""
+                continue
+
+            workstation_names = []
+            seen_names = set()
+
+            for raw_name in re.split(
+                r"[,;]",
+                normalized_value,
+            ):
+                workstation_name = raw_name.strip().upper()
+
+                if not workstation_name:
+                    continue
+
+                if (
+                    len(workstation_name) > 15
+                    or not re.fullmatch(
+                        r"[A-Z0-9]"
+                        r"(?:[A-Z0-9-]*[A-Z0-9])?",
+                        workstation_name,
+                    )
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "Chaque station doit utiliser un nom "
+                            "NetBIOS valide de 1 à 15 caractères"
+                        ),
+                    )
+
+                if workstation_name not in seen_names:
+                    workstation_names.append(workstation_name)
+                    seen_names.add(workstation_name)
+
+            normalized_value = ",".join(workstation_names)
+
+            if len(normalized_value) > 1024:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "userWorkstations est limité à "
+                        "1024 caractères par le schéma AD"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = (
+                normalized_value
+            )
+            continue
+
+        if normalized_key == "logonHours":
+            if isinstance(
+                value,
+                (list, tuple, set, dict),
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "logonHours doit contenir 21 octets "
+                        "hexadécimaux"
+                    ),
+                )
+
+            normalized_value = clean_string(value)
+
+            if not normalized_value:
+                normalized_properties[normalized_key] = ""
+                continue
+
+            hour_tokens = [
+                token
+                for token in re.split(
+                    r"[\s,;]+",
+                    normalized_value,
+                )
+                if token
+            ]
+
+            if (
+                len(hour_tokens) != 21
+                or any(
+                    not re.fullmatch(
+                        r"[0-9A-Fa-f]{2}",
+                        token,
+                    )
+                    for token in hour_tokens
+                )
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "logonHours doit contenir exactement "
+                        "21 octets hexadécimaux"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = " ".join(
+                token.upper()
+                for token in hour_tokens
             )
             continue
 

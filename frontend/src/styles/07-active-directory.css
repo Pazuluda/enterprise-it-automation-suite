@@ -6460,3 +6460,165 @@ input.aduc-object-protection-checkbox {
   background: #dc2626;
   color: #ffffff;
 }
+
+
+/* C1.31 — Restrictions de connexion utilisateur */
+
+.aduc-logon-hours-field {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.aduc-logon-hours-field legend {
+  padding: 0 7px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.aduc-logon-hours-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.aduc-logon-hours-summary strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.aduc-logon-hours-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aduc-logon-hours-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.aduc-logon-hours-controls button {
+  padding: 8px 11px;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.aduc-logon-hours-controls button:hover:not(:disabled) {
+  background: #e0e7ff;
+}
+
+.aduc-logon-hours-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.aduc-logon-hours-scroll {
+  max-width: 100%;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+}
+
+.aduc-logon-hours-header,
+.aduc-logon-hours-row {
+  display: grid;
+  grid-template-columns:
+    92px repeat(24, 22px);
+  gap: 2px;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+}
+
+.aduc-logon-hours-header {
+  margin-bottom: 3px;
+}
+
+.aduc-logon-hours-header > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.aduc-logon-hours-header > span:first-child {
+  justify-content: flex-start;
+}
+
+.aduc-logon-hours-row {
+  margin-bottom: 2px;
+}
+
+.aduc-logon-hours-row > strong {
+  overflow: hidden;
+  color: #334155;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aduc-logon-hours-row > button,
+.aduc-logon-hours-row > span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.aduc-logon-hours-row > button {
+  padding: 0;
+  cursor: pointer;
+}
+
+.aduc-logon-hours-row > button.allowed,
+.aduc-logon-hours-row > span.allowed {
+  border-color: #4338ca;
+  background: #4f46e5;
+}
+
+.aduc-logon-hours-row > button.denied,
+.aduc-logon-hours-row > span.denied {
+  background: #ffffff;
+}
+
+.aduc-logon-hours-row > button:hover:not(:disabled) {
+  border-color: #0f172a;
+  transform: scale(1.08);
+}
+
+.aduc-logon-hours-readonly {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+@media (max-width: 760px) {
+  .aduc-logon-hours-field {
+    grid-column: auto;
+  }
+}

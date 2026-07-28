@@ -1,4 +1,13 @@
 import {
+  AD_LOGON_DAY_LABELS,
+  AD_LOGON_HOURS_PER_DAY,
+  countAllowedLocalLogonHours,
+  formatLogonHoursOffset,
+  isLocalLogonHourAllowed,
+  normalizeLogonHoursHex,
+} from '../utils/adLogonRestrictions'
+
+import {
   useEffect,
   useState,
 } from 'react'
@@ -274,6 +283,48 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ],
   ]
 
+  const userWorkstationsValue = String(
+    pickAdField([
+      'user_workstations',
+      'userWorkstations',
+      'LogonWorkstations',
+    ]) || ''
+  ).trim()
+
+  const userWorkstationsSummary =
+    userWorkstationsValue
+      ? userWorkstationsValue
+          .split(',')
+          .map(value => value.trim())
+          .filter(Boolean)
+          .join(', ')
+      : 'Tous les ordinateurs'
+
+  const logonHoursValue =
+    normalizeLogonHoursHex(
+      pickAdField([
+        'logon_hours',
+        'logonHours',
+      ])
+    )
+
+  const logonHoursUtcOffsetMinutes = Number(
+    pickAdField([
+      'logon_hours_utc_offset_minutes',
+      'logonHoursUtcOffsetMinutes',
+    ]) || 0
+  )
+
+  const logonHoursAllowedCount =
+    countAllowedLocalLogonHours(
+      logonHoursValue
+    )
+
+  const logonHoursSummary =
+    logonHoursValue
+      ? `${logonHoursAllowedCount} créneau(x) autorisé(s)`
+      : 'Tous les horaires'
+
   const accountRows = [
     ['État du compte', getAccountStatus()],
     ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
@@ -296,6 +347,16 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
           'AccountExpirationDate',
         ])
       ) || 'Le compte n’expire jamais',
+    ],
+    [
+      'Stations de travail',
+      userWorkstationsSummary,
+      true,
+    ],
+    [
+      'Horaires d’accès',
+      logonHoursSummary,
+      true,
     ]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
@@ -595,19 +656,21 @@ const objectTechnicalRows = [
     ],
   ]
 
-  const contactDirectReportsValue = orgValue([
+  const directReportsValue = orgValue([
     'direct_reports',
     'directReports',
   ])
 
-  const contactDirectReports = (
-    Array.isArray(contactDirectReportsValue)
-      ? contactDirectReportsValue
-      : contactDirectReportsValue
-        ? [contactDirectReportsValue]
+  const directReports = (
+    Array.isArray(directReportsValue)
+      ? directReportsValue
+      : directReportsValue
+        ? [directReportsValue]
         : []
   )
     .filter(Boolean)
+
+  const directReportsText = directReports
     .map(value => getGroupNameFromDn(value))
     .join('\n')
 
@@ -1086,9 +1149,102 @@ const objectTechnicalRows = [
         {renderGrid(accountRows, 'Aucune information de compte disponible.')}
 
         <div className="aduc-account-note">
+          <strong>Restrictions de connexion</strong>
 
-          <p></p>
+          <p>
+            Stations :
+            {' '}
+            {userWorkstationsSummary}.
+            {' '}
+            Horaires :
+            {' '}
+            {logonHoursSummary}.
+            {' '}
+            Décalage standard :
+            {' '}
+            {formatLogonHoursOffset(
+              logonHoursUtcOffsetMinutes
+            )}.
+          </p>
         </div>
+
+        {logonHoursValue && (
+          <div className="aduc-logon-hours-readonly">
+            <div className="aduc-logon-hours-scroll">
+              <div className="aduc-logon-hours-header">
+                <span>Jour</span>
+
+                {Array.from(
+                  {
+                    length:
+                      AD_LOGON_HOURS_PER_DAY
+                  },
+                  (_, hour) => (
+                    <span key={hour}>
+                      {hour % 2 === 0
+                        ? hour
+                        : ''}
+                    </span>
+                  )
+                )}
+              </div>
+
+              {AD_LOGON_DAY_LABELS.map(
+                (dayLabel, dayIndex) => (
+                  <div
+                    className="aduc-logon-hours-row"
+                    key={dayLabel}
+                  >
+                    <strong>{dayLabel}</strong>
+
+                    {Array.from(
+                      {
+                        length:
+                          AD_LOGON_HOURS_PER_DAY
+                      },
+                      (_, hour) => {
+                        const localHourIndex =
+                          (
+                            dayIndex *
+                            AD_LOGON_HOURS_PER_DAY
+                          ) + hour
+
+                        const allowed =
+                          isLocalLogonHourAllowed(
+                            logonHoursValue,
+                            localHourIndex,
+                            logonHoursUtcOffsetMinutes
+                          )
+
+                        return (
+                          <span
+                            key={hour}
+                            className={
+                              allowed
+                                ? 'allowed'
+                                : 'denied'
+                            }
+                            role="img"
+                            aria-label={
+                              allowed
+                                ? 'Ouverture de session autorisée'
+                                : 'Ouverture de session refusée'
+                            }
+                            title={
+                              allowed
+                                ? 'Ouverture de session autorisée'
+                                : 'Ouverture de session refusée'
+                            }
+                          />
+                        )
+                      }
+                    )}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -1726,20 +1882,30 @@ const objectTechnicalRows = [
                     </>
                   )}
 
-                  {isContact && (
+                  {(isContact || isUser) && (
                     <>
-                      <h4>Collaborateurs</h4>
+                      <h4>
+                        Collaborateurs directs
+                        {' '}
+                        ({directReports.length})
+                      </h4>
 
-                      {contactDirectReports ? (
+                      {directReportsText ? (
                         <div className="aduc-contact-direct-reports">
-                          <pre>{contactDirectReports}</pre>
+                          <pre>{directReportsText}</pre>
                         </div>
                       ) : (
                         <p className="aduc-details-empty-mini">
-                          Aucun collaborateur remonté
+                          Aucun collaborateur direct remonté
                           par Active Directory.
                         </p>
                       )}
+
+                      <p className="aduc-details-empty-mini">
+                        Cette liste est calculée automatiquement
+                        depuis l’attribut manager et reste en
+                        lecture seule.
+                      </p>
                     </>
                   )}
 

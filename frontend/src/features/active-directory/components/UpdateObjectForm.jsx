@@ -7,6 +7,18 @@ import {
   COUNTRIES_FR,
   getCountryByAlpha2,
 } from '../utils/countriesFr'
+import {
+  AD_LOGON_HOURS_CLEAR_VALUE,
+  AD_LOGON_DAY_LABELS,
+  AD_LOGON_HOURS_PER_DAY,
+  countAllowedLocalLogonHours,
+  createAllAllowedLogonHoursHex,
+  createAllDeniedLogonHoursHex,
+  formatLogonHoursOffset,
+  isLocalLogonHourAllowed,
+  normalizeLogonHoursHex,
+  toggleLocalLogonHour,
+} from '../utils/adLogonRestrictions'
 
 function UpdateObjectForm({
   update,
@@ -26,6 +38,7 @@ function UpdateObjectForm({
     isUpdateContactTarget,
     isUpdateOrganizationalUnitTarget,
     updateForm,
+    updateOriginalForm,
     updateObjectFormField,
     isUpdateUserTarget,
     isUpdateGroupTarget,
@@ -55,6 +68,12 @@ function UpdateObjectForm({
 
   const hasMultiplePostOfficeBoxes =
     postOfficeBoxValueCount > 1
+
+  const logonHoursUtcOffsetMinutes = Number(
+    currentTarget?.logon_hours_utc_offset_minutes
+    ?? currentTarget?.logonHoursUtcOffsetMinutes
+    ?? 0
+  )
 
   const handleSubmit =
     onSubmit || submitUpdateObject
@@ -291,6 +310,16 @@ function UpdateObjectForm({
               [
                 'accountExpires',
                 'Le compte expire le'
+              ],
+              [
+                'userWorkstations',
+                'Stations de travail autorisées',
+                true
+              ],
+              [
+                'logonHours',
+                'Horaires d’accès',
+                true
               ]
             ]
           },
@@ -325,6 +354,236 @@ function UpdateObjectForm({
             <div className="aduc-update-object-grid">
               {section.fields.map(
                 ([name, label, wide]) => {
+                  if (name === 'logonHours') {
+                    const clearRequested =
+                      updateForm.logonHours ===
+                      AD_LOGON_HOURS_CLEAR_VALUE
+
+                    const normalizedHours =
+                      clearRequested
+                        ? ''
+                        : normalizeLogonHoursHex(
+                            updateForm.logonHours
+                          )
+
+                    const customHours =
+                      Boolean(normalizedHours)
+
+                    const allowedHourCount =
+                      countAllowedLocalLogonHours(
+                        normalizedHours
+                      )
+
+                    return (
+                      <fieldset
+                        key={name}
+                        className="
+                          wide
+                          aduc-logon-hours-field
+                        "
+                        disabled={loading}
+                      >
+                        <legend>{label}</legend>
+
+                        <div className="aduc-logon-hours-summary">
+                          <strong>
+                            {clearRequested
+                              ? 'La restriction sera supprimée à l’enregistrement'
+                              : customHours
+                                ? `${allowedHourCount} créneau(x) autorisé(s)`
+                                : 'Tous les horaires sont autorisés'}
+                          </strong>
+
+                          <span>
+                            Décalage standard du contrôleur :
+                            {' '}
+                            {formatLogonHoursOffset(
+                              logonHoursUtcOffsetMinutes
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="aduc-logon-hours-controls">
+                          {clearRequested ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateObjectFormField(
+                                  'logonHours',
+                                  updateOriginalForm
+                                    ?.logonHours || ''
+                                )
+                              }
+                              disabled={loading}
+                            >
+                              Annuler la suppression
+                            </button>
+                          ) : !customHours ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateObjectFormField(
+                                  'logonHours',
+                                  createAllAllowedLogonHoursHex()
+                                )
+                              }
+                              disabled={loading}
+                            >
+                              Définir des horaires personnalisés
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateObjectFormField(
+                                    'logonHours',
+                                    createAllAllowedLogonHoursHex()
+                                  )
+                                }
+                                disabled={loading}
+                              >
+                                Tout autoriser
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateObjectFormField(
+                                    'logonHours',
+                                    createAllDeniedLogonHoursHex()
+                                  )
+                                }
+                                disabled={loading}
+                              >
+                                Tout refuser
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateObjectFormField(
+                                    'logonHours',
+                                    AD_LOGON_HOURS_CLEAR_VALUE
+                                  )
+                                }
+                                disabled={loading}
+                              >
+                                Supprimer la restriction
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {customHours && !clearRequested && (
+                          <div className="aduc-logon-hours-scroll">
+                            <div className="aduc-logon-hours-header">
+                              <span>Jour</span>
+
+                              {Array.from(
+                                {
+                                  length:
+                                    AD_LOGON_HOURS_PER_DAY
+                                },
+                                (_, hour) => (
+                                  <span key={hour}>
+                                    {hour % 2 === 0
+                                      ? hour
+                                      : ''}
+                                  </span>
+                                )
+                              )}
+                            </div>
+
+                            {AD_LOGON_DAY_LABELS.map(
+                              (dayLabel, dayIndex) => (
+                                <div
+                                  className="aduc-logon-hours-row"
+                                  key={dayLabel}
+                                >
+                                  <strong>{dayLabel}</strong>
+
+                                  {Array.from(
+                                    {
+                                      length:
+                                        AD_LOGON_HOURS_PER_DAY
+                                    },
+                                    (_, hour) => {
+                                      const localHourIndex =
+                                        (
+                                          dayIndex *
+                                          AD_LOGON_HOURS_PER_DAY
+                                        ) + hour
+
+                                      const allowed =
+                                        isLocalLogonHourAllowed(
+                                          normalizedHours,
+                                          localHourIndex,
+                                          logonHoursUtcOffsetMinutes
+                                        )
+
+                                      const endHour =
+                                        (
+                                          hour + 1
+                                        ) % 24
+
+                                      return (
+                                        <button
+                                          key={hour}
+                                          type="button"
+                                          className={
+                                            allowed
+                                              ? 'allowed'
+                                              : 'denied'
+                                          }
+                                          aria-pressed={allowed}
+                                          aria-label={
+                                            `${dayLabel}, ` +
+                                            `${String(hour).padStart(2, '0')}:00` +
+                                            ` à ` +
+                                            `${String(endHour).padStart(2, '0')}:00, ` +
+                                            (
+                                              allowed
+                                                ? 'autorisé'
+                                                : 'refusé'
+                                            )
+                                          }
+                                          title={
+                                            allowed
+                                              ? 'Ouverture de session autorisée'
+                                              : 'Ouverture de session refusée'
+                                          }
+                                          onClick={() =>
+                                            updateObjectFormField(
+                                              'logonHours',
+                                              toggleLocalLogonHour(
+                                                normalizedHours,
+                                                localHourIndex,
+                                                logonHoursUtcOffsetMinutes
+                                              )
+                                            )
+                                          }
+                                          disabled={loading}
+                                        />
+                                      )
+                                    }
+                                  )}
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+
+                        <small>
+                          Les 168 créneaux sont enregistrés dans
+                          l’attribut AD logonHours de 21 octets.
+                          Un champ sans restriction autorise tous
+                          les horaires.
+                        </small>
+                      </fieldset>
+                    )
+                  }
+
                   if (name === 'manager') {
                     return (
                       <label
@@ -465,9 +724,11 @@ function UpdateObjectForm({
                         maxLength={
                           name === 'homeDrive'
                             ? 2
-                            : name === 'userPrincipalName'
+                            : name === 'userWorkstations'
                               ? 1024
-                              : undefined
+                              : name === 'userPrincipalName'
+                                ? 1024
+                                : undefined
                         }
                         pattern={
                           name === 'homeDrive'
@@ -477,29 +738,42 @@ function UpdateObjectForm({
                         placeholder={
                           name === 'homeDrive'
                             ? 'Ex : H:'
-                            : name === 'userPrincipalName'
-                              ? 'Ex : prenom.nom@API.LOCAL'
-                              : undefined
+                            : name === 'userWorkstations'
+                              ? 'Ex : SRV-DC01,PC-COMPTA-01'
+                              : name === 'userPrincipalName'
+                                ? 'Ex : prenom.nom@API.LOCAL'
+                                : undefined
                         }
                         title={
                           name === 'homeDrive'
                             ? 'Une lettre suivie de deux-points, par exemple H:'
-                            : name === 'userPrincipalName'
-                              ? 'Nom d’ouverture de session complet avec suffixe UPN'
-                              : name === 'accountExpires'
-                                ? 'Champ vide : le compte n’expire jamais'
-                                : undefined
+                            : name === 'userWorkstations'
+                              ? 'Noms NetBIOS séparés par des virgules. Champ vide : tous les ordinateurs.'
+                              : name === 'userPrincipalName'
+                                ? 'Nom d’ouverture de session complet avec suffixe UPN'
+                                : name === 'accountExpires'
+                                  ? 'Champ vide : le compte n’expire jamais'
+                                  : undefined
                         }
                         onChange={event =>
                           updateObjectFormField(
                             name,
-                            name === 'homeDrive'
+                            name === 'homeDrive' ||
+                            name === 'userWorkstations'
                               ? event.target.value.toUpperCase()
                               : event.target.value
                           )
                         }
                         disabled={loading}
                       />
+
+                      {name === 'userWorkstations' && (
+                        <small>
+                          Noms NetBIOS séparés par des virgules.
+                          Laisser vide pour autoriser la connexion
+                          depuis tous les ordinateurs.
+                        </small>
+                      )}
 
                       {name === 'userPrincipalName' && (
                         <small>

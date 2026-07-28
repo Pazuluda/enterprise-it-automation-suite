@@ -217,6 +217,28 @@ function Get-EitasSnapshotPrimaryGroup {
     return $Result
 }
 
+function Convert-EitasSnapshotByteArrayToHex {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    $Bytes = @($Value)
+
+    if ($Bytes.Count -eq 0) {
+        return ""
+    }
+
+    return (
+        $Bytes |
+            ForEach-Object {
+                ([byte]$_).ToString("X2")
+            }
+    ) -join " "
+}
+
+
 function Convert-EitasSnapshotObject {
     param(
         [object]$Object,
@@ -372,6 +394,14 @@ function Convert-EitasSnapshotObject {
 
         sam_account_name = [string]$Object.sAMAccountName
         user_principal_name = [string]$Object.userPrincipalName
+        user_workstations = [string]$Object.userWorkstations
+        logon_hours = Convert-EitasSnapshotByteArrayToHex `
+            -Value $Object.logonHours
+        logon_hours_utc_offset_minutes = [int](
+            [System.TimeZoneInfo]::Local.BaseUtcOffset.
+                TotalMinutes
+        )
+        direct_reports = @($Object.directReports)
         profile_path = [string]$Object.profilePath
         script_path = [string]$Object.scriptPath
         home_directory = [string]$Object.homeDirectory
@@ -511,6 +541,9 @@ function New-EitasAdSnapshot {
         "sn",
         "sAMAccountName",
         "userPrincipalName",
+        "userWorkstations",
+        "logonHours",
+        "directReports",
         "profilePath",
         "scriptPath",
         "homeDirectory",
@@ -731,6 +764,14 @@ function Convert-EitasDomainCatalogObject {
 
         sam_account_name = $SamAccountName
         user_principal_name = [string]$Object.userPrincipalName
+        user_workstations = [string]$Object.userWorkstations
+        logon_hours = Convert-EitasSnapshotByteArrayToHex `
+            -Value $Object.logonHours
+        logon_hours_utc_offset_minutes = [int](
+            [System.TimeZoneInfo]::Local.BaseUtcOffset.
+                TotalMinutes
+        )
+        direct_reports = @($Object.directReports)
         account_expires = Convert-EitasSnapshotFileTimeValue `
             -Value $Object.accountExpires
         profile_path = [string]$Object.profilePath
@@ -828,6 +869,9 @@ function New-EitasAdDomainCatalog {
         "sAMAccountName",
         "userPrincipalName",
         "accountExpires",
+        "userWorkstations",
+        "logonHours",
+        "directReports",
         "profilePath",
         "scriptPath",
         "homeDirectory",

@@ -238,6 +238,107 @@ class UpdateObjectPropertiesNormalizationTests(
                         "userPrincipalName": value,
                     })
 
+
+    def test_user_workstations_alias_is_normalized(self):
+        normalized = normalize_update_object_properties({
+            "user_workstations":
+                " srv-dc01 ; PC-COMPTA-01, srv-dc01 ",
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "userWorkstations":
+                    "SRV-DC01,PC-COMPTA-01",
+            },
+        )
+
+    def test_user_workstations_can_be_cleared(self):
+        normalized = normalize_update_object_properties({
+            "userWorkstations": "",
+        })
+
+        self.assertEqual(
+            normalized,
+            {"userWorkstations": ""},
+        )
+
+    def test_invalid_user_workstations_are_rejected(self):
+        for value in [
+            "SRV DC01",
+            "-SRV-DC01",
+            "SRV-DC01-",
+            "ABCDEFGHIJKLMNOP",
+            ["SRV-DC01"],
+        ]:
+            with self.subTest(value=value):
+                with self.assertRaises(HTTPException):
+                    normalize_update_object_properties({
+                        "userWorkstations": value,
+                    })
+
+    def test_logon_hours_alias_is_normalized(self):
+        raw_value = "03," + ",".join(
+            ["00"] * 20
+        )
+
+        normalized = normalize_update_object_properties({
+            "logon_hours": raw_value,
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "logonHours":
+                    "03 " + " ".join(["00"] * 20),
+            },
+        )
+
+    def test_logon_hours_can_be_cleared(self):
+        normalized = normalize_update_object_properties({
+            "logonHours": "",
+        })
+
+        self.assertEqual(
+            normalized,
+            {"logonHours": ""},
+        )
+
+    def test_invalid_logon_hours_length_is_rejected(self):
+        for value in [
+            "00",
+            " ".join(["00"] * 20),
+            " ".join(["00"] * 22),
+        ]:
+            with self.subTest(value=value):
+                with self.assertRaises(HTTPException):
+                    normalize_update_object_properties({
+                        "logonHours": value,
+                    })
+
+    def test_invalid_logon_hours_byte_is_rejected(self):
+        values = ["00"] * 21
+        values[10] = "GG"
+
+        with self.assertRaises(HTTPException):
+            normalize_update_object_properties({
+                "logonHours": " ".join(values),
+            })
+
+    def test_direct_reports_is_read_only(self):
+        for key in [
+            "directReports",
+            "direct_reports",
+        ]:
+            with self.subTest(key=key):
+                with self.assertRaises(HTTPException):
+                    normalize_update_object_properties({
+                        key: [
+                            "CN=Utilisateur,OU=Users,"
+                            "OU=EITAS,DC=API,DC=LOCAL"
+                        ],
+                    })
+
     def test_invalid_home_drive_is_rejected(self):
         for value in [
             "H",
