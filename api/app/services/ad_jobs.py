@@ -23,6 +23,15 @@ class ADJobsConflict(ADJobsError):
     pass
 
 
+AD_LOOKUP_ACTION_SEARCH_USERS = "search_users"
+AD_LOOKUP_ACTION_GET_LDAP_SCHEMA = "get_ldap_schema"
+
+AD_LOOKUP_ALLOWED_ACTIONS = frozenset({
+    AD_LOOKUP_ACTION_SEARCH_USERS,
+    AD_LOOKUP_ACTION_GET_LDAP_SCHEMA,
+})
+
+
 def utc_now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
@@ -40,7 +49,22 @@ def get_request_id_from_payload(value) -> str:
     return ""
 
 
-def create_ad_lookup_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
+def create_ad_lookup_job(
+    jobs_file: Path,
+    payload: dict,
+) -> tuple[dict, dict]:
+    payload = payload or {}
+
+    action = str(
+        payload.get("action")
+        or AD_LOOKUP_ACTION_SEARCH_USERS
+    ).strip()
+
+    if action not in AD_LOOKUP_ALLOWED_ACTIONS:
+        raise ADJobsBadRequest(
+            f"Action AD Lookup inconnue : {action}"
+        )
+
     query = (
         payload.get("query")
         or payload.get("username")
@@ -48,14 +72,44 @@ def create_ad_lookup_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         or payload.get("sam")
         or ""
     )
-
     query = str(query).strip()
-    created_by = payload.get("created_by") or "react-admin"
 
-    if not query:
+    if (
+        action == AD_LOOKUP_ACTION_SEARCH_USERS
+        and not query
+    ):
         raise ADJobsBadRequest("query est obligatoire")
 
+    raw_include_defunct = payload.get(
+        "include_defunct",
+        False,
+    )
+
+    if isinstance(raw_include_defunct, str):
+        include_defunct = (
+            raw_include_defunct.strip().lower()
+            in {"1", "true", "yes", "oui"}
+        )
+    else:
+        include_defunct = bool(raw_include_defunct)
+
+    created_by = (
+        str(payload.get("created_by") or "react-admin")
+        .strip()
+        or "react-admin"
+    )
     job_id = str(uuid4())
+
+    if action == AD_LOOKUP_ACTION_GET_LDAP_SCHEMA:
+        pending_message = (
+            "Lecture du catalogue LDAP en attente agent"
+        )
+        created_message = (
+            "Lecture du catalogue LDAP créée"
+        )
+    else:
+        pending_message = "Recherche AD en attente agent"
+        created_message = "Recherche AD créée"
 
     job = {
         "id": job_id,
@@ -63,12 +117,14 @@ def create_ad_lookup_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         "status": "pending",
         "created_at": utc_now_iso(),
         "created_by": created_by,
+        "action": action,
         "query": query,
+        "include_defunct": include_defunct,
         "claimed_at": None,
         "claimed_by": None,
         "completed_at": None,
         "success": None,
-        "message": "Recherche AD en attente agent",
+        "message": pending_message,
         "output": "",
         "result": None,
         "details": None,
@@ -82,15 +138,17 @@ def create_ad_lookup_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         "action": "ad_lookup_job_created",
         "request_id": job_id,
         "actor": created_by,
-        "message": f"Recherche AD créée pour {query}",
+        "message": created_message,
         "details": {
             "job_id": job_id,
+            "action": action,
             "query": query,
+            "include_defunct": include_defunct,
         },
     }
 
     return {
-        "message": "Recherche AD créée",
+        "message": created_message,
         "job": job,
     }, audit_event
 
@@ -160,40 +218,74 @@ def claim_ad_lookup_job(jobs_file: Path, job_id: str, payload: dict) -> tuple[di
     raise ADJobsNotFound("Job recherche AD introuvable")
 
 
-def submit_ad_lookup_job_result(jobs_file: Path, job_id: str, payload: dict) -> tuple[dict, dict]:
+def submit_ad_lookup_job_result(
+    jobs_file: Path,
+    job_id: str,
+    payload: dict,
+) -> tuple[dict, dict]:
     jobs = load_json(jobs_file, [])
+    payload = payload or {}
 
     for job in jobs:
-        if job.get("id") == job_id:
-            success = bool(payload.get("success"))
+        if job.get("id") != job_id:
+            continue
 
-            job["status"] = "completed" if success else "failed"
-            job["completed_at"] = utc_now_iso()
-            job["success"] = success
-            job["message"] = payload.get("message") or ("Recherche AD terminée" if success else "Recherche AD en erreur")
-            job["output"] = payload.get("output") or ""
-            job["result"] = payload.get("result")
-            job["details"] = payload.get("details")
-            job["agent_name"] = payload.get("agent_name")
+        success = bool(payload.get("success"))
 
-            save_json(jobs_file, jobs)
+        job["status"] = (
+            "completed"
+            if success
+            else "failed"
+        )
+        job["completed_at"] = utc_now_iso()
+        job["success"] = success
+        job["message"] = (
+            payload.get("message")
+            or (
+                "Lecture AD terminee"
+                if success
+                else "Lecture AD en erreur"
+            )
+        )
+        job["output"] = payload.get("output") or ""
+        job["result"] = payload.get("result")
+        job["details"] = payload.get("details")
+        job["agent_name"] = payload.get("agent_name")
 
-            audit_event = {
-                "action": "ad_lookup_job_completed" if success else "ad_lookup_job_failed",
-                "request_id": job_id,
-                "actor": payload.get("agent_name") or "agent",
-                "message": job["message"],
-                "details": {
-                    "job_id": job_id,
-                    "query": job.get("query"),
-                    "found": (job.get("result") or {}).get("found"),
-                },
-            }
+        save_json(jobs_file, jobs)
 
-            return {
-                "message": "Résultat recherche AD enregistré",
+        result = (
+            job.get("result")
+            if isinstance(job.get("result"), dict)
+            else {}
+        )
+
+        audit_event = {
+            "action": (
+                "ad_lookup_job_completed"
+                if success
+                else "ad_lookup_job_failed"
+            ),
+            "request_id": job_id,
+            "actor": (
+                payload.get("agent_name")
+                or "agent"
+            ),
+            "message": job["message"],
+            "details": {
                 "job_id": job_id,
-            }, audit_event
+                "action": job.get("action"),
+                "query": job.get("query"),
+                "found": result.get("found"),
+                "count": result.get("count"),
+                "read_only": result.get("read_only"),
+            },
+        }
+
+        return {
+            "message": "Resultat lecture AD enregistre",
+            "job_id": job_id,
+        }, audit_event
 
     raise ADJobsNotFound("Job recherche AD introuvable")
 

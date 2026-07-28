@@ -1,4 +1,4 @@
-﻿function Get-EitasLookupValue {
+function Get-EitasLookupValue {
     param(
         [object]$Object,
         [string[]]$Names
@@ -277,6 +277,162 @@ function Send-EitasAdLookupResult {
         -Config $Config
 }
 
+
+
+function Get-EitasOrdinalIgnoreCaseSortKey {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    $NormalizedValue = (
+        [string]$Value
+    ).ToLowerInvariant()
+
+    return (
+        -join (
+            $NormalizedValue.ToCharArray() |
+                ForEach-Object {
+                    "{0:X4}" -f [int][char]$_
+                }
+        )
+    )
+}
+
+
+function Convert-EitasLdapSchemaAttribute {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Attribute
+    )
+
+    return [pscustomobject]@{
+        ldap_display_name = [string]$Attribute.lDAPDisplayName
+        admin_display_name = [string]$Attribute.adminDisplayName
+        admin_description = [string]$Attribute.adminDescription
+        attribute_id = [string]$Attribute.attributeID
+        attribute_syntax = [string]$Attribute.attributeSyntax
+        om_syntax = $Attribute.oMSyntax
+        is_single_valued = [bool]$Attribute.isSingleValued
+        system_only = [bool]$Attribute.systemOnly
+        is_defunct = [bool]$Attribute.isDefunct
+        search_flags = $Attribute.searchFlags
+        system_flags = $Attribute.systemFlags
+        link_id = $Attribute.linkID
+        range_lower = $Attribute.rangeLower
+        range_upper = $Attribute.rangeUpper
+        is_in_global_catalog = [bool]$Attribute.isMemberOfPartialAttributeSet
+        show_in_advanced_view_only = [bool]$Attribute.showInAdvancedViewOnly
+    }
+}
+
+
+function Invoke-EitasLdapSchemaCatalog {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $IncludeDefunctValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "include_defunct",
+            "includeDefunct"
+        )
+
+    $IncludeDefunct = $false
+
+    if ($null -ne $IncludeDefunctValue) {
+        if ($IncludeDefunctValue -is [bool]) {
+            $IncludeDefunct = [bool]$IncludeDefunctValue
+        }
+        else {
+            $IncludeDefunct = (
+                [string]$IncludeDefunctValue
+            ).Trim().ToLowerInvariant() -in @(
+                "1",
+                "true",
+                "yes",
+                "oui"
+            )
+        }
+    }
+
+    $RootDse = Get-ADRootDSE -ErrorAction Stop
+    $SchemaNamingContext = [string](
+        $RootDse.schemaNamingContext
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $SchemaNamingContext
+        )
+    ) {
+        throw "Le contexte de schema Active Directory est indisponible."
+    }
+
+    $Properties = @(
+        "lDAPDisplayName",
+        "adminDisplayName",
+        "adminDescription",
+        "attributeID",
+        "attributeSyntax",
+        "oMSyntax",
+        "isSingleValued",
+        "systemOnly",
+        "isDefunct",
+        "searchFlags",
+        "systemFlags",
+        "linkID",
+        "rangeLower",
+        "rangeUpper",
+        "isMemberOfPartialAttributeSet",
+        "showInAdvancedViewOnly"
+    )
+
+    $Attributes = @(
+        Get-ADObject `
+            -SearchBase $SchemaNamingContext `
+            -LDAPFilter "(objectClass=attributeSchema)" `
+            -Properties $Properties `
+            -ResultSetSize $null `
+            -ErrorAction Stop |
+            Where-Object {
+                $Name = [string]$_.lDAPDisplayName
+
+                -not [string]::IsNullOrWhiteSpace(
+                    $Name
+                ) -and (
+                    $IncludeDefunct -or
+                    -not [bool]$_.isDefunct
+                )
+            } |
+            Sort-Object @{ Expression = {
+                Get-EitasOrdinalIgnoreCaseSortKey -Value ([string]$_.lDAPDisplayName)
+            } } |
+            ForEach-Object {
+                Convert-EitasLdapSchemaAttribute `
+                    -Attribute $_
+            }
+    )
+
+    return [pscustomobject]@{
+        action = "get_ldap_schema"
+        read_only = $true
+        schema_naming_context = $SchemaNamingContext
+        include_defunct = $IncludeDefunct
+        count = @($Attributes).Count
+        items = @($Attributes)
+        generated_at = (
+            Get-Date
+        ).ToUniversalTime().ToString("o")
+        message = "Catalogue LDAP charge en lecture seule"
+    }
+}
+
+
 function Invoke-EitasAdLookupJob {
     param(
         [object]$Config,
@@ -286,6 +442,19 @@ function Invoke-EitasAdLookupJob {
     Import-EitasActiveDirectoryModule | Out-Null
 
     $Payload = Get-EitasLookupPayload -Job $Job
+    $Action = Get-EitasLookupAction `
+        -Job $Job `
+        -DefaultAction "search_users"
+
+    if ($Action -eq "get_ldap_schema") {
+        return Invoke-EitasLdapSchemaCatalog `
+            -Config $Config `
+            -Payload $Payload
+    }
+
+    if ($Action -ne "search_users") {
+        throw "Action AD Lookup non supportee : $Action"
+    }
 
     $Query = Get-EitasLookupValue -Object $Payload -Names @("query", "search", "search_text", "text", "identity", "username", "sam_account_name", "samAccountName", "upn")
     $SearchBase = Get-EitasLookupValue -Object $Payload -Names @("search_base", "searchBase", "base_dn", "baseDn", "target_dn", "targetDn")
