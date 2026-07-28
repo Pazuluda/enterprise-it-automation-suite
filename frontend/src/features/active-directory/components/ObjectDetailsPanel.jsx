@@ -287,7 +287,16 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Dernière connexion', formatAdHistoryDate(pickAdField(['last_logon_date', 'lastLogonDate', 'last_logon', 'lastLogon', 'lastLogonTimestamp', 'LastLogonDate']))],
     ['Dernière erreur MDP', pickAdField(['last_bad_password_attempt', 'lastBadPasswordAttempt', 'LastBadPasswordAttempt'])],
     ['Tentatives échouées', pickAdField(['bad_logon_count', 'badLogonCount', 'BadLogonCount'])],
-    ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])]
+    [
+      'Expiration compte',
+      formatOptionalDateValue(
+        pickAdField([
+          'account_expires',
+          'accountExpires',
+          'AccountExpirationDate',
+        ])
+      ) || 'Le compte n’expire jamais',
+    ]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
     const profileRows = [

@@ -225,9 +225,9 @@ def validate_user_principal_name(value: str) -> str:
             "user_principal_name est obligatoire"
         )
 
-    if len(clean) > 256:
+    if len(clean) > 1024:
         raise ADAdminBadRequest(
-            "user_principal_name est trop long"
+            "user_principal_name est limité à 1024 caractères"
         )
 
     if not re.fullmatch(
@@ -360,6 +360,11 @@ def normalize_update_object_properties(
         "info",
         "samAccountName",
         "sam_account_name",
+        "userPrincipalName",
+        "user_principal_name",
+        "upn",
+        "accountExpires",
+        "account_expires",
         "title",
         "department",
         "division",
@@ -443,6 +448,9 @@ def normalize_update_object_properties(
         "group_category": "groupCategory",
         "managed_by": "managedBy",
         "sam_account_name": "samAccountName",
+        "user_principal_name": "userPrincipalName",
+        "upn": "userPrincipalName",
+        "account_expires": "accountExpires",
         "protected_from_accidental_deletion":
             "protectedFromAccidentalDeletion",
     }
@@ -538,6 +546,56 @@ def normalize_update_object_properties(
 
             normalized_properties[normalized_key] = (
                 numeric_code
+            )
+            continue
+
+        if normalized_key == "userPrincipalName":
+            try:
+                normalized_properties[normalized_key] = (
+                    validate_user_principal_name(value)
+                )
+            except ADAdminBadRequest as error:
+                raise HTTPException(
+                    status_code=400,
+                    detail=str(error),
+                ) from error
+
+            continue
+
+        if normalized_key == "accountExpires":
+            normalized_value = clean_string(value)
+
+            if not normalized_value:
+                normalized_properties[normalized_key] = ""
+                continue
+
+            if not re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}",
+                normalized_value,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "accountExpires doit utiliser le format "
+                        "AAAA-MM-JJ"
+                    ),
+                )
+
+            try:
+                parsed_expiration = datetime.strptime(
+                    normalized_value,
+                    "%Y-%m-%d",
+                )
+            except ValueError as error:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "accountExpires contient une date invalide"
+                    ),
+                ) from error
+
+            normalized_properties[normalized_key] = (
+                parsed_expiration.strftime("%Y-%m-%d")
             )
             continue
 

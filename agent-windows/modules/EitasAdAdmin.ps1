@@ -1203,6 +1203,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "wWWHomePage",
         "info",
         "samAccountName",
+        "userPrincipalName",
+        "accountExpires",
         "title",
         "department",
         "division",
@@ -1343,6 +1345,28 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
     }
 
+    $AccountProperties = @(
+        "userPrincipalName",
+        "accountExpires"
+    )
+
+    $HasAccountChanges = @(
+        $Properties.Keys |
+            Where-Object {
+                $AccountProperties -contains [string]$_
+            }
+    ).Count -gt 0
+
+    if (
+        $HasAccountChanges -and
+        $PersonObjectClass -ne "user"
+    ) {
+        throw (
+            "userPrincipalName et accountExpires " +
+            "sont réservés aux utilisateurs"
+        )
+    }
+
     $MaximumAttributeLengths = @{
         initials = 6
         wWWHomePage = 2048
@@ -1478,6 +1502,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $ManagedBy = $null
     $ClearManagedBy = $false
     $ProtectedFromAccidentalDeletion = $null
+    $UserPrincipalNameValue = $null
+    $AccountExpirationDate = $null
+    $ClearAccountExpiration = $false
 
     foreach ($Key in $Properties.Keys) {
         $RawValue = $Properties[$Key]
@@ -1587,6 +1614,65 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                 $ComputerClear += $Key
             } else {
                 $ComputerProperties[$Key] = [string]$Value
+            }
+        } elseif ($Key -eq "userPrincipalName") {
+            $UserPrincipalNameValue = (
+                [string]$Value
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $UserPrincipalNameValue
+                )
+            ) {
+                throw (
+                    "userPrincipalName ne peut pas être vide"
+                )
+            }
+
+            if ($UserPrincipalNameValue.Length -gt 1024) {
+                throw (
+                    "userPrincipalName est limité à " +
+                    "1024 caractères par le schéma AD"
+                )
+            }
+
+            if (
+                $UserPrincipalNameValue -notmatch
+                "^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$"
+            ) {
+                throw "userPrincipalName doit être un UPN valide"
+            }
+        } elseif ($Key -eq "accountExpires") {
+            $AccountExpirationText = (
+                [string]$Value
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $AccountExpirationText
+                )
+            ) {
+                $ClearAccountExpiration = $true
+            } else {
+                $ParsedExpirationDate = [datetime]::MinValue
+
+                $DateParsed = [datetime]::TryParseExact(
+                    $AccountExpirationText,
+                    "yyyy-MM-dd",
+                    [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::None,
+                    [ref]$ParsedExpirationDate
+                )
+
+                if (-not $DateParsed) {
+                    throw (
+                        "accountExpires doit contenir une " +
+                        "date valide au format AAAA-MM-JJ"
+                    )
+                }
+
+                $AccountExpirationDate = $ParsedExpirationDate.Date.AddDays(1).AddSeconds(-1)
             }
         } elseif ($Key -eq "homeDrive") {
             if (
@@ -1770,6 +1856,80 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    if ($null -ne $UserPrincipalNameValue) {
+        $AtIndex = $UserPrincipalNameValue.LastIndexOf("@")
+
+        if (
+            $AtIndex -lt 1 -or
+            $AtIndex -ge ($UserPrincipalNameValue.Length - 1)
+        ) {
+            throw "Suffixe UPN introuvable"
+        }
+
+        $RequestedUpnSuffix = (
+            $UserPrincipalNameValue.Substring(
+                $AtIndex + 1
+            )
+        )
+
+        $Domain = Get-ADDomain `
+            -ErrorAction Stop
+
+        $Forest = Get-ADForest `
+            -ErrorAction Stop
+
+        $AllowedUpnSuffixes = @(
+            @(
+                [string]$Domain.DNSRoot
+            ) +
+            @(
+                $Forest.UPNSuffixes
+            ) |
+                ForEach-Object {
+                    ([string]$_).Trim()
+                } |
+                Where-Object {
+                    -not [string]::IsNullOrWhiteSpace($_)
+                } |
+                Sort-Object -Unique
+        )
+
+        if (
+            $AllowedUpnSuffixes -inotcontains
+            $RequestedUpnSuffix
+        ) {
+            throw (
+                "Suffixe UPN non autorisé : " +
+                $RequestedUpnSuffix
+            )
+        }
+
+        $RootDse = Get-ADRootDSE `
+            -ErrorAction Stop
+
+        $EscapedUpn = Escape-EitasLdapFilterValue `
+            -Value $UserPrincipalNameValue
+
+        $UpnConflict = Get-ADUser `
+            -SearchBase $RootDse.defaultNamingContext `
+            -SearchScope Subtree `
+            -LDAPFilter "(userPrincipalName=$EscapedUpn)" `
+            -Properties distinguishedName `
+            -ResultSetSize 2 `
+            -ErrorAction Stop |
+            Where-Object {
+                [string]$_.DistinguishedName -ine $ObjectDn
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $UpnConflict) {
+            throw (
+                "Un utilisateur Active Directory utilise " +
+                "déjà cet UPN : $UserPrincipalNameValue"
+            )
+        }
+    }
+
     if ($Replace.Count -gt 0) {
         Set-ADObject `
             -Identity $ObjectDn `
@@ -1781,6 +1941,33 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         Set-ADObject `
             -Identity $ObjectDn `
             -Clear $Clear `
+            -ErrorAction Stop
+    }
+
+    $SetUserParameters = @{
+        Identity = $ObjectDn
+        ErrorAction = "Stop"
+    }
+
+    if ($null -ne $UserPrincipalNameValue) {
+        $SetUserParameters["UserPrincipalName"] = (
+            $UserPrincipalNameValue
+        )
+    }
+
+    if ($null -ne $AccountExpirationDate) {
+        $SetUserParameters["AccountExpirationDate"] = (
+            $AccountExpirationDate
+        )
+    }
+
+    if ($SetUserParameters.Count -gt 2) {
+        Set-ADUser @SetUserParameters
+    }
+
+    if ($ClearAccountExpiration) {
+        Clear-ADAccountExpiration `
+            -Identity $ObjectDn `
             -ErrorAction Stop
     }
 
@@ -1911,7 +2098,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
@@ -1968,6 +2155,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         replaced = $Replace
         cleared = $Clear
         sam_account_name = $UpdatedSamAccountName
+        user_principal_name = (
+            [string]$UpdatedObject.userPrincipalName
+        )
+        account_expires = (
+            [string]$UpdatedObject.accountExpires
+        )
         group_scope = $UpdatedGroupScope
         group_category = $UpdatedGroupCategory
         managed_by = $UpdatedManagedBy

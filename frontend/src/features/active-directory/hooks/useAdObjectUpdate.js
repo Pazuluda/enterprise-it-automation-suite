@@ -47,6 +47,37 @@ function useAdObjectUpdate({
       return ''
     }
 
+  function getAdDateInputValue(item, ...names) {
+    const rawValue = getAdAttributeValue(
+      item,
+      ...names
+    )
+
+    if (!rawValue) return ''
+
+    const parsed = new Date(rawValue)
+
+    if (!Number.isNaN(parsed.getTime())) {
+      const year = String(parsed.getFullYear())
+      const month = String(
+        parsed.getMonth() + 1
+      ).padStart(2, '0')
+      const day = String(
+        parsed.getDate()
+      ).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
+
+    const isoDateMatch = String(rawValue).match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    )
+
+    return isoDateMatch
+      ? `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`
+      : ''
+  }
+
   function getAdBooleanAttributeValue(item, ...names) {
     for (const name of names) {
       const value = item?.[name]
@@ -253,6 +284,18 @@ function useAdObjectUpdate({
         'manager',
         'manager_dn',
         'managerDn'
+      ),
+      userPrincipalName: getAdAttributeValue(
+        target,
+        'userPrincipalName',
+        'user_principal_name',
+        'upn'
+      ),
+      accountExpires: getAdDateInputValue(
+        target,
+        'accountExpires',
+        'account_expires',
+        'AccountExpirationDate'
       ),
       profilePath: getAdAttributeValue(
         target,

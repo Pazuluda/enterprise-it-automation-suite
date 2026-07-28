@@ -731,6 +731,8 @@ function Convert-EitasDomainCatalogObject {
 
         sam_account_name = $SamAccountName
         user_principal_name = [string]$Object.userPrincipalName
+        account_expires = Convert-EitasSnapshotFileTimeValue `
+            -Value $Object.accountExpires
         profile_path = [string]$Object.profilePath
         script_path = [string]$Object.scriptPath
         home_directory = [string]$Object.homeDirectory
@@ -825,6 +827,7 @@ function New-EitasAdDomainCatalog {
         "sn",
         "sAMAccountName",
         "userPrincipalName",
+        "accountExpires",
         "profilePath",
         "scriptPath",
         "homeDirectory",

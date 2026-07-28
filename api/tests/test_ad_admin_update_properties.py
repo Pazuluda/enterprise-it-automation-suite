@@ -183,6 +183,61 @@ class UpdateObjectPropertiesNormalizationTests(
             },
         )
 
+    def test_account_aliases_are_supported(self):
+        normalized = normalize_update_object_properties({
+            "user_principal_name":
+                " liam.ve@api.local ",
+            "account_expires":
+                "2026-08-15",
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "userPrincipalName":
+                    "liam.ve@api.local",
+                "accountExpires":
+                    "2026-08-15",
+            },
+        )
+
+    def test_account_expiration_can_be_cleared(self):
+        normalized = normalize_update_object_properties({
+            "accountExpires": "",
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "accountExpires": "",
+            },
+        )
+
+    def test_invalid_account_expiration_is_rejected(self):
+        for value in [
+            "15/08/2026",
+            "2026-02-30",
+            "2026-08-15 23:59:59",
+        ]:
+            with self.subTest(value=value):
+                with self.assertRaises(HTTPException):
+                    normalize_update_object_properties({
+                        "accountExpires": value,
+                    })
+
+    def test_invalid_user_principal_name_is_rejected(self):
+        for value in [
+            "",
+            "liam.ve",
+            "liam ve@api.local",
+            "liam.ve@@api.local",
+        ]:
+            with self.subTest(value=value):
+                with self.assertRaises(HTTPException):
+                    normalize_update_object_properties({
+                        "userPrincipalName": value,
+                    })
+
     def test_invalid_home_drive_is_rejected(self):
         for value in [
             "H",

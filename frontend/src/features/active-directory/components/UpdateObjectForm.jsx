@@ -281,6 +281,20 @@ function UpdateObjectForm({
             ]
           },
           {
+            title: 'Compte',
+            fields: [
+              [
+                'userPrincipalName',
+                'Nom d’ouverture de session utilisateur',
+                true
+              ],
+              [
+                'accountExpires',
+                'Le compte expire le'
+              ]
+            ]
+          },
+          {
             title: 'Profil',
             fields: [
               [
@@ -443,13 +457,17 @@ function UpdateObjectForm({
                         type={
                           name === 'mail'
                             ? 'email'
-                            : 'text'
+                            : name === 'accountExpires'
+                              ? 'date'
+                              : 'text'
                         }
                         value={updateForm[name] || ''}
                         maxLength={
                           name === 'homeDrive'
                             ? 2
-                            : undefined
+                            : name === 'userPrincipalName'
+                              ? 1024
+                              : undefined
                         }
                         pattern={
                           name === 'homeDrive'
@@ -459,12 +477,18 @@ function UpdateObjectForm({
                         placeholder={
                           name === 'homeDrive'
                             ? 'Ex : H:'
-                            : undefined
+                            : name === 'userPrincipalName'
+                              ? 'Ex : prenom.nom@API.LOCAL'
+                              : undefined
                         }
                         title={
                           name === 'homeDrive'
                             ? 'Une lettre suivie de deux-points, par exemple H:'
-                            : undefined
+                            : name === 'userPrincipalName'
+                              ? 'Nom d’ouverture de session complet avec suffixe UPN'
+                              : name === 'accountExpires'
+                                ? 'Champ vide : le compte n’expire jamais'
+                                : undefined
                         }
                         onChange={event =>
                           updateObjectFormField(
@@ -476,6 +500,19 @@ function UpdateObjectForm({
                         }
                         disabled={loading}
                       />
+
+                      {name === 'userPrincipalName' && (
+                        <small>
+                          Suffixe UPN disponible : @API.LOCAL.
+                        </small>
+                      )}
+
+                      {name === 'accountExpires' && (
+                        <small>
+                          Laisser vide pour que le compte
+                          n’expire jamais.
+                        </small>
+                      )}
                     </label>
                   )
                 }
