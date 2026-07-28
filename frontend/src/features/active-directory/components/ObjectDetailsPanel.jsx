@@ -290,6 +290,40 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['Expiration compte', pickAdField(['account_expires', 'accountExpires', 'AccountExpirationDate'])]
   ].filter(([, value]) => value !== '' && value !== null && value !== undefined)
 
+    const profileRows = [
+      [
+        'Chemin du profil',
+        pickAdField([
+          'profile_path',
+          'profilePath',
+        ]),
+        true,
+      ],
+      [
+        'Script d’ouverture de session',
+        pickAdField([
+          'script_path',
+          'scriptPath',
+        ]),
+        true,
+      ],
+      [
+        'Dossier de base',
+        pickAdField([
+          'home_directory',
+          'homeDirectory',
+        ]),
+        true,
+      ],
+      [
+        'Lecteur de connexion',
+        pickAdField([
+          'home_drive',
+          'homeDrive',
+        ]),
+      ],
+    ]
+
   const objectProtectionValue = pickAdField([
     'protected_from_accidental_deletion',
     'protectedFromAccidentalDeletion',
@@ -926,6 +960,7 @@ const objectTechnicalRows = [
     ...(isUser
       ? [
           ['account', 'Compte'],
+          ['profile', 'Profil'],
           ['address', 'Adresse'],
           ['phones', 'Téléphones'],
           ['organization', 'Organisation'],
@@ -1579,6 +1614,17 @@ const objectTechnicalRows = [
 
             {activeDetailsTab === 'account' &&
               renderAccountTab()}
+
+            {activeDetailsTab === 'profile' && (
+              <div className="aduc-tab-card">
+                <h4>Profil</h4>
+
+                {renderGrid(
+                  profileRows,
+                  'Aucune propriété de profil définie.'
+                )}
+              </div>
+            )}
 
             {activeDetailsTab === 'address' && (
               <div className="aduc-tab-card">

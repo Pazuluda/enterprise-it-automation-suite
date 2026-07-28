@@ -279,6 +279,30 @@ function UpdateObjectForm({
               ],
               ['co', 'Pays']
             ]
+          },
+          {
+            title: 'Profil',
+            fields: [
+              [
+                'profilePath',
+                'Chemin du profil',
+                true
+              ],
+              [
+                'scriptPath',
+                'Script d’ouverture de session',
+                true
+              ],
+              [
+                'homeDirectory',
+                'Dossier de base',
+                true
+              ],
+              [
+                'homeDrive',
+                'Lecteur de connexion'
+              ]
+            ]
           }
         ].map(section => (
           <section key={section.title}>
@@ -422,10 +446,32 @@ function UpdateObjectForm({
                             : 'text'
                         }
                         value={updateForm[name] || ''}
+                        maxLength={
+                          name === 'homeDrive'
+                            ? 2
+                            : undefined
+                        }
+                        pattern={
+                          name === 'homeDrive'
+                            ? '[A-Za-z]:'
+                            : undefined
+                        }
+                        placeholder={
+                          name === 'homeDrive'
+                            ? 'Ex : H:'
+                            : undefined
+                        }
+                        title={
+                          name === 'homeDrive'
+                            ? 'Une lettre suivie de deux-points, par exemple H:'
+                            : undefined
+                        }
                         onChange={event =>
                           updateObjectFormField(
                             name,
-                            event.target.value
+                            name === 'homeDrive'
+                              ? event.target.value.toUpperCase()
+                              : event.target.value
                           )
                         }
                         disabled={loading}

@@ -1217,6 +1217,10 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "employeeID",
         "employeeNumber",
         "manager",
+        "profilePath",
+        "scriptPath",
+        "homeDirectory",
+        "homeDrive",
         "groupScope",
         "groupCategory",
         "managedBy",
@@ -1312,6 +1316,30 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         throw (
             "givenName, initials et sn sont " +
             "réservés aux utilisateurs et contacts"
+        )
+    }
+
+    $ProfileProperties = @(
+        "profilePath",
+        "scriptPath",
+        "homeDirectory",
+        "homeDrive"
+    )
+
+    $HasProfileChanges = @(
+        $Properties.Keys |
+            Where-Object {
+                $ProfileProperties -contains [string]$_
+            }
+    ).Count -gt 0
+
+    if (
+        $HasProfileChanges -and
+        $PersonObjectClass -ne "user"
+    ) {
+        throw (
+            "profilePath, scriptPath, homeDirectory " +
+            "et homeDrive sont réservés aux utilisateurs"
         )
     }
 
@@ -1559,6 +1587,31 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                 $ComputerClear += $Key
             } else {
                 $ComputerProperties[$Key] = [string]$Value
+            }
+        } elseif ($Key -eq "homeDrive") {
+            if (
+                $null -eq $Value -or
+                [string]::IsNullOrWhiteSpace(
+                    [string]$Value
+                )
+            ) {
+                $Clear += "homeDrive"
+            } else {
+                $HomeDrive = (
+                    [string]$Value
+                ).Trim().ToUpperInvariant()
+
+                if (
+                    $HomeDrive -notmatch "^[A-Z]:$"
+                ) {
+                    throw (
+                        "homeDrive doit être une lettre " +
+                        "de lecteur suivie de deux-points, " +
+                        "par exemple H:"
+                    )
+                }
+
+                $Replace["homeDrive"] = $HomeDrive
             }
         } elseif ($Key -eq "groupScope") {
             $GroupScope = [string]$Value
@@ -1858,7 +1911,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null

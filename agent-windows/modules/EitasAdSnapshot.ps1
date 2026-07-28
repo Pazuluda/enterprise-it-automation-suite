@@ -372,6 +372,10 @@ function Convert-EitasSnapshotObject {
 
         sam_account_name = [string]$Object.sAMAccountName
         user_principal_name = [string]$Object.userPrincipalName
+        profile_path = [string]$Object.profilePath
+        script_path = [string]$Object.scriptPath
+        home_directory = [string]$Object.homeDirectory
+        home_drive = [string]$Object.homeDrive
         mail = [string]$Object.mail
         www_home_page = [string]$Object.wWWHomePage
         info = [string]$Object.info
@@ -507,6 +511,10 @@ function New-EitasAdSnapshot {
         "sn",
         "sAMAccountName",
         "userPrincipalName",
+        "profilePath",
+        "scriptPath",
+        "homeDirectory",
+        "homeDrive",
         "mail",
         "wWWHomePage",
         "info",
@@ -723,6 +731,10 @@ function Convert-EitasDomainCatalogObject {
 
         sam_account_name = $SamAccountName
         user_principal_name = [string]$Object.userPrincipalName
+        profile_path = [string]$Object.profilePath
+        script_path = [string]$Object.scriptPath
+        home_directory = [string]$Object.homeDirectory
+        home_drive = [string]$Object.homeDrive
         mail = [string]$Object.mail
         info = [string]$Object.info
 
@@ -813,6 +825,10 @@ function New-EitasAdDomainCatalog {
         "sn",
         "sAMAccountName",
         "userPrincipalName",
+        "profilePath",
+        "scriptPath",
+        "homeDirectory",
+        "homeDrive",
         "mail",
         "info",
         "userAccountControl",

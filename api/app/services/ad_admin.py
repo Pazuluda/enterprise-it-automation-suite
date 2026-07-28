@@ -380,6 +380,14 @@ def normalize_update_object_properties(
         "employee_number",
         "manager",
         "manager_dn",
+        "profilePath",
+        "profile_path",
+        "scriptPath",
+        "script_path",
+        "homeDirectory",
+        "home_directory",
+        "homeDrive",
+        "home_drive",
         "streetAddress",
         "street_address",
         "postalCode",
@@ -419,6 +427,10 @@ def normalize_update_object_properties(
         "employee_id": "employeeID",
         "employee_number": "employeeNumber",
         "manager_dn": "manager",
+        "profile_path": "profilePath",
+        "script_path": "scriptPath",
+        "home_directory": "homeDirectory",
+        "home_drive": "homeDrive",
         "street_address": "streetAddress",
         "postal_code": "postalCode",
         "post_office_box": "postOfficeBox",
@@ -547,6 +559,25 @@ def normalize_update_object_properties(
             continue
 
         normalized_value = clean_string(value)
+
+        if (
+            normalized_key == "homeDrive"
+            and normalized_value
+        ):
+            normalized_value = normalized_value.upper()
+
+            if not re.fullmatch(
+                r"[A-Z]:",
+                normalized_value,
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "homeDrive doit être une lettre "
+                        "de lecteur suivie de deux-points, "
+                        "par exemple H:"
+                    ),
+                )
 
         if normalized_key == "c":
             normalized_value = normalized_value.upper()

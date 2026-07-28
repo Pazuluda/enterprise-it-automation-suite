@@ -139,5 +139,63 @@ class UpdateObjectPropertiesNormalizationTests(
         )
 
 
+    def test_profile_aliases_are_supported(self):
+        normalized = normalize_update_object_properties({
+            "profile_path":
+                r"\\srv-fichiers\profils\liam",
+            "script_path":
+                "connexion.cmd",
+            "home_directory":
+                r"\\srv-fichiers\utilisateurs\liam",
+            "home_drive":
+                "h:",
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "profilePath":
+                    r"\\srv-fichiers\profils\liam",
+                "scriptPath":
+                    "connexion.cmd",
+                "homeDirectory":
+                    r"\\srv-fichiers\utilisateurs\liam",
+                "homeDrive":
+                    "H:",
+            },
+        )
+
+    def test_profile_properties_can_be_cleared(self):
+        normalized = normalize_update_object_properties({
+            "profilePath": "",
+            "scriptPath": "",
+            "homeDirectory": "",
+            "homeDrive": "",
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "profilePath": "",
+                "scriptPath": "",
+                "homeDirectory": "",
+                "homeDrive": "",
+            },
+        )
+
+    def test_invalid_home_drive_is_rejected(self):
+        for value in [
+            "H",
+            "H:\\",
+            "HOME:",
+            "1:",
+        ]:
+            with self.subTest(value=value):
+                with self.assertRaises(HTTPException):
+                    normalize_update_object_properties({
+                        "homeDrive": value,
+                    })
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

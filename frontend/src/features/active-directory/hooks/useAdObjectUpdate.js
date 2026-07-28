@@ -254,6 +254,26 @@ function useAdObjectUpdate({
         'manager_dn',
         'managerDn'
       ),
+      profilePath: getAdAttributeValue(
+        target,
+        'profilePath',
+        'profile_path'
+      ),
+      scriptPath: getAdAttributeValue(
+        target,
+        'scriptPath',
+        'script_path'
+      ),
+      homeDirectory: getAdAttributeValue(
+        target,
+        'homeDirectory',
+        'home_directory'
+      ),
+      homeDrive: getAdAttributeValue(
+        target,
+        'homeDrive',
+        'home_drive'
+      ),
       samAccountName:
         isUpdateComputerTarget(target)
           ? rawSamAccountName.replace(/\$$/, '')
