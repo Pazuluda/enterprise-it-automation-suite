@@ -1,0 +1,54 @@
+name: Fonctionnalité
+description: Proposer une nouvelle fonctionnalité ou une amélioration
+title: "[Feature] "
+labels:
+  - "type: feature"
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Besoin
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposition
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Zone principale
+      options:
+        - Frontend
+        - API
+        - Agent Windows
+        - Active Directory
+        - Identité
+        - Déploiement
+        - Documentation
+    validations:
+      required: true
+
+  - type: input
+    id: target
+    attributes:
+      label: Version cible proposée
+      placeholder: v0.2.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critères d'acceptation
+    validations:
+      required: true
+
+  - type: textarea
+    id: security
+    attributes:
+      label: Impacts de sécurité

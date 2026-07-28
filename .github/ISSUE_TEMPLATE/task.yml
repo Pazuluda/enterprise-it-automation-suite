@@ -1,0 +1,37 @@
+name: Tâche technique
+description: Créer une tâche d'audit, documentation, maintenance ou validation
+title: "[Task] "
+labels:
+  - "type: maintenance"
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objectif
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Périmètre
+    validations:
+      required: true
+
+  - type: input
+    id: milestone
+    attributes:
+      label: Version ou milestone
+      placeholder: v0.2.0 — C2
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Plan de validation
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Retour arrière

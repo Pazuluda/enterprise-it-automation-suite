@@ -1,0 +1,69 @@
+name: Anomalie
+description: Signaler un comportement incorrect ou une régression
+title: "[Bug] "
+labels:
+  - "type: bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ne publiez aucun mot de passe, jeton, secret ou donnée client.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Étapes de reproduction
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Résultat attendu
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Résultat obtenu
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Zone concernée
+      options:
+        - Frontend
+        - API
+        - Agent Windows
+        - Active Directory
+        - Identité
+        - Déploiement
+        - Documentation
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version ou commit
+      placeholder: v0.1.0 ou hash Git
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Vérification de sécurité
+      options:
+        - label: Aucun secret ou donnée client n'est présent dans cette issue.
+          required: true
