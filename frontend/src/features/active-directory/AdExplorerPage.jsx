@@ -2489,6 +2489,9 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       <AdObjectPropertiesModal
         object={propertiesModal}
         selectedNode={selectedNode}
+        agentMode={adAgentMode}
+        loadAgentMode={loadAdAgentMode}
+        apiFetch={apiFetch}
         onClose={() => setPropertiesModal(null)}
         update={{
           ...objectUpdate,

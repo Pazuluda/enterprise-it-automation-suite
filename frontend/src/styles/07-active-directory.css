@@ -6622,3 +6622,317 @@ input.aduc-object-protection-checkbox {
     grid-column: auto;
   }
 }
+
+/* C2.4C2E1 — controlled LDAP attribute editor */
+
+.aduc-ldap-editor {
+  display: grid;
+  gap: 16px;
+  min-height: 100%;
+  padding: 6px;
+}
+
+.aduc-ldap-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.aduc-ldap-editor-header span,
+.aduc-ldap-editor-preview > div > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.aduc-ldap-editor-header h4 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.aduc-ldap-editor-header p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+}
+
+.aduc-ldap-editor-header > strong {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.aduc-ldap-editor-header > strong.simulation {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.aduc-ldap-editor-header > strong.locked {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.aduc-ldap-editor-safety {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  background: #f0f9ff;
+  color: #075985;
+}
+
+.aduc-ldap-editor-safety span {
+  font-size: 12px;
+}
+
+.aduc-ldap-editor-error {
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.aduc-ldap-editor-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.aduc-ldap-editor-field {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.aduc-ldap-editor-field-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aduc-ldap-editor-field-title > div {
+  display: grid;
+  gap: 4px;
+}
+
+.aduc-ldap-editor-field-title code {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.aduc-ldap-editor-field-title button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+
+.aduc-ldap-editor-field label {
+  display: grid;
+  gap: 6px;
+}
+
+.aduc-ldap-editor-field label > span,
+.aduc-ldap-editor-current > span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.aduc-ldap-editor-field input,
+.aduc-ldap-editor-field select,
+.aduc-ldap-editor-field textarea {
+  width: 100%;
+}
+
+.aduc-ldap-editor-field textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.aduc-ldap-editor-field small {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.aduc-ldap-editor-current {
+  display: grid;
+  gap: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border-color);
+}
+
+.aduc-ldap-editor-current strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.aduc-ldap-editor-preview {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.aduc-ldap-editor-preview > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aduc-ldap-editor-preview p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.aduc-ldap-preview-list {
+  display: grid;
+  gap: 8px;
+}
+
+.aduc-ldap-preview-list article {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1.2fr)
+    minmax(100px, 1fr)
+    auto
+    minmax(100px, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.aduc-ldap-preview-list article > div {
+  display: grid;
+  gap: 3px;
+}
+
+.aduc-ldap-preview-list code {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.aduc-ldap-preview-list span {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .aduc-ldap-editor-header {
+    display: grid;
+  }
+
+  .aduc-ldap-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-ldap-preview-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .aduc-ldap-preview-list article > b {
+    display: none;
+  }
+}
+
+/* C2.4C2F2 — LDAP simulation submission */
+
+.aduc-ldap-editor-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.aduc-ldap-editor-submit > div {
+  display: grid;
+  gap: 4px;
+}
+
+.aduc-ldap-editor-submit p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.aduc-ldap-simulation-button {
+  flex: 0 0 auto;
+  min-width: 220px;
+}
+
+.aduc-ldap-submission-status {
+  padding: 12px 14px;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  background: #f0f9ff;
+  color: #075985;
+  font-weight: 700;
+}
+
+.aduc-ldap-simulation-result {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid #86efac;
+  border-radius: 14px;
+  background: #f0fdf4;
+}
+
+.aduc-ldap-simulation-result > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aduc-ldap-simulation-result p {
+  margin: 0;
+}
+
+.aduc-ldap-simulation-result pre {
+  max-height: 260px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: 10px;
+  background: #111827;
+  color: #f9fafb;
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .aduc-ldap-editor-submit {
+    display: grid;
+  }
+
+  .aduc-ldap-simulation-button {
+    width: 100%;
+    min-width: 0;
+  }
+}

@@ -5,6 +5,8 @@ import {
 
 import ObjectDetailsPanel from './ObjectDetailsPanel'
 import UpdateObjectForm from './UpdateObjectForm'
+import LdapAttributeEditor from './LdapAttributeEditor'
+import useLdapAttributeUpdate from '../hooks/useLdapAttributeUpdate'
 import {
   getObjectDn,
   getObjectName,
@@ -16,9 +18,18 @@ function AdObjectPropertiesModal({
   selectedNode,
   details,
   update,
+  agentMode,
+  loadAgentMode,
+  apiFetch,
   onClose,
 }) {
   const [editing, setEditing] = useState(false)
+
+  const ldapEditor = useLdapAttributeUpdate({
+    object,
+    agentMode,
+    apiFetch,
+  })
 
   const [saveNotice, setSaveNotice] = useState('')
   const loading = Boolean(update?.loading)
@@ -46,6 +57,7 @@ function AdObjectPropertiesModal({
   function discardAndClose() {
     if (loading) return
 
+    ldapEditor.close()
     update?.closeUpdateObject?.()
     setEditing(false)
     onClose?.()
@@ -93,6 +105,22 @@ function AdObjectPropertiesModal({
     }
   }
 
+
+  async function beginLdapEditing() {
+    if (
+      loading ||
+      editing ||
+      !ldapEditor.eligible
+    ) {
+      return
+    }
+
+    await loadAgentMode?.()
+
+    update?.closeUpdateObject?.()
+    setEditing(false)
+    ldapEditor.open()
+  }
 
   async function applyChanges() {
     if (
@@ -211,9 +239,11 @@ function AdObjectPropertiesModal({
 
           <div className="aduc-object-properties-header-actions">
             <span className="aduc-object-properties-mode">
-              {editing
-                ? 'Modification'
-                : 'Consultation'}
+              {ldapEditor.active
+                ? 'Éditeur LDAP'
+                : editing
+                  ? 'Modification'
+                  : 'Consultation'}
             </span>
 
             <button
@@ -250,7 +280,11 @@ function AdObjectPropertiesModal({
           )}
 
         <div className="aduc-object-properties-body">
-          {editing ? (
+          {ldapEditor.active ? (
+            <LdapAttributeEditor
+              editor={ldapEditor}
+            />
+          ) : editing ? (
             <div className="aduc-object-properties-editor">
               <UpdateObjectForm
                 update={update}
@@ -281,14 +315,35 @@ function AdObjectPropertiesModal({
 
         <footer className="aduc-modal-actions">
 
-          {!editing ? (
+          {ldapEditor.active ? (
             <button
               type="button"
-              onClick={discardAndClose}
+              onClick={ldapEditor.close}
               disabled={loading}
             >
-              Fermer
+              Retour aux propriétés
             </button>
+          ) : !editing ? (
+            <>
+              {ldapEditor.eligible && (
+                <button
+                  type="button"
+                  className="aduc-properties-edit-button"
+                  onClick={beginLdapEditing}
+                  disabled={loading}
+                >
+                  Attributs LDAP
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={discardAndClose}
+                disabled={loading}
+              >
+                Fermer
+              </button>
+            </>
           ) : (
             <>
 

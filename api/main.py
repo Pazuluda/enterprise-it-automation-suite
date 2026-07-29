@@ -181,7 +181,7 @@ IDENTITY_UPDATE_STATUS_ACCESS = (
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
-    version="0.2.0-alpha.7",
+    version="0.2.0-alpha.8",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -312,7 +312,7 @@ def docs_local():
 def root():
     return {
         "name": "Enterprise IT Automation Suite",
-        "version": "0.2.0-alpha.7",
+        "version": "0.2.0-alpha.8",
         "status": "running"
     }
 
