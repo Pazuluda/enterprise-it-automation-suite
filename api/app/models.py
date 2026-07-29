@@ -63,6 +63,19 @@ class LDAPAttributeValidationPayload(BaseModel):
     value: str | None = None
 
 
+class LDAPAttributeUpdateChangePayload(BaseModel):
+    attribute_name: str
+    operation: str
+    value: str | None = None
+
+
+class LDAPAttributeUpdateValidationPayload(BaseModel):
+    action: str
+    object_identity: str
+    object_class: str
+    changes: list[LDAPAttributeUpdateChangePayload]
+
+
 class ModificationRequest(BaseModel):
     username: str
     display_name: str

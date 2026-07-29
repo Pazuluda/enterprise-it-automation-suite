@@ -97,6 +97,11 @@ from app.services.ldap_attribute_validation import (
     validate_reviewed_ldap_attribute_request as
     service_validate_reviewed_ldap_attribute_request,
 )
+from app.services.ldap_attribute_update import (
+    LDAPAttributeUpdateBadRequest,
+    normalize_ldap_attribute_update_request as
+    service_normalize_ldap_attribute_update_request,
+)
 
 
 from app.services.worker_status import (
@@ -119,7 +124,7 @@ from app.services.agent_runtime import (
     submit_agent_result as service_submit_agent_result,
     update_agent_config as service_update_agent_config,
 )
-from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest, LDAPAttributeValidationPayload
+from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest, LDAPAttributeValidationPayload, LDAPAttributeUpdateValidationPayload
 
 
 
@@ -175,7 +180,7 @@ IDENTITY_UPDATE_STATUS_ACCESS = (
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
-    version="0.2.0-alpha.5",
+    version="0.2.0-alpha.6",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -306,7 +311,7 @@ def docs_local():
 def root():
     return {
         "name": "Enterprise IT Automation Suite",
-        "version": "0.2.0-alpha.5",
+        "version": "0.2.0-alpha.6",
         "status": "running"
     }
 
@@ -866,6 +871,19 @@ def validate_ldap_attribute_request(
         operation=payload.operation,
         value=payload.value,
     ).to_dict()
+
+
+@app.post("/api/ad-explorer/ldap/update/validate")
+def validate_ldap_attribute_update_payload(
+    payload: LDAPAttributeUpdateValidationPayload,
+    api_key: None = Depends(AD_ACCESS),
+):
+    try:
+        return service_normalize_ldap_attribute_update_request(
+            payload.model_dump()
+        ).to_dict()
+    except LDAPAttributeUpdateBadRequest as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @app.post("/api/ad-admin/jobs")
