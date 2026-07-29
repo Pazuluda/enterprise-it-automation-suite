@@ -210,4 +210,71 @@ def assert_ldap_attribute_update_invariants() -> None:
         )
 
 
+LDAP_ATTRIBUTE_UPDATE_EXECUTION_POLICY = "simulation_only"
+LDAP_ATTRIBUTE_UPDATE_PRODUCTION_ENABLED = False
+
+
+def prepare_ldap_attribute_update_simulation_payload(
+    payload: object,
+    agent_mode: object,
+) -> dict:
+    if not isinstance(agent_mode, str):
+        raise LDAPAttributeUpdateBadRequest(
+            "Le mode agent explicite est obligatoire."
+        )
+
+    normalized_mode = agent_mode.strip().casefold()
+
+    if normalized_mode != "simulation":
+        raise LDAPAttributeUpdateBadRequest(
+            "Les jobs LDAP sont autorisés uniquement en Simulation."
+        )
+
+    request = normalize_ldap_attribute_update_request(payload)
+    prepared = request.to_dict()
+    prepared["execution_policy"] = (
+        LDAP_ATTRIBUTE_UPDATE_EXECUTION_POLICY
+    )
+    prepared["simulation_job_authorized"] = True
+    prepared["production_authorized"] = False
+    prepared["execution_authorized"] = False
+
+    return prepared
+
+
+def assert_ldap_attribute_update_simulation_invariants() -> None:
+    if LDAP_ATTRIBUTE_UPDATE_PRODUCTION_ENABLED:
+        raise RuntimeError(
+            "La Production LDAP doit rester désactivée."
+        )
+
+    sample = prepare_ldap_attribute_update_simulation_payload(
+        {
+            "action": "update_ldap_attributes",
+            "object_identity": (
+                "CN=Test,OU=Users,OU=EITAS,DC=API,DC=LOCAL"
+            ),
+            "object_class": "user",
+            "changes": [{
+                "attribute_name": "employeeType",
+                "operation": "set",
+                "value": "Interne",
+            }],
+        },
+        "Simulation",
+    )
+
+    if not sample["simulation_job_authorized"]:
+        raise RuntimeError("La Simulation LDAP doit être autorisée.")
+
+    if sample["production_authorized"]:
+        raise RuntimeError("La Production LDAP est autorisée.")
+
+    if sample["execution_authorized"]:
+        raise RuntimeError("Une écriture LDAP est autorisée.")
+
+
+assert_ldap_attribute_update_simulation_invariants()
+
+
 assert_ldap_attribute_update_invariants()

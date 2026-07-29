@@ -3194,6 +3194,318 @@ function Invoke-EitasAdAdminResetPassword {
 }
 
 
+
+function Invoke-EitasAdAdminUpdateLdapAttributesSimulation {
+param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace($Mode) -or
+        $Mode.Trim() -ine "Simulation"
+    ) {
+        throw "La mise à jour LDAP est autorisée uniquement en Simulation"
+    }
+
+    $ExecutionPolicy = [string](
+        Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                "execution_policy",
+                "executionPolicy"
+            )
+    )
+
+    $SimulationAuthorized = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "simulation_job_authorized",
+            "simulationJobAuthorized"
+        )
+
+    $ProductionAuthorized = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "production_authorized",
+            "productionAuthorized"
+        )
+
+    $ExecutionAuthorized = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "execution_authorized",
+            "executionAuthorized"
+        )
+
+    if ($ExecutionPolicy -cne "simulation_only") {
+        throw "Politique d'exécution LDAP invalide"
+    }
+
+    if ($SimulationAuthorized -ne $true) {
+        throw "Autorisation de Simulation LDAP absente"
+    }
+
+    if ($ProductionAuthorized -ne $false) {
+        throw "La Production LDAP doit rester interdite"
+    }
+
+    if ($ExecutionAuthorized -ne $false) {
+        throw "L'écriture LDAP doit rester interdite"
+    }
+
+    $ObjectIdentity = [string](
+        Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                "object_identity",
+                "objectIdentity",
+                "object_dn",
+                "objectDn",
+                "distinguished_name",
+                "distinguishedName",
+                "dn"
+            )
+    )
+
+    $RequestedClass = [string](
+        Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                "object_class",
+                "objectClass"
+            )
+    )
+
+    $ChangesValue = $null
+
+    if ($Payload -is [System.Collections.IDictionary]) {
+        foreach ($Name in @("changes", "Changes")) {
+            if ($Payload.Contains($Name)) {
+                $ChangesValue = $Payload[$Name]
+                break
+            }
+        }
+    }
+    elseif ($null -ne $Payload) {
+        foreach ($Name in @("changes", "Changes")) {
+            if ($Payload.PSObject.Properties.Name -contains $Name) {
+                $ChangesValue = $Payload.$Name
+                break
+            }
+        }
+    }
+
+    if ($null -eq $ChangesValue) {
+        throw "Liste des modifications LDAP manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ObjectIdentity)) {
+        throw "Identité objet LDAP manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($RequestedClass)) {
+        throw "Classe objet LDAP manquante"
+    }
+
+    $RequestedClass = $RequestedClass.Trim().ToLowerInvariant()
+    $Changes = @($ChangesValue)
+
+    if ($Changes.Count -lt 1) {
+        throw "Aucune modification LDAP fournie"
+    }
+
+    if ($Changes.Count -gt 5) {
+        throw "Un job LDAP ne peut pas dépasser cinq modifications"
+    }
+
+    $AllowedAttributes = @{
+        employeeType = @(
+            "user"
+        )
+        preferredLanguage = @(
+            "user"
+        )
+        personalTitle = @(
+            "user",
+            "contact"
+        )
+        middleName = @(
+            "user",
+            "contact"
+        )
+        comment = @(
+            "user",
+            "contact"
+        )
+    }
+
+    $NormalizedChanges = @()
+    $AttributeNames = @()
+
+    foreach ($Change in $Changes) {
+        $AttributeName = [string](
+            Get-EitasObjectValue `
+                -Object $Change `
+                -Names @(
+                    "attribute_name",
+                    "attributeName"
+                )
+        )
+
+        $Operation = [string](
+            Get-EitasObjectValue `
+                -Object $Change `
+                -Names @(
+                    "operation",
+                    "Operation"
+                )
+        )
+
+        $Value = Get-EitasObjectValue `
+            -Object $Change `
+            -Names @(
+                "value",
+                "Value"
+            )
+
+        if ([string]::IsNullOrWhiteSpace($AttributeName)) {
+            throw "Nom d'attribut LDAP manquant"
+        }
+
+        if (-not $AllowedAttributes.ContainsKey($AttributeName)) {
+            throw "Attribut LDAP non autorisé côté agent : $AttributeName"
+        }
+
+        if (
+            @($AllowedAttributes[$AttributeName]) -notcontains
+            $RequestedClass
+        ) {
+            throw (
+                "L'attribut $AttributeName n'est pas autorisé " +
+                "pour la classe $RequestedClass"
+            )
+        }
+
+        if ($AttributeNames -contains $AttributeName) {
+            throw "Attribut LDAP dupliqué : $AttributeName"
+        }
+
+        $Operation = $Operation.Trim().ToLowerInvariant()
+
+        if (@("set", "clear") -notcontains $Operation) {
+            throw "Opération LDAP non autorisée : $Operation"
+        }
+
+        if ($Operation -eq "set") {
+            if (
+                $null -eq $Value -or
+                [string]::IsNullOrWhiteSpace([string]$Value)
+            ) {
+                throw "Une valeur non vide est obligatoire pour set"
+            }
+
+            $Value = ([string]$Value).Trim()
+        }
+        else {
+            if (
+                $null -ne $Value -and
+                -not [string]::IsNullOrWhiteSpace([string]$Value)
+            ) {
+                throw "Aucune valeur ne doit accompagner clear"
+            }
+
+            $Value = $null
+        }
+
+        $AttributeNames += $AttributeName
+
+        $NormalizedChanges += [pscustomobject]@{
+            attribute_name = $AttributeName
+            operation = $Operation
+            value = $Value
+        }
+    }
+
+    $Object = Resolve-EitasAdAdminObject `
+        -Config $Config `
+        -Identity $ObjectIdentity
+
+    $ObjectDn = ([string]$Object.DistinguishedName).Trim()
+    $ResolvedClass = (
+        [string]$Object.ObjectClass
+    ).Trim().ToLowerInvariant()
+
+    if ($ResolvedClass -cne $RequestedClass) {
+        throw (
+            "Classe objet inattendue : demandé $RequestedClass, " +
+            "résolu $ResolvedClass"
+        )
+    }
+
+    $CurrentObject = Get-ADObject `
+        -Identity $ObjectDn `
+        -Properties $AttributeNames `
+        -ErrorAction Stop
+
+    $Preview = @()
+
+    foreach ($Change in $NormalizedChanges) {
+        $AttributeName = [string]$Change.attribute_name
+        $BeforeRaw = $CurrentObject.$AttributeName
+        $BeforeItems = @()
+
+        if ($null -ne $BeforeRaw) {
+            $BeforeItems = @(
+                $BeforeRaw |
+                    ForEach-Object {
+                        [string]$_
+                    }
+            )
+        }
+
+        $BeforeValue = $null
+
+        if ($BeforeItems.Count -eq 1) {
+            $BeforeValue = $BeforeItems[0]
+        }
+        elseif ($BeforeItems.Count -gt 1) {
+            $BeforeValue = @($BeforeItems)
+        }
+
+        $AfterValue = $null
+
+        if ($Change.operation -eq "set") {
+            $AfterValue = [string]$Change.value
+        }
+
+        $Preview += [pscustomobject]@{
+            attribute_name = $AttributeName
+            operation = [string]$Change.operation
+            before = $BeforeValue
+            after = $AfterValue
+        }
+    }
+
+    return [pscustomobject]@{
+        action = "update_ldap_attributes"
+        simulated = $true
+        mode = "Simulation"
+        execution_policy = $ExecutionPolicy
+        object = [string]$Object.Name
+        object_type = $ResolvedClass
+        object_dn = $ObjectDn
+        change_count = $Preview.Count
+        changes = @($Preview)
+        message = (
+            "Simulation LDAP calculée sans écriture " +
+            "Active Directory"
+        )
+    }
+}
+
+
 function Invoke-EitasAdAdminJob {
     param(
         [object]$Config,
@@ -3244,6 +3556,10 @@ function Invoke-EitasAdAdminJob {
 
         "delete_object" {
             return Invoke-EitasAdAdminDeleteObject -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "update_ldap_attributes" {
+            return Invoke-EitasAdAdminUpdateLdapAttributesSimulation -Config $Config -Payload $Payload -Mode $Mode
         }
 
         "update_object_properties" {

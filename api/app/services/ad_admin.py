@@ -8,6 +8,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from app.core.storage import load_json, save_json
+from app.services.ldap_attribute_update import (
+    prepare_ldap_attribute_update_simulation_payload,
+)
 
 
 class ADAdminError(Exception):
@@ -925,6 +928,93 @@ def normalize_update_object_properties(
             })
 
     return normalized_properties
+
+
+
+def create_ldap_attribute_update_simulation_job(
+    jobs_file: Path,
+    payload: dict,
+    agent_mode: object,
+) -> tuple[dict, dict]:
+    payload = payload or {}
+    created_by = (
+        clean_string(payload.get("created_by"))
+        or "react-admin"
+    )
+
+    prepared = (
+        prepare_ldap_attribute_update_simulation_payload(
+            payload,
+            agent_mode,
+        )
+    )
+
+    job_id = str(uuid4())
+    job_payload = {
+        "action": prepared["action"],
+        "object_identity": prepared["object_identity"],
+        "object_class": prepared["object_class"],
+        "changes": prepared["changes"],
+        "validation_contract_version": (
+            prepared["validation_contract_version"]
+        ),
+        "update_contract_version": (
+            prepared["update_contract_version"]
+        ),
+        "execution_policy": prepared["execution_policy"],
+        "simulation_job_authorized": True,
+        "production_authorized": False,
+        "execution_authorized": False,
+    }
+
+    job = {
+        "id": job_id,
+        "type": "ad_admin",
+        "status": "pending",
+        "created_at": utc_now_iso(),
+        "created_by": created_by,
+        "action": prepared["action"],
+        "payload": job_payload,
+        "claimed_at": None,
+        "claimed_by": None,
+        "completed_at": None,
+        "success": None,
+        "message": "Simulation LDAP en attente agent",
+        "output": "",
+        "result": None,
+        "details": None,
+    }
+
+    jobs = load_json(jobs_file, [])
+    jobs.append(job)
+    save_json(jobs_file, jobs)
+
+    attribute_names = [
+        change["attribute_name"]
+        for change in prepared["changes"]
+    ]
+
+    audit_event = {
+        "action": "ldap_simulation_job_created",
+        "request_id": job_id,
+        "actor": created_by,
+        "message": "Job LDAP de simulation créé",
+        "details": {
+            "job_id": job_id,
+            "action": prepared["action"],
+            "object_identity": prepared["object_identity"],
+            "object_class": prepared["object_class"],
+            "attribute_names": attribute_names,
+            "change_count": len(attribute_names),
+            "execution_policy": prepared["execution_policy"],
+            "production_authorized": False,
+        },
+    }
+
+    return {
+        "message": "Job LDAP de simulation créé",
+        "job": sanitize_job_value(job),
+    }, audit_event
 
 
 def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:

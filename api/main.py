@@ -87,6 +87,7 @@ from app.services.ad_admin import (
     ADAdminNotFound,
     claim_ad_admin_job as service_claim_ad_admin_job,
     create_ad_admin_job as service_create_ad_admin_job,
+    create_ldap_attribute_update_simulation_job as service_create_ldap_attribute_update_simulation_job,
     get_ad_admin_job as service_get_ad_admin_job,
     get_pending_ad_admin_jobs as service_get_pending_ad_admin_jobs,
     list_ad_admin_jobs as service_list_ad_admin_jobs,
@@ -180,7 +181,7 @@ IDENTITY_UPDATE_STATUS_ACCESS = (
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
-    version="0.2.0-alpha.6",
+    version="0.2.0-alpha.7",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -311,7 +312,7 @@ def docs_local():
 def root():
     return {
         "name": "Enterprise IT Automation Suite",
-        "version": "0.2.0-alpha.6",
+        "version": "0.2.0-alpha.7",
         "status": "running"
     }
 
@@ -884,6 +885,37 @@ def validate_ldap_attribute_update_payload(
         ).to_dict()
     except LDAPAttributeUpdateBadRequest as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/api/ad-explorer/ldap/update/jobs")
+def create_ldap_attribute_update_simulation_job_api(
+    payload: LDAPAttributeUpdateValidationPayload,
+    api_key: None = Depends(AD_ACCESS),
+):
+    config = _eitas_agent_mode_load_config()
+    mode = _eitas_agent_mode_normalize(
+        config.get("mode") or
+        config.get("Mode") or
+        "Simulation"
+    )
+
+    try:
+        response, audit_event = (
+            service_create_ldap_attribute_update_simulation_job(
+                AD_ADMIN_JOBS_FILE,
+                payload.model_dump(),
+                mode,
+            )
+        )
+    except LDAPAttributeUpdateBadRequest as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    write_audit_log(**audit_event)
+
+    return response
 
 
 @app.post("/api/ad-admin/jobs")
