@@ -93,6 +93,11 @@ from app.services.ad_admin import (
     submit_ad_admin_job_result as service_submit_ad_admin_job_result,
 )
 
+from app.services.ldap_attribute_validation import (
+    validate_reviewed_ldap_attribute_request as
+    service_validate_reviewed_ldap_attribute_request,
+)
+
 
 from app.services.worker_status import (
     WorkerStatusBadRequest,
@@ -114,7 +119,7 @@ from app.services.agent_runtime import (
     submit_agent_result as service_submit_agent_result,
     update_agent_config as service_update_agent_config,
 )
-from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest
+from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, ClaimRequestPayload, ApprovalPayload, DepartmentTemplatePayload, RoleTemplatePayload, OffboardingRequest, ModificationRequest, LDAPAttributeValidationPayload
 
 
 
@@ -170,7 +175,7 @@ IDENTITY_UPDATE_STATUS_ACCESS = (
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
-    version="0.2.0-alpha.4",
+    version="0.2.0-alpha.5",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -301,7 +306,7 @@ def docs_local():
 def root():
     return {
         "name": "Enterprise IT Automation Suite",
-        "version": "0.2.0-alpha.4",
+        "version": "0.2.0-alpha.5",
         "status": "running"
     }
 
@@ -848,6 +853,19 @@ def submit_ad_explorer_job_result(job_id: str, payload: dict = Body(...), api_ke
     write_audit_log(**audit_event)
 
     return response
+
+
+@app.post("/api/ad-explorer/ldap/validate")
+def validate_ldap_attribute_request(
+    payload: LDAPAttributeValidationPayload,
+    api_key: None = Depends(AD_ACCESS),
+):
+    return service_validate_reviewed_ldap_attribute_request(
+        attribute_name=payload.attribute_name,
+        object_class=payload.object_class,
+        operation=payload.operation,
+        value=payload.value,
+    ).to_dict()
 
 
 @app.post("/api/ad-admin/jobs")

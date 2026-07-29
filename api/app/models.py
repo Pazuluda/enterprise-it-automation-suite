@@ -56,6 +56,13 @@ class OffboardingRequest(BaseModel):
 
 
 
+class LDAPAttributeValidationPayload(BaseModel):
+    attribute_name: str
+    object_class: str
+    operation: str
+    value: str | None = None
+
+
 class ModificationRequest(BaseModel):
     username: str
     display_name: str
