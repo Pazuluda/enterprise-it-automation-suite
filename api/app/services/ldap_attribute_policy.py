@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from types import MappingProxyType
 
 
-LDAP_ATTRIBUTE_POLICY_VERSION = "c2.2b.1"
+LDAP_ATTRIBUTE_POLICY_VERSION = "c2.2c.1"
 LDAP_ATTRIBUTE_POLICY_DEFAULT = "deny"
 LDAP_SCHEMA_CATALOG_IS_AUTHORIZATION = False
 LDAP_GENERIC_EDITOR_WRITES_ENABLED = False
@@ -237,6 +237,10 @@ C1_PROPERTY_MAX_LENGTHS = MappingProxyType({'co': 128,
  'wWWHomePage': 2048})
 
 
+C1_VIRTUAL_CANONICAL_PROPERTIES = frozenset(("groupCategory", "groupScope", "protectedFromAccidentalDeletion"))
+C1_SCHEMA_BACKED_CANONICAL_PROPERTIES = frozenset(C1_VISIBLE_CANONICAL_PROPERTIES - C1_VIRTUAL_CANONICAL_PROPERTIES)
+
+
 class LDAPAttributePolicyError(ValueError):
     pass
 
@@ -246,6 +250,8 @@ class LDAPAttributePolicyDecision:
     requested_name: str
     canonical_name: str
     category: str
+    representation: str
+    schema_backed: bool
     known: bool
     visible: bool
     c1_property_editor_editable: bool
@@ -321,12 +327,16 @@ def resolve_ldap_attribute_policy(
     requested_name, canonical_name = normalize_ldap_attribute_name(
         attribute_name
     )
+    representation = "virtual" if canonical_name in C1_VIRTUAL_CANONICAL_PROPERTIES else "schema"
+    schema_backed = representation == "schema"
 
     if canonical_name in C1_EDITABLE_CANONICAL_PROPERTIES:
         return LDAPAttributePolicyDecision(
             requested_name=requested_name,
             canonical_name=canonical_name,
             category="c1_editable_generic_read_only",
+            representation=representation,
+            schema_backed=schema_backed,
             known=True,
             visible=True,
             c1_property_editor_editable=True,
@@ -344,6 +354,8 @@ def resolve_ldap_attribute_policy(
             requested_name=requested_name,
             canonical_name=canonical_name,
             category="c1_read_only",
+            representation=representation,
+            schema_backed=schema_backed,
             known=True,
             visible=True,
             c1_property_editor_editable=False,
@@ -357,6 +369,8 @@ def resolve_ldap_attribute_policy(
         requested_name=requested_name,
         canonical_name=canonical_name,
         category="deny",
+        representation="denied",
+        schema_backed=False,
         known=False,
         visible=False,
         c1_property_editor_editable=False,
@@ -413,6 +427,20 @@ def assert_ldap_attribute_policy_invariants() -> None:
         raise RuntimeError(
             "La liste visible C1 ne correspond pas aux ensembles controles."
         )
+
+    if not C1_VIRTUAL_CANONICAL_PROPERTIES <= C1_VISIBLE_CANONICAL_PROPERTIES:
+        raise RuntimeError("Les proprietes virtuelles doivent rester visibles.")
+
+    if C1_SCHEMA_BACKED_CANONICAL_PROPERTIES != (
+        C1_VISIBLE_CANONICAL_PROPERTIES - C1_VIRTUAL_CANONICAL_PROPERTIES
+    ):
+        raise RuntimeError("La couverture schema/virtuelle est incoherente.")
+
+    if len(C1_VIRTUAL_CANONICAL_PROPERTIES) != 3:
+        raise RuntimeError("Trois proprietes virtuelles C1 sont attendues.")
+
+    if len(C1_SCHEMA_BACKED_CANONICAL_PROPERTIES) != 45:
+        raise RuntimeError("Quarante-cinq attributs C1 issus du schema sont attendus.")
 
     for requested_name in C1_EDITABLE_INPUT_KEYS:
         decision = resolve_ldap_attribute_policy(requested_name)

@@ -47,7 +47,7 @@ class LDAPAttributePolicyTests(unittest.TestCase):
     def test_policy_is_non_authorizing_and_default_deny(self):
         self.assertEqual(
             LDAP_ATTRIBUTE_POLICY_VERSION,
-            "c2.2b.1",
+            "c2.2c.1",
         )
         self.assertEqual(LDAP_ATTRIBUTE_POLICY_DEFAULT, "deny")
         self.assertFalse(LDAP_SCHEMA_CATALOG_IS_AUTHORIZATION)
