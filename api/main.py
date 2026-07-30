@@ -129,6 +129,17 @@ from app.models import OnboardingRequest, AgentResult, ResetRequestsPayload, Cla
 
 
 
+from app.models import (
+    LDAPHabSenioritySimulationPayload,
+)
+
+from app.services.ldap_hab_seniority_simulation import (
+    LDAPHabSimulationBadRequest,
+    normalize_ldap_hab_simulation_request as
+    service_normalize_ldap_hab_simulation_request,
+)
+
+
 # PACK B2.4 — Dépendances RBAC du portail
 PORTAL_READ_ACCESS = require_roles(
     "Viewer",
@@ -181,7 +192,7 @@ IDENTITY_UPDATE_STATUS_ACCESS = (
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
-    version="0.2.0-alpha.11",
+    version="0.2.0-alpha.12",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -312,7 +323,7 @@ def docs_local():
 def root():
     return {
         "name": "Enterprise IT Automation Suite",
-        "version": "0.2.0-alpha.11",
+        "version": "0.2.0-alpha.12",
         "status": "running"
     }
 
@@ -872,6 +883,39 @@ def validate_ldap_attribute_request(
         operation=payload.operation,
         value=payload.value,
     ).to_dict()
+
+
+
+@app.post(
+    "/api/ad-explorer/ldap/"
+    "hab-seniority/validate"
+)
+def validate_ldap_hab_seniority_simulation_payload(
+    payload: LDAPHabSenioritySimulationPayload,
+    api_key: None = Depends(AD_ACCESS),
+):
+    config = _eitas_agent_mode_load_config()
+
+    mode = _eitas_agent_mode_normalize(
+        config.get("mode")
+        or config.get("Mode")
+        or "Simulation"
+    )
+
+    try:
+        request = (
+            service_normalize_ldap_hab_simulation_request(
+                payload.model_dump(),
+                mode,
+            )
+        )
+    except LDAPHabSimulationBadRequest as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    return request.to_dict()
 
 
 @app.post("/api/ad-explorer/ldap/update/validate")

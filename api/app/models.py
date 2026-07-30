@@ -89,3 +89,11 @@ class ModificationRequest(BaseModel):
     remove_groups: list[str] = Field(default_factory=list)
     move_to_ou: str | None = None
     comment: str | None = None
+
+class LDAPHabSenioritySimulationPayload(BaseModel):
+    action: str
+    object_identity: str
+    object_class: str
+    attribute_name: str
+    operation: str
+    value: bool | int | str | None = None
