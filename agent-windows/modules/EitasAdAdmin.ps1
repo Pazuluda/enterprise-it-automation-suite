@@ -3339,6 +3339,18 @@ param(
             "user",
             "contact"
         )
+        "msDS-HABSeniorityIndex" = @(
+            "user"
+        )
+    }
+
+    $AllowedValueTypes = @{
+        employeeType = "single_text"
+        preferredLanguage = "single_text"
+        personalTitle = "single_text"
+        middleName = "single_text"
+        comment = "single_text"
+        "msDS-HABSeniorityIndex" = "integer32"
     }
 
     $NormalizedChanges = @()
@@ -3370,6 +3382,15 @@ param(
                 "Value"
             )
 
+        $ValueType = [string](
+            Get-EitasObjectValue `
+                -Object $Change `
+                -Names @(
+                    "value_type",
+                    "valueType"
+                )
+        )
+
         if ([string]::IsNullOrWhiteSpace($AttributeName)) {
             throw "Nom d'attribut LDAP manquant"
         }
@@ -3388,6 +3409,26 @@ param(
             )
         }
 
+        if ([string]::IsNullOrWhiteSpace($ValueType)) {
+            $ValueType = "single_text"
+        }
+        else {
+            $ValueType = (
+                $ValueType
+            ).Trim().ToLowerInvariant()
+        }
+
+        $ExpectedValueType = [string](
+            $AllowedValueTypes[$AttributeName]
+        )
+
+        if ($ValueType -cne $ExpectedValueType) {
+            throw (
+                "Type LDAP invalide pour $AttributeName : " +
+                "$ValueType, attendu $ExpectedValueType"
+            )
+        }
+
         if ($AttributeNames -contains $AttributeName) {
             throw "Attribut LDAP dupliqué : $AttributeName"
         }
@@ -3399,19 +3440,35 @@ param(
         }
 
         if ($Operation -eq "set") {
-            if (
-                $null -eq $Value -or
-                [string]::IsNullOrWhiteSpace([string]$Value)
-            ) {
+            if ($null -eq $Value) {
                 throw "Une valeur non vide est obligatoire pour set"
             }
 
-            $Value = ([string]$Value).Trim()
+            if ($ValueType -eq "single_text") {
+                if ($Value -isnot [string]) {
+                    throw (
+                        "Valeur LDAP single_text invalide pour " +
+                        $AttributeName
+                    )
+                }
+
+                $Value = $Value.Trim()
+
+                if (
+                    [string]::IsNullOrWhiteSpace($Value)
+                ) {
+                    throw (
+                        "Une valeur non vide est obligatoire pour set"
+                    )
+                }
+            }
         }
         else {
             if (
                 $null -ne $Value -and
-                -not [string]::IsNullOrWhiteSpace([string]$Value)
+                -not [string]::IsNullOrWhiteSpace(
+                    [string]$Value
+                )
             ) {
                 throw "Aucune valeur ne doit accompagner clear"
             }
@@ -3424,6 +3481,7 @@ param(
         $NormalizedChanges += [pscustomobject]@{
             attribute_name = $AttributeName
             operation = $Operation
+            value_type = $ValueType
             value = $Value
         }
     }

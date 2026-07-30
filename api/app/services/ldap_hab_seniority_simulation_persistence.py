@@ -27,7 +27,7 @@ LDAP_HAB_SIMULATION_PERSISTENCE_CONTRACT_VERSION = (
     "c2.6b.3"
 )
 
-LDAP_HAB_SIMULATION_RUNTIME_JOBS_ENABLED = False
+LDAP_HAB_SIMULATION_RUNTIME_JOBS_ENABLED = True
 LDAP_HAB_SIMULATION_PRODUCTION_ENABLED = False
 LDAP_HAB_SIMULATION_AD_EXECUTION_ENABLED = False
 
@@ -54,6 +54,12 @@ def create_ldap_hab_simulation_job_record(
     if not isinstance(jobs_file, Path):
         raise LDAPHabSimulationPersistenceError(
             "jobs_file doit être un objet Path."
+        )
+
+    if not LDAP_HAB_SIMULATION_RUNTIME_JOBS_ENABLED:
+        raise LDAPHabSimulationPersistenceError(
+            "La création runtime HAB dédiée "
+            "est désactivée."
         )
 
     if not LDAP_HAB_SIMULATION_JOB_PERSISTENCE_ENABLED:
@@ -207,10 +213,10 @@ def assert_ldap_hab_simulation_persistence_invariants() -> None:
             "doit être activée."
         )
 
-    if LDAP_HAB_SIMULATION_RUNTIME_JOBS_ENABLED:
+    if not LDAP_HAB_SIMULATION_RUNTIME_JOBS_ENABLED:
         raise RuntimeError(
-            "La route runtime HAB doit rester "
-            "désactivée en B2B."
+            "La route runtime HAB dédiée doit être "
+            "activée en C2.7C."
         )
 
     if LDAP_HAB_SIMULATION_PRODUCTION_ENABLED:

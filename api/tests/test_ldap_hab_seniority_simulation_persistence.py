@@ -216,8 +216,8 @@ class LDAPHabSimulationPersistenceTests(
                 details,
             )
 
-    def test_runtime_and_public_paths_remain_closed(self):
-        self.assertFalse(
+    def test_dedicated_runtime_enabled_and_public_paths_closed(self):
+        self.assertTrue(
             LDAP_HAB_SIMULATION_RUNTIME_JOBS_ENABLED
         )
         self.assertFalse(

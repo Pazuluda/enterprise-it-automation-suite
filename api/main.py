@@ -139,6 +139,12 @@ from app.services.ldap_hab_seniority_simulation import (
     service_normalize_ldap_hab_simulation_request,
 )
 
+from app.services.ldap_hab_seniority_simulation_persistence import (
+    LDAPHabSimulationPersistenceError,
+    create_ldap_hab_simulation_job_record as
+    service_create_ldap_hab_simulation_job_record,
+)
+
 
 # PACK B2.4 — Dépendances RBAC du portail
 PORTAL_READ_ACCESS = require_roles(
@@ -916,6 +922,41 @@ def validate_ldap_hab_seniority_simulation_payload(
         ) from exc
 
     return request.to_dict()
+
+
+@app.post(
+    "/api/ad-explorer/ldap/"
+    "hab-seniority/jobs"
+)
+def create_ldap_hab_seniority_simulation_job_api(
+    payload: LDAPHabSenioritySimulationPayload,
+    api_key: None = Depends(AD_ACCESS),
+):
+    config = _eitas_agent_mode_load_config()
+
+    mode = _eitas_agent_mode_normalize(
+        config.get("mode")
+        or config.get("Mode")
+        or "Simulation"
+    )
+
+    try:
+        response, audit_event = (
+            service_create_ldap_hab_simulation_job_record(
+                AD_ADMIN_JOBS_FILE,
+                payload.model_dump(),
+                mode,
+            )
+        )
+    except LDAPHabSimulationPersistenceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    write_audit_log(**audit_event)
+
+    return response
 
 
 @app.post("/api/ad-explorer/ldap/update/validate")
