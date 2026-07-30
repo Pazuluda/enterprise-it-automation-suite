@@ -1,13 +1,15 @@
-function formatPreviewValue(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ''
-  ) {
-    return '—'
-  }
+import {
+  formatLdapTypedEditorValue,
+} from '../utils/ldapAttributeValueTypes.js'
 
-  return String(value)
+function formatPreviewValue(
+  value,
+  valueType = 'single_text'
+) {
+  return formatLdapTypedEditorValue(
+    valueType,
+    value
+  )
 }
 
 function getSimulationStatusLabel(job) {
@@ -154,6 +156,17 @@ function LdapAttributeEditor({
             entry.attribute_name ===
             'comment'
 
+            const valueType =
+              entry.value_type ||
+              'single_text'
+
+            const isBoolean =
+              valueType === 'boolean'
+
+            const isInteger =
+              valueType === 'integer32' ||
+              valueType === 'integer64'
+
           return (
             <article
               key={entry.attribute_name}
@@ -218,68 +231,152 @@ function LdapAttributeEditor({
               </label>
 
               <label>
-                <span>Valeur</span>
+                  <span>Valeur</span>
 
-                {isComment ? (
-                  <textarea
-                    value={entry.value}
-                    maxLength={
-                      entry.max_length
-                    }
-                    disabled={
-                      editor?.submitting ||
-                      !isSet
-                    }
-                    onChange={event =>
-                      editor.updateDraft(
-                        entry.attribute_name,
-                        {
-                          value:
-                            event.target.value,
-                        }
-                      )
-                    }
-                  />
-                ) : (
-                  <input
-                    type="text"
-                    value={entry.value}
-                    maxLength={
-                      entry.max_length
-                    }
-                    disabled={
-                      editor?.submitting ||
-                      !isSet
-                    }
-                    onChange={event =>
-                      editor.updateDraft(
-                        entry.attribute_name,
-                        {
-                          value:
-                            event.target.value,
-                        }
-                      )
-                    }
-                  />
-                )}
+                  {isBoolean ? (
+                    <select
+                      value={
+                        entry.value === true
+                          ? 'true'
+                          : entry.value === false
+                            ? 'false'
+                            : ''
+                      }
+                      disabled={
+                        editor?.submitting ||
+                        !isSet
+                      }
+                      onChange={event =>
+                        editor.updateDraft(
+                          entry.attribute_name,
+                          {
+                            value:
+                              event.target.value === ''
+                                ? ''
+                                : event.target.value ===
+                                    'true',
+                          }
+                        )
+                      }
+                    >
+                      <option value="">
+                        Sélectionner
+                      </option>
 
-                <small>
-                  {String(
-                    entry.value || ''
-                  ).length}
-                  {' / '}
-                  {entry.max_length}
-                  {' caractères'}
-                </small>
-              </label>
+                      <option value="true">
+                        Oui
+                      </option>
 
-              <div className="aduc-ldap-editor-current">
+                      <option value="false">
+                        Non
+                      </option>
+                    </select>
+                  ) : isInteger ? (
+                    <input
+                      type="number"
+                      step="1"
+                      value={entry.value ?? ''}
+                      min={
+                        entry.min_value ??
+                        undefined
+                      }
+                      max={
+                        entry.max_value ??
+                        undefined
+                      }
+                      disabled={
+                        editor?.submitting ||
+                        !isSet
+                      }
+                      onChange={event =>
+                        editor.updateDraft(
+                          entry.attribute_name,
+                          {
+                            value:
+                              event.target.value,
+                          }
+                        )
+                      }
+                    />
+                  ) : isComment ? (
+                    <textarea
+                      value={entry.value}
+                      maxLength={
+                        entry.max_length
+                      }
+                      disabled={
+                        editor?.submitting ||
+                        !isSet
+                      }
+                      onChange={event =>
+                        editor.updateDraft(
+                          entry.attribute_name,
+                          {
+                            value:
+                              event.target.value,
+                          }
+                        )
+                      }
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={entry.value}
+                      maxLength={
+                        entry.max_length
+                      }
+                      disabled={
+                        editor?.submitting ||
+                        !isSet
+                      }
+                      onChange={event =>
+                        editor.updateDraft(
+                          entry.attribute_name,
+                          {
+                            value:
+                              event.target.value,
+                          }
+                        )
+                      }
+                    />
+                  )}
+
+                  {valueType === 'single_text' ? (
+                    <small>
+                      {String(
+                        entry.value || ''
+                      ).length}
+                      {' / '}
+                      {entry.max_length}
+                      {' caractères'}
+                    </small>
+                  ) : isBoolean ? (
+                    <small>
+                      Valeur booléenne : Oui ou Non
+                    </small>
+                  ) : (
+                    <small>
+                      Entier
+                      {entry.min_value !== null &&
+                      entry.min_value !== undefined
+                        ? ` · minimum ${entry.min_value}`
+                        : ''}
+                      {entry.max_value !== null &&
+                      entry.max_value !== undefined
+                        ? ` · maximum ${entry.max_value}`
+                        : ''}
+                    </small>
+                  )}
+                </label>
+
+                <div className="aduc-ldap-editor-current">
                 <span>Valeur actuelle</span>
 
                 <strong>
                   {formatPreviewValue(
-                    entry.original_value
-                  )}
+                      entry.original_value,
+                      valueType
+                    )}
                 </strong>
               </div>
             </article>
@@ -317,16 +414,18 @@ function LdapAttributeEditor({
 
                 <span>
                   {formatPreviewValue(
-                    row.before
-                  )}
+                      row.before,
+                      row.value_type
+                    )}
                 </span>
 
                 <b aria-hidden="true">→</b>
 
                 <span>
                   {formatPreviewValue(
-                    row.after
-                  )}
+                      row.after,
+                      row.value_type
+                    )}
                 </span>
               </article>
             ))}

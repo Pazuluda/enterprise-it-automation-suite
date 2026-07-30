@@ -1,3 +1,8 @@
+import {
+  normalizeLdapTypedEditorValue,
+  parseLdapTypedInputValue,
+} from './ldapAttributeValueTypes.js'
+
 const LDAP_ATTRIBUTE_UPDATE_ACTION =
   'update_ldap_attributes'
 
@@ -7,6 +12,7 @@ const LDAP_ATTRIBUTE_EDITOR_DEFINITIONS =
   Object.freeze([
     Object.freeze({
       name: 'employeeType',
+      valueType: 'single_text',
       label: 'Type d’employé',
       objectClasses: Object.freeze([
         'user',
@@ -20,6 +26,7 @@ const LDAP_ATTRIBUTE_EDITOR_DEFINITIONS =
     }),
     Object.freeze({
       name: 'preferredLanguage',
+      valueType: 'single_text',
       label: 'Langue préférée',
       objectClasses: Object.freeze([
         'user',
@@ -33,6 +40,7 @@ const LDAP_ATTRIBUTE_EDITOR_DEFINITIONS =
     }),
     Object.freeze({
       name: 'personalTitle',
+      valueType: 'single_text',
       label: 'Titre personnel',
       objectClasses: Object.freeze([
         'user',
@@ -47,6 +55,7 @@ const LDAP_ATTRIBUTE_EDITOR_DEFINITIONS =
     }),
     Object.freeze({
       name: 'middleName',
+      valueType: 'single_text',
       label: 'Deuxième prénom',
       objectClasses: Object.freeze([
         'user',
@@ -61,6 +70,7 @@ const LDAP_ATTRIBUTE_EDITOR_DEFINITIONS =
     }),
     Object.freeze({
       name: 'comment',
+      valueType: 'single_text',
       label: 'Commentaire LDAP',
       objectClasses: Object.freeze([
         'user',
@@ -83,6 +93,70 @@ const LDAP_ATTRIBUTE_DEFINITION_BY_NAME =
       ]
     )
   )
+
+function getLdapEditorDefinitionValueType(
+  definition
+) {
+  return definition?.valueType ||
+    definition?.value_type ||
+    'single_text'
+}
+
+function normalizeLdapEditorValueForDefinition(
+  definition,
+  rawValue
+) {
+  const valueType =
+    getLdapEditorDefinitionValueType(
+      definition
+    )
+
+  const parsedValue =
+    parseLdapTypedInputValue(
+      valueType,
+      rawValue
+    )
+
+  return normalizeLdapTypedEditorValue({
+    valueType,
+    value: parsedValue,
+    minLength:
+      definition?.minLength ?? 0,
+    maxLength:
+      definition?.maxLength ?? null,
+    minValue:
+      definition?.minValue ?? null,
+    maxValue:
+      definition?.maxValue ?? null,
+  })
+}
+
+function readLdapEditorValueForDefinition(
+  definition,
+  rawValue
+) {
+  if (
+    rawValue === null ||
+    rawValue === undefined ||
+    rawValue === ''
+  ) {
+    return ''
+  }
+
+  const valueType =
+    getLdapEditorDefinitionValueType(
+      definition
+    )
+
+  if (valueType === 'single_text') {
+    return String(rawValue)
+  }
+
+  return parseLdapTypedInputValue(
+    valueType,
+    rawValue
+  )
+}
 
 function normalizeClassValues(value) {
   const source = Array.isArray(value)
@@ -173,14 +247,17 @@ function getLdapEditorCurrentValue(
 
     if (Array.isArray(value)) {
       return value.length > 0
-        ? String(value[0] ?? '')
+        ? readLdapEditorValueForDefinition(
+            definition,
+            value[0]
+          )
         : ''
     }
 
-    return value === null ||
-      value === undefined
-      ? ''
-      : String(value)
+    return readLdapEditorValueForDefinition(
+      definition,
+      value
+    )
   }
 
   return ''
@@ -237,44 +314,80 @@ function normalizeLdapEditorChange(
     }
   }
 
-  if (typeof change?.value !== 'string') {
-    throw new Error(
-      `${definition.label} doit être une chaîne de caractères.`
+  const valueType =
+    getLdapEditorDefinitionValueType(
+      definition
     )
-  }
 
-  const value = change.value.trim()
+  let value
 
-  if (!value) {
-    throw new Error(
-      `${definition.label} ne peut pas être vide avec l’opération set.`
-    )
-  }
+  if (valueType === 'single_text') {
+    if (typeof change?.value !== 'string') {
+      throw new Error(
+        `${definition.label} doit être une chaîne de caractères.`
+      )
+    }
 
-  const hasForbiddenControlCharacter =
-    value.includes(String.fromCharCode(0)) ||
-    value.includes('\r') ||
-    value.includes('\n')
+    const textValue = change.value.trim()
 
-  if (hasForbiddenControlCharacter) {
-    throw new Error(
-      `${definition.label} contient un caractère interdit.`
-    )
-  }
+    if (!textValue) {
+      throw new Error(
+        `${definition.label} ne peut pas être vide avec l’opération set.`
+      )
+    }
 
-  if (
-    definition.minLength > 0 &&
-    value.length < definition.minLength
-  ) {
-    throw new Error(
-      `${definition.label} est trop court.`
-    )
-  }
+    const hasForbiddenControlCharacter =
+      textValue.includes(
+        String.fromCharCode(0)
+      ) ||
+      textValue.includes('\r') ||
+      textValue.includes('\n')
 
-  if (value.length > definition.maxLength) {
-    throw new Error(
-      `${definition.label} dépasse ${definition.maxLength} caractères.`
-    )
+    if (hasForbiddenControlCharacter) {
+      throw new Error(
+        `${definition.label} contient un caractère interdit.`
+      )
+    }
+
+    if (
+      definition.minLength > 0 &&
+      textValue.length <
+        definition.minLength
+    ) {
+      throw new Error(
+        `${definition.label} est trop court.`
+      )
+    }
+
+    if (
+      textValue.length >
+      definition.maxLength
+    ) {
+      throw new Error(
+        `${definition.label} dépasse ${definition.maxLength} caractères.`
+      )
+    }
+
+    value =
+      normalizeLdapEditorValueForDefinition(
+        definition,
+        textValue
+      )
+  } else {
+    try {
+      value =
+        normalizeLdapEditorValueForDefinition(
+          definition,
+          change?.value
+        )
+    } catch (error) {
+      throw new Error(
+        `${definition.label} : ${
+          error?.message ||
+          'valeur LDAP invalide.'
+        }`
+      )
+    }
   }
 
   return {
@@ -381,8 +494,18 @@ function createLdapAttributeEditorDraft(object) {
         operation: 'unchanged',
         value: originalValue,
         original_value: originalValue,
-        min_length: definition.minLength,
-        max_length: definition.maxLength,
+        value_type:
+          getLdapEditorDefinitionValueType(
+            definition
+          ),
+        min_length:
+          definition.minLength,
+        max_length:
+          definition.maxLength,
+        min_value:
+          definition.minValue ?? null,
+        max_value:
+          definition.maxValue ?? null,
       }
     })
 }
@@ -451,8 +574,8 @@ function updateLdapAttributeEditorDraft(
       patch || {},
       'value'
     )
-      ? String(patch.value ?? '')
-      : String(entry.value ?? '')
+      ? patch.value ?? ''
+      : entry.value ?? ''
 
     return {
       ...entry,
@@ -498,7 +621,7 @@ function buildLdapAttributeEditorChanges(
         value:
           operation === 'clear'
             ? null
-            : String(entry.value ?? ''),
+            : entry.value ?? '',
       }
     })
 }
@@ -547,6 +670,9 @@ function buildLdapAttributeEditorPreview({
           change.attribute_name,
         operation:
           change.operation,
+        value_type:
+          entry?.value_type ||
+          'single_text',
         before:
           entry?.original_value ?? '',
         after:
@@ -564,6 +690,7 @@ function buildLdapAttributeEditorPreview({
   }
 }
 
+
 export {
   LDAP_ATTRIBUTE_EDITOR_DEFINITIONS,
   LDAP_ATTRIBUTE_UPDATE_ACTION,
@@ -574,8 +701,11 @@ export {
   createLdapAttributeEditorDraft,
   getLdapAttributeEditorChangeCount,
   getLdapEditorCurrentValue,
+  getLdapEditorDefinitionValueType,
   getLdapEditorDefinitions,
   normalizeLdapEditorChange,
   normalizeLdapEditorObjectClass,
+  normalizeLdapEditorValueForDefinition,
+  readLdapEditorValueForDefinition,
   updateLdapAttributeEditorDraft,
 }

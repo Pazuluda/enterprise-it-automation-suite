@@ -440,6 +440,7 @@ test(
         label:
           'Type d’employé',
         operation: 'set',
+        value_type: 'single_text',
         before: 'Interne',
         after: 'Externe',
       }
