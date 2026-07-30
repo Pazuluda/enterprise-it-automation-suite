@@ -27,10 +27,12 @@ class LDAPReviewedCandidate:
     clearable: bool
     property_sets: tuple[str, ...]
     required_roles: frozenset[str]
+    minimum_value: int | None = None
+    maximum_value: int | None = None
     write_authorized: bool = False
 
     def to_dict(self) -> dict:
-        return {
+        payload = {
             "name": self.name,
             "value_type": self.value_type,
             "allowed_object_classes": sorted(
@@ -48,6 +50,18 @@ class LDAPReviewedCandidate:
             "write_authorized": self.write_authorized,
             "status": LDAP_REVIEWED_CANDIDATE_STATUS,
         }
+
+        if self.minimum_value is not None:
+            payload["minimum_value"] = (
+                self.minimum_value
+            )
+
+        if self.maximum_value is not None:
+            payload["maximum_value"] = (
+                self.maximum_value
+            )
+
+        return payload
 
 
 _REQUIRED_ROLES = frozenset({"ADAdmin", "UltraAdmin"})
@@ -196,20 +210,69 @@ def assert_reviewed_candidate_invariants() -> None:
                 f"Roles incoherents pour {name!r}."
             )
 
-        if candidate.value_type != "single_text":
+        supported_value_types = {
+            "single_text",
+            "boolean",
+            "integer32",
+            "integer64",
+        }
+
+        if candidate.value_type not in supported_value_types:
             raise RuntimeError(
                 f"Type non controle pour {name!r}."
             )
 
-        if candidate.minimum_length < 0:
-            raise RuntimeError(
-                f"Longueur minimale negative pour {name!r}."
-            )
+        if candidate.value_type == "single_text":
+            if candidate.minimum_length < 0:
+                raise RuntimeError(
+                    f"Longueur minimale negative pour {name!r}."
+                )
 
-        if candidate.maximum_length < candidate.minimum_length:
-            raise RuntimeError(
-                f"Bornes incoherentes pour {name!r}."
-            )
+            if (
+                candidate.maximum_length
+                < candidate.minimum_length
+            ):
+                raise RuntimeError(
+                    f"Bornes texte incoherentes pour {name!r}."
+                )
+
+            if (
+                candidate.minimum_value is not None
+                or candidate.maximum_value is not None
+            ):
+                raise RuntimeError(
+                    f"Bornes numeriques interdites pour {name!r}."
+                )
+
+        elif candidate.value_type == "boolean":
+            if (
+                candidate.minimum_length != 0
+                or candidate.maximum_length != 0
+                or candidate.minimum_value is not None
+                or candidate.maximum_value is not None
+            ):
+                raise RuntimeError(
+                    f"Metadonnees booleennes incoherentes pour {name!r}."
+                )
+
+        else:
+            if (
+                candidate.minimum_length != 0
+                or candidate.maximum_length != 0
+            ):
+                raise RuntimeError(
+                    f"Longueurs interdites pour {name!r}."
+                )
+
+            if (
+                candidate.minimum_value is None
+                or candidate.maximum_value is None
+                or candidate.maximum_value
+                < candidate.minimum_value
+            ):
+                raise RuntimeError(
+                    f"Bornes numeriques incoherentes pour {name!r}."
+                )
 
         if name in C1_VISIBLE_CANONICAL_PROPERTIES:
             raise RuntimeError(

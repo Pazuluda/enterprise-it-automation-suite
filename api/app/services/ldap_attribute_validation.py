@@ -6,9 +6,12 @@ from app.services.ldap_attribute_candidates import (
     LDAP_REVIEWED_CANDIDATES_AUTHORIZE_WRITES,
     get_reviewed_ldap_candidate,
 )
+from app.services.ldap_attribute_value_types import (
+    normalize_ldap_typed_value,
+)
 
 
-LDAP_ATTRIBUTE_VALIDATION_CONTRACT_VERSION = "c2.3b.1"
+LDAP_ATTRIBUTE_VALIDATION_CONTRACT_VERSION = "c2.5c.1"
 LDAP_ATTRIBUTE_VALIDATION_WRITES_ENABLED = False
 _ALLOWED_OPERATIONS = frozenset({"set", "clear"})
 
@@ -22,10 +25,12 @@ class LDAPAttributeValidationDecision:
     normalized_attribute_name: str | None
     normalized_object_class: str | None
     normalized_operation: str | None
-    normalized_value: str | None
+    normalized_value: str | int | bool | None
     value_type: str | None
     minimum_length: int | None
     maximum_length: int | None
+    minimum_value: int | None
+    maximum_value: int | None
     clearable: bool | None
     required_roles: tuple[str, ...]
     errors: tuple[dict[str, str], ...]
@@ -34,6 +39,13 @@ class LDAPAttributeValidationDecision:
         payload = asdict(self)
         payload["required_roles"] = list(self.required_roles)
         payload["errors"] = [dict(item) for item in self.errors]
+
+        if self.minimum_value is None:
+            payload.pop("minimum_value", None)
+
+        if self.maximum_value is None:
+            payload.pop("maximum_value", None)
+
         return payload
 
 
@@ -60,7 +72,7 @@ def validate_reviewed_ldap_attribute_request(
         if isinstance(operation, str) and operation.strip()
         else None
     )
-    normalized_value: str | None = None
+    normalized_value: str | int | bool | None = None
 
     if candidate is None:
         errors.append(_error("unknown_attribute", "Attribut LDAP non controle."))
@@ -78,33 +90,39 @@ def validate_reviewed_ldap_attribute_request(
     if normalized_operation not in _ALLOWED_OPERATIONS:
         errors.append(_error("invalid_operation", "Operation attendue: set ou clear."))
     elif normalized_operation == "set":
-        if not isinstance(value, str):
-            errors.append(_error("invalid_value_type", "Valeur texte obligatoire."))
-        else:
-            normalized_value = value.strip()
+        if candidate:
+            result = normalize_ldap_typed_value(
+                value_type=candidate.value_type,
+                value=value,
+                minimum_length=candidate.minimum_length,
+                maximum_length=candidate.maximum_length,
+                minimum_value=getattr(
+                    candidate,
+                    "minimum_value",
+                    None,
+                ),
+                maximum_value=getattr(
+                    candidate,
+                    "maximum_value",
+                    None,
+                ),
+            )
 
-            if not normalized_value:
-                errors.append(
-                    _error(
-                        "empty_set_value",
-                        "Une valeur vide doit utiliser l'operation clear.",
-                    )
+            normalized_value = (
+                result.normalized_value
+            )
+
+            errors.extend(
+                result.errors
+            )
+
+        elif not isinstance(value, str):
+            errors.append(
+                _error(
+                    "invalid_value_type",
+                    "Valeur texte obligatoire.",
                 )
-            elif any(char in normalized_value for char in ("\x00", "\r", "\n")):
-                errors.append(
-                    _error(
-                        "forbidden_control_character",
-                        "Caractere de controle interdit.",
-                    )
-                )
-            elif candidate:
-                length = len(normalized_value)
-
-                if length < candidate.minimum_length:
-                    errors.append(_error("value_too_short", "Valeur trop courte."))
-
-                if length > candidate.maximum_length:
-                    errors.append(_error("value_too_long", "Valeur trop longue."))
+            )
     elif normalized_operation == "clear":
         if candidate and not candidate.clearable:
             errors.append(
@@ -131,6 +149,16 @@ def validate_reviewed_ldap_attribute_request(
         value_type=candidate.value_type if candidate else None,
         minimum_length=candidate.minimum_length if candidate else None,
         maximum_length=candidate.maximum_length if candidate else None,
+        minimum_value=(
+            getattr(candidate, "minimum_value", None)
+            if candidate
+            else None
+        ),
+        maximum_value=(
+            getattr(candidate, "maximum_value", None)
+            if candidate
+            else None
+        ),
         clearable=candidate.clearable if candidate else None,
         required_roles=(
             tuple(sorted(candidate.required_roles, key=str.casefold))

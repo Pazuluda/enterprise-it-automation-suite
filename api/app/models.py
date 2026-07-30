@@ -60,13 +60,13 @@ class LDAPAttributeValidationPayload(BaseModel):
     attribute_name: str
     object_class: str
     operation: str
-    value: str | None = None
+    value: bool | int | str | None = None
 
 
 class LDAPAttributeUpdateChangePayload(BaseModel):
     attribute_name: str
     operation: str
-    value: str | None = None
+    value: bool | int | str | None = None
 
 
 class LDAPAttributeUpdateValidationPayload(BaseModel):
