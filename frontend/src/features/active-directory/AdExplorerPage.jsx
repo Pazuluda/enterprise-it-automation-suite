@@ -66,6 +66,12 @@ import {
   sortCreateUserOuOptions,
 } from './utils/adCreationOptions'
 
+import {
+  buildAdUserDetailsJobPayload,
+  extractAdUserDetails,
+  mergeAdUserDetails,
+} from './utils/adUserDetails'
+
 export default function AdExplorerPage({ apiFetch, setMessage }) {
   const [treeItems, setTreeItems] = useState([])
   const [viewItems, setViewItems] = useState([])
@@ -449,6 +455,70 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
     throw new Error('Timeout : l’agent Windows n’a pas répondu.')
   }
+
+  async function runAdUserDetailsJob(target) {
+    const payload =
+      buildAdUserDetailsJobPayload(target)
+
+    if (!payload) {
+      return null
+    }
+
+    const created = await apiFetch('/api/ad-explorer/jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+
+    const jobId = created?.job?.id
+
+    if (!jobId) {
+      throw new Error(
+        'Job de détails utilisateur invalide.'
+      )
+    }
+
+    for (
+      let attempt = 0;
+      attempt < 45;
+      attempt += 1
+    ) {
+      const job = await apiFetch(
+        `/api/ad-explorer/jobs/${jobId}`
+      )
+
+      if (
+        job.status === 'completed'
+        || job.status === 'failed'
+      ) {
+        if (!job.success) {
+          throw new Error(
+            job.message
+            || 'Lecture détaillée utilisateur impossible.'
+          )
+        }
+
+        const details =
+          extractAdUserDetails(job)
+
+        if (!details) {
+          throw new Error(
+            'Réponse utilisateur détaillée invalide.'
+          )
+        }
+
+        return details
+      }
+
+      await new Promise(resolve =>
+        setTimeout(resolve, 450)
+      )
+    }
+
+    throw new Error(
+      'Timeout : l’agent Windows n’a pas répondu.'
+    )
+  }
+
 
   async function loadTree(options = {}) {
     const snapshotOus =
@@ -1413,8 +1483,23 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       return
     }
 
-    setSelectedObject(target)
-    setPropertiesModal(target)
+    let resolvedTarget = target
+
+    try {
+      const details =
+        await runAdUserDetailsJob(target)
+
+      resolvedTarget =
+        mergeAdUserDetails(target, details)
+    } catch (error) {
+      setStatus(
+        error.message
+        || 'Lecture détaillée utilisateur impossible.'
+      )
+    }
+
+    setSelectedObject(resolvedTarget)
+    setPropertiesModal(resolvedTarget)
   }
 
 

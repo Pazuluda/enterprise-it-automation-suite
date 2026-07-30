@@ -11,6 +11,7 @@ function IdentityRow({ label, value }) {
 
 export default function SettingsPage({
   authIdentity,
+  canManageSecurity,
   apiStatus,
   testApi,
   refreshSession,
@@ -95,6 +96,32 @@ export default function SettingsPage({
           >
             Se réauthentifier
           </button>
+
+          <button
+            type="button"
+            className="auth-secondary-button"
+            onClick={() => window.open(
+              '/auth/realms/eitas/account/',
+              '_blank',
+              'noopener,noreferrer'
+            )}
+          >
+            Mon compte EITAS Identity
+          </button>
+
+          {canManageSecurity && (
+            <button
+              type="button"
+              className="auth-secondary-button"
+              onClick={() => window.open(
+                '/auth/admin/master/console/#/eitas',
+                '_blank',
+                'noopener,noreferrer'
+              )}
+            >
+              Administrer EITAS Identity
+            </button>
+          )}
 
           <button
             type="button"

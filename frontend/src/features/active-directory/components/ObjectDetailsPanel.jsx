@@ -177,6 +177,23 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
   }
 
 
+  function getHabSeniorityIndexLabel() {
+    const value =
+      displayed?.hab_seniority_index
+      ?? displayed?.msDS_HABSeniorityIndex
+      ?? displayed?.['msDS-HABSeniorityIndex']
+
+    if (
+      value === null
+      || value === undefined
+      || String(value).trim() === ''
+    ) {
+      return 'Non défini'
+    }
+
+    return String(value)
+  }
+
   const generalRows = rows.length ? rows.map(row => [row.label, row.value, row.long]) : [
     ['Nom', objectName],
     ['Type', type],
@@ -329,6 +346,12 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     ['État du compte', getAccountStatus()],
     ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
     ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])],
+    ...(isUser
+      ? [[
+          'Index de hiérarchie HAB',
+          getHabSeniorityIndexLabel(),
+        ]]
+      : []),
     ['Activé', boolLabel(pickAdField(['enabled', 'Enabled']))],
     ['Verrouillé', boolLabel(pickAdField(['locked_out', 'lockedOut', 'LockedOut']))],
     ['Mot de passe expiré', boolLabel(pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired']))],

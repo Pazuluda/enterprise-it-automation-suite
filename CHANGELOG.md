@@ -11,9 +11,19 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 - route dédiée protégée par OIDC et RBAC ;
 - type `integer32` préservé jusqu’au worker Windows ;
 - aperçu Active Directory calculé sans écriture ;
-- Production, frontend HAB et écriture AD toujours désactivés ;
-- préversions `v0.2.0-alpha.13` et `v0.2.0-alpha.14` publiées ;
-- synchronisation documentaire en cours pour `v0.2.0-alpha.15`.
+- lookup utilisateur détaillé `get_user` étendu en lecture seule ;
+- valeur HAB sérialisée sous forme d’un `integer32` nullable ;
+- frontend HAB déployé dans l’onglet Compte des utilisateurs ;
+- valeur absente présentée sous la forme `Non défini` ;
+- catalogue du domaine et snapshot générique toujours sans exposition HAB ;
+- aucun contrôle frontend d’écriture HAB ;
+- aucune commande `Set-AD*` ajoutée au chemin de lecture ;
+- toute écriture Active Directory et toute écriture HAB en Production restent désactivées ;
+- accès Compte et Administration EITAS Identity restaurés dans le portail ;
+- accès d’administration Identity limité à `SecurityAdmin` et `UltraAdmin` ;
+- 6 tests backend HAB ciblés et 202 tests backend complets validés ;
+- tests frontend ciblés HAB et Identity, lint et build validés ;
+- préversion `v0.2.0-alpha.16` préparée.
 
 ## [0.1.0] — 2026-07-28
 

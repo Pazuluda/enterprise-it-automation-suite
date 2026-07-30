@@ -106,6 +106,28 @@ function Convert-EitasAdBoolValue {
     return $Value
 }
 
+function Convert-EitasAdNullableInt32 {
+    param([object]$Value)
+
+    if (
+        $null -eq $Value -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$Value
+        )
+    ) {
+        return $null
+    }
+
+    try {
+        return [Convert]::ToInt32($Value)
+    }
+    catch {
+        throw (
+            "Valeur Integer32 Active Directory invalide"
+        )
+    }
+}
+
 function Convert-EitasAdUserItem {
     param([object]$User)
 
@@ -143,6 +165,7 @@ function Convert-EitasAdUserItem {
         employee_id = $User.employeeID
         employee_number = $User.employeeNumber
         division = $User.division
+        hab_seniority_index = Convert-EitasAdNullableInt32 -Value $User.'msDS-HABSeniorityIndex'
         member_of = @($User.MemberOf)
         object_guid = "$($User.ObjectGUID)"
         sid = if ($User.SID) { $User.SID.Value } else { $null }
@@ -1199,13 +1222,13 @@ function Invoke-EitasAdExplorerGetUser {
 
     Import-EitasActiveDirectoryModule | Out-Null
 
-    $Identity = Get-EitasLookupValue -Object $Payload -Names @("identity", "dn", "distinguished_name", "sam_account_name", "samAccountName", "upn")
+    $Identity = Get-EitasLookupValue -Object $Payload -Names @("identity", "query", "dn", "distinguished_name", "sam_account_name", "samAccountName", "upn")
 
     if ([string]::IsNullOrWhiteSpace($Identity)) {
         throw "Identité utilisateur manquante"
     }
 
-    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division -ErrorAction Stop
+    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $User.DistinguishedName -Config $Config | Out-Null
 

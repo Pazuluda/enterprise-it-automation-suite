@@ -4331,6 +4331,7 @@ Write-Host "============================================================"
           {page === 'settings' && (
             <SettingsPage
               authIdentity={authIdentity}
+              canManageSecurity={canManageSecurity}
               apiStatus={apiStatus}
               testApi={testApi}
               refreshSession={refreshSession}
@@ -4953,6 +4954,30 @@ function OverviewPage({
             {canAccessPage('audit', userRoles) && (
               <button onClick={() => setPage('audit')}>
                 Consulter les audits
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => window.open(
+                '/auth/realms/eitas/account/',
+                '_blank',
+                'noopener,noreferrer'
+              )}
+            >
+              Mon compte EITAS Identity
+            </button>
+
+            {canManageSecurity && (
+              <button
+                type="button"
+                onClick={() => window.open(
+                  '/auth/admin/master/console/#/eitas',
+                  '_blank',
+                  'noopener,noreferrer'
+                )}
+              >
+                Administrer EITAS Identity
               </button>
             )}
 
