@@ -3475,14 +3475,127 @@ param(
         }
 
         $AfterValue = $null
+        $ValueType = [string]$Change.value_type
+
+        if ([string]::IsNullOrWhiteSpace($ValueType)) {
+            $ValueType = "single_text"
+        }
 
         if ($Change.operation -eq "set") {
-            $AfterValue = [string]$Change.value
+            switch ($ValueType) {
+                "single_text" {
+                    if ($Change.value -isnot [string]) {
+                        throw (
+                            "Valeur LDAP single_text invalide pour " +
+                            $AttributeName
+                        )
+                    }
+
+                    $AfterValue = $Change.value
+                }
+
+                "boolean" {
+                    if ($Change.value -isnot [bool]) {
+                        throw (
+                            "Valeur LDAP boolean invalide pour " +
+                            $AttributeName
+                        )
+                    }
+
+                    $AfterValue = [bool]$Change.value
+                }
+
+                "integer32" {
+                    $IsIntegerValue = (
+                        $Change.value -is [byte] -or
+                        $Change.value -is [sbyte] -or
+                        $Change.value -is [int16] -or
+                        $Change.value -is [uint16] -or
+                        $Change.value -is [int32] -or
+                        $Change.value -is [uint32] -or
+                        $Change.value -is [int64] -or
+                        $Change.value -is [uint64]
+                    )
+
+                    if (-not $IsIntegerValue) {
+                        throw (
+                            "Valeur LDAP integer32 invalide pour " +
+                            $AttributeName
+                        )
+                    }
+
+                    try {
+                        $AfterValue = [Convert]::ToInt32(
+                            $Change.value
+                        )
+                    }
+                    catch {
+                        throw (
+                            "Valeur LDAP integer32 hors limites pour " +
+                            $AttributeName
+                        )
+                    }
+                }
+
+                "integer64" {
+                    $IsIntegerValue = (
+                        $Change.value -is [byte] -or
+                        $Change.value -is [sbyte] -or
+                        $Change.value -is [int16] -or
+                        $Change.value -is [uint16] -or
+                        $Change.value -is [int32] -or
+                        $Change.value -is [uint32] -or
+                        $Change.value -is [int64] -or
+                        $Change.value -is [uint64]
+                    )
+
+                    if (-not $IsIntegerValue) {
+                        throw (
+                            "Valeur LDAP integer64 invalide pour " +
+                            $AttributeName
+                        )
+                    }
+
+                    try {
+                        $AfterValue = [Convert]::ToInt64(
+                            $Change.value
+                        )
+                    }
+                    catch {
+                        throw (
+                            "Valeur LDAP integer64 hors limites pour " +
+                            $AttributeName
+                        )
+                    }
+                }
+
+                default {
+                    throw (
+                        "Type de valeur LDAP inconnu : " +
+                        $ValueType
+                    )
+                }
+            }
+        }
+        elseif ($Change.operation -eq "clear") {
+            if ($null -ne $Change.value) {
+                throw (
+                    "Une suppression LDAP ne doit pas " +
+                    "contenir de valeur"
+                )
+            }
+        }
+        else {
+            throw (
+                "Opération LDAP non prise en charge : " +
+                [string]$Change.operation
+            )
         }
 
         $Preview += [pscustomobject]@{
             attribute_name = $AttributeName
             operation = [string]$Change.operation
+            value_type = $ValueType
             before = $BeforeValue
             after = $AfterValue
         }
