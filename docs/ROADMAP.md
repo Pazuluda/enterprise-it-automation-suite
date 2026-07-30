@@ -10,12 +10,22 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
+## État courant — v0.2.0-alpha.15
+
+| Indicateur | Avancement |
+|---|---:|
+| C2 — Éditeur d’attributs LDAP | 92 % |
+| Explorateur Active Directory complet | 64 % |
+| Projet EITAS global | 85 % |
+
+Le pipeline LDAP HAB typé et les jobs runtime en Simulation sont validés. Le frontend HAB, la Production et toute écriture Active Directory restent fermés.
+
 ## Roadmap de l'Explorateur Active Directory
 
 | Chantier | Objectif | Version cible | État |
 |---|---|---:|---|
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
-| C2 | Éditeur d'attributs LDAP | `v0.2.0` | À démarrer |
+| C2 | Éditeur d'attributs LDAP | `v0.2.0` | En cours — 92 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Planifié |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Planifié |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
@@ -31,7 +41,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 
 Objectif : fournir un éditeur d'attributs LDAP contrôlé, auditable et sécurisé.
 
-Le périmètre détaillé sera établi dans une issue GitHub avant toute modification de code.
+Le chantier est en cours. Le pipeline LDAP HAB typé et les jobs runtime en Simulation sont validés. Le frontend HAB, la Production et toute écriture Active Directory restent fermés. Les 8 % restants de C2 seront traités dans des lots séparés et validés formellement.
 
 ## Version v1.0.0
 

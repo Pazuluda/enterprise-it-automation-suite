@@ -4,11 +4,16 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
-### Prévu
+### C2 — Éditeur d’attributs LDAP
 
-- démarrage de C2 — Éditeur d'attributs LDAP ;
-- suivi GitHub de la version `v0.2.0` ;
-- préversions `v0.2.0-alpha.N` pendant le développement de C2.
+- pipeline LDAP HAB typé validé ;
+- jobs HAB runtime dédiés disponibles uniquement en Simulation ;
+- route dédiée protégée par OIDC et RBAC ;
+- type `integer32` préservé jusqu’au worker Windows ;
+- aperçu Active Directory calculé sans écriture ;
+- Production, frontend HAB et écriture AD toujours désactivés ;
+- préversions `v0.2.0-alpha.13` et `v0.2.0-alpha.14` publiées ;
+- synchronisation documentaire en cours pour `v0.2.0-alpha.15`.
 
 ## [0.1.0] — 2026-07-28
 

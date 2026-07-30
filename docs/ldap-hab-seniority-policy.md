@@ -40,31 +40,37 @@ La politique contrôlée retient les règles suivantes :
 - repli alphabétique lorsque la priorité ne départage pas les objets ;
 - rôles prévus : `ADAdmin` et `UltraAdmin`.
 
-## État de sécurité
+## État de sécurité actuel
 
-L’intégration reste volontairement dormante :
+L’intégration HAB est active uniquement dans un chemin runtime dédié en Simulation :
 
-- candidat absent du registre LDAP public ;
-- attribut absent du frontend ;
-- validation publique indisponible ;
-- autorisation d’écriture désactivée ;
-- création de job désactivée ;
+- candidat toujours absent du registre LDAP public ;
+- attribut toujours absent du frontend ;
+- validation publique générique indisponible ;
+- création de job autorisée uniquement par la route HAB dédiée ;
+- accès réservé aux rôles `ADAdmin` et `UltraAdmin` ;
+- valeur conservée strictement au format `integer32` ;
 - exécution en Production désactivée ;
-- action absente du registre générique AD Admin.
+- autorisation d’écriture Active Directory désactivée ;
+- handler Windows limité à la génération d’un aperçu ;
+- aucune commande `Set-AD*` dans le handler dédié ;
+- action absente du registre générique AD Admin ;
+- valeurs brutes exclues des métadonnées d’audit ;
+- Simulation réelle validée avec un état Active Directory identique avant et après.
 
-Le catalogue du schéma et les métadonnées de candidat ne constituent jamais une autorisation.
+Le catalogue du schéma, la présence dans une allowlist de Simulation et les métadonnées de candidat ne constituent jamais une autorisation d’écriture.
 
-## Conditions avant une activation future
+## Conditions avant toute activation en Production
 
-Une activation nécessiterait au minimum :
+Une activation en Production nécessiterait au minimum :
 
-1. une décision explicite d’exposition du candidat ;
-2. des tests de visibilité selon les rôles ;
-3. une validation complète du payload frontend et backend ;
-4. une simulation réelle sans écriture ;
-5. une vérification de l’audit sans conservation des valeurs ;
-6. une autorisation distincte pour chaque niveau d’exécution ;
-7. une validation séparée avant toute écriture Active Directory réelle.
+1. une décision explicite et documentée ;
+2. une exposition frontend contrôlée et validée selon les rôles ;
+3. une autorisation Production distincte du chemin Simulation ;
+4. un handler Windows d’écriture séparé et explicitement audité ;
+5. une stratégie de sauvegarde, de restauration et de retour arrière ;
+6. un test réel contrôlé avec restauration de la valeur initiale ;
+7. une nouvelle revue de sécurité et d’audit avant activation.
 
 ## Données d’environnement
 
