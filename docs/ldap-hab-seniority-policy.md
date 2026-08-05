@@ -4,7 +4,7 @@
 
 Cette décision décrit la politique EITAS prévue pour l’attribut Active Directory `msDS-HABSeniorityIndex`.
 
-L’attribut permet de représenter un niveau de priorité dans une liste d’adresses hiérarchique. Sa valeur actuelle peut être consultée en lecture seule dans les propriétés des utilisateurs. Cette politique ne constitue aucune autorisation d’écriture et n’active aucun éditeur HAB.
+L’attribut permet de représenter un niveau de priorité dans une liste d’adresses hiérarchique. Sa valeur actuelle peut être consultée en lecture seule dans les propriétés des utilisateurs. Un contrôle frontend dédié permet uniquement de valider et de simuler une opération HAB. Cette politique ne constitue aucune autorisation d’écriture Active Directory.
 
 ## Informations de schéma validées
 
@@ -54,7 +54,11 @@ L’intégration HAB conserve une séparation stricte entre la consultation et t
 - affichage frontend limité aux objets `user` ;
 - affichage en lecture seule dans l’onglet Compte ;
 - valeur absente présentée sous la forme `Non défini` ;
-- aucun contrôle frontend de modification HAB ;
+- contrôle frontend HAB dédié aux opérations `set` et `clear` en Simulation uniquement ;
+- valeur initiale de simulation normalisée à `0` lorsque l’attribut est absent ;
+- validation de l’aperçu et confirmation explicite obligatoires avant la création du job ;
+- suivi du job et affichage du résultat final dans la modale ;
+- aucune commande frontend ne permet une modification HAB réelle ;
 - création des jobs HAB de simulation réservée à la route dédiée ;
 - accès HAB de simulation réservé aux rôles `ADAdmin` et `UltraAdmin` ;
 - exécution HAB en Production désactivée ;

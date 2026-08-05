@@ -10,22 +10,22 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.2.0-alpha.16
+## État courant — v0.2.0-alpha.17
 
 | Indicateur | Avancement |
 |---|---:|
-| C2 — Éditeur d’attributs LDAP | 96 % |
+| C2 — Éditeur d’attributs LDAP | 100 % |
 | Explorateur Active Directory complet | 67 % |
 | Projet EITAS global | 87 % |
 
-Le pipeline LDAP HAB typé, les jobs runtime en Simulation et la consultation HAB en lecture seule dans les propriétés utilisateur sont validés. Le catalogue générique reste sans exposition HAB. Toute écriture Active Directory et toute écriture HAB en Production restent fermées.
+C2 est validé fonctionnellement à 100 %. Le pipeline LDAP HAB typé, les jobs runtime en Simulation, la consultation en lecture seule et le contrôle frontend dédié sont validés. Le catalogue générique reste sans exposition HAB. Toute écriture Active Directory et toute exécution HAB en Production restent fermées.
 
 ## Roadmap de l'Explorateur Active Directory
 
 | Chantier | Objectif | Version cible | État |
 |---|---|---:|---|
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
-| C2 | Éditeur d'attributs LDAP | `v0.2.0` | En cours — 96 % |
+| C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Planifié |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Planifié |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
@@ -41,7 +41,7 @@ Le pipeline LDAP HAB typé, les jobs runtime en Simulation et la consultation HA
 
 Objectif : fournir un éditeur d'attributs LDAP contrôlé, auditable et sécurisé.
 
-Le chantier est en cours. Le pipeline LDAP HAB typé, les jobs runtime en Simulation et la consultation frontend en lecture seule sont validés. Toute écriture HAB dans Active Directory et son activation en Production restent fermées. Les 4 % restants de C2 seront traités dans des lots séparés et validés formellement.
+Le chantier fonctionnel est validé à 100 %. La préversion `v0.2.0-alpha.17` constitue la candidate de clôture avant la publication de `v0.2.0`. La consultation HAB et sa simulation dédiée sont disponibles sans autoriser d’écriture Active Directory. Toute activation HAB en Production reste fermée par conception.
 
 ## Version v1.0.0
 

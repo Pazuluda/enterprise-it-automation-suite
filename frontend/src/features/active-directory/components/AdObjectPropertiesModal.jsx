@@ -6,7 +6,9 @@ import {
 import ObjectDetailsPanel from './ObjectDetailsPanel'
 import UpdateObjectForm from './UpdateObjectForm'
 import LdapAttributeEditor from './LdapAttributeEditor'
+import HabSenioritySimulationEditor from './HabSenioritySimulationEditor'
 import useLdapAttributeUpdate from '../hooks/useLdapAttributeUpdate'
+import useHabSenioritySimulation from '../hooks/useHabSenioritySimulation'
 import {
   getObjectDn,
   getObjectName,
@@ -21,13 +23,28 @@ function AdObjectPropertiesModal({
   agentMode,
   loadAgentMode,
   apiFetch,
+  canManageActiveDirectory,
   onClose,
 }) {
   const [editing, setEditing] = useState(false)
+  const [habSimulationActive, setHabSimulationActive] = useState(false)
+
+  const objectIdentity = String(
+    getObjectDn(object) || ''
+  )
+    .trim()
+    .toLowerCase()
 
   const ldapEditor = useLdapAttributeUpdate({
     object,
     agentMode,
+    apiFetch,
+  })
+
+  const habSimulation = useHabSenioritySimulation({
+    object,
+    agentMode,
+    canManageActiveDirectory,
     apiFetch,
   })
 
@@ -43,10 +60,15 @@ function AdObjectPropertiesModal({
   const visibleSaveError =
     update?.updateSaveError || ''
 
+  const isHabWarningNotice =
+    String(visibleSaveNotice || '')
+      .includes('Simulation HAB indisponible')
+
   useEffect(() => {
     setEditing(false)
     setSaveNotice('')
-  }, [object])
+    setHabSimulationActive(false)
+  }, [objectIdentity])
 
   useEffect(() => {
     if (hasChanges) {
@@ -59,6 +81,8 @@ function AdObjectPropertiesModal({
 
     ldapEditor.close()
     update?.closeUpdateObject?.()
+    habSimulation.close()
+    setHabSimulationActive(false)
     setEditing(false)
     onClose?.()
   }
@@ -110,6 +134,7 @@ function AdObjectPropertiesModal({
     if (
       loading ||
       editing ||
+      habSimulationActive ||
       !ldapEditor.eligible
     ) {
       return
@@ -118,8 +143,46 @@ function AdObjectPropertiesModal({
     await loadAgentMode?.()
 
     update?.closeUpdateObject?.()
+    habSimulation.close()
+    setHabSimulationActive(false)
     setEditing(false)
     ldapEditor.open()
+  }
+
+  async function beginHabSimulation() {
+    if (
+      loading ||
+      editing ||
+      ldapEditor.active
+    ) {
+      return
+    }
+
+    const loadedMode =
+      await loadAgentMode?.()
+
+    const effectiveMode =
+      loadedMode ||
+      agentMode ||
+      'Inconnu'
+
+    const opened =
+      habSimulation.open(effectiveMode)
+
+    if (!opened) {
+      setHabSimulationActive(false)
+      setSaveNotice(
+        'Simulation HAB indisponible : '
+        + 'le mode agent doit être Simulation.'
+      )
+      return
+    }
+
+    setSaveNotice('')
+    update?.closeUpdateObject?.()
+    ldapEditor.close()
+    setEditing(false)
+    setHabSimulationActive(true)
   }
 
   async function applyChanges() {
@@ -193,6 +256,10 @@ function AdObjectPropertiesModal({
   const objectName = getObjectName(object)
   const objectType = getObjectType(object)
   const objectDn = getObjectDn(object)
+  const isUserObject = objectType.includes('Utilisateur')
+  const canManageHab =
+    Boolean(canManageActiveDirectory) &&
+    isUserObject
 
   return (
     <div
@@ -241,9 +308,11 @@ function AdObjectPropertiesModal({
             <span className="aduc-object-properties-mode">
               {ldapEditor.active
                 ? 'Éditeur LDAP'
-                : editing
-                  ? 'Modification'
-                  : 'Consultation'}
+                : habSimulationActive
+                  ? 'Simulation HAB'
+                  : editing
+                    ? 'Modification'
+                    : 'Consultation'}
             </span>
 
             <button
@@ -270,17 +339,39 @@ function AdObjectPropertiesModal({
 
           {visibleSaveNotice && (
             <div
-              className="aduc-object-properties-notice"
-              role="status"
-              aria-live="polite"
+              className={
+                `aduc-object-properties-notice${
+                  isHabWarningNotice
+                    ? ' warning'
+                    : ''
+                }`
+              }
+              role={
+                isHabWarningNotice
+                  ? 'alert'
+                  : 'status'
+              }
+              aria-live={
+                isHabWarningNotice
+                  ? 'assertive'
+                  : 'polite'
+              }
             >
-              <span aria-hidden="true">✓</span>
+              <span aria-hidden="true">
+                {isHabWarningNotice
+                  ? '!'
+                  : '✓'}
+              </span>
               <strong>{visibleSaveNotice}</strong>
             </div>
           )}
 
         <div className="aduc-object-properties-body">
-          {ldapEditor.active ? (
+          {habSimulationActive ? (
+            <HabSenioritySimulationEditor
+              editor={habSimulation}
+            />
+          ) : ldapEditor.active ? (
             <LdapAttributeEditor
               editor={ldapEditor}
             />
@@ -315,7 +406,18 @@ function AdObjectPropertiesModal({
 
         <footer className="aduc-modal-actions">
 
-          {ldapEditor.active ? (
+          {habSimulationActive ? (
+            <button
+              type="button"
+              onClick={() => {
+                habSimulation.close()
+                setHabSimulationActive(false)
+              }}
+              disabled={loading}
+            >
+              Retour aux propriétés
+            </button>
+          ) : ldapEditor.active ? (
             <button
               type="button"
               onClick={ldapEditor.close}
@@ -325,6 +427,17 @@ function AdObjectPropertiesModal({
             </button>
           ) : !editing ? (
             <>
+              {canManageHab && (
+                <button
+                  type="button"
+                  className="aduc-properties-hab-button"
+                  onClick={beginHabSimulation}
+                  disabled={loading}
+                >
+                  Simulation HAB
+                </button>
+              )}
+
               {ldapEditor.eligible && (
                 <button
                   type="button"

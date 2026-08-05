@@ -6,24 +6,41 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ### C2 — Éditeur d’attributs LDAP
 
+- chantier C2 validé fonctionnellement à 100 % ;
 - pipeline LDAP HAB typé validé ;
 - jobs HAB runtime dédiés disponibles uniquement en Simulation ;
-- route dédiée protégée par OIDC et RBAC ;
-- type `integer32` préservé jusqu’au worker Windows ;
+- routes dédiées protégées par OIDC et RBAC ;
+- accès de simulation réservé à `ADAdmin` et `UltraAdmin` ;
+- type `integer32` préservé du portail au worker Windows ;
+- opérations `set` et `clear` contrôlées ;
+- bornes EITAS de `0` à `2147483647` appliquées ;
+- validation de l’aperçu obligatoire avant la création du job ;
+- confirmation explicite obligatoire avant la simulation ;
 - aperçu Active Directory calculé sans écriture ;
 - lookup utilisateur détaillé `get_user` étendu en lecture seule ;
 - valeur HAB sérialisée sous forme d’un `integer32` nullable ;
-- frontend HAB déployé dans l’onglet Compte des utilisateurs ;
 - valeur absente présentée sous la forme `Non défini` ;
+- contrôle frontend HAB dédié dans les propriétés utilisateur ;
+- suivi du job et affichage persistant du résultat final ;
+- défilement automatique vers le résultat de simulation ;
+- ouverture des propriétés rendue immédiate ;
+- enrichissement utilisateur asynchrone sans fermeture de la modale HAB ;
+- identité fonctionnelle stabilisée par distinguished name ;
 - catalogue du domaine et snapshot générique toujours sans exposition HAB ;
-- aucun contrôle frontend d’écriture HAB ;
-- aucune commande `Set-AD*` ajoutée au chemin de lecture ;
-- toute écriture Active Directory et toute écriture HAB en Production restent désactivées ;
+- aucune commande `Set-AD*` ajoutée aux chemins HAB ;
+- aucune autorisation frontend ou backend d’écriture HAB réelle ;
+- exécution HAB en Production toujours désactivée ;
+- valeurs brutes HAB exclues des métadonnées d’audit ;
+- état Active Directory confirmé inchangé après simulation ;
+- 202 tests backend complets validés ;
+- 53 tests frontend complets validés ;
+- lint, build de production et contrôle de sécurité validés ;
+- préversion `v0.2.0-alpha.17` préparée.
+
+### EITAS Identity
+
 - accès Compte et Administration EITAS Identity restaurés dans le portail ;
-- accès d’administration Identity limité à `SecurityAdmin` et `UltraAdmin` ;
-- 6 tests backend HAB ciblés et 202 tests backend complets validés ;
-- tests frontend ciblés HAB et Identity, lint et build validés ;
-- préversion `v0.2.0-alpha.16` préparée.
+- accès d’administration Identity limité à `SecurityAdmin` et `UltraAdmin`.
 
 ## [0.1.0] — 2026-07-28
 

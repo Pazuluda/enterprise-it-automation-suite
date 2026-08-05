@@ -64,62 +64,95 @@ test(
 )
 
 test(
-  'fusionne les details avant ouverture de la modale',
-  () => {
-    const start = page.indexOf(
-      'async function openProperties'
-    )
-    const end = page.indexOf(
-      'async function runGlobalAdSearch',
-      start
-    )
-    const source = page.slice(start, end)
+    'ouvre la modale avant le lookup puis fusionne les details',
+    () => {
+      const start = page.indexOf(
+        'async function openProperties'
+      )
+      const end = page.indexOf(
+        'async function runGlobalAdSearch',
+        start
+      )
+      const source = page.slice(start, end)
 
-    assert.ok(start >= 0)
-    assert.ok(end > start)
-    assert.match(
-      source,
-      /await runAdUserDetailsJob/
-    )
-    assert.match(
-      source,
-      /mergeAdUserDetails\(target, details\)/
-    )
-    assert.match(
-      source,
-      /setPropertiesModal\(resolvedTarget\)/
-    )
-  }
-)
+      assert.ok(start >= 0)
+      assert.ok(end > start)
 
-test(
-  'conserve l objet initial si le lookup detaille echoue',
-  () => {
-    const start = page.indexOf(
-      'async function openProperties'
-    )
-    const end = page.indexOf(
-      'async function runGlobalAdSearch',
-      start
-   )
-    const source = page.slice(start, end)
+      const modalPosition = source.indexOf(
+        'setPropertiesModal(target)'
+      )
 
-    assert.match(
-      source,
-      /let resolvedTarget = target/
-    )
-    assert.match(
-      source,
-      /catch \(error\)/
-    )
-    assert.match(
-      source,
-      /setSelectedObject\(resolvedTarget\)/
-    )
-  }
-)
+      const lookupPosition = source.indexOf(
+        'await runAdUserDetailsJob(target)'
+      )
 
-console.log(
+      assert.ok(modalPosition >= 0)
+      assert.ok(lookupPosition >= 0)
+
+      assert.ok(
+        modalPosition < lookupPosition
+      )
+
+      assert.match(
+        source,
+        /mergeAdUserDetails\(target, details\)/
+      )
+
+      assert.match(
+        source,
+        /setPropertiesModal\(previous =>/
+      )
+
+      assert.match(
+        source,
+        /matchesTarget\(previous\)/
+      )
+    }
+  )
+
+  test(
+    'conserve la modale si le lookup detaille echoue',
+    () => {
+      const start = page.indexOf(
+        'async function openProperties'
+      )
+      const end = page.indexOf(
+        'async function runGlobalAdSearch',
+        start
+      )
+      const source = page.slice(start, end)
+
+      assert.ok(start >= 0)
+      assert.ok(end > start)
+
+      assert.match(
+        source,
+        /setSelectedObject\(target\)/
+      )
+
+      assert.match(
+        source,
+        /setPropertiesModal\(target\)/
+      )
+
+      assert.match(
+        source,
+        /catch \(error\)/
+      )
+
+      assert.match(
+        source,
+        /Lecture détaillée utilisateur impossible/
+      )
+
+      assert.doesNotMatch(
+        source,
+        /setPropertiesModal\(null\)/
+      )
+    }
+  )
+
+  console.log(
   `INTEGRATION DETAILS UTILISATEUR AD : `
   + `${passed} TESTS REUSSIS`
 )

@@ -72,7 +72,7 @@ import {
   mergeAdUserDetails,
 } from './utils/adUserDetails'
 
-export default function AdExplorerPage({ apiFetch, setMessage }) {
+export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDirectory }) {
   const [treeItems, setTreeItems] = useState([])
   const [viewItems, setViewItems] = useState([])
   const [selectedNode, setSelectedNode] = useState({
@@ -96,6 +96,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
   const nodeContentCacheRef = useRef(new Map())
   const nodeContentPromisesRef = useRef(new Map())
   const nodeContentRequestIdRef = useRef(0)
+  const propertiesDetailsRequestIdRef = useRef(0)
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
 
@@ -1483,23 +1484,86 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
       return
     }
 
-    let resolvedTarget = target
+    const requestId =
+      propertiesDetailsRequestIdRef.current + 1
+
+    propertiesDetailsRequestIdRef.current =
+      requestId
+
+    const targetDn = String(
+      getObjectDn(target) || ''
+    ).toLowerCase()
+
+    const matchesTarget = candidate => {
+      if (!candidate) {
+        return false
+      }
+
+      const candidateDn = String(
+        getObjectDn(candidate) || ''
+      ).toLowerCase()
+
+      if (targetDn) {
+        return candidateDn === targetDn
+      }
+
+      return candidate === target
+    }
+
+    /*
+     * Ouvre immédiatement avec les données déjà
+     * disponibles dans le snapshot ou le catalogue.
+     */
+    setSelectedObject(target)
+    setPropertiesModal(target)
 
     try {
       const details =
         await runAdUserDetailsJob(target)
 
-      resolvedTarget =
+      if (
+        requestId !==
+        propertiesDetailsRequestIdRef.current
+      ) {
+        return
+      }
+
+      if (!details) {
+        return
+      }
+
+      const resolvedTarget =
         mergeAdUserDetails(target, details)
+
+      /*
+       * Enrichit uniquement l’objet encore affiché.
+       * Une réponse ancienne ne peut donc pas
+       * remplacer une autre fenêtre de propriétés.
+       */
+      setSelectedObject(previous =>
+        matchesTarget(previous)
+          ? resolvedTarget
+          : previous
+      )
+
+      setPropertiesModal(previous =>
+        matchesTarget(previous)
+          ? resolvedTarget
+          : previous
+      )
     } catch (error) {
+      if (
+        requestId !==
+        propertiesDetailsRequestIdRef.current
+      ) {
+        return
+      }
+
       setStatus(
         error.message
         || 'Lecture détaillée utilisateur impossible.'
       )
     }
-
-    setSelectedObject(resolvedTarget)
-    setPropertiesModal(resolvedTarget)
   }
 
 
@@ -1791,10 +1855,17 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
 
     try {
       const data = await apiFetch('/api/agent/mode')
-      setAdAgentMode(data?.mode || 'Inconnu')
+      const nextMode = data?.mode || 'Inconnu'
+
+      setAdAgentMode(nextMode)
+      return nextMode
     } catch (error) {
-      console.warn('Impossible de charger le mode agent', error)
+      console.warn(
+        'Impossible de charger le mode agent',
+        error
+      )
       setAdAgentMode('Inconnu')
+      return 'Inconnu'
     } finally {
       setAdAgentModeLoading(false)
     }
@@ -2577,6 +2648,7 @@ export default function AdExplorerPage({ apiFetch, setMessage }) {
         agentMode={adAgentMode}
         loadAgentMode={loadAdAgentMode}
         apiFetch={apiFetch}
+        canManageActiveDirectory={canManageActiveDirectory}
         onClose={() => setPropertiesModal(null)}
         update={{
           ...objectUpdate,

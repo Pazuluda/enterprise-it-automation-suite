@@ -3,8 +3,8 @@
 ![Version](https://img.shields.io/badge/version-v0.1.0-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
-![Préversion](https://img.shields.io/badge/préversion-v0.2.0--alpha.16-7c3aed)
-![C2](https://img.shields.io/badge/C2-en_cours_à_96_%25-f59e0b)
+![Préversion](https://img.shields.io/badge/préversion-v0.2.0--alpha.17-7c3aed)
+![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -14,7 +14,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.1.0**.
 
-La préversion de développement actuelle est **v0.2.0-alpha.16**. Elle correspond à **C2 — Éditeur d’attributs LDAP**, actuellement validé à **96 %**. Le pipeline HAB typé, son runtime en Simulation et la consultation HAB en lecture seule dans les propriétés utilisateur sont validés. Toute écriture HAB dans Active Directory et son activation en Production restent interdites.
+La préversion de développement actuelle est **v0.2.0-alpha.17**. Elle correspond à **C2 — Éditeur d’attributs LDAP**, désormais validé à **100 %**. Le pipeline HAB typé, son runtime en Simulation, la consultation en lecture seule et le contrôle frontend dédié de simulation sont validés. Ce contrôle ne dispose d’aucun chemin d’écriture Active Directory. Toute exécution HAB en Production reste interdite.
 
 Elle marque la clôture à 100 % de :
 
@@ -53,7 +53,8 @@ EITAS reste en développement actif. `v0.1.0` est une première version fonction
 - gestion des appartenances ;
 - historique EITAS ;
 - métadonnées complètes de l'objet ;
-- consultation détaillée en lecture seule de `msDS-HABSeniorityIndex` pour les utilisateurs.
+- consultation détaillée en lecture seule de `msDS-HABSeniorityIndex` pour les utilisateurs ;
+- validation et simulation HAB dédiées, limitées aux rôles autorisés et sans écriture Active Directory.
 
 ### C1 — Propriétés complètes
 
@@ -122,7 +123,7 @@ Composants principaux :
 | État | Version |
 |---|---:|
 | C1 terminé | `v0.1.0` |
-| Préversion actuelle de C2 | `v0.2.0-alpha.16` |
+| Préversion actuelle de C2 | `v0.2.0-alpha.17` |
 | Cycle de développement de C2 | `v0.2.0-alpha.N` |
 | C2 terminé | `v0.2.0` |
 | Correctif de C1 | `v0.1.1` |

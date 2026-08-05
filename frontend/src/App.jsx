@@ -4309,6 +4309,7 @@ Write-Host "============================================================"
             <AdExplorerPage
               apiFetch={apiFetch}
               setMessage={setMessage}
+              canManageActiveDirectory={canManageActiveDirectory}
             />
           )}
 
