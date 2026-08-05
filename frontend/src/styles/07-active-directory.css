@@ -7540,3 +7540,93 @@ input.aduc-object-protection-checkbox {
 .aduc-account-action-warning.unknown strong {
   color: #8a5700;
 }
+
+/* C3.3 - Options avancees du compte utilisateur */
+.aduc-update-object-grid
+.aduc-account-options-group {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.6rem 0.7rem 0.7rem;
+  border: 1px solid rgba(124, 119, 196, 0.2);
+  border-radius: 0.8rem;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(119, 99, 235, 0.045),
+      rgba(255, 255, 255, 0.012)
+    );
+}
+
+.aduc-account-options-group legend {
+  padding: 0 0.35rem;
+  color: var(--text-muted, #68718b);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.aduc-account-options-list {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.aduc-account-option-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.62rem 0.68rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.aduc-account-option-row:hover {
+  background: rgba(111, 92, 246, 0.065);
+}
+
+.aduc-account-option-row:focus-within {
+  background: rgba(111, 92, 246, 0.075);
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(111, 92, 246, 0.2);
+}
+
+.aduc-account-option-row input {
+  flex: 0 0 auto;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0.12rem 0 0;
+  accent-color: var(--primary, #6f5cf6);
+  cursor: pointer;
+}
+
+.aduc-account-option-row input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.aduc-account-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.aduc-account-option-copy strong {
+  color: var(--text-primary, #31384f);
+  font-size: 0.88rem;
+  font-weight: 750;
+  line-height: 1.35;
+  text-transform: none;
+}
+
+.aduc-account-option-copy small {
+  color: var(--text-muted, #6d7690);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.4;
+}

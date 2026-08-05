@@ -1207,6 +1207,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "accountExpires",
         "userWorkstations",
         "logonHours",
+        "passwordNeverExpires",
+        "cannotChangePassword",
         "title",
         "department",
         "division",
@@ -1351,7 +1353,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "userPrincipalName",
         "accountExpires",
         "userWorkstations",
-        "logonHours"
+        "logonHours",
+        "passwordNeverExpires",
+        "cannotChangePassword"
     )
 
     $HasAccountChanges = @(
@@ -1367,7 +1371,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     ) {
         throw (
             "userPrincipalName, accountExpires, " +
-            "userWorkstations et logonHours sont " +
+            "userWorkstations, logonHours, " +
+            "passwordNeverExpires et " +
+            "cannotChangePassword sont " +
             "réservés aux utilisateurs"
         )
     }
@@ -1514,6 +1520,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $ClearUserWorkstations = $false
     $LogonHoursBytes = $null
     $ClearLogonHours = $false
+    $PasswordNeverExpiresValue = $null
+    $CannotChangePasswordValue = $null
 
     foreach ($Key in $Properties.Keys) {
         $RawValue = $Properties[$Key]
@@ -1574,6 +1582,25 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             }
 
             $ProtectedFromAccidentalDeletion = [bool]$RawValue
+            continue
+        }
+
+        if (
+            $Key -in @(
+                "passwordNeverExpires",
+                "cannotChangePassword"
+            )
+        ) {
+            if ($RawValue -isnot [bool]) {
+                throw "$Key doit être un booléen JSON"
+            }
+
+            if ($Key -eq "passwordNeverExpires") {
+                $PasswordNeverExpiresValue = [bool]$RawValue
+            } else {
+                $CannotChangePasswordValue = [bool]$RawValue
+            }
+
             continue
         }
 
@@ -2120,6 +2147,18 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
     }
 
+    if ($null -ne $PasswordNeverExpiresValue) {
+        $SetUserParameters["PasswordNeverExpires"] = (
+            [bool]$PasswordNeverExpiresValue
+        )
+    }
+
+    if ($null -ne $CannotChangePasswordValue) {
+        $SetUserParameters["CannotChangePassword"] = (
+            [bool]$CannotChangePasswordValue
+        )
+    }
+
     if ($SetUserParameters.Count -gt 2) {
         Set-ADUser @SetUserParameters
     }
@@ -2295,6 +2334,25 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $UpdatedManagedBy = [string]$UpdatedObject.managedBy
     $UpdatedSamAccountName = $null
     $UpdatedProtectedFromAccidentalDeletion = $null
+    $UpdatedPasswordNeverExpires = $null
+    $UpdatedCannotChangePassword = $null
+
+    if ($ObjectClassName -eq "user") {
+        $UpdatedUser = Get-ADUser `
+            -Identity $ObjectDn `
+            -Properties `
+                PasswordNeverExpires, `
+                CannotChangePassword `
+            -ErrorAction Stop
+
+        $UpdatedPasswordNeverExpires = (
+            [bool]$UpdatedUser.PasswordNeverExpires
+        )
+
+        $UpdatedCannotChangePassword = (
+            [bool]$UpdatedUser.CannotChangePassword
+        )
+    }
 
     if ([string]$Object.ObjectClass -eq "group") {
         $UpdatedGroup = Get-ADGroup `
@@ -2359,6 +2417,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                     ([byte]$_).ToString("X2")
                 }
         ) -join " "
+        password_never_expires = (
+            $UpdatedPasswordNeverExpires
+        )
+        cannot_change_password = (
+            $UpdatedCannotChangePassword
+        )
         direct_reports = @(
             $UpdatedObject.directReports
         )

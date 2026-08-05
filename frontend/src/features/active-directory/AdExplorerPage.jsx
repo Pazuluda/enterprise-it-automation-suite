@@ -273,6 +273,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     setContextMenu,
     setLoading,
     runJob,
+    resolveUserUpdateTarget,
     adDomainCatalog,
     runAdAdminJob,
     loadTree,
@@ -1476,6 +1477,24 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       setLoading(false)
     }
   }
+
+  async function resolveUserUpdateTarget(target) {
+    const details =
+      await runAdUserDetailsJob(target)
+
+    if (!details) {
+      throw new Error(
+        'Les options avancées du compte utilisateur '
+        + 'n’ont pas pu être chargées.'
+      )
+    }
+
+    return mergeAdUserDetails(
+      target,
+      details
+    )
+  }
+
 
   async function openProperties(target) {
     setContextMenu(null)

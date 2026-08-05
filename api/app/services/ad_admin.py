@@ -372,6 +372,10 @@ def normalize_update_object_properties(
         "user_workstations",
         "logonHours",
         "logon_hours",
+        "passwordNeverExpires",
+        "password_never_expires",
+        "cannotChangePassword",
+        "cannot_change_password",
         "title",
         "department",
         "division",
@@ -460,6 +464,10 @@ def normalize_update_object_properties(
         "account_expires": "accountExpires",
         "user_workstations": "userWorkstations",
         "logon_hours": "logonHours",
+        "password_never_expires":
+            "passwordNeverExpires",
+        "cannot_change_password":
+            "cannotChangePassword",
         "protected_from_accidental_deletion":
             "protectedFromAccidentalDeletion",
     }
@@ -515,6 +523,22 @@ def normalize_update_object_properties(
                     detail=(
                         "protectedFromAccidentalDeletion "
                         "doit être un booléen"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = value
+            continue
+
+        if normalized_key in {
+            "passwordNeverExpires",
+            "cannotChangePassword",
+        }:
+            if not isinstance(value, bool):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} "
+                        "doit être un booléen JSON"
                     ),
                 )
 

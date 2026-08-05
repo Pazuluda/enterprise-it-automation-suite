@@ -20,6 +20,7 @@ function useAdObjectUpdate({
   setContextMenu,
   setLoading,
   runJob,
+  resolveUserUpdateTarget,
   adDomainCatalog,
   runAdAdminJob,
   loadTree,
@@ -96,6 +97,63 @@ function useAdObjectUpdate({
     return false
   }
 
+  function hasAdBooleanAttributeValue(
+    item,
+    ...names
+  ) {
+    for (const name of names) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          item || {},
+          name
+        )
+      ) {
+        continue
+      }
+
+      const value = item?.[name]
+
+      if (typeof value === 'boolean') {
+        return true
+      }
+
+      const normalized =
+        String(value)
+          .trim()
+          .toLowerCase()
+
+      if (
+        normalized === 'true'
+        || normalized === 'false'
+      ) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+
+  function hasAuthoritativeUserAccountOptions(
+    target
+  ) {
+    return (
+      hasAdBooleanAttributeValue(
+        target,
+        'passwordNeverExpires',
+        'password_never_expires',
+        'PasswordNeverExpires'
+      )
+      && hasAdBooleanAttributeValue(
+        target,
+        'cannotChangePassword',
+        'cannot_change_password',
+        'CannotChangePassword'
+      )
+    )
+  }
+
+
   function isUpdateUserTarget(target) {
     const objectClass = String(
       target?.objectClass
@@ -152,7 +210,7 @@ function useAdObjectUpdate({
     return isOuObject(target)
   }
 
-  function prepareUpdateObject(
+  async function prepareUpdateObject(
     target,
     { openModal = true } = {}
   ) {
@@ -176,6 +234,67 @@ function useAdObjectUpdate({
     if (!dn) {
       setStatus('DN introuvable pour cet objet AD.')
       return false
+    }
+
+    if (
+      isUpdateUserTarget(target)
+      && !hasAuthoritativeUserAccountOptions(
+        target
+      )
+    ) {
+      if (
+        typeof resolveUserUpdateTarget
+        !== 'function'
+      ) {
+        const message =
+          'Modification bloquée : la source détaillée '
+          + 'des options du compte est indisponible.'
+
+        setUpdateSaveError(message)
+        setStatus(message)
+        setMessage?.(message)
+        return false
+      }
+
+      setLoading?.(true)
+      setUpdateSaveError('')
+      setStatus(
+        'Chargement des options avancées '
+        + 'du compte utilisateur...'
+      )
+
+      try {
+        const resolvedTarget =
+          await resolveUserUpdateTarget(target)
+
+        if (
+          !resolvedTarget
+          || !hasAuthoritativeUserAccountOptions(
+            resolvedTarget
+          )
+        ) {
+          throw new Error(
+            'Active Directory n’a pas retourné '
+            + 'toutes les options avancées du compte.'
+          )
+        }
+
+        target = resolvedTarget
+      } catch (error) {
+        const message =
+          error?.message
+          || (
+            'Modification bloquée : lecture détaillée '
+            + 'du compte utilisateur impossible.'
+          )
+
+        setUpdateSaveError(message)
+        setStatus(message)
+        setMessage?.(message)
+        return false
+      } finally {
+        setLoading?.(false)
+      }
     }
 
     const rawSamAccountName =
@@ -303,6 +422,20 @@ function useAdObjectUpdate({
         'account_expires',
         'AccountExpirationDate'
       ),
+      passwordNeverExpires:
+        getAdBooleanAttributeValue(
+          target,
+          'passwordNeverExpires',
+          'password_never_expires',
+          'PasswordNeverExpires'
+        ),
+      cannotChangePassword:
+        getAdBooleanAttributeValue(
+          target,
+          'cannotChangePassword',
+          'cannot_change_password',
+          'CannotChangePassword'
+        ),
       userWorkstations: getAdAttributeValue(
         target,
         'userWorkstations',
@@ -569,11 +702,11 @@ function useAdObjectUpdate({
     setManagerSearchError('')
   }
 
-  function prepareClearManager(
+  async function prepareClearManager(
     target,
     { openModal = true } = {}
   ) {
-    const prepared = prepareUpdateObject(
+    const prepared = await prepareUpdateObject(
       target,
       { openModal }
     )

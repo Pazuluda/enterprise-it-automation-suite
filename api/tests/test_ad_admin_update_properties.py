@@ -239,6 +239,60 @@ class UpdateObjectPropertiesNormalizationTests(
                     })
 
 
+    def test_account_boolean_aliases_are_normalized(self):
+        normalized = normalize_update_object_properties({
+            "password_never_expires": True,
+            "cannot_change_password": False,
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "passwordNeverExpires": True,
+                "cannotChangePassword": False,
+            },
+        )
+
+    def test_account_boolean_canonical_keys_are_supported(self):
+        normalized = normalize_update_object_properties({
+            "passwordNeverExpires": False,
+            "cannotChangePassword": True,
+        })
+
+        self.assertEqual(
+            normalized,
+            {
+                "passwordNeverExpires": False,
+                "cannotChangePassword": True,
+            },
+        )
+
+    def test_invalid_account_boolean_values_are_rejected(self):
+        invalid_values = [
+            "true",
+            "false",
+            1,
+            0,
+            None,
+            "",
+            [],
+            {},
+        ]
+
+        for key in [
+            "passwordNeverExpires",
+            "cannotChangePassword",
+        ]:
+            for value in invalid_values:
+                with self.subTest(
+                    key=key,
+                    value=value,
+                ):
+                    with self.assertRaises(HTTPException):
+                        normalize_update_object_properties({
+                            key: value,
+                        })
+
     def test_user_workstations_alias_is_normalized(self):
         normalized = normalize_update_object_properties({
             "user_workstations":

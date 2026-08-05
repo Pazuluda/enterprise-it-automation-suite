@@ -95,13 +95,13 @@ function AdObjectPropertiesModal({
   }
 
 
-  function beginEditing(target = object) {
+  async function beginEditing(target = object) {
     if (loading || editing) return
 
     setSaveNotice('')
 
     const prepared =
-      update?.prepareUpdateObject?.(
+      await update?.prepareUpdateObject?.(
         target,
         { openModal: false }
       )
@@ -111,7 +111,7 @@ function AdObjectPropertiesModal({
     }
   }
 
-  function beginClearingManager(
+  async function beginClearingManager(
     target = object
   ) {
     if (loading || editing) return
@@ -119,7 +119,7 @@ function AdObjectPropertiesModal({
     setSaveNotice('')
 
     const prepared =
-      update?.prepareClearManager?.(
+      await update?.prepareClearManager?.(
         target,
         { openModal: false }
       )

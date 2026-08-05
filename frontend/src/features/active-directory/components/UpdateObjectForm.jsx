@@ -312,6 +312,14 @@ function UpdateObjectForm({
                 'Le compte expire le'
               ],
               [
+                'passwordNeverExpires',
+                'Le mot de passe n’expire jamais'
+              ],
+              [
+                'cannotChangePassword',
+                'L’utilisateur ne peut pas changer le mot de passe'
+              ],
+              [
                 'userWorkstations',
                 'Stations de travail autorisées',
                 true
@@ -354,6 +362,86 @@ function UpdateObjectForm({
             <div className="aduc-update-object-grid">
               {section.fields.map(
                 ([name, label, wide]) => {
+                  if (
+                    name === 'cannotChangePassword'
+                  ) {
+                    return null
+                  }
+
+                  if (
+                    name === 'passwordNeverExpires'
+                  ) {
+                    return (
+                      <fieldset
+                        key="passwordAccountOptions"
+                        className="aduc-account-options-group"
+                      >
+                        <legend>
+                          Options du mot de passe
+                        </legend>
+
+                        <div className="aduc-account-options-list">
+                          <label className="aduc-account-option-row">
+                            <input
+                              type="checkbox"
+                              checked={
+                                updateForm.passwordNeverExpires
+                                === true
+                              }
+                              onChange={event =>
+                                updateObjectFormField(
+                                  'passwordNeverExpires',
+                                  event.target.checked
+                                )
+                              }
+                              disabled={loading}
+                            />
+
+                            <span className="aduc-account-option-copy">
+                              <strong>
+                                Le mot de passe n’expire jamais
+                              </strong>
+
+                              <small>
+                                Désactive l’expiration automatique
+                                du mot de passe de cet utilisateur.
+                              </small>
+                            </span>
+                          </label>
+
+                          <label className="aduc-account-option-row">
+                            <input
+                              type="checkbox"
+                              checked={
+                                updateForm.cannotChangePassword
+                                === true
+                              }
+                              onChange={event =>
+                                updateObjectFormField(
+                                  'cannotChangePassword',
+                                  event.target.checked
+                                )
+                              }
+                              disabled={loading}
+                            />
+
+                            <span className="aduc-account-option-copy">
+                              <strong>
+                                L’utilisateur ne peut pas changer
+                                le mot de passe
+                              </strong>
+
+                              <small>
+                                Seul un administrateur autorisé
+                                pourra gérer ce mot de passe.
+                              </small>
+                            </span>
+                          </label>
+                        </div>
+                      </fieldset>
+                    )
+                  }
+
                   if (name === 'logonHours') {
                     const clearRequested =
                       updateForm.logonHours ===
