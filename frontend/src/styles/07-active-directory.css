@@ -7473,3 +7473,70 @@ input.aduc-object-protection-checkbox {
     flex-direction: column;
   }
 }
+
+/* C3.2 - Réinitialisation avancée du mot de passe */
+.aduc-password-reset-fields {
+  display: grid;
+  gap: 14px;
+}
+
+.aduc-password-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.aduc-password-input-row button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(94, 64, 255, 0.28);
+  border-radius: 12px;
+  background: rgba(94, 64, 255, 0.08);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aduc-password-input-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.aduc-password-reset-options {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(94, 64, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(94, 64, 255, 0.04);
+}
+
+.aduc-password-reset-options label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  font-weight: 650;
+}
+
+.aduc-password-reset-options input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+@media (max-width: 700px) {
+  .aduc-password-input-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* C3.2 - Blocage des actions lorsque le mode agent est inconnu */
+.aduc-account-action-warning.unknown {
+  border-color: rgba(196, 123, 0, 0.34);
+  background: rgba(196, 123, 0, 0.08);
+}
+
+.aduc-account-action-warning.unknown strong {
+  color: #8a5700;
+}

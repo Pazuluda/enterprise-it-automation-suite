@@ -10,20 +10,75 @@ import {
   getAdAccountToggleAction,
 } from '../utils/adAccountState'
 
+import {
+  buildAdPasswordResetPayload,
+  createAdPasswordResetDraft,
+} from '../utils/adPasswordReset'
+
 function useAdAccountActions({
   setMessage,
   setStatus,
   setContextMenu,
   adAgentMode,
+  loadAdAgentMode,
   viewType,
   runAdAdminJob,
   loadComputersView,
   refreshAccountTarget,
 }) {
   const [accountActionModal, setAccountActionModal] = useState(null)
-  const [accountActionPassword, setAccountActionPassword] = useState('')
+  const [
+    passwordResetDraft,
+    setPasswordResetDraft,
+  ] = useState(() => createAdPasswordResetDraft())
   const [accountActionConfirm, setAccountActionConfirm] = useState('')
   const [accountActionLoading, setAccountActionLoading] = useState(false)
+  const [
+    accountActionModeLoading,
+    setAccountActionModeLoading,
+  ] = useState(false)
+
+  function normalizeAccountActionMode(value) {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+
+    if (normalized === 'simulation') {
+      return 'Simulation'
+    }
+
+    if (normalized === 'production') {
+      return 'Production'
+    }
+
+    return null
+  }
+
+  async function resolveAccountActionMode() {
+    setAccountActionModeLoading(true)
+
+    try {
+      const loadedMode =
+        typeof loadAdAgentMode === 'function'
+          ? await loadAdAgentMode()
+          : adAgentMode
+
+      return normalizeAccountActionMode(
+        loadedMode
+      )
+    } catch {
+      return null
+    } finally {
+      setAccountActionModeLoading(false)
+    }
+  }
+
+  function updatePasswordResetDraft(name, value) {
+    setPasswordResetDraft(previous => ({
+      ...previous,
+      [name]: value,
+    }))
+  }
 
   function getAccountActionLabel(action) {
     const labels = {
@@ -36,7 +91,7 @@ function useAdAccountActions({
     return labels[action] || action
   }
 
-  function prepareAccountAction(action, target) {
+  async function prepareAccountAction(action, target) {
     if (!isEitasManagedObject(target)) {
       const message =
         'Action bloquée : cet objet est hors du périmètre OU=EITAS et reste accessible uniquement en lecture.'
@@ -51,6 +106,16 @@ function useAdAccountActions({
 
     if (!targetDn) {
       setMessage?.('Impossible de préparer l’action : DN introuvable.')
+      return
+    }
+
+    const resolvedMode =
+      await resolveAccountActionMode()
+
+    if (!resolvedMode) {
+      setMessage?.(
+        'Mode agent indisponible : action de compte bloquée.'
+      )
       return
     }
 
@@ -72,24 +137,74 @@ function useAdAccountActions({
       action: resolvedAction,
       target,
       targetName: getObjectName(target),
-      targetDn
+      targetDn,
+      agentMode: resolvedMode,
     })
 
     setAccountActionConfirm('')
-    setAccountActionPassword('')
+    setPasswordResetDraft(
+      createAdPasswordResetDraft()
+    )
   }
 
   async function submitAccountAction() {
     if (!accountActionModal) return
 
-    if (adAgentMode === 'Production' && accountActionConfirm !== 'PRODUCTION') {
-      setMessage?.('Confirmation Production obligatoire : tape PRODUCTION.')
+    const verifiedMode =
+      await resolveAccountActionMode()
+
+    if (!verifiedMode) {
+      setMessage?.(
+        'Mode agent indisponible : action de compte bloquée.'
+      )
       return
     }
 
-    if (accountActionModal.action === 'reset_password' && !accountActionPassword.trim()) {
-      setMessage?.('Mot de passe temporaire obligatoire.')
+    if (
+      verifiedMode
+      !== accountActionModal.agentMode
+    ) {
+      setAccountActionModal(previous => ({
+        ...previous,
+        agentMode: verifiedMode,
+      }))
+
+      setAccountActionConfirm('')
+
+      setMessage?.(
+        `Le mode agent est maintenant ${verifiedMode}. Vérifie la modale puis relance l’action.`
+      )
       return
+    }
+
+    if (
+      verifiedMode === 'Production'
+      && accountActionConfirm !== 'PRODUCTION'
+    ) {
+      setMessage?.(
+        'Confirmation Production obligatoire : tape PRODUCTION.'
+      )
+      return
+    }
+
+    let passwordResetPayload = null
+
+    if (
+      accountActionModal.action
+      === 'reset_password'
+    ) {
+      try {
+        passwordResetPayload =
+          buildAdPasswordResetPayload(
+            passwordResetDraft
+          )
+      } catch (error) {
+        setMessage?.(
+          error?.message
+          || 'Mot de passe temporaire invalide.'
+        )
+        return
+      }
     }
 
     const payload = {
@@ -98,10 +213,11 @@ function useAdAccountActions({
       created_by: 'react-admin'
     }
 
-    if (accountActionModal.action === 'reset_password') {
-      payload.temporary_password = accountActionPassword.trim()
-      payload.force_change_at_logon = true
-      payload.unlock_after_reset = true
+    if (passwordResetPayload) {
+      Object.assign(
+        payload,
+        passwordResetPayload
+      )
     }
 
     try {
@@ -132,6 +248,9 @@ function useAdAccountActions({
 
       setAccountActionModal(null)
       setAccountActionConfirm('')
+      setPasswordResetDraft(
+        createAdPasswordResetDraft()
+      )
 
       setMessage?.(
         refreshWarning
@@ -150,12 +269,13 @@ function useAdAccountActions({
   return {
     accountActionModal,
     setAccountActionModal,
-    accountActionPassword,
-    setAccountActionPassword,
+    passwordResetDraft,
+    updatePasswordResetDraft,
     accountActionConfirm,
     setAccountActionConfirm,
     accountActionLoading,
     setAccountActionLoading,
+    accountActionModeLoading,
     getAccountActionLabel,
     prepareAccountAction,
     submitAccountAction,

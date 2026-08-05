@@ -160,6 +160,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     setStatus,
     setContextMenu,
     adAgentMode,
+    loadAdAgentMode,
     viewType,
     runAdAdminJob,
     loadComputersView,
