@@ -8,6 +8,13 @@ import {
 } from '../utils/adLogonRestrictions'
 
 import {
+  getAdAccountLockedState,
+  getAdAccountStatus,
+  getAdAccountStatusClass,
+  getAdAccountToggleAction,
+} from '../utils/adAccountState'
+
+import {
   useEffect,
   useState,
 } from 'react'
@@ -147,31 +154,18 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     return value || ''
   }
 
-  function getAccountStatus() {
-    const locked = pickAdField(['locked_out', 'lockedOut', 'LockedOut'])
-    const enabled = pickAdField(['enabled', 'Enabled'])
-    const disabled = pickAdField(['disabled', 'Disabled'])
-    const passwordExpired = pickAdField(['password_expired', 'passwordExpired', 'PasswordExpired'])
+  const accountStatus =
+    getAdAccountStatus(displayed)
 
-    if (locked === true || String(locked).toLowerCase() === 'true') return 'Verrouillé'
-    if (enabled === false || String(enabled).toLowerCase() === 'false') return 'Désactivé'
-    if (disabled === true || String(disabled).toLowerCase() === 'true') return 'Désactivé'
-    if (passwordExpired === true || String(passwordExpired).toLowerCase() === 'true') return 'MDP expiré'
-    if (enabled === true || String(enabled).toLowerCase() === 'true') return 'Activé'
+  const accountStatusClass =
+    getAdAccountStatusClass(displayed)
 
-    return 'État inconnu'
-  }
+  const accountToggleAction =
+    getAdAccountToggleAction(displayed)
 
-  function getAccountStatusClass() {
-    const status = getAccountStatus().toLowerCase()
+  const accountLocked =
+    getAdAccountLockedState(displayed)
 
-    if (status.includes('verrouillé')) return 'locked'
-    if (status.includes('désactivé')) return 'disabled'
-    if (status.includes('expiré')) return 'expired'
-    if (status.includes('activé')) return 'enabled'
-
-    return 'unknown'
-  }
   function formatOptionalDateValue(value) {
     return value ? formatAdHistoryDate(value) : ''
   }
@@ -343,7 +337,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       : 'Tous les horaires'
 
   const accountRows = [
-    ['État du compte', getAccountStatus()],
+    ['État du compte', accountStatus],
     ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
     ['UPN', pickAdField(['user_principal_name', 'userPrincipalName', 'upn'])],
     ...(isUser
@@ -1145,14 +1139,29 @@ const objectTechnicalRows = [
         <div className="aduc-account-head">
           <div>
             <h4>Compte</h4>
-            <span className={`aduc-account-status ${getAccountStatusClass()}`}>
-              {getAccountStatus()}
+            <span className={`aduc-account-status ${accountStatusClass}`}>
+              {accountStatus}
             </span>
           </div>
 
           <div className="aduc-account-actions">
-            <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('toggle_enabled', displayed)}>
-              {getAccountStatus().toLowerCase().includes('désactivé') ? 'Activer' : 'Désactiver'}
+            <button
+              type="button"
+              disabled={
+                !isManagedScope
+                || isComputer
+                || !accountToggleAction
+              }
+              onClick={() =>
+                onPrepareAccountAction?.(
+                  'toggle_enabled',
+                  displayed
+                )
+              }
+            >
+              {accountToggleAction === 'enable_account'
+                ? 'Activer'
+                : 'Désactiver'}
             </button>
 
             {isUser && (
@@ -1161,7 +1170,20 @@ const objectTechnicalRows = [
                   Réinitialiser MDP
                 </button>
 
-                <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('unlock_account', displayed)}>
+                <button
+                  type="button"
+                  disabled={
+                    !isManagedScope
+                    || isComputer
+                    || accountLocked !== true
+                  }
+                  onClick={() =>
+                    onPrepareAccountAction?.(
+                      'unlock_account',
+                      displayed
+                    )
+                  }
+                >
                   Déverrouiller
                 </button>
               </>

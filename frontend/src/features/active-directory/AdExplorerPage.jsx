@@ -163,7 +163,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     viewType,
     runAdAdminJob,
     loadComputersView,
-    getSelectedAccountEnabledState,
+    refreshAccountTarget,
   })
 
   const {
@@ -1921,21 +1921,56 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     return exactCurrent || safeOptions[0]
   }
 
-  function getSelectedAccountEnabledState(target) {
-    const candidates = [
-      target?.enabled,
-      target?.Enabled,
-      target?.disabled === true ? false : null,
-      target?.Disabled === true ? false : null
-    ]
+  async function refreshAccountTarget(target) {
+    const details =
+      await runAdUserDetailsJob(target)
 
-    for (const value of candidates) {
-      if (value === true || String(value).toLowerCase() === 'true') return true
-      if (value === false || String(value).toLowerCase() === 'false') return false
+    if (!details) {
+      return null
     }
 
-    return null
+    const targetDn = String(
+      getObjectDn(target) || ''
+    )
+      .trim()
+      .toLowerCase()
+
+    const matchesTarget = candidate => {
+      if (!candidate) {
+        return false
+      }
+
+      const candidateDn = String(
+        getObjectDn(candidate) || ''
+      )
+        .trim()
+        .toLowerCase()
+
+      if (targetDn) {
+        return candidateDn === targetDn
+      }
+
+      return candidate === target
+    }
+
+    const mergeTarget = candidate =>
+      matchesTarget(candidate)
+        ? mergeAdUserDetails(candidate, details)
+        : candidate
+
+    setSelectedObject(mergeTarget)
+    setPropertiesModal(mergeTarget)
+
+    setViewItems(items =>
+      items.map(mergeTarget)
+    )
+
+    return mergeAdUserDetails(
+      target,
+      details,
+    )
   }
+
 
   async function runAdAdminJob(payload) {
     setAdminSuccess('')

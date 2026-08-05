@@ -6,6 +6,10 @@ import {
   isEitasManagedObject,
 } from '../utils/adExplorerCore'
 
+import {
+  getAdAccountToggleAction,
+} from '../utils/adAccountState'
+
 function useAdAccountActions({
   setMessage,
   setStatus,
@@ -14,7 +18,7 @@ function useAdAccountActions({
   viewType,
   runAdAdminJob,
   loadComputersView,
-  getSelectedAccountEnabledState,
+  refreshAccountTarget,
 }) {
   const [accountActionModal, setAccountActionModal] = useState(null)
   const [accountActionPassword, setAccountActionPassword] = useState('')
@@ -53,14 +57,15 @@ function useAdAccountActions({
     let resolvedAction = action
 
     if (action === 'toggle_enabled') {
-      const enabled = getSelectedAccountEnabledState(target)
+      resolvedAction =
+        getAdAccountToggleAction(target)
 
-      if (enabled === null) {
-        setMessage?.('État du compte inconnu : impossible de choisir automatiquement Activer/Désactiver.')
+      if (!resolvedAction) {
+        setMessage?.(
+          'État du compte inconnu : impossible de choisir automatiquement Activer/Désactiver.'
+        )
         return
       }
-
-      resolvedAction = enabled ? 'disable_account' : 'enable_account'
     }
 
     setAccountActionModal({
@@ -103,13 +108,38 @@ function useAdAccountActions({
       setAccountActionLoading(true)
       await runAdAdminJob(payload)
 
-      if (viewType === 'computers') {
-        await loadComputersView()
+      let refreshWarning = ''
+
+      try {
+        if (viewType === 'computers') {
+          await loadComputersView()
+        } else if (
+          typeof refreshAccountTarget === 'function'
+        ) {
+          await refreshAccountTarget(
+            accountActionModal.target
+          )
+        }
+      } catch (refreshError) {
+        refreshWarning =
+          refreshError?.message
+          || 'Actualisation du compte impossible.'
+
+        setStatus(
+          `Action terminée, mais ${refreshWarning}`
+        )
       }
 
       setAccountActionModal(null)
       setAccountActionConfirm('')
-      setMessage?.(`${getAccountActionLabel(accountActionModal.action)} envoyé à l’agent AD Admin.`)
+
+      setMessage?.(
+        refreshWarning
+          ? `Action terminée, mais ${refreshWarning}`
+          : `${getAccountActionLabel(
+              accountActionModal.action
+            )} terminée.`
+      )
     } catch (err) {
       setMessage?.(err?.message || 'Erreur action Compte ADUC.')
     } finally {
