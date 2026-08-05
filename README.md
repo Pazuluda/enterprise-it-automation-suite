@@ -1,9 +1,8 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.1.0-2563eb)
+![Version](https://img.shields.io/badge/version-v0.2.0-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
-![Préversion](https://img.shields.io/badge/préversion-v0.2.0--alpha.17-7c3aed)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
@@ -12,15 +11,17 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 ## Version actuelle
 
-La version officielle actuelle est **v0.1.0**.
-
-La préversion de développement actuelle est **v0.2.0-alpha.17**. Elle correspond à **C2 — Éditeur d’attributs LDAP**, désormais validé à **100 %**. Le pipeline HAB typé, son runtime en Simulation, la consultation en lecture seule et le contrôle frontend dédié de simulation sont validés. Ce contrôle ne dispose d’aucun chemin d’écriture Active Directory. Toute exécution HAB en Production reste interdite.
+La version officielle actuelle est **v0.2.0**.
 
 Elle marque la clôture à 100 % de :
 
 > **C1 — Fenêtres de propriétés complètes de l'Explorateur Active Directory**
 
-EITAS reste en développement actif. `v0.1.0` est une première version fonctionnelle et validée, mais pas encore la version générale stable `v1.0.0`.
+> **C2 — Éditeur d’attributs LDAP**
+
+C2 valide le pipeline HAB typé, son runtime en Simulation, la consultation en lecture seule et le contrôle frontend dédié. Aucun chemin d’écriture HAB réelle n’est autorisé et toute exécution HAB en Production reste interdite.
+
+EITAS reste en développement actif. `v0.2.0` est une version fonctionnelle et validée, mais pas encore la version générale stable `v1.0.0`.
 
 ## Fonctionnalités disponibles
 
@@ -123,7 +124,7 @@ Composants principaux :
 | État | Version |
 |---|---:|
 | C1 terminé | `v0.1.0` |
-| Préversion actuelle de C2 | `v0.2.0-alpha.17` |
+| Version officielle actuelle | `v0.2.0` |
 | Cycle de développement de C2 | `v0.2.0-alpha.N` |
 | C2 terminé | `v0.2.0` |
 | Correctif de C1 | `v0.1.1` |

@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.2.0-alpha.17
+## État courant — v0.2.0
 
 | Indicateur | Avancement |
 |---|---:|
@@ -35,13 +35,19 @@ C2 est validé fonctionnellement à 100 %. Le pipeline LDAP HAB typé, les jobs 
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
-## Prochaine version
+## Version actuelle
 
 ### v0.2.0 — C2
 
 Objectif : fournir un éditeur d'attributs LDAP contrôlé, auditable et sécurisé.
 
-Le chantier fonctionnel est validé à 100 %. La préversion `v0.2.0-alpha.17` constitue la candidate de clôture avant la publication de `v0.2.0`. La consultation HAB et sa simulation dédiée sont disponibles sans autoriser d’écriture Active Directory. Toute activation HAB en Production reste fermée par conception.
+Le chantier C2 est terminé et validé à 100 %. La consultation HAB et sa simulation dédiée sont disponibles sans autoriser d’écriture Active Directory. Toute activation HAB en Production reste fermée par conception.
+
+## Prochaine version
+
+### v0.3.0 — C3
+
+Objectif : poursuivre l’Explorateur Active Directory avec la gestion avancée des utilisateurs.
 
 ## Version v1.0.0
 

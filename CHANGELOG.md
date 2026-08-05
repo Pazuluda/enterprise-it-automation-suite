@@ -4,6 +4,8 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.2.0] — 2026-08-05
+
 ### C2 — Éditeur d’attributs LDAP
 
 - chantier C2 validé fonctionnellement à 100 % ;
@@ -35,7 +37,7 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 - 202 tests backend complets validés ;
 - 53 tests frontend complets validés ;
 - lint, build de production et contrôle de sécurité validés ;
-- préversion `v0.2.0-alpha.17` préparée.
+- version `v0.2.0` finalisée.
 
 ### EITAS Identity
 
