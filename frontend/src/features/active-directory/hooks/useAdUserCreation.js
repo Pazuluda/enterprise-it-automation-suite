@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import {
   EITAS_DN,
@@ -12,6 +12,9 @@ import {
 import {
   getCreateUserOuItemsFromJob,
 } from '../utils/adCreationOptions'
+import {
+  buildCopyUserPreparation,
+} from '../utils/adUserCopy'
 
 function useAdUserCreation({
   apiFetch,
@@ -32,6 +35,7 @@ function useAdUserCreation({
   setStatus,
   setContextMenu,
   setAdminSuccess,
+  resolveUserUpdateTarget,
   selectedNode,
   viewType,
 }) {
@@ -41,6 +45,7 @@ function useAdUserCreation({
   const [createUserOuLoading, setCreateUserOuLoading] = useState(false)
   const [createUserError, setCreateUserError] = useState('')
   const [createUserConfirm, setCreateUserConfirm] = useState('')
+  const copyUserRequestIdRef = useRef(0)
   const [createUserForm, setCreateUserForm] = useState({
     first_name: '',
     last_name: '',
@@ -48,6 +53,18 @@ function useAdUserCreation({
     user_principal_name: '',
     temporary_password: '',
     description: '',
+    title: '',
+    department: '',
+    division: '',
+    company: '',
+    manager: '',
+    office: '',
+    telephone_number: '',
+    mobile: '',
+    street_address: '',
+    postal_code: '',
+    city: '',
+    state: '',
     target_ou_dn: '',
     enabled: false,
     force_change_at_logon: true
@@ -60,6 +77,103 @@ function useAdUserCreation({
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '.')
       .replace(/^\.+|\.+$/g, '')
+  }
+
+
+  function normalizeCreateUserFieldInput(value) {
+    if (typeof value === 'boolean') {
+      return value
+    }
+
+    return String(value ?? '')
+      .replaceAll(
+        String.fromCharCode(0),
+        ''
+      )
+  }
+
+  function getSafeSuggestedSamAccountName(
+    firstName,
+    lastName
+  ) {
+    try {
+      const suggested = String(
+        getSuggestedSamAccountName(
+          firstName,
+          lastName
+        ) ?? ''
+      ).trim()
+
+      if (suggested) {
+        return suggested.slice(0, 20)
+      }
+    } catch (error) {
+      console.warn(
+        'Suggestion identifiant AD impossible',
+        error
+      )
+    }
+
+    const first =
+      normalizeCreateUserPart(firstName)
+
+    const last =
+      normalizeCreateUserPart(lastName)
+
+    if (!first || !last) {
+      return ''
+    }
+
+    return `${first}.${last}`.slice(0, 20)
+  }
+
+  function getSafeSuggestedUserPrincipalName(
+    samAccountName,
+    targetOuDn
+  ) {
+    const sam = String(
+      samAccountName ?? ''
+    ).trim()
+
+    if (!sam) {
+      return ''
+    }
+
+    try {
+      const suggested = String(
+        getSuggestedUserPrincipalName(
+          sam,
+          targetOuDn
+        ) ?? ''
+      ).trim()
+
+      if (suggested) {
+        return suggested
+      }
+    } catch (error) {
+      console.warn(
+        'Suggestion UPN impossible',
+        error
+      )
+    }
+
+    const domain = String(
+      targetOuDn || EITAS_DN || ''
+    )
+      .split(',')
+      .map(part => part.trim())
+      .filter(part => /^DC=/i.test(part))
+      .map(part =>
+        part.replace(/^DC=/i, '').trim()
+      )
+      .filter(Boolean)
+      .join('.')
+
+    if (!domain) {
+      return ''
+    }
+
+    return `${sam}@${domain}`
   }
 
   function validateCreateUserForm(form) {
@@ -417,6 +531,18 @@ function useAdUserCreation({
       user_principal_name: '',
       temporary_password: '',
       description: '',
+      title: '',
+      department: '',
+      division: '',
+      company: '',
+      manager: '',
+      office: '',
+      telephone_number: '',
+      mobile: '',
+      street_address: '',
+      postal_code: '',
+      city: '',
+      state: '',
       target_ou_dn: targetOuDn,
       enabled: false,
       force_change_at_logon: true
@@ -424,14 +550,17 @@ function useAdUserCreation({
   }
 
   function updateCreateUserField(name, value) {
+    const safeValue =
+      normalizeCreateUserFieldInput(value)
+
     setCreateUserForm(current => {
       const next = {
         ...current,
-        [name]: value
+        [name]: safeValue
       }
 
       const previousSuggestedSam =
-        getSuggestedSamAccountName(
+        getSafeSuggestedSamAccountName(
           current.first_name,
           current.last_name
         )
@@ -441,13 +570,13 @@ function useAdUserCreation({
         || name === 'last_name'
       ) {
         const nextSuggestedSam =
-          getSuggestedSamAccountName(
+          getSafeSuggestedSamAccountName(
             next.first_name,
             next.last_name
           )
 
         const currentSam = String(
-          current.sam_account_name || ''
+          current.sam_account_name ?? ''
         ).trim()
 
         if (
@@ -461,11 +590,11 @@ function useAdUserCreation({
       }
 
       const currentUpn = String(
-        current.user_principal_name || ''
+        current.user_principal_name ?? ''
       ).trim()
 
       const previousAutomaticUpn =
-        getSuggestedUserPrincipalName(
+        getSafeSuggestedUserPrincipalName(
           current.sam_account_name,
           current.target_ou_dn
         )
@@ -480,7 +609,7 @@ function useAdUserCreation({
         && upnWasAutomatic
       ) {
         next.user_principal_name =
-          getSuggestedUserPrincipalName(
+          getSafeSuggestedUserPrincipalName(
             next.sam_account_name,
             next.target_ou_dn
           )
@@ -567,12 +696,234 @@ function useAdUserCreation({
     )
   }
 
-  function closeCreateUserModal() {
-    if (createUserLoading) {
+  async function openCopyUser(target) {
+    const base = target || selectedNode
+
+    if (!isEitasManagedObject(base)) {
+      const message =
+        'Action bloquée : sélectionne un utilisateur '
+        + 'du périmètre OU=EITAS.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
       return
     }
 
+    if (
+      typeof resolveUserUpdateTarget
+      !== 'function'
+    ) {
+      const message =
+        'Le chargement détaillé de l’utilisateur '
+        + 'est indisponible.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
+    const requestId =
+      copyUserRequestIdRef.current + 1
+
+    copyUserRequestIdRef.current = requestId
+
+    setCreateUserError('')
+    setCreateUserConfirm('')
+    setContextMenu(null)
+
+    let initialPreparation
+
+    try {
+      initialPreparation =
+        buildCopyUserPreparation(base)
+    } catch {
+      const targetOuDn =
+        getCreateUserDefaultOuDn(base)
+
+      initialPreparation = {
+        form:
+          getEmptyCreateUserForm(targetOuDn),
+        source: {
+          display_name:
+            String(
+              base?.display_name
+              || base?.displayName
+              || base?.name
+              || base?.cn
+              || 'Utilisateur sélectionné'
+            )
+        }
+      }
+    }
+
+    const initialTargetOuDn =
+      initialPreparation.form.target_ou_dn
+      || getCreateUserDefaultOuDn(base)
+
+    setCreateUserForm({
+      ...initialPreparation.form,
+      target_ou_dn: initialTargetOuDn
+    })
+
+    setCreateUserOuOptions(
+      normalizeAdminCreationOptions([
+        {
+          distinguished_name:
+            initialTargetOuDn
+        },
+        {
+          distinguished_name: EITAS_DN
+        }
+      ])
+    )
+
+    setCreateUserModal({
+      target: base,
+      target_ou_dn: initialTargetOuDn,
+      copy_source:
+        initialPreparation.source,
+      copy_preparing: true
+    })
+
+    setCreateUserLoading(true)
+
+    setStatus(
+      'Chargement du profil utilisateur à copier...'
+    )
+
+    try {
+      const [detailedSource] =
+        await Promise.all([
+          resolveUserUpdateTarget(base),
+          loadAdAgentMode()
+        ])
+
+      if (
+        requestId
+        !== copyUserRequestIdRef.current
+      ) {
+        return
+      }
+
+      const preparation =
+        buildCopyUserPreparation(
+          detailedSource
+        )
+
+      const targetOuDn =
+        preparation.form.target_ou_dn
+
+      setCreateUserForm(
+        preparation.form
+      )
+
+      setCreateUserOuOptions(
+        normalizeAdminCreationOptions([
+          {
+            distinguished_name: targetOuDn
+          },
+          {
+            distinguished_name: EITAS_DN
+          }
+        ])
+      )
+
+      setCreateUserModal(current => {
+        if (
+          !current
+          || requestId
+            !== copyUserRequestIdRef.current
+        ) {
+          return current
+        }
+
+        return {
+          ...current,
+          target: detailedSource,
+          target_ou_dn: targetOuDn,
+          copy_source:
+            preparation.source,
+          copy_preparing: false
+        }
+      })
+
+      window.setTimeout(
+        () => {
+          if (
+            requestId
+            === copyUserRequestIdRef.current
+          ) {
+            loadCreateUserOuOptions(
+              targetOuDn
+            )
+          }
+        },
+        0
+      )
+
+      const sourceLabel =
+        preparation.source.display_name
+        || preparation.source.sam_account_name
+        || 'utilisateur sélectionné'
+
+      const message =
+        `Copie préparée depuis ${sourceLabel}.`
+
+      setStatus(message)
+      setMessage?.(message)
+    } catch (error) {
+      if (
+        requestId
+        !== copyUserRequestIdRef.current
+      ) {
+        return
+      }
+
+      const message =
+        error?.message
+        || 'Chargement du profil utilisateur impossible.'
+
+      setCreateUserError(message)
+      setStatus(message)
+      setMessage?.(message)
+
+      setCreateUserModal(current => (
+        current
+          ? {
+              ...current,
+              copy_preparing: false
+            }
+          : current
+      ))
+    } finally {
+      if (
+        requestId
+        === copyUserRequestIdRef.current
+      ) {
+        setCreateUserLoading(false)
+      }
+    }
+  }
+
+  function closeCreateUserModal() {
+    const copyPreparing =
+      Boolean(
+        createUserModal?.copy_preparing
+      )
+
+    if (
+      createUserLoading
+      && !copyPreparing
+    ) {
+      return
+    }
+
+    copyUserRequestIdRef.current += 1
+
     setCreateUserModal(null)
+    setCreateUserLoading(false)
     setCreateUserError('')
     setCreateUserConfirm('')
     setCreateUserOuOptions([])
@@ -643,6 +994,30 @@ function useAdUserCreation({
           temporaryPassword,
         description:
           createUserForm.description.trim(),
+        title:
+          createUserForm.title.trim(),
+        department:
+          createUserForm.department.trim(),
+        division:
+          createUserForm.division.trim(),
+        company:
+          createUserForm.company.trim(),
+        manager:
+          createUserForm.manager.trim(),
+        office:
+          createUserForm.office.trim(),
+        telephone_number:
+          createUserForm.telephone_number.trim(),
+        mobile:
+          createUserForm.mobile.trim(),
+        street_address:
+          createUserForm.street_address.trim(),
+        postal_code:
+          createUserForm.postal_code.trim(),
+        city:
+          createUserForm.city.trim(),
+        state:
+          createUserForm.state.trim(),
         enabled:
           Boolean(createUserForm.enabled),
         force_change_at_logon:
@@ -721,6 +1096,7 @@ function useAdUserCreation({
     setCreateUserError,
     createUserError,
     openCreateUser,
+    openCopyUser,
   }
 }
 

@@ -6014,6 +6014,315 @@ button.aduc-admin-history-row.unknown > span {
   }
 }
 
+
+/* C3.4M7 - Copy user modal stability and polish */
+
+.aduc-create-user-modal.is-copy-mode {
+  width: min(920px, calc(100vw - 28px));
+  max-height: calc(100vh - 24px);
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #f8faff 100%
+    );
+  box-shadow:
+    0 34px 100px rgba(15, 23, 42, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+}
+
+.aduc-create-user-modal.is-copy-mode > header {
+  flex: 0 0 auto;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(79, 70, 229, 0.08),
+      rgba(37, 99, 235, 0.03) 58%,
+      rgba(255, 255, 255, 0.96)
+    );
+}
+
+.aduc-create-user-modal.is-copy-mode > header h3 {
+  margin-top: 5px;
+  font-size: 1.22rem;
+  letter-spacing: -0.025em;
+}
+
+.aduc-create-user-modal.is-copy-mode > header button {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.82);
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.aduc-create-user-modal.is-copy-mode > header button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.35);
+  background: #ffffff;
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-form {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 18px 22px 0;
+  gap: 14px;
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-account-action-warning {
+  margin: 0;
+  padding: 12px 14px;
+  gap: 4px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.aduc-create-user-modal.is-copy-mode
+[data-eitas-copy-source="true"] {
+  border-color: rgba(99, 102, 241, 0.28);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.1),
+      rgba(59, 130, 246, 0.05)
+    );
+}
+
+.aduc-create-user-modal.is-copy-mode
+[data-eitas-copy-source="true"] strong {
+  color: #4338ca;
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-account-action-warning.simulation {
+  border-color: rgba(37, 99, 235, 0.2);
+  background: rgba(239, 246, 255, 0.82);
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-grid {
+  gap: 12px;
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-grid label {
+  gap: 6px;
+}
+
+.aduc-create-user-modal.is-copy-mode
+input:not([type="checkbox"]),
+.aduc-create-user-modal.is-copy-mode
+textarea,
+.aduc-create-user-modal.is-copy-mode
+select {
+  box-sizing: border-box;
+  min-height: 44px;
+  border-radius: 12px;
+  border-color: rgba(100, 116, 139, 0.25);
+  background: rgba(255, 255, 255, 0.96);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.aduc-create-user-modal.is-copy-mode
+input:not([type="checkbox"]):focus,
+.aduc-create-user-modal.is-copy-mode
+textarea:focus,
+.aduc-create-user-modal.is-copy-mode
+select:focus {
+  outline: none;
+  border-color: rgba(79, 70, 229, 0.68);
+  background: #ffffff;
+  box-shadow:
+    0 0 0 4px rgba(99, 102, 241, 0.11);
+}
+
+.aduc-create-user-modal.is-copy-mode
+[data-eitas-create-user-field="first_name"],
+.aduc-create-user-modal.is-copy-mode
+[data-eitas-create-user-field="last_name"] {
+  border-color: rgba(99, 102, 241, 0.32);
+}
+
+.aduc-create-user-modal.is-copy-mode
+details[data-eitas-copy-profile="true"] {
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 16px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.aduc-create-user-modal.is-copy-mode
+details[data-eitas-copy-profile="true"] > summary {
+  cursor: pointer;
+  padding: 13px 15px;
+  color: #312e81;
+  font-size: 0.84rem;
+  font-weight: 850;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.08),
+      rgba(255, 255, 255, 0.7)
+    );
+  user-select: none;
+}
+
+.aduc-create-user-modal.is-copy-mode
+details[data-eitas-copy-profile="true"]
+> .aduc-create-user-grid {
+  padding: 15px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-options {
+  gap: 12px;
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-toggle {
+  border-color: rgba(99, 102, 241, 0.16);
+  background: rgba(248, 250, 255, 0.92);
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-summary {
+  border-radius: 15px;
+  border-color: rgba(79, 70, 229, 0.22);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(79, 70, 229, 0.08),
+      rgba(37, 99, 235, 0.04)
+    );
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-form > footer {
+  position: sticky;
+  z-index: 4;
+  bottom: 0;
+  flex: 0 0 auto;
+  margin: 0 -22px;
+  padding: 14px 22px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -14px 32px rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(14px);
+}
+
+.aduc-create-user-modal.is-copy-mode
+.aduc-create-user-form > footer button {
+  min-height: 42px;
+  padding-inline: 18px;
+}
+
+@media (max-width: 760px) {
+  .aduc-create-user-modal.is-copy-mode {
+    width: calc(100vw - 14px);
+    max-height: calc(100vh - 14px);
+    border-radius: 16px;
+  }
+
+  .aduc-create-user-modal.is-copy-mode > header {
+    padding: 15px 16px;
+  }
+
+  .aduc-create-user-modal.is-copy-mode
+  .aduc-create-user-form {
+    padding: 15px 16px 0;
+  }
+
+  .aduc-create-user-modal.is-copy-mode
+  .aduc-create-user-form > footer {
+    margin: 0 -16px;
+    padding: 12px 16px;
+  }
+}
+
+
+
+/* C3.4M8 - Immediate copy modal */
+
+.aduc-copy-user-preparing {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 16px 22px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(239, 246, 255, 0.96),
+      rgba(245, 243, 255, 0.9)
+    );
+  color: #334155;
+}
+
+.aduc-copy-user-preparing > div {
+  display: grid;
+  gap: 3px;
+}
+
+.aduc-copy-user-preparing strong {
+  color: #3730a3;
+  font-size: 0.84rem;
+}
+
+.aduc-copy-user-preparing p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.aduc-copy-user-spinner {
+  flex: 0 0 auto;
+  width: 19px;
+  height: 19px;
+  border: 2px solid rgba(99, 102, 241, 0.18);
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation:
+    aduc-copy-user-spin 650ms linear infinite;
+}
+
+@keyframes aduc-copy-user-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aduc-create-user-modal.is-copy-mode[aria-busy="true"]
+.aduc-create-user-form {
+  opacity: 0.82;
+}
+
+@media (max-width: 760px) {
+  .aduc-copy-user-preparing {
+    margin: 14px 16px 0;
+  }
+}
+
+
 /* C1.2.4 — ADUC object properties modal */
 .aduc-object-properties-backdrop {
   z-index: 1200;

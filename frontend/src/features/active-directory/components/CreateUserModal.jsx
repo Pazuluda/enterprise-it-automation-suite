@@ -28,7 +28,16 @@ function CreateUserModal({
         onClick={closeCreateUserModal}
       >
         <section
-          className="aduc-modal aduc-create-user-modal"
+          className={
+            `aduc-modal aduc-create-user-modal${
+              createUserModal.copy_source
+                ? ' is-copy-mode'
+                : ''
+            }`
+          }
+          aria-busy={Boolean(
+            createUserModal.copy_preparing
+          )}
           onClick={event =>
             event.stopPropagation()
           }
@@ -36,18 +45,72 @@ function CreateUserModal({
           <header>
             <div>
               <span>Active Directory</span>
-              <h3>Créer un utilisateur</h3>
+              <h3>
+                {createUserModal.copy_source
+                  ? 'Copier un utilisateur'
+                  : 'Créer un utilisateur'}
+              </h3>
             </div>
 
             <button
               type="button"
               onClick={closeCreateUserModal}
-              disabled={createUserLoading}
+              disabled={
+                createUserLoading
+                && !createUserModal.copy_preparing
+              }
               aria-label="Fermer"
             >
               ×
             </button>
           </header>
+
+          {createUserModal.copy_preparing && (
+            <div
+              className="aduc-copy-user-preparing"
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                className="aduc-copy-user-spinner"
+                aria-hidden="true"
+              />
+
+              <div>
+                <strong>
+                  Chargement du profil complet
+                </strong>
+
+                <p>
+                  La fenêtre est disponible pendant
+                  la récupération des attributs AD.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {createUserModal.copy_source && (
+            <div
+              className="aduc-account-action-warning simulation"
+              data-eitas-copy-source="true"
+            >
+              <strong>
+                Copie contrôlée
+              </strong>
+
+              <p>
+                Profil chargé depuis
+                {' '}
+                <b>
+                  {createUserModal.copy_source.display_name
+                    || createUserModal.copy_source.sam_account_name
+                    || 'l’utilisateur sélectionné'}
+                </b>
+                . Les groupes, mots de passe et identifiants
+                techniques ne sont jamais copiés.
+              </p>
+            </div>
+          )}
 
           <form
             className="aduc-create-user-form"
@@ -77,6 +140,7 @@ function CreateUserModal({
 
                 <input
                   type="text"
+                  data-eitas-create-user-field="first_name"
                   value={createUserForm.first_name}
                   onChange={event =>
                     updateCreateUserField(
@@ -95,6 +159,7 @@ function CreateUserModal({
 
                 <input
                   type="text"
+                  data-eitas-create-user-field="last_name"
                   value={createUserForm.last_name}
                   onChange={event =>
                     updateCreateUserField(
@@ -230,6 +295,236 @@ function CreateUserModal({
                   disabled={createUserLoading}
                 />
               </label>
+
+              <details
+                className="wide"
+                data-eitas-copy-profile="true"
+                open={Boolean(
+                  createUserModal.copy_source
+                )}
+              >
+                <summary>
+                  Profil utilisateur optionnel
+                </summary>
+
+                <div className="aduc-create-user-grid">
+                  <label>
+                    <span>Fonction</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.title}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'title',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Service</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.department}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'department',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Division</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.division}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'division',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Société</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.company}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'company',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Bureau</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.office}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'office',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Téléphone professionnel</span>
+
+                    <input
+                      type="text"
+                      value={
+                        createUserForm.telephone_number
+                      }
+                      onChange={event =>
+                        updateCreateUserField(
+                          'telephone_number',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Téléphone mobile</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.mobile}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'mobile',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Code postal</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.postal_code}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'postal_code',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Ville</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.city}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'city',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label>
+                    <span>Région / État</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.state}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'state',
+                          event.target.value
+                        )
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label className="wide">
+                    <span>Adresse</span>
+
+                    <textarea
+                      value={createUserForm.street_address}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'street_address',
+                          event.target.value
+                        )
+                      }
+                      rows="2"
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+                  </label>
+
+                  <label className="wide">
+                    <span>Gestionnaire — DN LDAP</span>
+
+                    <input
+                      type="text"
+                      value={createUserForm.manager}
+                      onChange={event =>
+                        updateCreateUserField(
+                          'manager',
+                          event.target.value
+                        )
+                      }
+                      placeholder={
+                        'CN=Responsable,'
+                        + 'OU=Users,OU=EITAS,'
+                        + 'DC=API,DC=LOCAL'
+                      }
+                      autoComplete="off"
+                      disabled={createUserLoading}
+                    />
+
+                    <small>
+                      Le gestionnaire doit être renseigné
+                      sous la forme d’un DN LDAP complet.
+                    </small>
+                  </label>
+                </div>
+              </details>
             </div>
 
             <div className="aduc-create-user-options">
@@ -341,9 +636,11 @@ function CreateUserModal({
                   || createUserOuLoading
                 }
               >
-                {createUserLoading
-                  ? 'Création en cours...'
-                  : createUserOuLoading
+                {createUserModal.copy_preparing
+                  ? 'Chargement du profil...'
+                  : createUserLoading
+                    ? 'Création en cours...'
+                    : createUserOuLoading
                     ? 'Chargement des OU...'
                     : isAdProductionMode()
                       ? 'Créer dans Active Directory'

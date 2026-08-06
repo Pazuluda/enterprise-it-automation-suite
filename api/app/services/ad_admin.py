@@ -244,6 +244,144 @@ def validate_user_principal_name(value: str) -> str:
     return clean
 
 
+CREATE_USER_PROFILE_FIELD_SPECS = {
+    "title": (
+        ("title", "Title"),
+        128,
+    ),
+    "department": (
+        ("department", "Department"),
+        64,
+    ),
+    "division": (
+        ("division", "Division"),
+        256,
+    ),
+    "company": (
+        ("company", "Company"),
+        64,
+    ),
+    "manager": (
+        ("manager", "Manager"),
+        2048,
+    ),
+    "office": (
+        (
+            "office",
+            "Office",
+            "physical_delivery_office_name",
+            "physicalDeliveryOfficeName",
+        ),
+        128,
+    ),
+    "telephone_number": (
+        (
+            "telephone_number",
+            "telephoneNumber",
+            "office_phone",
+            "officePhone",
+            "OfficePhone",
+        ),
+        64,
+    ),
+    "mobile": (
+        (
+            "mobile",
+            "Mobile",
+            "mobile_phone",
+            "mobilePhone",
+            "MobilePhone",
+        ),
+        64,
+    ),
+    "street_address": (
+        (
+            "street_address",
+            "streetAddress",
+            "StreetAddress",
+        ),
+        1024,
+    ),
+    "postal_code": (
+        (
+            "postal_code",
+            "postalCode",
+            "PostalCode",
+        ),
+        40,
+    ),
+    "city": (
+        ("city", "City", "l"),
+        128,
+    ),
+    "state": (
+        ("state", "State", "st"),
+        128,
+    ),
+}
+
+
+def normalize_create_user_profile(
+    payload: dict,
+) -> dict[str, str]:
+    normalized = {}
+
+    for (
+        target_name,
+        (
+            aliases,
+            maximum_length,
+        ),
+    ) in CREATE_USER_PROFILE_FIELD_SPECS.items():
+        raw_value = None
+
+        for alias in aliases:
+            if (
+                alias in payload
+                and payload.get(alias) is not None
+            ):
+                raw_value = payload.get(alias)
+                break
+
+        if raw_value is None:
+            continue
+
+        if not isinstance(raw_value, str):
+            raise ADAdminBadRequest(
+                f"{target_name} doit être une chaîne"
+            )
+
+        value = raw_value.strip()
+
+        if not value:
+            continue
+
+        if any(
+            ord(character) < 32
+            for character in value
+        ):
+            raise ADAdminBadRequest(
+                f"{target_name} contient un caractère "
+                "de contrôle interdit"
+            )
+
+        if len(value) > maximum_length:
+            raise ADAdminBadRequest(
+                f"{target_name} est limité à "
+                f"{maximum_length} caractères"
+            )
+
+        if target_name == "manager":
+            value = validate_dn(
+                value,
+                "manager",
+            )
+
+        normalized[target_name] = value
+
+    return normalized
+
+
 def validate_dn(value: str, field_name: str) -> str:
     clean = clean_string(value)
 
@@ -1232,6 +1370,12 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             payload.get("description") or ""
         )
 
+        create_user_profile = (
+            normalize_create_user_profile(
+                payload
+            )
+        )
+
         enabled = normalize_bool(
             payload.get("enabled"),
             default=False,
@@ -1262,6 +1406,19 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             ),
         }
 
+        job_payload.update(
+            create_user_profile
+        )
+
+        profile_fields = sorted(
+            set(create_user_profile)
+            | (
+                {"description"}
+                if description
+                else set()
+            )
+        )
+
         audit_details.update({
             "target_ou_dn": target_ou_dn,
             "sam_account_name": sam_account_name,
@@ -1272,6 +1429,7 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "force_change_at_logon": (
                 force_change_at_logon
             ),
+            "profile_fields": profile_fields,
         })
 
     elif action == "create_computer":

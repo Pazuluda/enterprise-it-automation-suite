@@ -36,7 +36,7 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -1166,6 +1166,21 @@ const objectTechnicalRows = [
 
             {isUser && (
               <>
+                <button
+                  type="button"
+                  data-eitas-action="copy-user"
+                  disabled={
+                    !isManagedScope
+                    || isComputer
+                    || !onCopyUser
+                  }
+                  onClick={() =>
+                    onCopyUser?.(displayed)
+                  }
+                >
+                  Copier
+                </button>
+
                 <button type="button" disabled={!isManagedScope || isComputer} onClick={() => onPrepareAccountAction?.('reset_password', displayed)}>
                   Réinitialiser MDP
                 </button>

@@ -261,6 +261,27 @@ function AdObjectPropertiesModal({
     Boolean(canManageActiveDirectory) &&
     isUserObject
 
+
+  function copyCurrentUser() {
+    if (
+      loading ||
+      (editing && hasChanges) ||
+      !isUserObject ||
+      typeof details?.onCopyUser !== 'function'
+    ) {
+      return
+    }
+
+    const copyTarget =
+      update?.updateTarget || object
+
+    update?.closeUpdateObject?.()
+    setEditing(false)
+    setSaveNotice('')
+
+    details.onCopyUser(copyTarget)
+  }
+
   return (
     <div
       className="
@@ -306,13 +327,15 @@ function AdObjectPropertiesModal({
 
           <div className="aduc-object-properties-header-actions">
             <span className="aduc-object-properties-mode">
-              {ldapEditor.active
-                ? 'Éditeur LDAP'
-                : habSimulationActive
-                  ? 'Simulation HAB'
-                  : editing
-                    ? 'Modification'
-                    : 'Consultation'}
+              {loading
+                ? 'Chargement...'
+                : ldapEditor.active
+                  ? 'Éditeur LDAP'
+                  : habSimulationActive
+                    ? 'Simulation HAB'
+                    : editing
+                      ? 'Modification'
+                      : 'Consultation'}
             </span>
 
             <button
@@ -495,6 +518,29 @@ function AdObjectPropertiesModal({
               </button>
             </>
           )}
+
+
+          {isUserObject &&
+            !ldapEditor.active &&
+            !habSimulationActive && (
+              <button
+                type="button"
+                data-eitas-action="copy-user-from-properties"
+                onClick={copyCurrentUser}
+                disabled={
+                  loading ||
+                  (editing && hasChanges) ||
+                  typeof details?.onCopyUser !== 'function'
+                }
+                title={
+                  editing && hasChanges
+                    ? 'Annule ou enregistre les modifications avant la copie.'
+                    : 'Copier cet utilisateur'
+                }
+              >
+                Copier cet utilisateur
+              </button>
+            )}
         </footer>
       </section>
     </div>

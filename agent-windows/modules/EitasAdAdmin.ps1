@@ -340,6 +340,180 @@ function Invoke-EitasAdAdminCreateUser {
             "Description"
         )
 
+    $CreateUserProfileSpecs = @(
+        [pscustomobject]@{
+            Key = "title"
+            Names = @(
+                "title",
+                "Title"
+            )
+            Parameter = "Title"
+            MaximumLength = 128
+        },
+        [pscustomobject]@{
+            Key = "department"
+            Names = @(
+                "department",
+                "Department"
+            )
+            Parameter = "Department"
+            MaximumLength = 64
+        },
+        [pscustomobject]@{
+            Key = "division"
+            Names = @(
+                "division",
+                "Division"
+            )
+            Parameter = "Division"
+            MaximumLength = 256
+        },
+        [pscustomobject]@{
+            Key = "company"
+            Names = @(
+                "company",
+                "Company"
+            )
+            Parameter = "Company"
+            MaximumLength = 64
+        },
+        [pscustomobject]@{
+            Key = "manager"
+            Names = @(
+                "manager",
+                "Manager"
+            )
+            Parameter = "Manager"
+            MaximumLength = 2048
+        },
+        [pscustomobject]@{
+            Key = "office"
+            Names = @(
+                "office",
+                "Office",
+                "physical_delivery_office_name",
+                "physicalDeliveryOfficeName"
+            )
+            Parameter = "Office"
+            MaximumLength = 128
+        },
+        [pscustomobject]@{
+            Key = "telephone_number"
+            Names = @(
+                "telephone_number",
+                "telephoneNumber",
+                "office_phone",
+                "officePhone",
+                "OfficePhone"
+            )
+            Parameter = "OfficePhone"
+            MaximumLength = 64
+        },
+        [pscustomobject]@{
+            Key = "mobile"
+            Names = @(
+                "mobile",
+                "Mobile",
+                "mobile_phone",
+                "mobilePhone",
+                "MobilePhone"
+            )
+            Parameter = "MobilePhone"
+            MaximumLength = 64
+        },
+        [pscustomobject]@{
+            Key = "street_address"
+            Names = @(
+                "street_address",
+                "streetAddress",
+                "StreetAddress"
+            )
+            Parameter = "StreetAddress"
+            MaximumLength = 1024
+        },
+        [pscustomobject]@{
+            Key = "postal_code"
+            Names = @(
+                "postal_code",
+                "postalCode",
+                "PostalCode"
+            )
+            Parameter = "PostalCode"
+            MaximumLength = 40
+        },
+        [pscustomobject]@{
+            Key = "city"
+            Names = @(
+                "city",
+                "City",
+                "l"
+            )
+            Parameter = "City"
+            MaximumLength = 128
+        },
+        [pscustomobject]@{
+            Key = "state"
+            Names = @(
+                "state",
+                "State",
+                "st"
+            )
+            Parameter = "State"
+            MaximumLength = 128
+        }
+    )
+
+    $CreateUserProfileValues = @{}
+    $AppliedProfileFields = @()
+
+    foreach ($ProfileSpec in $CreateUserProfileSpecs) {
+        $RawProfileValue = Get-EitasObjectValue `
+            -Object $Payload `
+            -Names $ProfileSpec.Names
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                [string]$RawProfileValue
+            )
+        ) {
+            continue
+        }
+
+        $ProfileValue = Repair-EitasTextEncoding `
+            -Value (
+                [string]$RawProfileValue
+            ).Trim()
+
+        if (
+            $ProfileValue.ToCharArray() |
+            Where-Object {
+                [int][char]$_ -lt 32
+            }
+        ) {
+            throw (
+                "$($ProfileSpec.Key) contient " +
+                "un caractère de contrôle interdit"
+            )
+        }
+
+        if (
+            $ProfileValue.Length -gt
+            [int]$ProfileSpec.MaximumLength
+        ) {
+            throw (
+                "$($ProfileSpec.Key) est limité à " +
+                "$($ProfileSpec.MaximumLength) caractères"
+            )
+        }
+
+        $CreateUserProfileValues[
+            [string]$ProfileSpec.Parameter
+        ] = $ProfileValue
+
+        $AppliedProfileFields +=
+            [string]$ProfileSpec.Key
+    }
+
     $EnabledValue = Get-EitasObjectValue `
         -Object $Payload `
         -Names @(
@@ -411,6 +585,19 @@ function Invoke-EitasAdAdminCreateUser {
 
     $Description = Repair-EitasTextEncoding `
         -Value ([string]$Description).Trim()
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Description
+        )
+    ) {
+        $AppliedProfileFields += "description"
+    }
+
+    $AppliedProfileFields = @(
+        $AppliedProfileFields |
+            Sort-Object -Unique
+    )
 
     if ($SamAccountName.Length -gt 20) {
         throw "Identifiant utilisateur limité à 20 caractères"
@@ -491,6 +678,9 @@ function Invoke-EitasAdAdminCreateUser {
             enabled = $Enabled
             force_change_at_logon = $ForceChangeAtLogon
             description = $Description
+            profile_fields = @(
+                $AppliedProfileFields
+            )
             message = "Simulation création utilisateur AD"
         }
     }
@@ -535,6 +725,17 @@ function Invoke-EitasAdAdminCreateUser {
         ErrorAction = "Stop"
     }
 
+    foreach (
+        $ProfileParameter
+        in $CreateUserProfileValues.Keys
+    ) {
+        $NewUserParams[
+            [string]$ProfileParameter
+        ] = $CreateUserProfileValues[
+            [string]$ProfileParameter
+        ]
+    }
+
     if (
         -not [string]::IsNullOrWhiteSpace(
             [string]$Description
@@ -564,8 +765,15 @@ function Invoke-EitasAdAdminCreateUser {
             title, `
             department, `
             company, `
+            division, `
+            manager, `
             telephoneNumber, `
+            mobile, `
             physicalDeliveryOfficeName, `
+            streetAddress, `
+            postalCode, `
+            l, `
+            st, `
             Enabled `
         -ErrorAction Stop
 
@@ -580,6 +788,9 @@ function Invoke-EitasAdAdminCreateUser {
         target_ou_dn = $TargetOuDn
         enabled = $CreatedUser.Enabled
         force_change_at_logon = $ForceChangeAtLogon
+        profile_fields = @(
+            $AppliedProfileFields
+        )
         created_user = Convert-EitasAdAdminObjectItem `
             -Object $CreatedUser
         message = "Utilisateur AD créé"

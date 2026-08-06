@@ -234,6 +234,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     loadAdAgentMode,
     isAdProductionMode,
     runAdAdminJob,
+    resolveUserUpdateTarget,
     loadTree,
     loadNodeContent,
     loadAdAdminHistory,
@@ -247,6 +248,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
   const {
     openCreateUser,
+    openCopyUser,
   } = userCreation
 
   const objectRename = useAdObjectRename({
@@ -2658,6 +2660,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                 onOpenUpdateObject={target => openUpdateObject(target)}
                 onOpenRenameObject={target => openRenameObject(target)}
                 onOpenDeleteObject={target => openDeleteObject(target)}
+                onCopyUser={target => openCopyUser(target)}
                 onPrepareAccountAction={prepareAccountAction}
                 onLoadMembers={target => loadGroupMembers(target)}
                 onOpenAddMember={target => openAddMemberModal(target)}
@@ -2766,6 +2769,10 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
           onOpenDeleteObject: target => {
             setPropertiesModal(null)
             openDeleteObject(target)
+          },
+          onCopyUser: target => {
+            setPropertiesModal(null)
+            openCopyUser(target)
           },
           onPrepareAccountAction: (
             action,
