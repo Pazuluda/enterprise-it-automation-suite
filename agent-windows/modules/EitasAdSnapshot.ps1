@@ -402,7 +402,9 @@ function Convert-EitasSnapshotObject {
         name = [string]$Object.Name
         display_name = [string]$Object.displayName
         given_name = [string]$Object.givenName
+        personal_title = [string]$Object.personalTitle
         initials = [string]$Object.initials
+        preferred_language = [string]$Object.preferredLanguage
         surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
@@ -562,7 +564,9 @@ function New-EitasAdSnapshot {
         "description",
         "displayName",
         "givenName",
+        "personalTitle",
         "initials",
+        "preferredLanguage",
         "sn",
         "sAMAccountName",
         "userPrincipalName",
@@ -806,6 +810,9 @@ function Convert-EitasDomainCatalogObject {
         name = $ObjectName
         display_name = $DisplayName
         given_name = [string]$Object.givenName
+        personal_title = [string]$Object.personalTitle
+        initials = [string]$Object.initials
+        preferred_language = [string]$Object.preferredLanguage
         surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
@@ -923,6 +930,9 @@ function New-EitasAdDomainCatalog {
         "description",
         "displayName",
         "givenName",
+        "personalTitle",
+        "initials",
+        "preferredLanguage",
         "sn",
         "sAMAccountName",
         "userPrincipalName",

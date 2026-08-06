@@ -82,6 +82,16 @@ export const COPY_USER_NEVER_FORM_FIELDS =
     'cannotChangePassword',
     'cannot_change_password',
 
+    'personalTitle',
+    'personal_title',
+    'initials',
+    'preferredLanguage',
+    'preferred_language',
+    'info',
+    'notes',
+    'remarks',
+    'user_notes',
+
     'mail',
     'email',
     'employeeID',

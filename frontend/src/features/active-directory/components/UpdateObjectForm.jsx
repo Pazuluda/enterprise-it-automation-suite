@@ -249,6 +249,28 @@ function UpdateObjectForm({
             ]
           },
           {
+            title: 'Profil avancé',
+            fields: [
+              [
+                'personalTitle',
+                'Titre de civilité'
+              ],
+              [
+                'initials',
+                'Initiales'
+              ],
+              [
+                'preferredLanguage',
+                'Langue préférée'
+              ],
+              [
+                'info',
+                'Remarques',
+                true
+              ]
+            ]
+          },
+          {
             title: 'Organisation',
             fields: [
               ['title', 'Titre / poste'],
@@ -987,6 +1009,40 @@ function UpdateObjectForm({
                     )
                   }
 
+                  if (name === 'info') {
+                    return (
+                      <label
+                        key={name}
+                        className="wide"
+                      >
+                        <span>{label}</span>
+
+                        <textarea
+                          rows="4"
+                          maxLength={1024}
+                          value={updateForm.info || ''}
+                          onChange={event =>
+                            updateObjectFormField(
+                              'info',
+                              event.target.value
+                            )
+                          }
+                          disabled={
+                            loading
+                            || update
+                              ?.pendingUserAccountOptionFields
+                              ?.includes('info')
+                          }
+                        />
+
+                        <small>
+                          Remarque interne Active Directory,
+                          limitée à 1 024 caractères.
+                        </small>
+                      </label>
+                    )
+                  }
+
                   return (
                     <label
                       key={name}
@@ -1013,7 +1069,15 @@ function UpdateObjectForm({
                                 ? 1024
                                 : name === 'userPrincipalName'
                                   ? 1024
-                                  : undefined
+                                  : name === 'personalTitle'
+                                    ? 64
+                                    : name === 'initials'
+                                      ? 6
+                                      : name === 'preferredLanguage'
+                                        ? 32767
+                                        : name === 'info'
+                                          ? 1024
+                                          : undefined
                         }
                         pattern={
                           name === 'homeDrive'
@@ -1073,12 +1137,9 @@ function UpdateObjectForm({
                         }
                         disabled={
                           loading
-                          || (
-                            name.startsWith('msTS')
-                            && update
-                              ?.pendingUserAccountOptionFields
-                              ?.includes(name)
-                          )
+                          || update
+                            ?.pendingUserAccountOptionFields
+                            ?.includes(name)
                         }
                       />
 

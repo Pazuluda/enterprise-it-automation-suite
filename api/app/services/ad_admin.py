@@ -494,11 +494,18 @@ def normalize_update_object_properties(
         "displayName",
         "display_name",
         "givenName",
+        "personalTitle",
+        "personal_title",
         "initials",
+        "preferredLanguage",
+        "preferred_language",
         "sn",
         "mail",
         "wWWHomePage",
         "info",
+        "notes",
+        "remarks",
+        "user_notes",
         "samAccountName",
         "sam_account_name",
         "userPrincipalName",
@@ -586,6 +593,11 @@ def normalize_update_object_properties(
 
     property_aliases = {
         "display_name": "displayName",
+        "personal_title": "personalTitle",
+        "preferred_language": "preferredLanguage",
+        "notes": "info",
+        "remarks": "info",
+        "user_notes": "info",
         "operating_system": "operatingSystem",
         "operating_system_version":
             "operatingSystemVersion",
@@ -643,7 +655,9 @@ def normalize_update_object_properties(
     }
 
     property_max_lengths = {
+        "personalTitle": 64,
         "initials": 6,
+        "preferredLanguage": 32767,
         "wWWHomePage": 2048,
         "telephoneNumber": 64,
         "homePhone": 64,
@@ -784,6 +798,43 @@ def normalize_update_object_properties(
                     detail=(
                         f"{normalized_key} est limite a "
                         "32767 caracteres par le schema AD"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = (
+                normalized_value
+            )
+            continue
+
+        if normalized_key in {
+            "personalTitle",
+            "initials",
+            "preferredLanguage",
+            "info",
+        }:
+            if (
+                value is not None
+                and not isinstance(value, str)
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} doit contenir "
+                        "une chaine de caracteres unique"
+                    ),
+                )
+
+            normalized_value = clean_string(value)
+            maximum_length = property_max_lengths[
+                normalized_key
+            ]
+
+            if len(normalized_value) > maximum_length:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} est limite a "
+                        f"{maximum_length} caracteres"
                     ),
                 )
 

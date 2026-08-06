@@ -402,6 +402,38 @@ function useAdObjectUpdate({
     }
   ]
 
+  const userAdvancedProfileDefinitions = [
+    {
+      field: 'personalTitle',
+      aliases: [
+        'personalTitle',
+        'personal_title'
+      ]
+    },
+    {
+      field: 'initials',
+      aliases: [
+        'initials'
+      ]
+    },
+    {
+      field: 'preferredLanguage',
+      aliases: [
+        'preferredLanguage',
+        'preferred_language'
+      ]
+    },
+    {
+      field: 'info',
+      aliases: [
+        'info',
+        'notes',
+        'remarks',
+        'user_notes'
+      ]
+    }
+  ]
+
   function getMissingUserAccountOptionFields(
     target
   ) {
@@ -470,6 +502,45 @@ function useAdObjectUpdate({
     )
   }
 
+  function hasAuthoritativeUserAdvancedProfile(
+    target
+  ) {
+    return userAdvancedProfileDefinitions.every(
+      definition =>
+        hasOwnAdAttribute(
+          target,
+          ...definition.aliases
+        )
+    )
+  }
+
+  function getMissingUserAdvancedProfileFields(
+    target
+  ) {
+    return userAdvancedProfileDefinitions
+      .filter(definition =>
+        !hasOwnAdAttribute(
+          target,
+          ...definition.aliases
+        )
+      )
+      .map(definition => definition.field)
+  }
+
+  function getUserAdvancedProfilePatch(target) {
+    return Object.fromEntries(
+      userAdvancedProfileDefinitions.map(
+        definition => [
+          definition.field,
+          getAdAttributeValue(
+            target,
+            ...definition.aliases
+          )
+        ]
+      )
+    )
+  }
+
   async function prepareUpdateObject(
     target,
     { openModal = true } = {}
@@ -513,6 +584,9 @@ function useAdObjectUpdate({
         || !hasAuthoritativeUserRdsProfile(
           target
         )
+        || !hasAuthoritativeUserAdvancedProfile(
+          target
+        )
       )
       && typeof resolveUserUpdateTargetSync
         === 'function'
@@ -532,6 +606,9 @@ function useAdObjectUpdate({
               target
             ),
             ...getMissingUserRdsProfileFields(
+              target
+            ),
+            ...getMissingUserAdvancedProfileFields(
               target
             )
           ]
@@ -592,9 +669,19 @@ function useAdObjectUpdate({
         'given_name',
         'first_name'
       ),
+      personalTitle: getAdAttributeValue(
+        target,
+        'personalTitle',
+        'personal_title'
+      ),
       initials: getAdAttributeValue(
         target,
         'initials'
+      ),
+      preferredLanguage: getAdAttributeValue(
+        target,
+        'preferredLanguage',
+        'preferred_language'
       ),
       sn: getAdAttributeValue(
         target,
@@ -617,7 +704,8 @@ function useAdObjectUpdate({
         target,
         'info',
         'notes',
-        'remarks'
+        'remarks',
+        'user_notes'
       ),
       title: getAdAttributeValue(
         target,
@@ -898,6 +986,9 @@ function useAdObjectUpdate({
             || !hasAuthoritativeUserRdsProfile(
               resolvedTarget
             )
+            || !hasAuthoritativeUserAdvancedProfile(
+              resolvedTarget
+            )
           ) {
             throw new Error(
               'Active Directory n\u2019a pas retourne '
@@ -910,6 +1001,9 @@ function useAdObjectUpdate({
               resolvedTarget
             ),
             ...getUserRdsProfilePatch(
+              resolvedTarget
+            ),
+            ...getUserAdvancedProfilePatch(
               resolvedTarget
             )
           }

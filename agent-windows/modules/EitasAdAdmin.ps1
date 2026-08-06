@@ -1408,7 +1408,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "operatingSystemServicePack",
         "displayName",
         "givenName",
+        "personalTitle",
         "initials",
+        "preferredLanguage",
         "sn",
         "mail",
         "wWWHomePage",
@@ -1544,6 +1546,35 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
     }
 
+    $AdvancedUserProperties = @(
+        "personalTitle",
+        "preferredLanguage"
+    )
+
+    $HasAdvancedUserChanges = @(
+        $Properties.Keys |
+            Where-Object {
+                $AdvancedUserProperties -contains [string]$_
+            }
+    ).Count -gt 0
+
+    if (
+        $HasAdvancedUserChanges -and
+        $PersonObjectClass -ne "user"
+    ) {
+        throw (
+            "personalTitle et preferredLanguage sont " +
+            "reserves aux utilisateurs"
+        )
+    }
+
+    $AdvancedProfileTextProperties = @(
+        "personalTitle",
+        "initials",
+        "preferredLanguage",
+        "info"
+    )
+
     $ProfileProperties = @(
         "profilePath",
         "scriptPath",
@@ -1634,7 +1665,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     }
 
     $MaximumAttributeLengths = @{
+        personalTitle = 64
         initials = 6
+        preferredLanguage = 32767
         wWWHomePage = 2048
         telephoneNumber = 64
         homePhone = 64
@@ -1941,6 +1974,17 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             }
 
             continue
+        }
+
+        if (
+            $Key -in $AdvancedProfileTextProperties -and
+            $null -ne $RawValue -and
+            $RawValue -isnot [string]
+        ) {
+            throw (
+                "$Key doit contenir une seule chaine " +
+                "de caracteres"
+            )
         }
 
         $Value = Repair-EitasTextEncoding -Value $RawValue
@@ -2286,11 +2330,15 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     if (
         $HasInfoChanges -and
         @(
+            "user",
             "group",
             "contact"
         ) -notcontains $ObjectClassName
     ) {
-        throw "info est réservé aux groupes et contacts"
+        throw (
+            "info est reserve aux utilisateurs, " +
+            "groupes et contacts"
+        )
     }
 
     $HasGroupSpecificChanges = (
@@ -2677,7 +2725,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, personalTitle, initials, preferredLanguage, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
@@ -2772,6 +2820,18 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         replaced = $Replace
         cleared = $Clear
         sam_account_name = $UpdatedSamAccountName
+        personal_title = (
+            [string]$UpdatedObject.personalTitle
+        )
+        initials = (
+            [string]$UpdatedObject.initials
+        )
+        preferred_language = (
+            [string]$UpdatedObject.preferredLanguage
+        )
+        info = (
+            [string]$UpdatedObject.info
+        )
         user_principal_name = (
             [string]$UpdatedObject.userPrincipalName
         )

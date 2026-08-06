@@ -393,6 +393,36 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
 
     const profileRows = [
       [
+        'Titre de civilité',
+        pickAdField([
+          'personal_title',
+          'personalTitle',
+        ]) || 'Non défini',
+      ],
+      [
+        'Initiales',
+        pickAdField([
+          'initials',
+        ]) || 'Non défini',
+      ],
+      [
+        'Langue préférée',
+        pickAdField([
+          'preferred_language',
+          'preferredLanguage',
+        ]) || 'Non définie',
+      ],
+      [
+        'Remarques',
+        pickAdField([
+          'info',
+          'notes',
+          'remarks',
+          'user_notes',
+        ]) || 'Non définies',
+        true,
+      ],
+      [
         'Chemin du profil',
         pickAdField([
           'profile_path',
