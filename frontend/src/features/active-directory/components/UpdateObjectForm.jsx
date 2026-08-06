@@ -270,6 +270,35 @@ function UpdateObjectForm({
               ]
             ]
           },
+
+          {
+            title: 'Profil Unix / POSIX',
+            fields: [
+              [
+                'uidNumber',
+                'Identifiant utilisateur Unix (UID)'
+              ],
+              [
+                'gidNumber',
+                'Identifiant de groupe Unix (GID)'
+              ],
+              [
+                'unixHomeDirectory',
+                'Répertoire personnel Unix',
+                true
+              ],
+              [
+                'loginShell',
+                'Shell de connexion',
+                true
+              ],
+              [
+                'gecos',
+                'Informations GECOS',
+                true
+              ]
+            ]
+          },
           {
             title: 'Organisation',
             fields: [
@@ -1009,6 +1038,75 @@ function UpdateObjectForm({
                     )
                   }
 
+                  if (
+                    name === 'uidNumber'
+                    || name === 'gidNumber'
+                  ) {
+                    return (
+                      <label key={name}>
+                        <span>{label}</span>
+
+                        <input
+                          type="number"
+                          step="1"
+                          min={-2147483648}
+                          max={2147483647}
+                          value={updateForm[name] ?? ''}
+                          onChange={event =>
+                            updateObjectFormField(
+                              name,
+                              event.target.value
+                            )
+                          }
+                          disabled={
+                            loading
+                            || update
+                              ?.pendingUserAccountOptionFields
+                              ?.includes(name)
+                          }
+                        />
+
+                        <small>
+                          Entier Active Directory Integer32.
+                        </small>
+                      </label>
+                    )
+                  }
+
+                  if (name === 'gecos') {
+                    return (
+                      <label
+                        key={name}
+                        className="wide"
+                      >
+                        <span>{label}</span>
+
+                        <textarea
+                          rows="3"
+                          maxLength={10240}
+                          value={updateForm.gecos || ''}
+                          onChange={event =>
+                            updateObjectFormField(
+                              'gecos',
+                              event.target.value
+                            )
+                          }
+                          disabled={
+                            loading
+                            || update
+                              ?.pendingUserAccountOptionFields
+                              ?.includes('gecos')
+                          }
+                        />
+
+                        <small>
+                          Champ descriptif Unix limite a
+                          10 240 caracteres.
+                        </small>
+                      </label>
+                    )
+                  }
+
                   if (name === 'info') {
                     return (
                       <label
@@ -1075,7 +1173,13 @@ function UpdateObjectForm({
                                       ? 6
                                       : name === 'preferredLanguage'
                                         ? 32767
-                                        : name === 'info'
+                                        : name === 'unixHomeDirectory'
+                                          ? 2048
+                                          : name === 'loginShell'
+                                            ? 1024
+                                            : name === 'gecos'
+                                              ? 10240
+                                              : name === 'info'
                                           ? 1024
                                           : undefined
                         }

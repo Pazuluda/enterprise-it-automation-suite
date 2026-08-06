@@ -423,6 +423,47 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
         true,
       ],
       [
+        'UID Unix',
+        String(
+          pickAdField([
+            'uid_number',
+            'uidNumber',
+          ]) ?? ''
+        ).trim() || 'Non défini',
+      ],
+      [
+        'GID Unix',
+        String(
+          pickAdField([
+            'gid_number',
+            'gidNumber',
+          ]) ?? ''
+        ).trim() || 'Non défini',
+      ],
+      [
+        'Répertoire personnel Unix',
+        pickAdField([
+          'unix_home_directory',
+          'unixHomeDirectory',
+        ]) || 'Non défini',
+        true,
+      ],
+      [
+        'Shell de connexion',
+        pickAdField([
+          'login_shell',
+          'loginShell',
+        ]) || 'Non défini',
+        true,
+      ],
+      [
+        'Informations GECOS',
+        pickAdField([
+          'gecos',
+        ]) || 'Non définies',
+        true,
+      ],
+      [
         'Chemin du profil',
         pickAdField([
           'profile_path',

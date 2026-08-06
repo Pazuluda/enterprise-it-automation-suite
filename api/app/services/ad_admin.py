@@ -506,6 +506,15 @@ def normalize_update_object_properties(
         "notes",
         "remarks",
         "user_notes",
+        "uidNumber",
+        "uid_number",
+        "gidNumber",
+        "gid_number",
+        "unixHomeDirectory",
+        "unix_home_directory",
+        "loginShell",
+        "login_shell",
+        "gecos",
         "samAccountName",
         "sam_account_name",
         "userPrincipalName",
@@ -598,6 +607,10 @@ def normalize_update_object_properties(
         "notes": "info",
         "remarks": "info",
         "user_notes": "info",
+        "uid_number": "uidNumber",
+        "gid_number": "gidNumber",
+        "unix_home_directory": "unixHomeDirectory",
+        "login_shell": "loginShell",
         "operating_system": "operatingSystem",
         "operating_system_version":
             "operatingSystemVersion",
@@ -666,6 +679,9 @@ def normalize_update_object_properties(
         "mobile": 64,
         "ipPhone": 64,
         "info": 1024,
+        "unixHomeDirectory": 2048,
+        "loginShell": 1024,
+        "gecos": 10240,
         "postOfficeBox": 40,
         "co": 128,
     }
@@ -807,10 +823,85 @@ def normalize_update_object_properties(
             continue
 
         if normalized_key in {
+            "uidNumber",
+            "gidNumber",
+        }:
+            if value is None:
+                normalized_properties[normalized_key] = None
+                continue
+
+            if (
+                isinstance(value, bool)
+                or isinstance(
+                    value,
+                    (list, tuple, set, dict),
+                )
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} doit etre un "
+                        "entier JSON ou une chaine entiere"
+                    ),
+                )
+
+            if isinstance(value, int):
+                normalized_value = value
+            elif isinstance(value, str):
+                normalized_text = value.strip()
+
+                if not normalized_text:
+                    normalized_properties[normalized_key] = None
+                    continue
+
+                if not re.fullmatch(
+                    r"-?\d+",
+                    normalized_text,
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"{normalized_key} doit etre "
+                            "un entier Integer32"
+                        ),
+                    )
+
+                normalized_value = int(normalized_text)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} doit etre "
+                        "un entier Integer32"
+                    ),
+                )
+
+            if not (
+                -2147483648
+                <= normalized_value
+                <= 2147483647
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} doit etre compris "
+                        "entre -2147483648 et 2147483647"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = (
+                normalized_value
+            )
+            continue
+
+        if normalized_key in {
             "personalTitle",
             "initials",
             "preferredLanguage",
             "info",
+            "unixHomeDirectory",
+            "loginShell",
+            "gecos",
         }:
             if (
                 value is not None

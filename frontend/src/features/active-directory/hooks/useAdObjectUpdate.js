@@ -431,6 +431,40 @@ function useAdObjectUpdate({
         'remarks',
         'user_notes'
       ]
+    },
+    {
+      field: 'uidNumber',
+      aliases: [
+        'uidNumber',
+        'uid_number'
+      ]
+    },
+    {
+      field: 'gidNumber',
+      aliases: [
+        'gidNumber',
+        'gid_number'
+      ]
+    },
+    {
+      field: 'unixHomeDirectory',
+      aliases: [
+        'unixHomeDirectory',
+        'unix_home_directory'
+      ]
+    },
+    {
+      field: 'loginShell',
+      aliases: [
+        'loginShell',
+        'login_shell'
+      ]
+    },
+    {
+      field: 'gecos',
+      aliases: [
+        'gecos'
+      ]
     }
   ]
 
@@ -706,6 +740,30 @@ function useAdObjectUpdate({
         'notes',
         'remarks',
         'user_notes'
+      ),
+      uidNumber: getAdAttributeValue(
+        target,
+        'uidNumber',
+        'uid_number'
+      ),
+      gidNumber: getAdAttributeValue(
+        target,
+        'gidNumber',
+        'gid_number'
+      ),
+      unixHomeDirectory: getAdAttributeValue(
+        target,
+        'unixHomeDirectory',
+        'unix_home_directory'
+      ),
+      loginShell: getAdAttributeValue(
+        target,
+        'loginShell',
+        'login_shell'
+      ),
+      gecos: getAdAttributeValue(
+        target,
+        'gecos'
       ),
       title: getAdAttributeValue(
         target,

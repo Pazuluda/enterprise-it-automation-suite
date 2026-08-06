@@ -140,6 +140,14 @@ function Convert-EitasAdUserItem {
         initials = [string]$User.Initials
         preferred_language = [string]$User.preferredLanguage
         info = [string]$User.info
+        uid_number = Convert-EitasAdNullableInt32 `
+            -Value $User.uidNumber
+        gid_number = Convert-EitasAdNullableInt32 `
+            -Value $User.gidNumber
+        unix_home_directory = `
+            [string]$User.unixHomeDirectory
+        login_shell = [string]$User.loginShell
+        gecos = [string]$User.gecos
         surname = [string]$User.Surname
         sam_account_name = $User.SamAccountName
         user_principal_name = $User.UserPrincipalName
@@ -512,7 +520,7 @@ function Invoke-EitasAdLookupJob {
         -LDAPFilter $Filter `
         -SearchBase $SearchBase `
         -SearchScope Subtree `
-        -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
+        -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
         -ResultSetSize 20 `
         -ErrorAction Stop |
         Sort-Object SamAccountName |
@@ -1250,7 +1258,7 @@ function Invoke-EitasAdExplorerGetUser {
         throw "Identité utilisateur manquante"
     }
 
-    $User = Get-ADUser -Identity $Identity -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
+    $User = Get-ADUser -Identity $Identity -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $User.DistinguishedName -Config $Config | Out-Null
 

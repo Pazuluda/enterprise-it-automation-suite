@@ -1415,6 +1415,11 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "mail",
         "wWWHomePage",
         "info",
+        "uidNumber",
+        "gidNumber",
+        "unixHomeDirectory",
+        "loginShell",
+        "gecos",
         "samAccountName",
         "userPrincipalName",
         "accountExpires",
@@ -1548,7 +1553,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $AdvancedUserProperties = @(
         "personalTitle",
-        "preferredLanguage"
+        "preferredLanguage",
+        "uidNumber",
+        "gidNumber",
+        "unixHomeDirectory",
+        "loginShell",
+        "gecos"
     )
 
     $HasAdvancedUserChanges = @(
@@ -1563,8 +1573,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         $PersonObjectClass -ne "user"
     ) {
         throw (
-            "personalTitle et preferredLanguage sont " +
-            "reserves aux utilisateurs"
+            "Les proprietes avancees et POSIX sont " +
+            "reservees aux utilisateurs"
         )
     }
 
@@ -1572,7 +1582,15 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "personalTitle",
         "initials",
         "preferredLanguage",
-        "info"
+        "info",
+        "unixHomeDirectory",
+        "loginShell",
+        "gecos"
+    )
+
+    $PosixIntegerProperties = @(
+        "uidNumber",
+        "gidNumber"
     )
 
     $ProfileProperties = @(
@@ -1676,6 +1694,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         mobile = 64
         ipPhone = 64
         info = 1024
+        unixHomeDirectory = 2048
+        loginShell = 1024
+        gecos = 10240
         postOfficeBox = 40
         co = 128
     }
@@ -1824,6 +1845,40 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                 "countryCode"
             )
         ) {
+            continue
+        }
+
+        if (
+            $PosixIntegerProperties -contains
+            [string]$Key
+        ) {
+            $IntegerText = (
+                [string]$RawValue
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $IntegerText
+                )
+            ) {
+                $Clear += $Key
+                continue
+            }
+
+            $IntegerValue = 0
+
+            if (
+                -not [int]::TryParse(
+                    $IntegerText,
+                    [ref]$IntegerValue
+                )
+            ) {
+                throw (
+                    "$Key doit etre un entier Integer32"
+                )
+            }
+
+            $Replace[$Key] = $IntegerValue
             continue
         }
 
@@ -2725,7 +2780,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, personalTitle, initials, preferredLanguage, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, personalTitle, initials, preferredLanguage, sn, description, location, mail, wWWHomePage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
@@ -2831,6 +2886,39 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
         info = (
             [string]$UpdatedObject.info
+        )
+        uid_number = if (
+            $null -eq $UpdatedObject.uidNumber -or
+            [string]::IsNullOrWhiteSpace(
+                [string]$UpdatedObject.uidNumber
+            )
+        ) {
+            $null
+        } else {
+            [Convert]::ToInt32(
+                $UpdatedObject.uidNumber
+            )
+        }
+        gid_number = if (
+            $null -eq $UpdatedObject.gidNumber -or
+            [string]::IsNullOrWhiteSpace(
+                [string]$UpdatedObject.gidNumber
+            )
+        ) {
+            $null
+        } else {
+            [Convert]::ToInt32(
+                $UpdatedObject.gidNumber
+            )
+        }
+        unix_home_directory = (
+            [string]$UpdatedObject.unixHomeDirectory
+        )
+        login_shell = (
+            [string]$UpdatedObject.loginShell
+        )
+        gecos = (
+            [string]$UpdatedObject.gecos
         )
         user_principal_name = (
             [string]$UpdatedObject.userPrincipalName

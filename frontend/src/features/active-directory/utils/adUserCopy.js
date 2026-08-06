@@ -92,6 +92,16 @@ export const COPY_USER_NEVER_FORM_FIELDS =
     'remarks',
     'user_notes',
 
+    'uidNumber',
+    'uid_number',
+    'gidNumber',
+    'gid_number',
+    'unixHomeDirectory',
+    'unix_home_directory',
+    'loginShell',
+    'login_shell',
+    'gecos',
+
     'mail',
     'email',
     'employeeID',

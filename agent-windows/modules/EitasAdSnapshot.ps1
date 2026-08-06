@@ -239,6 +239,29 @@ function Convert-EitasSnapshotByteArrayToHex {
 }
 
 
+function Convert-EitasSnapshotNullableInt32 {
+    param([object]$Value)
+
+    if (
+        $null -eq $Value -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$Value
+        )
+    ) {
+        return $null
+    }
+
+    try {
+        return [Convert]::ToInt32($Value)
+    }
+    catch {
+        throw (
+            "Valeur Integer32 Active Directory invalide"
+        )
+    }
+}
+
+
 function Convert-EitasSnapshotObject {
     param(
         [object]$Object,
@@ -405,6 +428,14 @@ function Convert-EitasSnapshotObject {
         personal_title = [string]$Object.personalTitle
         initials = [string]$Object.initials
         preferred_language = [string]$Object.preferredLanguage
+        uid_number = Convert-EitasSnapshotNullableInt32 `
+            -Value $Object.uidNumber
+        gid_number = Convert-EitasSnapshotNullableInt32 `
+            -Value $Object.gidNumber
+        unix_home_directory = `
+            [string]$Object.unixHomeDirectory
+        login_shell = [string]$Object.loginShell
+        gecos = [string]$Object.gecos
         surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
@@ -567,6 +598,11 @@ function New-EitasAdSnapshot {
         "personalTitle",
         "initials",
         "preferredLanguage",
+        "uidNumber",
+        "gidNumber",
+        "unixHomeDirectory",
+        "loginShell",
+        "gecos",
         "sn",
         "sAMAccountName",
         "userPrincipalName",
@@ -813,6 +849,14 @@ function Convert-EitasDomainCatalogObject {
         personal_title = [string]$Object.personalTitle
         initials = [string]$Object.initials
         preferred_language = [string]$Object.preferredLanguage
+        uid_number = Convert-EitasSnapshotNullableInt32 `
+            -Value $Object.uidNumber
+        gid_number = Convert-EitasSnapshotNullableInt32 `
+            -Value $Object.gidNumber
+        unix_home_directory = `
+            [string]$Object.unixHomeDirectory
+        login_shell = [string]$Object.loginShell
+        gecos = [string]$Object.gecos
         surname = [string]$Object.sn
 
         distinguished_name = [string]$Object.DistinguishedName
@@ -933,6 +977,11 @@ function New-EitasAdDomainCatalog {
         "personalTitle",
         "initials",
         "preferredLanguage",
+        "uidNumber",
+        "gidNumber",
+        "unixHomeDirectory",
+        "loginShell",
+        "gecos",
         "sn",
         "sAMAccountName",
         "userPrincipalName",
