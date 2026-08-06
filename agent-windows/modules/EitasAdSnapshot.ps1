@@ -317,6 +317,8 @@ function Convert-EitasSnapshotObject {
     $LockedOut = $null
     $PasswordExpired = $null
     $PasswordNeverExpires = $null
+    $SmartcardLogonRequired = $null
+    $AccountNotDelegated = $null
     $PwdLastSetValue = 0
 
     try {
@@ -344,6 +346,14 @@ function Convert-EitasSnapshotObject {
 
         $PasswordNeverExpires = (
             ($UserAccountControl -band 65536) -ne 0
+        )
+
+        $SmartcardLogonRequired = (
+            ($UserAccountControl -band 262144) -ne 0
+        )
+
+        $AccountNotDelegated = (
+            ($UserAccountControl -band 1048576) -ne 0
         )
     }
 
@@ -447,6 +457,8 @@ function Convert-EitasSnapshotObject {
         locked_out = $LockedOut
         password_expired = $PasswordExpired
         password_never_expires = $PasswordNeverExpires
+        smartcard_logon_required = $SmartcardLogonRequired
+        account_not_delegated = $AccountNotDelegated
 
         password_last_set = Convert-EitasSnapshotFileTimeValue `
             -Value $Object.pwdLastSet
@@ -707,6 +719,8 @@ function Convert-EitasDomainCatalogObject {
     catch {}
 
     $Enabled = $null
+    $SmartcardLogonRequired = $null
+    $AccountNotDelegated = $null
 
     if (
         $Type -eq "user" -or
@@ -714,6 +728,16 @@ function Convert-EitasDomainCatalogObject {
     ) {
         $Enabled = (
             ($UserAccountControl -band 2) -eq 0
+        )
+    }
+
+    if ($Type -eq "user") {
+        $SmartcardLogonRequired = (
+            ($UserAccountControl -band 262144) -ne 0
+        )
+
+        $AccountNotDelegated = (
+            ($UserAccountControl -band 1048576) -ne 0
         )
     }
 
@@ -788,6 +812,8 @@ function Convert-EitasDomainCatalogObject {
         manager = [string]$Object.manager
 
         enabled = $Enabled
+        smartcard_logon_required = $SmartcardLogonRequired
+        account_not_delegated = $AccountNotDelegated
 
         group_scope = $GroupScope
         group_category = $GroupCategory

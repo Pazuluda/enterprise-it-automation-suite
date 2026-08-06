@@ -52,7 +52,7 @@ test(
 )
 
 test(
-  'exige les deux valeurs booleennes autoritatives',
+  'exige les quatre valeurs booleennes autoritatives',
   () => {
     assert.match(
       hook,
@@ -68,45 +68,66 @@ test(
       hook,
       /'cannot_change_password'/
     )
-  }
-)
 
-test(
-  'charge les details avant de construire le formulaire',
-  () => {
     assert.match(
       hook,
-      /async function prepareUpdateObject/
+      /'smartcard_logon_required'/
     )
 
     assert.match(
       hook,
+      /'account_not_delegated'/
+    )
+  }
+)
+
+test(
+  'construit le formulaire depuis la source locale avant le detail',
+  () => {
+    const start = hook.indexOf(
+      'async function prepareUpdateObject'
+    )
+
+    const end = hook.indexOf(
+      'const rawSamAccountName',
+      start
+    )
+
+    const source = hook.slice(start, end)
+
+    assert.match(
+      source,
+      /resolveUserUpdateTargetSync\(target\)/
+    )
+
+    assert.doesNotMatch(
+      source,
       /await resolveUserUpdateTarget\(target\)/
     )
-
-    assert.match(
-      hook,
-      /target = resolvedTarget/
-    )
   }
 )
 
 test(
-  'bloque l edition quand la source detaillee echoue',
+  'protege les options inconnues sans bloquer le formulaire',
   () => {
     assert.match(
       hook,
-      /Modification bloquée/
+      /pendingUserAccountOptionFields/
     )
 
     assert.match(
       hook,
-      /return false/
+      /void resolveUserUpdateTarget\(target\)/
     )
 
     assert.match(
       hook,
-      /setUpdateSaveError\(message\)/
+      /Certaines options du compte/
+    )
+
+    assert.doesNotMatch(
+      hook,
+      /Modification bloquée : lecture détaillée/
     )
   }
 )

@@ -97,6 +97,8 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const nodeContentPromisesRef = useRef(new Map())
   const nodeContentRequestIdRef = useRef(0)
   const propertiesDetailsRequestIdRef = useRef(0)
+  const userDetailsCacheRef = useRef(new Map())
+  const userDetailsPromisesRef = useRef(new Map())
   const [status, setStatus] = useState('Connexion au contrôleur de domaine : SRV-DC01.API.LOCAL')
   const [contextMenu, setContextMenu] = useState(null)
 
@@ -276,6 +278,8 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     setLoading,
     runJob,
     resolveUserUpdateTarget,
+    resolveUserUpdateTargetSync,
+    invalidateUserDetailsCache,
     adDomainCatalog,
     runAdAdminJob,
     loadTree,
@@ -461,7 +465,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     throw new Error('Timeout : l’agent Windows n’a pas répondu.')
   }
 
-  async function runAdUserDetailsJob(target) {
+  async function runAdUserDetailsJobUncached(target) {
     const payload =
       buildAdUserDetailsJobPayload(target)
 
@@ -522,6 +526,199 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     throw new Error(
       'Timeout : l’agent Windows n’a pas répondu.'
     )
+  }
+
+
+
+  function getUserDetailsIdentity(target) {
+    const payload =
+      buildAdUserDetailsJobPayload(target)
+
+    return String(
+      payload?.identity
+      || getObjectDn(target)
+      || ''
+    )
+      .trim()
+      .toLowerCase()
+  }
+
+  function getUserDetailsRevision(target) {
+    return String(
+      target?.when_changed
+      || target?.whenChanged
+      || target?.uSNChanged
+      || target?.usn_changed
+      || target?.usnChanged
+      || ''
+    ).trim()
+  }
+
+  function getUserDetailsCacheKey(target) {
+    const identity =
+      getUserDetailsIdentity(target)
+
+    if (!identity) {
+      return ''
+    }
+
+    return (
+      `${identity}|`
+      + getUserDetailsRevision(target)
+    )
+  }
+
+  function invalidateUserDetailsCache(
+    target = null
+  ) {
+    const identity =
+      getUserDetailsIdentity(target)
+
+    if (!identity) {
+      userDetailsCacheRef.current.clear()
+      userDetailsPromisesRef.current.clear()
+      return
+    }
+
+    for (
+      const key
+      of userDetailsCacheRef.current.keys()
+    ) {
+      if (
+        key === identity
+        || key.startsWith(`${identity}|`)
+      ) {
+        userDetailsCacheRef.current.delete(key)
+      }
+    }
+
+    for (
+      const key
+      of userDetailsPromisesRef.current.keys()
+    ) {
+      if (
+        key === identity
+        || key.startsWith(`${identity}|`)
+      ) {
+        userDetailsPromisesRef.current.delete(key)
+      }
+    }
+  }
+
+  async function runAdUserDetailsJob(
+    target,
+    options = {}
+  ) {
+    const force = Boolean(options.force)
+    const cacheKey =
+      getUserDetailsCacheKey(target)
+
+    if (
+      !force
+      && cacheKey
+      && userDetailsCacheRef.current.has(
+        cacheKey
+      )
+    ) {
+      return userDetailsCacheRef.current.get(
+        cacheKey
+      )
+    }
+
+    if (
+      !force
+      && cacheKey
+      && userDetailsPromisesRef.current.has(
+        cacheKey
+      )
+    ) {
+      return userDetailsPromisesRef.current.get(
+        cacheKey
+      )
+    }
+
+    const requestPromise = (
+      async () => {
+        const details =
+          await runAdUserDetailsJobUncached(
+            target
+          )
+
+        if (
+          details
+          && cacheKey
+        ) {
+          userDetailsCacheRef.current.set(
+            cacheKey,
+            details
+          )
+        }
+
+        return details
+      }
+    )()
+
+    if (cacheKey) {
+      userDetailsPromisesRef.current.set(
+        cacheKey,
+        requestPromise
+      )
+    }
+
+    try {
+      return await requestPromise
+    } finally {
+      if (
+        cacheKey
+        && userDetailsPromisesRef.current.get(
+          cacheKey
+        ) === requestPromise
+      ) {
+        userDetailsPromisesRef.current.delete(
+          cacheKey
+        )
+      }
+    }
+  }
+
+  function prefetchUserDetails(target) {
+    const identity =
+      getUserDetailsIdentity(target)
+
+    if (!identity) {
+      return
+    }
+
+    void runAdUserDetailsJob(target)
+      .then(details => {
+        if (!details) {
+          return
+        }
+
+        const mergeCurrent = current => {
+          if (
+            getUserDetailsIdentity(current)
+            !== identity
+          ) {
+            return current
+          }
+
+          return mergeAdUserDetails(
+            current,
+            details
+          )
+        }
+
+        setSelectedObject(mergeCurrent)
+        setPropertiesModal(mergeCurrent)
+      })
+      .catch(() => {
+        /*
+         * Le prechargement est silencieux.
+         * Une ouverture explicite conservera
+         * la gestion normale des erreurs.
+         */
+      })
   }
 
 
@@ -917,6 +1114,8 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     setSelectedObject(item)
     setObjectMembers([])
     setMembersError('')
+
+    prefetchUserDetails(item)
 
     if (isGroupObject(item)) {
       loadGroupMembers(item)
@@ -1479,6 +1678,34 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       setLoading(false)
     }
   }
+
+  function resolveUserUpdateTargetSync(target) {
+    const targetDn =
+      getObjectDn(target)
+
+    if (!targetDn) {
+      return target
+    }
+
+    const snapshotTarget =
+      adSnapshot.findByDnSync(targetDn)
+
+    const catalogTarget =
+      adDomainCatalog.findByDnSync(targetDn)
+
+    const availableTarget =
+      snapshotTarget || catalogTarget
+
+    if (!availableTarget) {
+      return target
+    }
+
+    return mergeAdUserDetails(
+      target,
+      availableTarget
+    )
+  }
+
 
   async function resolveUserUpdateTarget(target) {
     const details =

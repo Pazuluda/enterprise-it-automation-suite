@@ -320,6 +320,14 @@ function UpdateObjectForm({
                 'L’utilisateur ne peut pas changer le mot de passe'
               ],
               [
+                'smartcardLogonRequired',
+                'Carte à puce obligatoire'
+              ],
+              [
+                'accountNotDelegated',
+                'Compte sensible et non délégable'
+              ],
+              [
                 'userWorkstations',
                 'Stations de travail autorisées',
                 true
@@ -364,8 +372,93 @@ function UpdateObjectForm({
                 ([name, label, wide]) => {
                   if (
                     name === 'cannotChangePassword'
+                    || name === 'accountNotDelegated'
                   ) {
                     return null
+                  }
+
+                  if (
+                    name === 'smartcardLogonRequired'
+                  ) {
+                    return (
+                      <fieldset
+                        key="securityAccountOptions"
+                        className="aduc-account-options-group"
+                      >
+                        <legend>
+                          Options de sécurité du compte
+                        </legend>
+
+                        <div className="aduc-account-options-list">
+                          <label className="aduc-account-option-row">
+                            <input
+                              type="checkbox"
+                              checked={
+                                updateForm.smartcardLogonRequired
+                                === true
+                              }
+                              onChange={event =>
+                                updateObjectFormField(
+                                  'smartcardLogonRequired',
+                                  event.target.checked
+                                )
+                              }
+                              disabled={
+                                loading
+                                || update
+                                  ?.pendingUserAccountOptionFields
+                                  ?.includes('smartcardLogonRequired')
+                              }
+                            />
+
+                            <span className="aduc-account-option-copy">
+                              <strong>
+                                Exiger une carte à puce
+                              </strong>
+
+                              <small>
+                                L’utilisateur devra utiliser une
+                                carte à puce pour ouvrir sa session.
+                              </small>
+                            </span>
+                          </label>
+
+                          <label className="aduc-account-option-row">
+                            <input
+                              type="checkbox"
+                              checked={
+                                updateForm.accountNotDelegated
+                                === true
+                              }
+                              onChange={event =>
+                                updateObjectFormField(
+                                  'accountNotDelegated',
+                                  event.target.checked
+                                )
+                              }
+                              disabled={
+                                loading
+                                || update
+                                  ?.pendingUserAccountOptionFields
+                                  ?.includes('accountNotDelegated')
+                              }
+                            />
+
+                            <span className="aduc-account-option-copy">
+                              <strong>
+                                Compte sensible et non délégable
+                              </strong>
+
+                              <small>
+                                Empêche la délégation du
+                                contexte d’authentification de ce
+                                compte utilisateur.
+                              </small>
+                            </span>
+                          </label>
+                        </div>
+                      </fieldset>
+                    )
                   }
 
                   if (
@@ -394,7 +487,12 @@ function UpdateObjectForm({
                                   event.target.checked
                                 )
                               }
-                              disabled={loading}
+                              disabled={
+                                loading
+                                || update
+                                  ?.pendingUserAccountOptionFields
+                                  ?.includes('passwordNeverExpires')
+                              }
                             />
 
                             <span className="aduc-account-option-copy">
@@ -422,7 +520,12 @@ function UpdateObjectForm({
                                   event.target.checked
                                 )
                               }
-                              disabled={loading}
+                              disabled={
+                                loading
+                                || update
+                                  ?.pendingUserAccountOptionFields
+                                  ?.includes('cannotChangePassword')
+                              }
                             />
 
                             <span className="aduc-account-option-copy">

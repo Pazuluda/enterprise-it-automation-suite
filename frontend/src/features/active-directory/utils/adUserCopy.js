@@ -109,6 +109,12 @@ export const COPY_USER_NEVER_FORM_FIELDS =
 
     'msDS-HABSeniorityIndex',
     'hab_seniority_index',
+    'smartcardLogonRequired',
+    'smartcard_logon_required',
+    'SmartcardLogonRequired',
+    'accountNotDelegated',
+    'account_not_delegated',
+    'AccountNotDelegated',
   ])
 
 function pickText(source, aliases) {

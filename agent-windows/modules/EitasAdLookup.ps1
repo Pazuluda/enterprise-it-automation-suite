@@ -145,6 +145,8 @@ function Convert-EitasAdUserItem {
         password_expired = Convert-EitasAdBoolValue -Value $User.PasswordExpired
         password_never_expires = Convert-EitasAdBoolValue -Value $User.PasswordNeverExpires
         cannot_change_password = Convert-EitasAdBoolValue -Value $User.CannotChangePassword
+        smartcard_logon_required = Convert-EitasAdBoolValue -Value $User.SmartcardLogonRequired
+        account_not_delegated = Convert-EitasAdBoolValue -Value $User.AccountNotDelegated
         password_last_set = Convert-EitasAdDateValue -Value $User.PasswordLastSet
         last_logon = Convert-EitasAdDateValue -Value $User.LastLogonDate
         last_bad_password_attempt = Convert-EitasAdDateValue -Value $User.LastBadPasswordAttempt
@@ -500,7 +502,7 @@ function Invoke-EitasAdLookupJob {
         -LDAPFilter $Filter `
         -SearchBase $SearchBase `
         -SearchScope Subtree `
-        -Properties DisplayName, GivenName, Surname, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
+        -Properties DisplayName, GivenName, Surname, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
         -ResultSetSize 20 `
         -ErrorAction Stop |
         Sort-Object SamAccountName |
@@ -859,6 +861,12 @@ function Invoke-EitasAdExplorerListChildren {
                     ($UserAccountControl -band 65536) -ne 0
                 )
                 cannot_change_password = $null
+                smartcard_logon_required = (
+                    ($UserAccountControl -band 262144) -ne 0
+                )
+                account_not_delegated = (
+                    ($UserAccountControl -band 1048576) -ne 0
+                )
                 password_last_set = Convert-EitasAdExplorerFileTime `
                     -Value $Object.pwdLastSet
                 last_logon = Convert-EitasAdExplorerFileTime `
@@ -1228,7 +1236,7 @@ function Invoke-EitasAdExplorerGetUser {
         throw "Identité utilisateur manquante"
     }
 
-    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
+    $User = Get-ADUser -Identity $Identity -Properties DisplayName, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $User.DistinguishedName -Config $Config | Out-Null
 

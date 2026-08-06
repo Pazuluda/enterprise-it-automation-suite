@@ -514,6 +514,10 @@ def normalize_update_object_properties(
         "password_never_expires",
         "cannotChangePassword",
         "cannot_change_password",
+        "smartcardLogonRequired",
+        "smartcard_logon_required",
+        "accountNotDelegated",
+        "account_not_delegated",
         "title",
         "department",
         "division",
@@ -606,6 +610,10 @@ def normalize_update_object_properties(
             "passwordNeverExpires",
         "cannot_change_password":
             "cannotChangePassword",
+        "smartcard_logon_required":
+            "smartcardLogonRequired",
+        "account_not_delegated":
+            "accountNotDelegated",
         "protected_from_accidental_deletion":
             "protectedFromAccidentalDeletion",
     }
@@ -670,6 +678,8 @@ def normalize_update_object_properties(
         if normalized_key in {
             "passwordNeverExpires",
             "cannotChangePassword",
+            "smartcardLogonRequired",
+            "accountNotDelegated",
         }:
             if not isinstance(value, bool):
                 raise HTTPException(

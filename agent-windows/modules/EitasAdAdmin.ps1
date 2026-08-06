@@ -1420,6 +1420,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "logonHours",
         "passwordNeverExpires",
         "cannotChangePassword",
+        "smartcardLogonRequired",
+        "accountNotDelegated",
         "title",
         "department",
         "division",
@@ -1566,7 +1568,9 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "userWorkstations",
         "logonHours",
         "passwordNeverExpires",
-        "cannotChangePassword"
+        "cannotChangePassword",
+        "smartcardLogonRequired",
+        "accountNotDelegated"
     )
 
     $HasAccountChanges = @(
@@ -1733,6 +1737,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $ClearLogonHours = $false
     $PasswordNeverExpiresValue = $null
     $CannotChangePasswordValue = $null
+    $SmartcardLogonRequiredValue = $null
+    $AccountNotDelegatedValue = $null
 
     foreach ($Key in $Properties.Keys) {
         $RawValue = $Properties[$Key]
@@ -1799,17 +1805,28 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         if (
             $Key -in @(
                 "passwordNeverExpires",
-                "cannotChangePassword"
+                "cannotChangePassword",
+                "smartcardLogonRequired",
+                "accountNotDelegated"
             )
         ) {
             if ($RawValue -isnot [bool]) {
                 throw "$Key doit être un booléen JSON"
             }
 
-            if ($Key -eq "passwordNeverExpires") {
-                $PasswordNeverExpiresValue = [bool]$RawValue
-            } else {
-                $CannotChangePasswordValue = [bool]$RawValue
+            switch ($Key) {
+                "passwordNeverExpires" {
+                    $PasswordNeverExpiresValue = [bool]$RawValue
+                }
+                "cannotChangePassword" {
+                    $CannotChangePasswordValue = [bool]$RawValue
+                }
+                "smartcardLogonRequired" {
+                    $SmartcardLogonRequiredValue = [bool]$RawValue
+                }
+                "accountNotDelegated" {
+                    $AccountNotDelegatedValue = [bool]$RawValue
+                }
             }
 
             continue
@@ -2370,6 +2387,18 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
     }
 
+    if ($null -ne $SmartcardLogonRequiredValue) {
+        $SetUserParameters["SmartcardLogonRequired"] = (
+            [bool]$SmartcardLogonRequiredValue
+        )
+    }
+
+    if ($null -ne $AccountNotDelegatedValue) {
+        $SetUserParameters["AccountNotDelegated"] = (
+            [bool]$AccountNotDelegatedValue
+        )
+    }
+
     if ($SetUserParameters.Count -gt 2) {
         Set-ADUser @SetUserParameters
     }
@@ -2547,13 +2576,17 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $UpdatedProtectedFromAccidentalDeletion = $null
     $UpdatedPasswordNeverExpires = $null
     $UpdatedCannotChangePassword = $null
+    $UpdatedSmartcardLogonRequired = $null
+    $UpdatedAccountNotDelegated = $null
 
     if ($ObjectClassName -eq "user") {
         $UpdatedUser = Get-ADUser `
             -Identity $ObjectDn `
             -Properties `
                 PasswordNeverExpires, `
-                CannotChangePassword `
+                CannotChangePassword, `
+                SmartcardLogonRequired, `
+                AccountNotDelegated `
             -ErrorAction Stop
 
         $UpdatedPasswordNeverExpires = (
@@ -2562,6 +2595,14 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
         $UpdatedCannotChangePassword = (
             [bool]$UpdatedUser.CannotChangePassword
+        )
+
+        $UpdatedSmartcardLogonRequired = (
+            [bool]$UpdatedUser.SmartcardLogonRequired
+        )
+
+        $UpdatedAccountNotDelegated = (
+            [bool]$UpdatedUser.AccountNotDelegated
         )
     }
 
@@ -2633,6 +2674,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
         cannot_change_password = (
             $UpdatedCannotChangePassword
+        )
+        smartcard_logon_required = (
+            $UpdatedSmartcardLogonRequired
+        )
+        account_not_delegated = (
+            $UpdatedAccountNotDelegated
         )
         direct_reports = @(
             $UpdatedObject.directReports

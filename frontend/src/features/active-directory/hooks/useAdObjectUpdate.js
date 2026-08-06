@@ -4,7 +4,7 @@ import {
   normalizeLogonHoursHex,
 } from '../utils/adLogonRestrictions'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import {
   cleanAdHistoryText,
@@ -21,6 +21,8 @@ function useAdObjectUpdate({
   setLoading,
   runJob,
   resolveUserUpdateTarget,
+  resolveUserUpdateTargetSync,
+  invalidateUserDetailsCache,
   adDomainCatalog,
   runAdAdminJob,
   loadTree,
@@ -41,6 +43,12 @@ function useAdObjectUpdate({
   const [managerSearchError, setManagerSearchError] = useState('')
   const [updateSaveNotice, setUpdateSaveNotice] = useState('')
   const [updateSaveError, setUpdateSaveError] = useState('')
+  const [
+    pendingUserAccountOptionFields,
+    setPendingUserAccountOptionFields
+  ] = useState([])
+  const updatePreparationRequestIdRef = useRef(0)
+  const updateDirtyFieldsRef = useRef(new Set())
 
   function getAdAttributeValue(item, ...names) {
       for (const name of names) {
@@ -150,6 +158,18 @@ function useAdObjectUpdate({
         'cannot_change_password',
         'CannotChangePassword'
       )
+      && hasAdBooleanAttributeValue(
+        target,
+        'smartcardLogonRequired',
+        'smartcard_logon_required',
+        'SmartcardLogonRequired'
+      )
+      && hasAdBooleanAttributeValue(
+        target,
+        'accountNotDelegated',
+        'account_not_delegated',
+        'AccountNotDelegated'
+      )
     )
   }
 
@@ -210,6 +230,68 @@ function useAdObjectUpdate({
     return isOuObject(target)
   }
 
+  const userAccountOptionDefinitions = [
+    {
+      field: 'passwordNeverExpires',
+      aliases: [
+        'passwordNeverExpires',
+        'password_never_expires',
+        'PasswordNeverExpires'
+      ]
+    },
+    {
+      field: 'cannotChangePassword',
+      aliases: [
+        'cannotChangePassword',
+        'cannot_change_password',
+        'CannotChangePassword'
+      ]
+    },
+    {
+      field: 'smartcardLogonRequired',
+      aliases: [
+        'smartcardLogonRequired',
+        'smartcard_logon_required',
+        'SmartcardLogonRequired'
+      ]
+    },
+    {
+      field: 'accountNotDelegated',
+      aliases: [
+        'accountNotDelegated',
+        'account_not_delegated',
+        'AccountNotDelegated'
+      ]
+    }
+  ]
+
+  function getMissingUserAccountOptionFields(
+    target
+  ) {
+    return userAccountOptionDefinitions
+      .filter(definition =>
+        !hasAdBooleanAttributeValue(
+          target,
+          ...definition.aliases
+        )
+      )
+      .map(definition => definition.field)
+  }
+
+  function getUserAccountOptionPatch(target) {
+    return Object.fromEntries(
+      userAccountOptionDefinitions.map(
+        definition => [
+          definition.field,
+          getAdBooleanAttributeValue(
+            target,
+            ...definition.aliases
+          )
+        ]
+      )
+    )
+  }
+
   async function prepareUpdateObject(
     target,
     { openModal = true } = {}
@@ -231,6 +313,14 @@ function useAdObjectUpdate({
 
     const dn = getObjectDn(target)
 
+    const preparationRequestId =
+      updatePreparationRequestIdRef.current + 1
+
+    updatePreparationRequestIdRef.current =
+      preparationRequestId
+
+    updateDirtyFieldsRef.current.clear()
+
     if (!dn) {
       setStatus('DN introuvable pour cet objet AD.')
       return false
@@ -241,61 +331,34 @@ function useAdObjectUpdate({
       && !hasAuthoritativeUserAccountOptions(
         target
       )
+      && typeof resolveUserUpdateTargetSync
+        === 'function'
     ) {
-      if (
-        typeof resolveUserUpdateTarget
-        !== 'function'
-      ) {
-        const message =
-          'Modification bloquée : la source détaillée '
-          + 'des options du compte est indisponible.'
+      const synchronousTarget =
+        resolveUserUpdateTargetSync(target)
 
-        setUpdateSaveError(message)
-        setStatus(message)
-        setMessage?.(message)
-        return false
-      }
-
-      setLoading?.(true)
-      setUpdateSaveError('')
-      setStatus(
-        'Chargement des options avancées '
-        + 'du compte utilisateur...'
-      )
-
-      try {
-        const resolvedTarget =
-          await resolveUserUpdateTarget(target)
-
-        if (
-          !resolvedTarget
-          || !hasAuthoritativeUserAccountOptions(
-            resolvedTarget
-          )
-        ) {
-          throw new Error(
-            'Active Directory n’a pas retourné '
-            + 'toutes les options avancées du compte.'
-          )
-        }
-
-        target = resolvedTarget
-      } catch (error) {
-        const message =
-          error?.message
-          || (
-            'Modification bloquée : lecture détaillée '
-            + 'du compte utilisateur impossible.'
-          )
-
-        setUpdateSaveError(message)
-        setStatus(message)
-        setMessage?.(message)
-        return false
-      } finally {
-        setLoading?.(false)
+      if (synchronousTarget) {
+        target = synchronousTarget
       }
     }
+
+    const pendingAccountFields =
+      isUpdateUserTarget(target)
+        ? getMissingUserAccountOptionFields(
+            target
+          )
+        : []
+
+    const shouldLoadAccountOptions =
+      pendingAccountFields.length > 0
+      && typeof resolveUserUpdateTarget
+        === 'function'
+
+    setPendingUserAccountOptionFields(
+      pendingAccountFields
+    )
+
+
 
     const rawSamAccountName =
       getAdAttributeValue(
@@ -435,6 +498,20 @@ function useAdObjectUpdate({
           'cannotChangePassword',
           'cannot_change_password',
           'CannotChangePassword'
+        ),
+      smartcardLogonRequired:
+        getAdBooleanAttributeValue(
+          target,
+          'smartcardLogonRequired',
+          'smartcard_logon_required',
+          'SmartcardLogonRequired'
+        ),
+      accountNotDelegated:
+        getAdBooleanAttributeValue(
+          target,
+          'accountNotDelegated',
+          'account_not_delegated',
+          'AccountNotDelegated'
         ),
       userWorkstations: getAdAttributeValue(
         target,
@@ -577,6 +654,116 @@ function useAdObjectUpdate({
     setUpdateOriginalForm(form)
     setUpdateEditorOpen(openModal)
 
+    if (shouldLoadAccountOptions) {
+      const expectedDn =
+        String(dn).trim().toLowerCase()
+
+      void resolveUserUpdateTarget(target)
+        .then(resolvedTarget => {
+          if (
+            updatePreparationRequestIdRef.current
+            !== preparationRequestId
+          ) {
+            return
+          }
+
+          const resolvedDn =
+            String(
+              getObjectDn(resolvedTarget) || ''
+            )
+              .trim()
+              .toLowerCase()
+
+          if (
+            !resolvedTarget
+            || resolvedDn !== expectedDn
+            || !hasAuthoritativeUserAccountOptions(
+              resolvedTarget
+            )
+          ) {
+            throw new Error(
+              'Active Directory n\u2019a pas retourne '
+              + 'toutes les options avancees du compte.'
+            )
+          }
+
+          const resolvedPatch =
+            getUserAccountOptionPatch(
+              resolvedTarget
+            )
+
+          setUpdateModal(current => {
+            const currentDn =
+              String(
+                getObjectDn(current) || ''
+              )
+                .trim()
+                .toLowerCase()
+
+            if (currentDn !== expectedDn) {
+              return current
+            }
+
+            return {
+              ...current,
+              ...resolvedTarget
+            }
+          })
+
+          setUpdateOriginalForm(previous => ({
+            ...previous,
+            ...resolvedPatch
+          }))
+
+          setUpdateForm(previous => {
+            const next = {
+              ...previous
+            }
+
+            for (
+              const [field, value]
+              of Object.entries(resolvedPatch)
+            ) {
+              if (
+                !updateDirtyFieldsRef.current.has(
+                  field
+                )
+              ) {
+                next[field] = value
+              }
+            }
+
+            return next
+          })
+
+          setPendingUserAccountOptionFields([])
+          setUpdateSaveError('')
+        })
+        .catch(error => {
+          if (
+            updatePreparationRequestIdRef.current
+            !== preparationRequestId
+          ) {
+            return
+          }
+
+          setUpdateSaveError(
+            error?.message
+            || (
+              'Certaines options du compte '
+              + 'restent indisponibles.'
+            )
+          )
+        })
+    } else if (
+      pendingAccountFields.length > 0
+    ) {
+      setUpdateSaveError(
+        'Certaines options du compte '
+        + 'restent indisponibles.'
+      )
+    }
+
     return true
   }
 
@@ -590,6 +777,8 @@ function useAdObjectUpdate({
   function updateObjectFormField(name, value) {
     setUpdateSaveNotice('')
     setUpdateSaveError('')
+
+    updateDirtyFieldsRef.current.add(name)
 
     setUpdateForm(previous => ({
       ...previous,
@@ -646,6 +835,9 @@ function useAdObjectUpdate({
     ).length > 0
 
   function closeUpdateObject() {
+    updatePreparationRequestIdRef.current += 1
+    updateDirtyFieldsRef.current.clear()
+    setPendingUserAccountOptionFields([])
     setUpdateSaveNotice('')
     setUpdateSaveError('')
     setUpdateEditorOpen(false)
@@ -918,6 +1110,10 @@ function useAdObjectUpdate({
             ),
         }
 
+        invalidateUserDetailsCache?.(
+          updateModal
+        )
+
         setUpdateForm(savedForm)
         setUpdateOriginalForm(savedForm)
         setUpdateEditorOpen(false)
@@ -980,6 +1176,7 @@ function useAdObjectUpdate({
       AD_LOGON_HOURS_CLEAR_VALUE,
     updateSaveNotice,
     updateSaveError,
+    pendingUserAccountOptionFields,
     isUpdateComputerTarget,
     isUpdateContactTarget,
     isUpdateOrganizationalUnitTarget,
