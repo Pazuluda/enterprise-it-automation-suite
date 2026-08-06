@@ -4,6 +4,38 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.3.0] — 2026-08-06
+
+### C3 — Gestion avancée des utilisateurs
+
+- chantier C3 validé fonctionnellement à 100 % ;
+- actions de compte utilisateur et états Active Directory centralisés ;
+- contrôles de sécurité liés au mode de l’agent renforcés ;
+- réinitialisation sécurisée des mots de passe avec choix explicites ;
+- options de compte et de sécurité avancées intégrées ;
+- copie d’utilisateur contrôlée par liste blanche ;
+- identité, profil, organisation, coordonnées et adresse enrichis ;
+- restrictions de stations et horaires de connexion disponibles ;
+- profils RDS complets intégrés ;
+- profil Unix / POSIX intégré avec types Active Directory préservés ;
+- attribut HAB consultable et simulable par son pipeline dédié ;
+- ouverture immédiate des propriétés utilisateur ;
+- chargement détaillé asynchrone sans fenêtre bloquante ;
+- cache utilisateur dédié et invalidation après modification ;
+- lookup live utilisateur complété avec toutes les propriétés attendues ;
+- `directReports` conservé en lecture seule ;
+- valeurs `logonHours` sérialisées sans perte ;
+- valeurs multivaluées de `postOfficeBox` détectées et comptées ;
+- lecture fidèle du triplet pays `c`, `co` et `countryCode` ;
+- validations réelles en Simulation et en Production ;
+- baseline Active Directory restaurée après les validations ;
+- module Windows Lookup déployé et worker confirmé actif ;
+- 309 tests backend complets validés ;
+- 190 tests frontend complets validés ;
+- contrôles de sécurité, lint et builds de production validés ;
+- mode final de l’agent confirmé en Simulation ;
+- version stable `v0.3.0` préparée.
+
 ## [0.2.0] — 2026-08-05
 
 ### C2 — Éditeur d’attributs LDAP

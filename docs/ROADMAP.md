@@ -14,11 +14,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 
 | Indicateur | Avancement |
 |---|---:|
-| C2 — Éditeur d’attributs LDAP | 100 % |
-| Explorateur Active Directory complet | 67 % |
-| Projet EITAS global | 87 % |
+| C3 — Gestion avancée des utilisateurs | 100 % |
+| Explorateur Active Directory complet | 31 % |
+| Projet EITAS global | 77 % |
 
-C2 est validé fonctionnellement à 100 %. Le pipeline LDAP HAB typé, les jobs runtime en Simulation, la consultation en lecture seule et le contrôle frontend dédié sont validés. Le catalogue générique reste sans exposition HAB. Toute écriture Active Directory et toute exécution HAB en Production restent fermées.
+C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
 ## Roadmap de l'Explorateur Active Directory
 
@@ -26,7 +26,7 @@ C2 est validé fonctionnellement à 100 %. Le pipeline LDAP HAB typé, les jobs 
 |---|---|---:|---|
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
-| C3 | Gestion avancée des utilisateurs | `v0.3.0` | Planifié |
+| C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Planifié |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
@@ -43,11 +43,15 @@ Objectif : fournir un éditeur d'attributs LDAP contrôlé, auditable et sécuri
 
 Le chantier C2 est terminé et validé à 100 %. La consultation HAB et sa simulation dédiée sont disponibles sans autoriser d’écriture Active Directory. Toute activation HAB en Production reste fermée par conception.
 
-## Prochaine version
-
 ### v0.3.0 — C3
 
-Objectif : poursuivre l’Explorateur Active Directory avec la gestion avancée des utilisateurs.
+Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisateurs est disponible avec des contrôles de sécurité, des validations réelles et un lookup live complet.
+
+## Prochaine version
+
+### v0.4.0 — C4
+
+Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
 
 ## Version v1.0.0
 

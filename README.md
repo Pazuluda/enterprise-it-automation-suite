@@ -17,11 +17,11 @@ Elle marque la clôture à 100 % de :
 
 > **C1 — Fenêtres de propriétés complètes de l'Explorateur Active Directory**
 
-> **C2 — Éditeur d’attributs LDAP**
+> **C3 — Gestion avancée des utilisateurs**
 
-C2 valide le pipeline HAB typé, son runtime en Simulation, la consultation en lecture seule et le contrôle frontend dédié. Aucun chemin d’écriture HAB réelle n’est autorisé et toute exécution HAB en Production reste interdite.
+C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.2.0` est une version fonctionnelle et validée, mais pas encore la version générale stable `v1.0.0`.
+EITAS reste en développement actif. `v0.3.0` est une version fonctionnelle et validée, mais pas encore la version générale stable `v1.0.0`.
 
 ## Fonctionnalités disponibles
 
@@ -136,8 +136,8 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 
 ## Feuille de route
 
-1. C2 — Éditeur d'attributs LDAP ;
-2. C3 — Gestion avancée des utilisateurs ;
+1. C2 — Éditeur d'attributs LDAP — terminé dans `v0.2.0` ;
+2. C3 — Gestion avancée des utilisateurs — terminé dans `v0.3.0` ;
 3. C4 — Groupes, imbrication et appartenances ;
 4. C5 — Ordinateurs, OU, conteneurs et contacts ;
 5. C6 — Recherche, colonnes, filtres et requêtes ;
