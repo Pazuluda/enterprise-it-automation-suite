@@ -4,6 +4,18 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.3.1] — 2026-08-06
+
+### Documentation
+
+- badge de version du README corrigé ;
+- version officielle actuelle mise à jour ;
+- badge C3 ajouté ;
+- clôtures C1, C2 et C3 présentées ensemble ;
+- tableau de versionnement du README corrigé ;
+- état courant et version actuelle de la roadmap corrigés ;
+- aucune modification fonctionnelle de l’application.
+
 ## [0.3.0] — 2026-08-06
 
 ### C3 — Gestion avancée des utilisateurs

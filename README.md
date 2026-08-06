@@ -1,9 +1,10 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.2.0-2563eb)
+![Version](https://img.shields.io/badge/version-v0.3.1-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
+![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -11,17 +12,21 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 ## Version actuelle
 
-La version officielle actuelle est **v0.2.0**.
+La version officielle actuelle est **v0.3.1**.
 
-Elle marque la clôture à 100 % de :
+Cette version corrige et complète la documentation de la clôture C3 publiée dans `v0.3.0`, sans modification fonctionnelle.
+
+Elle consolide la clôture à 100 % de :
 
 > **C1 — Fenêtres de propriétés complètes de l'Explorateur Active Directory**
+
+> **C2 — Éditeur d’attributs LDAP**
 
 > **C3 — Gestion avancée des utilisateurs**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.3.0` est une version fonctionnelle et validée, mais pas encore la version générale stable `v1.0.0`.
+EITAS reste en développement actif. `v0.3.1` est une version fonctionnelle et validée, mais pas encore la version générale stable `v1.0.0`.
 
 ## Fonctionnalités disponibles
 
@@ -123,12 +128,12 @@ Composants principaux :
 
 | État | Version |
 |---|---:|
+| Version officielle actuelle | `v0.3.1` |
 | C1 terminé | `v0.1.0` |
-| Version officielle actuelle | `v0.2.0` |
-| Cycle de développement de C2 | `v0.2.0-alpha.N` |
-| C2 terminé | `v0.2.0` |
 | Correctif de C1 | `v0.1.1` |
+| C2 terminé | `v0.2.0` |
 | C3 terminé | `v0.3.0` |
+| Correctif documentaire de C3 | `v0.3.1` |
 | C10 terminé | `v0.10.0` |
 | Première version générale stable | `v1.0.0` |
 

@@ -10,13 +10,15 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.2.0
+## État courant — v0.3.1
 
 | Indicateur | Avancement |
 |---|---:|
 | C3 — Gestion avancée des utilisateurs | 100 % |
 | Explorateur Active Directory complet | 31 % |
 | Projet EITAS global | 77 % |
+
+La version `v0.3.1` corrige la présentation documentaire de la clôture C3, sans changement fonctionnel.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -36,6 +38,12 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.3.1 — Correctif documentaire de C3
+
+Cette version corrige le README, la roadmap et les marqueurs de version associés à la clôture C3 publiée dans `v0.3.0`. Elle ne modifie aucun comportement fonctionnel.
+
+## Versions de chantier terminées
 
 ### v0.2.0 — C2
 
