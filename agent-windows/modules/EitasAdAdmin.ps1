@@ -1422,6 +1422,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         "cannotChangePassword",
         "smartcardLogonRequired",
         "accountNotDelegated",
+        "msTSAllowLogon",
+        "msTSProfilePath",
+        "msTSHomeDirectory",
+        "msTSHomeDrive",
+        "msTSInitialProgram",
+        "msTSWorkDirectory",
         "title",
         "department",
         "division",
@@ -1590,6 +1596,40 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             "passwordNeverExpires et " +
             "cannotChangePassword sont " +
             "réservés aux utilisateurs"
+        )
+    }
+
+    $RdsProperties = @(
+        "msTSAllowLogon",
+        "msTSProfilePath",
+        "msTSHomeDirectory",
+        "msTSHomeDrive",
+        "msTSInitialProgram",
+        "msTSWorkDirectory"
+    )
+
+    $RdsTextProperties = @(
+        "msTSProfilePath",
+        "msTSHomeDirectory",
+        "msTSHomeDrive",
+        "msTSInitialProgram",
+        "msTSWorkDirectory"
+    )
+
+    $HasRdsChanges = @(
+        $Properties.Keys |
+            Where-Object {
+                $RdsProperties -contains [string]$_
+            }
+    ).Count -gt 0
+
+    if (
+        $HasRdsChanges -and
+        $PersonObjectClass -ne "user"
+    ) {
+        throw (
+            "Les proprietes RDS msTS sont reservees " +
+            "aux utilisateurs"
         )
     }
 
@@ -1799,6 +1839,77 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             }
 
             $ProtectedFromAccidentalDeletion = [bool]$RawValue
+            continue
+        }
+
+        if ($Key -eq "msTSAllowLogon") {
+            if ($null -eq $RawValue) {
+                $Clear += "msTSAllowLogon"
+                continue
+            }
+
+            if ($RawValue -isnot [bool]) {
+                throw (
+                    "msTSAllowLogon doit etre un booleen " +
+                    "JSON ou null pour effacer la valeur"
+                )
+            }
+
+            $Replace["msTSAllowLogon"] = [bool]$RawValue
+            continue
+        }
+
+        if ($Key -in $RdsTextProperties) {
+            if (
+                $null -ne $RawValue -and
+                $RawValue -isnot [string]
+            ) {
+                throw (
+                    "$Key doit contenir une seule chaine " +
+                    "de caracteres"
+                )
+            }
+
+            $RdsTextValue = (
+                [string](
+                    Repair-EitasTextEncoding `
+                        -Value $RawValue
+                )
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $RdsTextValue
+                )
+            ) {
+                $Clear += $Key
+            } else {
+                if ($Key -eq "msTSHomeDrive") {
+                    $RdsTextValue = (
+                        $RdsTextValue.ToUpperInvariant()
+                    )
+
+                    if (
+                        $RdsTextValue -notmatch "^[A-Z]:$"
+                    ) {
+                        throw (
+                            "msTSHomeDrive doit etre une lettre " +
+                            "de lecteur suivie de deux-points, " +
+                            "par exemple R:"
+                        )
+                    }
+                }
+
+                if ($RdsTextValue.Length -gt 32767) {
+                    throw (
+                        "$Key est limite a 32767 " +
+                        "caracteres par le schema AD"
+                    )
+                }
+
+                $Replace[$Key] = $RdsTextValue
+            }
+
             continue
         }
 
@@ -2566,7 +2677,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
 
     $UpdatedObject = Get-ADObject `
         -Identity $ObjectDn `
-        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
+        -Properties objectClass, sAMAccountName, userPrincipalName, accountExpires, userWorkstations, logonHours, directReports, displayName, givenName, initials, sn, description, location, mail, wWWHomePage, info, title, department, division, company, telephoneNumber, homePhone, facsimileTelephoneNumber, pager, ipPhone, mobile, physicalDeliveryOfficeName, employeeID, employeeNumber, manager, profilePath, scriptPath, homeDirectory, homeDrive, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, managedBy, streetAddress, postalCode, postOfficeBox, l, st, c, co, countryCode, operatingSystem, operatingSystemVersion, operatingSystemServicePack, ProtectedFromAccidentalDeletion `
         -ErrorAction Stop
 
     $UpdatedGroupScope = $null
@@ -2578,6 +2689,7 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     $UpdatedCannotChangePassword = $null
     $UpdatedSmartcardLogonRequired = $null
     $UpdatedAccountNotDelegated = $null
+    $UpdatedMsTsAllowLogon = $null
 
     if ($ObjectClassName -eq "user") {
         $UpdatedUser = Get-ADUser `
@@ -2604,6 +2716,12 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         $UpdatedAccountNotDelegated = (
             [bool]$UpdatedUser.AccountNotDelegated
         )
+
+        if ($null -ne $UpdatedObject.msTSAllowLogon) {
+            $UpdatedMsTsAllowLogon = (
+                [bool]$UpdatedObject.msTSAllowLogon
+            )
+        }
     }
 
     if ([string]$Object.ObjectClass -eq "group") {
@@ -2680,6 +2798,22 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         )
         account_not_delegated = (
             $UpdatedAccountNotDelegated
+        )
+        ms_ts_allow_logon = $UpdatedMsTsAllowLogon
+        ms_ts_profile_path = (
+            [string]$UpdatedObject.msTSProfilePath
+        )
+        ms_ts_home_directory = (
+            [string]$UpdatedObject.msTSHomeDirectory
+        )
+        ms_ts_home_drive = (
+            [string]$UpdatedObject.msTSHomeDrive
+        )
+        ms_ts_initial_program = (
+            [string]$UpdatedObject.msTSInitialProgram
+        )
+        ms_ts_work_directory = (
+            [string]$UpdatedObject.msTSWorkDirectory
         )
         direct_reports = @(
             $UpdatedObject.directReports

@@ -319,6 +319,7 @@ function Convert-EitasSnapshotObject {
     $PasswordNeverExpires = $null
     $SmartcardLogonRequired = $null
     $AccountNotDelegated = $null
+    $MsTsAllowLogon = $null
     $PwdLastSetValue = 0
 
     try {
@@ -355,6 +356,12 @@ function Convert-EitasSnapshotObject {
         $AccountNotDelegated = (
             ($UserAccountControl -band 1048576) -ne 0
         )
+
+        if ($null -ne $Object.msTSAllowLogon) {
+            $MsTsAllowLogon = (
+                [bool]$Object.msTSAllowLogon
+            )
+        }
     }
 
     $PostOfficeBoxValues = @(
@@ -416,6 +423,12 @@ function Convert-EitasSnapshotObject {
         script_path = [string]$Object.scriptPath
         home_directory = [string]$Object.homeDirectory
         home_drive = [string]$Object.homeDrive
+        ms_ts_allow_logon = $MsTsAllowLogon
+        ms_ts_profile_path = [string]$Object.msTSProfilePath
+        ms_ts_home_directory = [string]$Object.msTSHomeDirectory
+        ms_ts_home_drive = [string]$Object.msTSHomeDrive
+        ms_ts_initial_program = [string]$Object.msTSInitialProgram
+        ms_ts_work_directory = [string]$Object.msTSWorkDirectory
         mail = [string]$Object.mail
         www_home_page = [string]$Object.wWWHomePage
         info = [string]$Object.info
@@ -560,6 +573,12 @@ function New-EitasAdSnapshot {
         "scriptPath",
         "homeDirectory",
         "homeDrive",
+        "msTSAllowLogon",
+        "msTSProfilePath",
+        "msTSHomeDirectory",
+        "msTSHomeDrive",
+        "msTSInitialProgram",
+        "msTSWorkDirectory",
         "mail",
         "wWWHomePage",
         "info",
@@ -721,6 +740,7 @@ function Convert-EitasDomainCatalogObject {
     $Enabled = $null
     $SmartcardLogonRequired = $null
     $AccountNotDelegated = $null
+    $MsTsAllowLogon = $null
 
     if (
         $Type -eq "user" -or
@@ -739,6 +759,12 @@ function Convert-EitasDomainCatalogObject {
         $AccountNotDelegated = (
             ($UserAccountControl -band 1048576) -ne 0
         )
+
+        if ($null -ne $Object.msTSAllowLogon) {
+            $MsTsAllowLogon = (
+                [bool]$Object.msTSAllowLogon
+            )
+        }
     }
 
     $ObjectName = [string]$Object.Name
@@ -802,6 +828,12 @@ function Convert-EitasDomainCatalogObject {
         script_path = [string]$Object.scriptPath
         home_directory = [string]$Object.homeDirectory
         home_drive = [string]$Object.homeDrive
+        ms_ts_allow_logon = $MsTsAllowLogon
+        ms_ts_profile_path = [string]$Object.msTSProfilePath
+        ms_ts_home_directory = [string]$Object.msTSHomeDirectory
+        ms_ts_home_drive = [string]$Object.msTSHomeDrive
+        ms_ts_initial_program = [string]$Object.msTSInitialProgram
+        ms_ts_work_directory = [string]$Object.msTSWorkDirectory
         mail = [string]$Object.mail
         info = [string]$Object.info
 
@@ -902,6 +934,12 @@ function New-EitasAdDomainCatalog {
         "scriptPath",
         "homeDirectory",
         "homeDrive",
+        "msTSAllowLogon",
+        "msTSProfilePath",
+        "msTSHomeDirectory",
+        "msTSHomeDrive",
+        "msTSInitialProgram",
+        "msTSWorkDirectory",
         "mail",
         "info",
         "userAccountControl",

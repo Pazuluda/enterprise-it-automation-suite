@@ -518,6 +518,18 @@ def normalize_update_object_properties(
         "smartcard_logon_required",
         "accountNotDelegated",
         "account_not_delegated",
+        "msTSAllowLogon",
+        "ms_ts_allow_logon",
+        "msTSProfilePath",
+        "ms_ts_profile_path",
+        "msTSHomeDirectory",
+        "ms_ts_home_directory",
+        "msTSHomeDrive",
+        "ms_ts_home_drive",
+        "msTSInitialProgram",
+        "ms_ts_initial_program",
+        "msTSWorkDirectory",
+        "ms_ts_work_directory",
         "title",
         "department",
         "division",
@@ -614,6 +626,18 @@ def normalize_update_object_properties(
             "smartcardLogonRequired",
         "account_not_delegated":
             "accountNotDelegated",
+        "ms_ts_allow_logon":
+            "msTSAllowLogon",
+        "ms_ts_profile_path":
+            "msTSProfilePath",
+        "ms_ts_home_directory":
+            "msTSHomeDirectory",
+        "ms_ts_home_drive":
+            "msTSHomeDrive",
+        "ms_ts_initial_program":
+            "msTSInitialProgram",
+        "ms_ts_work_directory":
+            "msTSWorkDirectory",
         "protected_from_accidental_deletion":
             "protectedFromAccidentalDeletion",
     }
@@ -675,6 +699,23 @@ def normalize_update_object_properties(
             normalized_properties[normalized_key] = value
             continue
 
+        if normalized_key == "msTSAllowLogon":
+            if value is None:
+                normalized_properties[normalized_key] = None
+                continue
+
+            if not isinstance(value, bool):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "msTSAllowLogon doit être un booléen "
+                        "JSON ou null pour effacer la valeur"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = value
+            continue
+
         if normalized_key in {
             "passwordNeverExpires",
             "cannotChangePassword",
@@ -691,6 +732,64 @@ def normalize_update_object_properties(
                 )
 
             normalized_properties[normalized_key] = value
+            continue
+
+        if normalized_key in {
+            "msTSProfilePath",
+            "msTSHomeDirectory",
+            "msTSHomeDrive",
+            "msTSInitialProgram",
+            "msTSWorkDirectory",
+        }:
+            if isinstance(
+                value,
+                (list, tuple, set, dict),
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} doit contenir "
+                        "une seule chaine de caracteres"
+                    ),
+                )
+
+            if value is None:
+                normalized_properties[normalized_key] = None
+                continue
+
+            normalized_value = clean_string(value)
+
+            if (
+                normalized_key == "msTSHomeDrive"
+                and normalized_value
+            ):
+                normalized_value = normalized_value.upper()
+
+                if not re.fullmatch(
+                    r"[A-Z]:",
+                    normalized_value,
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "msTSHomeDrive doit être une lettre "
+                            "de lecteur suivie de deux-points, "
+                            "par exemple R:"
+                        ),
+                    )
+
+            if len(normalized_value) > 32767:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"{normalized_key} est limite a "
+                        "32767 caracteres par le schema AD"
+                    ),
+                )
+
+            normalized_properties[normalized_key] = (
+                normalized_value
+            )
             continue
 
         if (

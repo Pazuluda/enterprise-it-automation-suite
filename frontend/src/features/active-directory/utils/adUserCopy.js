@@ -115,6 +115,19 @@ export const COPY_USER_NEVER_FORM_FIELDS =
     'accountNotDelegated',
     'account_not_delegated',
     'AccountNotDelegated',
+
+    'msTSAllowLogon',
+    'ms_ts_allow_logon',
+    'msTSProfilePath',
+    'ms_ts_profile_path',
+    'msTSHomeDirectory',
+    'ms_ts_home_directory',
+    'msTSHomeDrive',
+    'ms_ts_home_drive',
+    'msTSInitialProgram',
+    'ms_ts_initial_program',
+    'msTSWorkDirectory',
+    'ms_ts_work_directory',
   ])
 
 function pickText(source, aliases) {

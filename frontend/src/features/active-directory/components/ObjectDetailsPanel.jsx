@@ -336,6 +336,18 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       ? `${logonHoursAllowedCount} créneau(x) autorisé(s)`
       : 'Tous les horaires'
 
+  const msTsAllowLogonValue = pickAdField([
+    'ms_ts_allow_logon',
+    'msTSAllowLogon',
+  ])
+
+  const msTsAllowLogonLabel =
+    msTsAllowLogonValue === null
+    || msTsAllowLogonValue === undefined
+    || String(msTsAllowLogonValue).trim() === ''
+      ? 'Non configuré'
+      : boolLabel(msTsAllowLogonValue)
+
   const accountRows = [
     ['État du compte', accountStatus],
     ['Nom de compte SAM', pickAdField(['sam_account_name', 'samAccountName', 'sAMAccountName'])],
@@ -410,6 +422,49 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
           'home_drive',
           'homeDrive',
         ]),
+      ],
+      [
+        'RDS — Connexion autorisée',
+        msTsAllowLogonLabel,
+      ],
+      [
+        'RDS — Chemin du profil',
+        pickAdField([
+          'ms_ts_profile_path',
+          'msTSProfilePath',
+        ]),
+        true,
+      ],
+      [
+        'RDS — Dossier de base',
+        pickAdField([
+          'ms_ts_home_directory',
+          'msTSHomeDirectory',
+        ]),
+        true,
+      ],
+      [
+        'RDS — Lecteur de connexion',
+        pickAdField([
+          'ms_ts_home_drive',
+          'msTSHomeDrive',
+        ]),
+      ],
+      [
+        'RDS — Programme initial',
+        pickAdField([
+          'ms_ts_initial_program',
+          'msTSInitialProgram',
+        ]),
+        true,
+      ],
+      [
+        'RDS — Dossier de démarrage',
+        pickAdField([
+          'ms_ts_work_directory',
+          'msTSWorkDirectory',
+        ]),
+        true,
       ],
     ]
 

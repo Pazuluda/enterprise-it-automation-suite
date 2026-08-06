@@ -362,6 +362,40 @@ function UpdateObjectForm({
                 'Lecteur de connexion'
               ]
             ]
+          },
+          {
+            title: 'Services Bureau à distance',
+            fields: [
+              [
+                'msTSAllowLogon',
+                'Autorisation de connexion RDS',
+                true
+              ],
+              [
+                'msTSProfilePath',
+                'Chemin du profil RDS',
+                true
+              ],
+              [
+                'msTSHomeDirectory',
+                'Dossier de base RDS',
+                true
+              ],
+              [
+                'msTSHomeDrive',
+                'Lecteur de connexion RDS'
+              ],
+              [
+                'msTSInitialProgram',
+                'Programme initial',
+                true
+              ],
+              [
+                'msTSWorkDirectory',
+                'Dossier de démarrage',
+                true
+              ]
+            ]
           }
         ].map(section => (
           <section key={section.title}>
@@ -541,6 +575,63 @@ function UpdateObjectForm({
                             </span>
                           </label>
                         </div>
+                      </fieldset>
+                    )
+                  }
+
+                  if (name === 'msTSAllowLogon') {
+                    return (
+                      <fieldset
+                        key={name}
+                        className="
+                          wide
+                          aduc-account-options-group
+                        "
+                      >
+                        <legend>{label}</legend>
+
+                        <label>
+                          <span>
+                            Comportement de la connexion
+                          </span>
+
+                          <select
+                            value={
+                              updateForm.msTSAllowLogon
+                              || 'inherit'
+                            }
+                            onChange={event =>
+                              updateObjectFormField(
+                                'msTSAllowLogon',
+                                event.target.value
+                              )
+                            }
+                            disabled={
+                              loading
+                              || update
+                                ?.pendingUserAccountOptionFields
+                                ?.includes('msTSAllowLogon')
+                            }
+                          >
+                            <option value="inherit">
+                              Non configuré
+                            </option>
+
+                            <option value="allow">
+                              Autoriser la connexion RDS
+                            </option>
+
+                            <option value="deny">
+                              Refuser la connexion RDS
+                            </option>
+                          </select>
+
+                          <small>
+                            « Non configuré » efface la valeur
+                            explicite et restaure l’état absent
+                            dans Active Directory.
+                          </small>
+                        </label>
                       </fieldset>
                     )
                   }
@@ -914,48 +1005,81 @@ function UpdateObjectForm({
                         value={updateForm[name] || ''}
                         maxLength={
                           name === 'homeDrive'
+                          || name === 'msTSHomeDrive'
                             ? 2
-                            : name === 'userWorkstations'
-                              ? 1024
-                              : name === 'userPrincipalName'
+                            : name.startsWith('msTS')
+                              ? 32767
+                              : name === 'userWorkstations'
                                 ? 1024
-                                : undefined
+                                : name === 'userPrincipalName'
+                                  ? 1024
+                                  : undefined
                         }
                         pattern={
                           name === 'homeDrive'
+                          || name === 'msTSHomeDrive'
                             ? '[A-Za-z]:'
                             : undefined
                         }
                         placeholder={
                           name === 'homeDrive'
                             ? 'Ex : H:'
-                            : name === 'userWorkstations'
-                              ? 'Ex : SRV-DC01,PC-COMPTA-01'
-                              : name === 'userPrincipalName'
-                                ? 'Ex : prenom.nom@API.LOCAL'
-                                : undefined
+                            : name === 'msTSHomeDrive'
+                              ? 'Ex : R:'
+                              : name === 'msTSProfilePath'
+                                ? 'Ex : \\\\SRV-RDS\\Profils\\%username%'
+                                : name === 'msTSHomeDirectory'
+                                  ? 'Ex : \\\\SRV-RDS\\Utilisateurs\\%username%'
+                                  : name === 'msTSInitialProgram'
+                                    ? 'Ex : C:\\Applications\\app.exe'
+                                    : name === 'msTSWorkDirectory'
+                                      ? 'Ex : C:\\Applications'
+                                      : name === 'userWorkstations'
+                                        ? 'Ex : SRV-DC01,PC-COMPTA-01'
+                                        : name === 'userPrincipalName'
+                                          ? 'Ex : prenom.nom@API.LOCAL'
+                                          : undefined
                         }
                         title={
                           name === 'homeDrive'
                             ? 'Une lettre suivie de deux-points, par exemple H:'
-                            : name === 'userWorkstations'
-                              ? 'Noms NetBIOS séparés par des virgules. Champ vide : tous les ordinateurs.'
-                              : name === 'userPrincipalName'
-                                ? 'Nom d’ouverture de session complet avec suffixe UPN'
-                                : name === 'accountExpires'
-                                  ? 'Champ vide : le compte n’expire jamais'
-                                  : undefined
+                            : name === 'msTSHomeDrive'
+                              ? 'Une lettre suivie de deux-points, par exemple R:'
+                              : name === 'msTSProfilePath'
+                                ? 'Chemin réseau du profil utilisé pour les sessions RDS'
+                                : name === 'msTSHomeDirectory'
+                                  ? 'Dossier de base utilisé pendant les sessions RDS'
+                                  : name === 'msTSInitialProgram'
+                                    ? 'Programme lancé automatiquement à la connexion RDS'
+                                    : name === 'msTSWorkDirectory'
+                                      ? 'Dossier de travail du programme initial'
+                                      : name === 'userWorkstations'
+                                        ? 'Noms NetBIOS séparés par des virgules. Champ vide : tous les ordinateurs.'
+                                        : name === 'userPrincipalName'
+                                          ? 'Nom d’ouverture de session complet avec suffixe UPN'
+                                          : name === 'accountExpires'
+                                            ? 'Champ vide : le compte n’expire jamais'
+                                            : undefined
                         }
                         onChange={event =>
                           updateObjectFormField(
                             name,
-                            name === 'homeDrive' ||
-                            name === 'userWorkstations'
+                            name === 'homeDrive'
+                            || name === 'msTSHomeDrive'
+                            || name === 'userWorkstations'
                               ? event.target.value.toUpperCase()
                               : event.target.value
                           )
                         }
-                        disabled={loading}
+                        disabled={
+                          loading
+                          || (
+                            name.startsWith('msTS')
+                            && update
+                              ?.pendingUserAccountOptionFields
+                              ?.includes(name)
+                          )
+                        }
                       />
 
                       {name === 'userWorkstations' && (

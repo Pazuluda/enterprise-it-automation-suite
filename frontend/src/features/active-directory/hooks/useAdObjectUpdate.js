@@ -142,6 +142,97 @@ function useAdObjectUpdate({
   }
 
 
+  function hasOwnAdAttribute(
+    target,
+    ...names
+  ) {
+    return names.some(name =>
+      Object.prototype.hasOwnProperty.call(
+        target || {},
+        name
+      )
+    )
+  }
+
+
+  function getNullableAdBooleanAttributeValue(
+    target,
+    ...names
+  ) {
+    for (const name of names) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          target || {},
+          name
+        )
+      ) {
+        continue
+      }
+
+      const value = target?.[name]
+
+      if (
+        value === null
+        || value === undefined
+        || String(value).trim() === ''
+      ) {
+        return null
+      }
+
+      if (typeof value === 'boolean') {
+        return value
+      }
+
+      const normalized = String(value)
+        .trim()
+        .toLowerCase()
+
+      if (
+        normalized === 'true'
+        || normalized === '1'
+      ) {
+        return true
+      }
+
+      if (
+        normalized === 'false'
+        || normalized === '0'
+      ) {
+        return false
+      }
+
+      return null
+    }
+
+    return null
+  }
+
+
+  function getMsTsAllowLogonFormValue(target) {
+    const value =
+      getNullableAdBooleanAttributeValue(
+        target,
+        'msTSAllowLogon',
+        'ms_ts_allow_logon'
+      )
+
+    if (value === true) return 'allow'
+    if (value === false) return 'deny'
+
+    return 'inherit'
+  }
+
+
+  function getMsTsAllowLogonSubmissionValue(
+    value
+  ) {
+    if (value === 'allow') return true
+    if (value === 'deny') return false
+
+    return null
+  }
+
+
   function hasAuthoritativeUserAccountOptions(
     target
   ) {
@@ -265,6 +356,52 @@ function useAdObjectUpdate({
     }
   ]
 
+  const userRdsProfileDefinitions = [
+    {
+      field: 'msTSAllowLogon',
+      aliases: [
+        'msTSAllowLogon',
+        'ms_ts_allow_logon'
+      ],
+      nullableBoolean: true
+    },
+    {
+      field: 'msTSProfilePath',
+      aliases: [
+        'msTSProfilePath',
+        'ms_ts_profile_path'
+      ]
+    },
+    {
+      field: 'msTSHomeDirectory',
+      aliases: [
+        'msTSHomeDirectory',
+        'ms_ts_home_directory'
+      ]
+    },
+    {
+      field: 'msTSHomeDrive',
+      aliases: [
+        'msTSHomeDrive',
+        'ms_ts_home_drive'
+      ]
+    },
+    {
+      field: 'msTSInitialProgram',
+      aliases: [
+        'msTSInitialProgram',
+        'ms_ts_initial_program'
+      ]
+    },
+    {
+      field: 'msTSWorkDirectory',
+      aliases: [
+        'msTSWorkDirectory',
+        'ms_ts_work_directory'
+      ]
+    }
+  ]
+
   function getMissingUserAccountOptionFields(
     target
   ) {
@@ -287,6 +424,47 @@ function useAdObjectUpdate({
             target,
             ...definition.aliases
           )
+        ]
+      )
+    )
+  }
+
+  function hasAuthoritativeUserRdsProfile(
+    target
+  ) {
+    return userRdsProfileDefinitions.every(
+      definition =>
+        hasOwnAdAttribute(
+          target,
+          ...definition.aliases
+        )
+    )
+  }
+
+  function getMissingUserRdsProfileFields(
+    target
+  ) {
+    return userRdsProfileDefinitions
+      .filter(definition =>
+        !hasOwnAdAttribute(
+          target,
+          ...definition.aliases
+        )
+      )
+      .map(definition => definition.field)
+  }
+
+  function getUserRdsProfilePatch(target) {
+    return Object.fromEntries(
+      userRdsProfileDefinitions.map(
+        definition => [
+          definition.field,
+          definition.nullableBoolean
+            ? getMsTsAllowLogonFormValue(target)
+            : getAdAttributeValue(
+                target,
+                ...definition.aliases
+              )
         ]
       )
     )
@@ -328,8 +506,13 @@ function useAdObjectUpdate({
 
     if (
       isUpdateUserTarget(target)
-      && !hasAuthoritativeUserAccountOptions(
-        target
+      && (
+        !hasAuthoritativeUserAccountOptions(
+          target
+        )
+        || !hasAuthoritativeUserRdsProfile(
+          target
+        )
       )
       && typeof resolveUserUpdateTargetSync
         === 'function'
@@ -344,9 +527,14 @@ function useAdObjectUpdate({
 
     const pendingAccountFields =
       isUpdateUserTarget(target)
-        ? getMissingUserAccountOptionFields(
-            target
-          )
+        ? [
+            ...getMissingUserAccountOptionFields(
+              target
+            ),
+            ...getMissingUserRdsProfileFields(
+              target
+            )
+          ]
         : []
 
     const shouldLoadAccountOptions =
@@ -546,6 +734,33 @@ function useAdObjectUpdate({
         'homeDrive',
         'home_drive'
       ),
+      msTSAllowLogon:
+        getMsTsAllowLogonFormValue(target),
+      msTSProfilePath: getAdAttributeValue(
+        target,
+        'msTSProfilePath',
+        'ms_ts_profile_path'
+      ),
+      msTSHomeDirectory: getAdAttributeValue(
+        target,
+        'msTSHomeDirectory',
+        'ms_ts_home_directory'
+      ),
+      msTSHomeDrive: getAdAttributeValue(
+        target,
+        'msTSHomeDrive',
+        'ms_ts_home_drive'
+      ),
+      msTSInitialProgram: getAdAttributeValue(
+        target,
+        'msTSInitialProgram',
+        'ms_ts_initial_program'
+      ),
+      msTSWorkDirectory: getAdAttributeValue(
+        target,
+        'msTSWorkDirectory',
+        'ms_ts_work_directory'
+      ),
       samAccountName:
         isUpdateComputerTarget(target)
           ? rawSamAccountName.replace(/\$$/, '')
@@ -680,6 +895,9 @@ function useAdObjectUpdate({
             || !hasAuthoritativeUserAccountOptions(
               resolvedTarget
             )
+            || !hasAuthoritativeUserRdsProfile(
+              resolvedTarget
+            )
           ) {
             throw new Error(
               'Active Directory n\u2019a pas retourne '
@@ -687,10 +905,14 @@ function useAdObjectUpdate({
             )
           }
 
-          const resolvedPatch =
-            getUserAccountOptionPatch(
+          const resolvedPatch = {
+            ...getUserAccountOptionPatch(
+              resolvedTarget
+            ),
+            ...getUserRdsProfilePatch(
               resolvedTarget
             )
+          }
 
           setUpdateModal(current => {
             const currentDn =
@@ -809,14 +1031,22 @@ function useAdObjectUpdate({
           ? getLogonHoursSubmissionValue(
               rawCurrentValue
             )
-          : rawCurrentValue
+          : key === 'msTSAllowLogon'
+            ? getMsTsAllowLogonSubmissionValue(
+                rawCurrentValue
+              )
+            : rawCurrentValue
 
       const originalValue =
         key === 'logonHours'
           ? getLogonHoursSubmissionValue(
               rawOriginalValue
             )
-          : rawOriginalValue
+          : key === 'msTSAllowLogon'
+            ? getMsTsAllowLogonSubmissionValue(
+                rawOriginalValue
+              )
+            : rawOriginalValue
 
       if (
         String(currentValue) !==
