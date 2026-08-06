@@ -128,8 +128,48 @@ function Convert-EitasAdNullableInt32 {
     }
 }
 
+function Convert-EitasAdByteArrayToHex {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    $Bytes = @($Value)
+
+    if ($Bytes.Count -eq 0) {
+        return ""
+    }
+
+    return (
+        $Bytes |
+            ForEach-Object {
+                ([byte]$_).ToString("X2")
+            }
+    ) -join " "
+}
+
+
 function Convert-EitasAdUserItem {
     param([object]$User)
+
+    $PostOfficeBoxValues = @(
+        $User.postOfficeBox |
+            ForEach-Object {
+                ([string]$_).Trim()
+            } |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace($_)
+            }
+    )
+
+    $PostOfficeBoxValue = ""
+
+    if ($PostOfficeBoxValues.Count -gt 0) {
+        $PostOfficeBoxValue = (
+            [string]$PostOfficeBoxValues[0]
+        )
+    }
 
     return [pscustomobject]@{
         type = "user"
@@ -151,7 +191,21 @@ function Convert-EitasAdUserItem {
         surname = [string]$User.Surname
         sam_account_name = $User.SamAccountName
         user_principal_name = $User.UserPrincipalName
+        user_workstations = `
+            [string]$User.userWorkstations
+        logon_hours = Convert-EitasAdByteArrayToHex `
+            -Value $User.logonHours
+        logon_hours_utc_offset_minutes = [int](
+            [System.TimeZoneInfo]::Local.BaseUtcOffset.
+                TotalMinutes
+        )
+        direct_reports = @($User.directReports)
+        profile_path = [string]$User.profilePath
+        script_path = [string]$User.scriptPath
+        home_directory = [string]$User.homeDirectory
+        home_drive = [string]$User.homeDrive
         mail = $User.Mail
+        www_home_page = [string]$User.wWWHomePage
         enabled = Convert-EitasAdBoolValue -Value $User.Enabled
         locked_out = Convert-EitasAdBoolValue -Value $User.LockedOut
         password_expired = Convert-EitasAdBoolValue -Value $User.PasswordExpired
@@ -176,12 +230,24 @@ function Convert-EitasAdUserItem {
         manager = $User.Manager
         office = $User.Office
         telephone_number = $User.TelephoneNumber
+        home_phone = [string]$User.homePhone
+        facsimile_telephone_number = `
+            [string]$User.facsimileTelephoneNumber
+        pager = [string]$User.pager
+        ip_phone = [string]$User.ipPhone
         mobile = $User.mobile
         city = $User.l
         country = $User.co
+        country_alpha2 = [string]$User.c
+        country_numeric_code = `
+            Convert-EitasAdNullableInt32 `
+                -Value $User.countryCode
         state = $User.st
         postal_code = $User.postalCode
         street_address = $User.streetAddress
+        post_office_box = $PostOfficeBoxValue
+        post_office_box_count = `
+            $PostOfficeBoxValues.Count
         employee_id = $User.employeeID
         employee_number = $User.employeeNumber
         division = $User.division
@@ -520,7 +586,7 @@ function Invoke-EitasAdLookupJob {
         -LDAPFilter $Filter `
         -SearchBase $SearchBase `
         -SearchScope Subtree `
-        -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
+        -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, Mail, wWWHomePage, userWorkstations, logonHours, directReports, profilePath, scriptPath, homeDirectory, homeDrive, homePhone, facsimileTelephoneNumber, pager, ipPhone, postOfficeBox, c, countryCode, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division `
         -ResultSetSize 20 `
         -ErrorAction Stop |
         Sort-Object SamAccountName |
@@ -1258,7 +1324,7 @@ function Invoke-EitasAdExplorerGetUser {
         throw "Identité utilisateur manquante"
     }
 
-    $User = Get-ADUser -Identity $Identity -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, Mail, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
+    $User = Get-ADUser -Identity $Identity -Properties DisplayName, GivenName, Initials, Surname, personalTitle, preferredLanguage, info, uidNumber, gidNumber, unixHomeDirectory, loginShell, gecos, Mail, wWWHomePage, userWorkstations, logonHours, directReports, profilePath, scriptPath, homeDirectory, homeDrive, homePhone, facsimileTelephoneNumber, pager, ipPhone, postOfficeBox, c, countryCode, Enabled, Description, MemberOf, LockedOut, PasswordExpired, PasswordNeverExpires, CannotChangePassword, SmartcardLogonRequired, AccountNotDelegated, msTSAllowLogon, msTSProfilePath, msTSHomeDirectory, msTSHomeDrive, msTSInitialProgram, msTSWorkDirectory, PasswordLastSet, LastLogonDate, LastBadPasswordAttempt, AccountExpirationDate, BadLogonCount, Department, Title, Company, Manager, Office, TelephoneNumber, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, l, co, st, postalCode, streetAddress, mobile, employeeID, employeeNumber, division, "msDS-HABSeniorityIndex" -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $User.DistinguishedName -Config $Config | Out-Null
 
