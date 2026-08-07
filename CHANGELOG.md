@@ -4,6 +4,29 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.06] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- sixième checkpoint fonctionnel du chantier C4 ;
+- C4.5 « Cycle de vie structurel des groupes » clôturé ;
+- `create_group` contrôle l’existence réelle du groupe avant le retour Simulation ;
+- `delete_object` résout l’objet réel et vérifie le `confirm_dn` avant le retour Simulation ;
+- `rename_object` résout l’objet réel avant le retour Simulation ;
+- `move_object` résout la source et la destination réelles avant le retour Simulation ;
+- destination de déplacement limitée aux classes Active Directory `organizationalUnit` et `container` ;
+- faux positif de Simulation sur une destination groupe détecté puis corrigé et revalidé au runtime ;
+- destination OU réelle acceptée en Simulation sans déplacement Active Directory ;
+- mauvais `confirm_dn` de suppression refusé avant le retour Simulation ;
+- renommage simulé validé sans création ni renommage réel de l’objet ;
+- création simulée validée pour un groupe inexistant, sans création Active Directory ;
+- module final validé sous Windows PowerShell 5.1 puis déployé avec sauvegarde ;
+- SHA-256 actif final `A914BD58FA8519C903CB9E397C2F56B841D6FE7E5FE9D2E73CC5683829AA0C8D` ;
+- worker `EITAS AD Admin Worker` redémarré afin de recharger le module final ;
+- 6 tests dédiés au contrat de cycle de vie C4.5 validés ;
+- suite backend complète : 382 tests, 31 warnings connus et 317 sous-tests validés ;
+- `git diff --check` propre.
+
 ## [0.4.0-alpha.05] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances

@@ -1,11 +1,11 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.4.0--alpha.05-2563eb)
+![Version](https://img.shields.io/badge/version-v0.4.0--alpha.06-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 ![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
-![C4](https://img.shields.io/badge/C4-en_cours_80_%25-orange)
+![C4](https://img.shields.io/badge/C4-en_cours_85_%25-orange)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -13,9 +13,9 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 ## Version actuelle
 
-La version officielle actuelle est **v0.4.0-alpha.05**.
+La version officielle actuelle est **v0.4.0-alpha.06**.
 
-Cette version poursuit le chantier C4 avec un cinquième checkpoint fonctionnel qui clôt C4.4 « Conversion contrôlée de la portée et de la catégorie des groupes » après validation de la matrice en Simulation contre l’état Active Directory réel.
+Cette version poursuit le chantier C4 avec un sixième checkpoint fonctionnel qui clôt C4.5 « Cycle de vie structurel des groupes » après prévalidation réelle en Simulation des créations, suppressions, renommages et déplacements.
 
 Elle consolide la clôture à 100 % de :
 
@@ -27,7 +27,7 @@ Elle consolide la clôture à 100 % de :
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.4.0-alpha.05` est un checkpoint fonctionnel validé du chantier C4, mais pas encore la version générale stable `v1.0.0`.
+EITAS reste en développement actif. `v0.4.0-alpha.06` est un checkpoint fonctionnel validé du chantier C4, mais pas encore la version générale stable `v1.0.0`.
 
 ## Fonctionnalités disponibles
 
@@ -129,12 +129,13 @@ Composants principaux :
 
 | État | Version |
 |---|---:|
-| Version officielle actuelle | `v0.4.0-alpha.05` |
+| Version officielle actuelle | `v0.4.0-alpha.06` |
 | Premier checkpoint C4 | `v0.4.0-alpha.01` |
 | Deuxième checkpoint C4 | `v0.4.0-alpha.02` |
 | Troisième checkpoint C4 | `v0.4.0-alpha.03` |
 | Quatrième checkpoint C4 | `v0.4.0-alpha.04` |
 | Cinquième checkpoint C4           | `v0.4.0-alpha.05` |
+| Sixième checkpoint C4             | `v0.4.0-alpha.06` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |

@@ -10,15 +10,15 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.4.0-alpha.05
+## État courant — v0.4.0-alpha.06
 
 | Indicateur | Avancement |
 |---|---:|
-| C4 — Groupes, imbrication et appartenances |       80 % |
-| Explorateur Active Directory complet       |       53 % |
+| C4 — Groupes, imbrication et appartenances |       85 % |
+| Explorateur Active Directory complet       |       54 % |
 | Projet EITAS global | 80 % |
 
-La version `v0.4.0-alpha.05` clôt C4.4 « Conversion contrôlée de la portée et de la catégorie des groupes » après validation de la matrice en Simulation contre l’état Active Directory réel.
+La version `v0.4.0-alpha.06` clôt C4.5 « Cycle de vie structurel des groupes » après prévalidation réelle en Simulation des créations, suppressions, renommages et déplacements.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -29,7 +29,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
-| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.4 clôturé — 80 % |
+| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.5 clôturé — 85 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
@@ -39,9 +39,9 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 
 ## Version actuelle
 
-### v0.4.0-alpha.05 — Checkpoint C4.4
+### v0.4.0-alpha.06 — Checkpoint C4.5
 
-Ce checkpoint clôt C4.4 « Conversion contrôlée de la portée et de la catégorie des groupes ». Les transitions sont prévalidées sur l’état Active Directory réel avant le retour Simulation, sans écriture AD.
+Ce checkpoint clôt C4.5 « Cycle de vie structurel des groupes ». Les opérations de création, suppression, renommage et déplacement sont prévalidées sur l’état Active Directory réel avant le retour Simulation, sans écriture AD.
 
 ## Versions de chantier terminées
 
@@ -61,7 +61,7 @@ Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisa
 
 Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
 
-**Checkpoint actuel :** **`v0.4.0-alpha.05`**
+**Checkpoint actuel :** **`v0.4.0-alpha.06`**
 
 - C4.1 : audit fonctionnel et technique terminé ;
 - C4.2A : ajout groupe vers groupe sécurisé et validé ;
@@ -93,6 +93,17 @@ Objectif : développer la gestion avancée des groupes, de l’imbrication et de
 - groupe Universal temporaire de validation supprimé après les tests ;
 - suite backend complète : 376 tests et 317 sous-tests validés ;
 - C4.4 est validé fonctionnellement.
+- C4.5 : cycle de vie structurel des groupes validé ;
+- `create_group` prévalide l’existence réelle du groupe avant le retour Simulation ;
+- `delete_object` résout l’objet réel et vérifie le `confirm_dn` avant le retour Simulation ;
+- `rename_object` résout l’objet réel avant le retour Simulation ;
+- `move_object` résout la source et la destination réelles avant le retour Simulation ;
+- les destinations de déplacement sont limitées aux `organizationalUnit` et `container` ;
+- validation runtime Windows PowerShell 5.1 avec le module final ;
+- worker `EITAS AD Admin Worker` redémarré pour recharger le module final ;
+- validations Simulation confirmées sans écriture Active Directory ;
+- suite backend complète : 382 tests, 31 warnings connus et 317 sous-tests validés ;
+- C4.5 est validé fonctionnellement.
 
 ## Version v1.0.0
 

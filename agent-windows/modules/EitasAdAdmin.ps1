@@ -225,6 +225,12 @@ function Invoke-EitasAdAdminCreateGroup {
 
     Assert-EitasDnSafe -DistinguishedName $ParentDn -Config $Config | Out-Null
 
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    if (Test-EitasAdObjectExists -Identity $SamAccountName -SearchBase $ParentDn -ObjectClass "group") {
+        throw "Groupe déjà existant : $SamAccountName dans $ParentDn"
+    }
+
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "create_group"
@@ -236,12 +242,6 @@ function Invoke-EitasAdAdminCreateGroup {
             group_category = $GroupCategory
             message = "Simulation création groupe"
         }
-    }
-
-    Import-EitasActiveDirectoryModule | Out-Null
-
-    if (Test-EitasAdObjectExists -Identity $SamAccountName -SearchBase $ParentDn -ObjectClass "group") {
-        throw "Groupe déjà existant : $SamAccountName dans $ParentDn"
     }
 
     $Params = @{
@@ -3884,6 +3884,14 @@ function Invoke-EitasAdAdminDeleteObject {
 
     $ConfirmDn = ([string]$ConfirmDn).Trim()
 
+    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
+
+    $ObjectDn = ([string]$Object.DistinguishedName).Trim()
+
+    if ($ObjectDn -ine $ConfirmDn) {
+        throw "Confirmation DN invalide. DN réel : $ObjectDn"
+    }
+
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "delete_object"
@@ -3892,14 +3900,6 @@ function Invoke-EitasAdAdminDeleteObject {
             confirm_dn = $ConfirmDn
             message = "Simulation suppression objet AD"
         }
-    }
-
-    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
-
-    $ObjectDn = ([string]$Object.DistinguishedName).Trim()
-
-    if ($ObjectDn -ine $ConfirmDn) {
-        throw "Confirmation DN invalide. DN réel : $ObjectDn"
     }
 
     $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
@@ -3995,6 +3995,8 @@ function Invoke-EitasAdAdminRenameObject {
 
     $NewName = ([string]$NewName).Trim()
 
+    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
+
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "rename_object"
@@ -4004,8 +4006,6 @@ function Invoke-EitasAdAdminRenameObject {
             message = "Simulation renommage objet AD"
         }
     }
-
-    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
 
     $ObjectDn = [string]$Object.DistinguishedName
     $ObjectClass = ([string]$Object.ObjectClass).Trim().ToLowerInvariant()
@@ -4206,16 +4206,6 @@ function Invoke-EitasAdAdminMoveObject {
         throw "DN destination manquant"
     }
 
-    if ($Mode -ne "Production") {
-        return [pscustomobject]@{
-            action = "move_object"
-            simulated = $true
-            object_identity = $ObjectIdentity
-            target_parent_dn = $TargetParentDn
-            message = "Simulation déplacement objet AD"
-        }
-    }
-
     $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
 
     Assert-EitasDnSafe -DistinguishedName $TargetParentDn -Config $Config | Out-Null
@@ -4227,11 +4217,30 @@ function Invoke-EitasAdAdminMoveObject {
 
     Assert-EitasDnSafe -DistinguishedName $TargetParent.DistinguishedName -Config $Config | Out-Null
 
+    $TargetParentClass = [string]$TargetParent.ObjectClass
+
+    if (
+        $TargetParentClass -ine "organizationalUnit" `
+        -and $TargetParentClass -ine "container"
+    ) {
+        throw "Destination invalide : l'objet cible doit etre une OU ou un conteneur AD"
+    }
+
     $ObjectDn = [string]$Object.DistinguishedName
     $TargetDn = [string]$TargetParent.DistinguishedName
 
     if ($TargetDn -ieq $ObjectDn -or $TargetDn.ToLowerInvariant().EndsWith("," + $ObjectDn.ToLowerInvariant())) {
         throw "Déplacement impossible : la destination est l’objet lui-même ou un de ses enfants"
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "move_object"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            target_parent_dn = $TargetParentDn
+            message = "Simulation déplacement objet AD"
+        }
     }
 
     $CommaIndex = $ObjectDn.IndexOf(",")
