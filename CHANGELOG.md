@@ -4,6 +4,34 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.04] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- quatrième checkpoint fonctionnel du chantier C4 ;
+- C4.3 « Membre de / groupe principal » validé de bout en bout ;
+- groupe principal exposé dans l’onglet `Membre de` sans duplication de l’appartenance directe ;
+- groupes directs éligibles proposés comme nouveau groupe principal depuis le portail ;
+- groupe principal actuel protégé contre le retrait depuis l’interface ;
+- action `set_primary_group` intégrée à l’API AD Admin et au dispatcher Windows ;
+- seuls les utilisateurs et ordinateurs sont acceptés comme objets cibles ;
+- groupe cible obligatoire de catégorie Security, dans le même domaine SID et sous le périmètre EITAS ;
+- changement de groupe principal conditionné par une appartenance directe réelle au groupe cible ;
+- RID cible dérivé du SID Active Directory et comparé au `primaryGroupID` actuel ;
+- chemin idempotent pris en charge lorsque le groupe cible est déjà le groupe principal ;
+- Production strictement refusée pour cette action ;
+- résultat Simulation explicite avec `simulated=true` et `production_authorized=false` ;
+- garde-fou hors périmètre EITAS validé au runtime ;
+- Simulation runtime validée vers `GG_IT_Admin` RID 1118 ;
+- validation réelle depuis l’interface vers `GG_Server_Admin` RID 1119 ;
+- worker `SRV-DC01` confirmé sur les jobs C4.3 ;
+- Active Directory confirmé inchangé après les validations Simulation ;
+- audit `created → claimed → completed/failed` validé ;
+- 365 tests backend et 317 sous-tests validés ;
+- tests frontend C4.2/C4.3, lint et build de production validés ;
+- aucun secret détecté dans le diff du checkpoint.
+
+
 ## [0.4.0-alpha.03] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances

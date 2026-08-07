@@ -1379,28 +1379,214 @@ function Invoke-EitasAdExplorerGetGroupMembers {
         throw "Identité groupe manquante"
     }
 
+    $RecursiveValue = Get-EitasLookupValue -Object $Payload -Names @(
+        "recursive",
+        "Recursive",
+        "include_nested",
+        "includeNested"
+    )
+
+    $Recursive = $false
+
+    if ($null -ne $RecursiveValue) {
+        if ($RecursiveValue -is [bool]) {
+            $Recursive = $RecursiveValue
+        }
+        else {
+            $Recursive = @(
+                "1",
+                "true",
+                "yes",
+                "oui"
+            ) -contains (
+                [string]$RecursiveValue
+            ).Trim().ToLowerInvariant()
+        }
+    }
+
+    $LimitValue = Get-EitasLookupValue -Object $Payload -Names @(
+        "limit",
+        "max_results",
+        "maxResults"
+    )
+
+    $Limit = 500
+
+    if ($null -ne $LimitValue) {
+        try {
+            $ParsedLimit = [int]$LimitValue
+
+            if ($ParsedLimit -gt 0) {
+                $Limit = [Math]::Min(
+                    $ParsedLimit,
+                    5000
+                )
+            }
+        }
+        catch {
+            $Limit = 500
+        }
+    }
+
+    $Truncated = $false
+
     $Group = Get-ADGroup -Identity $Identity -Properties Description, ObjectGUID, SID, whenCreated, whenChanged, CanonicalName, GroupScope, GroupCategory, ManagedBy, MemberOf -ErrorAction Stop
 
     Assert-EitasDnSafe -DistinguishedName $Group.DistinguishedName -Config $Config | Out-Null
 
-    $Members = Get-ADGroupMember -Identity $Group.DistinguishedName -ErrorAction Stop |
-        Sort-Object Name |
-        ForEach-Object {
-            [pscustomobject]@{
-                type = $_.objectClass
-                name = $_.Name
-                sam_account_name = $_.SamAccountName
-                distinguished_name = $_.DistinguishedName
-                dn = $_.DistinguishedName
+    $Items = @()
+    $SeenMembers = @{}
+    $VisitedGroups = @{}
+    $Queue = New-Object System.Collections.Queue
+
+    $RootKey = ([string]$Group.DistinguishedName).ToLowerInvariant()
+    $SeenMembers[$RootKey] = $true
+    $VisitedGroups[$RootKey] = $true
+
+    $DirectMembers = @(
+        Get-ADGroupMember -Identity $Group.DistinguishedName -ErrorAction Stop |
+            Sort-Object Name
+    )
+
+    foreach ($Member in $DirectMembers) {
+        if ($Items.Count -ge $Limit) {
+            $Truncated = $true
+            break
+        }
+
+        $MemberDn = [string]$Member.DistinguishedName
+
+        if ([string]::IsNullOrWhiteSpace($MemberDn)) {
+            continue
+        }
+
+        $MemberKey = $MemberDn.ToLowerInvariant()
+
+        if (-not $SeenMembers.ContainsKey($MemberKey)) {
+            $SeenMembers[$MemberKey] = $true
+
+            $Items += [pscustomobject]@{
+                type = [string]$Member.objectClass
+                name = [string]$Member.Name
+                sam_account_name = [string]$Member.SamAccountName
+                distinguished_name = $MemberDn
+                dn = $MemberDn
+                direct = $true
+                depth = 1
+                parent_group_dn = [string]$Group.DistinguishedName
             }
         }
+
+        if ($Recursive -and ([string]$Member.objectClass -ieq "group")) {
+            $Queue.Enqueue([pscustomobject]@{
+                group_dn = $MemberDn
+                depth = 2
+            })
+        }
+    }
+
+    if ($Recursive) {
+        while ($Queue.Count -gt 0) {
+            if ($Items.Count -ge $Limit) {
+                $Truncated = $true
+                break
+            }
+
+            $Node = $Queue.Dequeue()
+            $NestedGroupDn = [string]$Node.group_dn
+            $Depth = [int]$Node.depth
+
+            if ([string]::IsNullOrWhiteSpace($NestedGroupDn)) {
+                continue
+            }
+
+            $NestedGroupKey = $NestedGroupDn.ToLowerInvariant()
+
+            if ($VisitedGroups.ContainsKey($NestedGroupKey)) {
+                continue
+            }
+
+            try {
+                Assert-EitasDnSafe -DistinguishedName $NestedGroupDn -Config $Config | Out-Null
+            }
+            catch {
+                continue
+            }
+
+            $VisitedGroups[$NestedGroupKey] = $true
+
+            $NestedMembers = @(
+                Get-ADGroupMember -Identity $NestedGroupDn -ErrorAction Stop |
+                    Sort-Object Name
+            )
+
+            foreach ($NestedMember in $NestedMembers) {
+                if ($Items.Count -ge $Limit) {
+                    $Truncated = $true
+                    break
+                }
+
+                $NestedMemberDn = [string]$NestedMember.DistinguishedName
+
+                if ([string]::IsNullOrWhiteSpace($NestedMemberDn)) {
+                    continue
+                }
+
+                $NestedMemberKey = $NestedMemberDn.ToLowerInvariant()
+
+                if (-not $SeenMembers.ContainsKey($NestedMemberKey)) {
+                    $SeenMembers[$NestedMemberKey] = $true
+
+                    $Items += [pscustomobject]@{
+                        type = [string]$NestedMember.objectClass
+                        name = [string]$NestedMember.Name
+                        sam_account_name = [string]$NestedMember.SamAccountName
+                        distinguished_name = $NestedMemberDn
+                        dn = $NestedMemberDn
+                        direct = $false
+                        depth = $Depth
+                        parent_group_dn = $NestedGroupDn
+                    }
+                }
+
+                if ([string]$NestedMember.objectClass -ieq "group") {
+                    $Queue.Enqueue([pscustomobject]@{
+                        group_dn = $NestedMemberDn
+                        depth = $Depth + 1
+                    })
+                }
+            }
+        }
+    }
+
+    $Members = @(
+        $Items |
+            Sort-Object depth, name
+    )
+
+    $DirectCount = @(
+        $Members |
+            Where-Object {
+                $_.direct -eq $true
+            }
+    ).Count
 
     return [pscustomobject]@{
         action = "get_group_members"
         group = Convert-EitasAdGroupItem -Group $Group
-        count = @($Members).Count
-        items = @($Members)
-        message = "Membres du groupe chargés"
+        recursive = $Recursive
+        limit = $Limit
+        truncated = $Truncated
+        count = $Members.Count
+        direct_count = $DirectCount
+        nested_count = $Members.Count - $DirectCount
+        items = $Members
+        message = if ($Recursive) {
+            "Membres directs et imbriqués du groupe chargés"
+        }
+        else {
+            "Membres directs du groupe chargés"
+        }
     }
 }
 

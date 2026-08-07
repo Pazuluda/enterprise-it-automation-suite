@@ -36,7 +36,7 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -94,7 +94,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       if (filterValue === 'success') return status === 'completed'
       if (filterValue === 'running') return status === 'processing' || status === 'pending'
       if (filterValue === 'failed') return status === 'failed'
-      if (filterValue === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
+      if (filterValue === 'members') return ['add_group_member', 'remove_group_member', 'set_primary_group'].includes(job.action)
       if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
       if (filterValue === 'delete') return job.action === 'delete_object'
       if (filterValue === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
@@ -111,7 +111,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     if (historyFilter === 'success') return status === 'completed'
     if (historyFilter === 'running') return status === 'processing' || status === 'pending'
     if (historyFilter === 'failed') return status === 'failed'
-    if (historyFilter === 'members') return ['add_group_member', 'remove_group_member'].includes(job.action)
+    if (historyFilter === 'members') return ['add_group_member', 'remove_group_member', 'set_primary_group'].includes(job.action)
     if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
     if (historyFilter === 'delete') return job.action === 'delete_object'
     if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
@@ -1669,6 +1669,29 @@ const objectTechnicalRows = [
                     </button>
 
                     {isManagedScope &&
+                      (isUser || isComputer) &&
+                      !group.is_primary_group &&
+                      isEitasManagedDn(
+                        group.dn ||
+                        group.distinguished_name
+                      ) &&
+                      typeof onSetPrimaryGroup ===
+                        'function' && (
+                      <button
+                        type="button"
+                        title="Simulation uniquement"
+                        onClick={() =>
+                          onSetPrimaryGroup(
+                            group,
+                            displayed
+                          )
+                        }
+                      >
+                        Définir comme groupe principal
+                      </button>
+                    )}
+
+                    {isManagedScope &&
                       !group.is_primary_group && (
                       <button
                         type="button"
@@ -1810,9 +1833,14 @@ const objectTechnicalRows = [
               <span>{membersLoading ? 'Chargement...' : `${members.length} membre(s)`}</span>
             </div>
 
+            <div className="aduc-members-scope" role="group" aria-label="Portée des membres">
+              <button type="button" aria-pressed={membersMode === 'direct'} disabled={membersLoading} onClick={() => onMembersModeChange?.(displayed, 'direct')}>Directs</button>
+              <button type="button" aria-pressed={membersMode === 'recursive'} disabled={membersLoading} onClick={() => onMembersModeChange?.(displayed, 'recursive')}>Imbriqués</button>
+            </div>
+
             <div className="aduc-members-buttons">
               <button type="button" onClick={() => onOpenAddMember(displayed)} disabled={membersLoading} title="Ajouter un membre">＋</button>
-              <button type="button" onClick={() => onLoadMembers(displayed)} disabled={membersLoading} title="Actualiser les membres">⟳</button>
+              <button type="button" onClick={() => onLoadMembers(displayed, { recursive: membersMode === 'recursive', forceJob: membersMode === 'recursive', forceSnapshot: membersMode === 'direct' })} disabled={membersLoading} title="Actualiser les membres">⟳</button>
             </div>
           </div>
 
@@ -1829,6 +1857,7 @@ const objectTechnicalRows = [
                   <div className="aduc-member-main">
                     <strong>{getObjectName(member)}</strong>
                     <span>{getObjectDn(member) || member.sam_account_name || member.user_principal_name || 'Identité non disponible'}</span>
+                    <span className="aduc-member-membership-kind">{member.direct === false ? 'Imbriqué - niveau ' + (member.depth || '?') + (member.parent_group_dn ? ' - via ' + member.parent_group_dn : '') : 'Direct'}</span>
                   </div>
 
                   <div className="aduc-member-actions">
@@ -1845,9 +1874,13 @@ const objectTechnicalRows = [
                       Copier DN
                     </button>
 
-                    <button type="button" className="danger" onClick={() => onRemoveMember?.(displayed, member)}>
-                      Retirer
-                    </button>
+                    {member.direct !== false ? (
+                      <button type="button" className="danger" onClick={() => onRemoveMember?.(displayed, member)}>
+                        Retirer
+                      </button>
+                    ) : (
+                      <span className="aduc-member-nested-note">Retrait via le groupe parent</span>
+                    )}
                   </div>
                 </div>
               ))}

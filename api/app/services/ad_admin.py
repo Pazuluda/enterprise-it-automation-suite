@@ -36,6 +36,7 @@ ALLOWED_ACTIONS = {
     "create_computer",
     "add_group_member",
     "remove_group_member",
+    "set_primary_group",
     "move_object",
     "rename_object",
     "delete_object",
@@ -1885,6 +1886,47 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
         audit_details.update({
             "group_identity": group_identity,
             "member_identity": member_identity,
+        })
+
+    elif action == "set_primary_group":
+        object_identity = clean_string(
+            payload.get("object_identity")
+            or payload.get("objectIdentity")
+            or payload.get("object_dn")
+            or payload.get("objectDn")
+            or payload.get("distinguished_name")
+            or payload.get("distinguishedName")
+            or payload.get("dn")
+            or payload.get("sam_account_name")
+            or payload.get("samAccountName")
+            or payload.get("username")
+            or payload.get("name")
+        )
+
+        group_identity = clean_string(
+            payload.get("group_identity")
+            or payload.get("groupIdentity")
+            or payload.get("group_dn")
+            or payload.get("groupDn")
+            or payload.get("group_name")
+            or payload.get("groupName")
+            or payload.get("group")
+        )
+
+        if not object_identity:
+            raise ADAdminBadRequest("object_identity est obligatoire")
+
+        if not group_identity:
+            raise ADAdminBadRequest("group_identity est obligatoire")
+
+        job_payload = {
+            "object_identity": object_identity,
+            "group_identity": group_identity,
+        }
+
+        audit_details.update({
+            "object_identity": object_identity,
+            "group_identity": group_identity,
         })
 
     job_id = str(uuid4())

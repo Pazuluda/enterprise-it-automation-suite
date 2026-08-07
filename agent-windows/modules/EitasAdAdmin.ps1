@@ -1419,6 +1419,185 @@ $WouldCreateCycle =
 }
 
 
+function Invoke-EitasAdAdminSetPrimaryGroup {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $ObjectIdentity = Get-EitasObjectValue -Object $Payload -Names @(
+        "object_identity",
+        "objectIdentity",
+        "object_dn",
+        "objectDn",
+        "distinguished_name",
+        "distinguishedName",
+        "dn",
+        "sam_account_name",
+        "samAccountName",
+        "username",
+        "name"
+    )
+
+    $GroupIdentity = Get-EitasObjectValue -Object $Payload -Names @(
+        "group_identity",
+        "groupIdentity",
+        "group_dn",
+        "groupDn",
+        "group_name",
+        "groupName",
+        "group"
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectIdentity)) {
+        throw "Identite objet manquante"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($GroupIdentity)) {
+        throw "Identite groupe manquante"
+    }
+
+    if ($Mode -eq "Production") {
+        throw "set_primary_group est disponible uniquement en mode Simulation"
+    }
+
+    $ResolvedObject = Resolve-EitasAdAdminMember `
+        -Config $Config `
+        -Identity $ObjectIdentity
+
+    $ObjectClass = [string]$ResolvedObject.ObjectClass
+
+    if ($ObjectClass -eq "user") {
+        $Subject = Get-ADUser `
+            -Identity $ResolvedObject.DistinguishedName `
+            -Properties primaryGroupID `
+            -ErrorAction Stop
+    }
+    elseif ($ObjectClass -eq "computer") {
+        $Subject = Get-ADComputer `
+            -Identity $ResolvedObject.DistinguishedName `
+            -Properties primaryGroupID `
+            -ErrorAction Stop
+    }
+    else {
+        throw "Le groupe principal est pris en charge uniquement pour les utilisateurs et ordinateurs"
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $Subject.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    $ResolvedGroup = Resolve-EitasAdAdminGroup `
+        -Config $Config `
+        -Identity $GroupIdentity
+
+    $TargetGroup = Get-ADGroup `
+        -Identity $ResolvedGroup.DistinguishedName `
+        -Properties GroupScope, GroupCategory `
+        -ErrorAction Stop
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $TargetGroup.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    if ([string]$TargetGroup.GroupCategory -ne "Security") {
+        throw "Le groupe principal cible doit etre un groupe de securite"
+    }
+
+    if ($null -eq $Subject.SID -or $null -eq $TargetGroup.SID) {
+        throw "SID Active Directory introuvable pour le sujet ou le groupe"
+    }
+
+    $SubjectDomainSid = [string]$Subject.SID.AccountDomainSid.Value
+    $GroupDomainSid = [string]$TargetGroup.SID.AccountDomainSid.Value
+
+    if (
+        [string]::IsNullOrWhiteSpace($SubjectDomainSid) -or
+        [string]::IsNullOrWhiteSpace($GroupDomainSid) -or
+        $SubjectDomainSid -ine $GroupDomainSid
+    ) {
+        throw "Le groupe principal cible doit appartenir au meme domaine que le sujet"
+    }
+
+    $TargetPrimaryGroupId = 0
+
+    try {
+        $TargetPrimaryGroupId = [int64](
+            $TargetGroup.SID.Value.Split("-")[-1]
+        )
+    }
+    catch {
+        throw "RID du groupe principal cible invalide"
+    }
+
+    if ($TargetPrimaryGroupId -le 0) {
+        throw "RID du groupe principal cible invalide"
+    }
+
+    $CurrentPrimaryGroupId = 0
+
+    try {
+        $CurrentPrimaryGroupId = [int64]$Subject.primaryGroupID
+    }
+    catch {
+        throw "primaryGroupID actuel invalide"
+    }
+
+    $AlreadyPrimary = (
+        $CurrentPrimaryGroupId -eq
+        $TargetPrimaryGroupId
+    )
+
+    $DirectMember = $false
+
+    if (-not $AlreadyPrimary) {
+        $Existing = @(
+            Get-ADGroupMember `
+                -Identity $TargetGroup.DistinguishedName `
+                -ErrorAction Stop |
+            Where-Object {
+                $_.DistinguishedName -ieq
+                $Subject.DistinguishedName
+            }
+        )
+
+        $DirectMember = $Existing.Count -gt 0
+
+        if (-not $DirectMember) {
+            throw "Le sujet doit etre membre direct du groupe cible avant de le definir comme groupe principal"
+        }
+    }
+
+    $Message = if ($AlreadyPrimary) {
+        "Le groupe cible est deja le groupe principal"
+    }
+    else {
+        "Simulation changement de groupe principal validee"
+    }
+
+    return [pscustomobject]@{
+        action = "set_primary_group"
+        simulated = $true
+        production_authorized = $false
+        already_primary = $AlreadyPrimary
+        direct_member = $DirectMember
+        subject = $Subject.Name
+        subject_dn = $Subject.DistinguishedName
+        subject_type = $ObjectClass
+        current_primary_group_id = $CurrentPrimaryGroupId
+        target_group = $TargetGroup.Name
+        target_group_dn = $TargetGroup.DistinguishedName
+        target_group_id = $TargetPrimaryGroupId
+        target_group_scope = [string]$TargetGroup.GroupScope
+        target_group_category = [string]$TargetGroup.GroupCategory
+        message = $Message
+    }
+}
+
+
 function Invoke-EitasAdAdminAddGroupMember {
     param(
         [object]$Config,
@@ -4632,6 +4811,10 @@ function Invoke-EitasAdAdminJob {
 
         "remove_group_member" {
             return Invoke-EitasAdAdminRemoveGroupMember -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "set_primary_group" {
+            return Invoke-EitasAdAdminSetPrimaryGroup -Config $Config -Payload $Payload -Mode $Mode
         }
 
         "move_object" {

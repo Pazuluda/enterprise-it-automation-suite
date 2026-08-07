@@ -7939,3 +7939,47 @@ input.aduc-object-protection-checkbox {
   font-weight: 500;
   line-height: 1.4;
 }
+
+/* C4.2D4E recursive group members */
+.aduc-members-scope {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.aduc-members-scope button[aria-pressed="false"] {
+  background: rgba(79, 70, 229, 0.06);
+  border-color: rgba(79, 70, 229, 0.18);
+  color: #312e81;
+  box-shadow: none;
+  font-weight: 800;
+}
+
+.aduc-members-scope button[aria-pressed="false"]:hover:not(:disabled) {
+  background: rgba(79, 70, 229, 0.12);
+  border-color: rgba(79, 70, 229, 0.32);
+  color: #1e1b4b;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.10);
+}
+
+.aduc-members-scope button[aria-pressed="true"] {
+  background: linear-gradient(135deg, #4f46e5, #2563eb);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  font-weight: 900;
+}
+
+.aduc-members-scope button[aria-pressed="true"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca, #1d4ed8);
+  border-color: transparent;
+  color: white;
+}
+
+.aduc-member-membership-kind,
+.aduc-member-nested-note {
+  display: block;
+  font-size: 12px;
+  opacity: 0.78;
+  overflow-wrap: anywhere;
+}

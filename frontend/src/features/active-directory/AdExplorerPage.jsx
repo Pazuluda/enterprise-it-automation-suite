@@ -90,6 +90,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const [objectMembers, setObjectMembers] = useState([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState('')
+  const [membersMode, setMembersMode] = useState('direct')
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
   const [loading, setLoading] = useState(false)
@@ -1041,8 +1042,17 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       return
     }
 
+    const recursive =
+      options.recursive === undefined
+        ? membersMode === 'recursive'
+        : Boolean(options.recursive)
+
     const forceJob =
-      Boolean(options.forceJob)
+      Boolean(options.forceJob || recursive)
+
+    setMembersMode(
+      recursive ? 'recursive' : 'direct'
+    )
 
     setMembersLoading(true)
     setMembersError('')
@@ -1075,6 +1085,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
             query: identity,
             baseDn: parentDn,
             limit: 500,
+            recursive,
           }
         )
       }
@@ -1114,11 +1125,12 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     setSelectedObject(item)
     setObjectMembers([])
     setMembersError('')
+    setMembersMode('direct')
 
     prefetchUserDetails(item)
 
     if (isGroupObject(item)) {
-      loadGroupMembers(item)
+      loadGroupMembers(item, { recursive: false })
     }
   }
 
@@ -2221,6 +2233,159 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   }
 
 
+  async function setPrimaryGroupSimulation(group, subject) {
+    const subjectDn = getObjectDn(subject)
+
+    const groupDn =
+      getObjectDn(group) ||
+      String(
+        group?.distinguished_name ||
+        group?.dn ||
+        ''
+      ).trim()
+
+    if (!subjectDn || !groupDn) {
+      const message =
+        'Impossible de préparer le groupe principal : DN introuvable.'
+
+      setStatus(message)
+      setMessage?.(message)
+      return null
+    }
+
+    if (
+      !isEitasManagedDn(subjectDn) ||
+      !isEitasManagedDn(groupDn)
+    ) {
+      const message =
+        'Action bloquée : le compte et le groupe cible doivent rester sous OU=EITAS.'
+
+      setStatus(message)
+      setMessage?.(message)
+      return null
+    }
+
+    let currentMode = 'Inconnu'
+
+    try {
+      const modeData =
+        await apiFetch('/api/agent/mode')
+
+      currentMode =
+        modeData?.mode || 'Inconnu'
+
+      setAdAgentMode(currentMode)
+    } catch (err) {
+      const message =
+        err?.message ||
+        'Mode agent indisponible : changement de groupe principal bloqué.'
+
+      setStatus(message)
+      setMessage?.(message)
+      return null
+    }
+
+    if (
+      String(currentMode)
+        .trim()
+        .toLowerCase() !== 'simulation'
+    ) {
+      const message =
+        'Le changement de groupe principal est disponible uniquement en mode Simulation.'
+
+      setStatus(message)
+      setMessage?.(message)
+      return null
+    }
+
+    const groupLabel =
+      group?.name ||
+      group?.sam_account_name ||
+      groupDn
+
+    const subjectLabel =
+      getObjectName(subject) ||
+      subjectDn
+
+    if (
+      !window.confirm(
+        `Simulation uniquement.\n\nDéfinir ${groupLabel} comme groupe principal de ${subjectLabel} ?\n\nAucune écriture Active Directory ne sera autorisée.`
+      )
+    ) {
+      return null
+    }
+
+    setStatus(
+      'Simulation du changement de groupe principal en cours...'
+    )
+
+    try {
+      const job = await runAdAdminJob({
+        action: 'set_primary_group',
+        object_identity: subjectDn,
+        group_identity: groupDn,
+      })
+
+      const output = job?.output || {}
+
+      if (
+        output.simulated !== true ||
+        output.production_authorized !== false
+      ) {
+        throw new Error(
+          'Résultat inattendu : la garantie Simulation n’est pas confirmée.'
+        )
+      }
+
+      let refreshWarning = ''
+
+      try {
+        const subjectType =
+          getObjectType(subject)
+
+        if (
+          subjectType === 'Ordinateur' ||
+          subjectType ===
+            'Contrôleur de domaine'
+        ) {
+          await loadComputersView()
+        } else {
+          await refreshAccountTarget(subject)
+        }
+      } catch {
+        refreshWarning =
+          ' Actualisation des propriétés impossible.'
+      }
+
+      const baseMessage =
+        cleanAdAdminMessage(
+          output.message ||
+          job?.message ||
+          'Simulation du changement de groupe principal validée.'
+        )
+
+      const message =
+        `${baseMessage}${refreshWarning}`
+
+      setStatus(message)
+      setMessage?.(message)
+
+      return job
+    } catch (err) {
+      const message =
+        cleanAdAdminMessage(
+          err?.message ||
+          'Simulation du changement de groupe principal en erreur.'
+        )
+
+      setStatus(`Erreur : ${message}`)
+      setMessage?.(message)
+
+      return null
+    }
+  }
+
+
   async function runAdAdminJob(payload) {
     setAdminSuccess('')
 
@@ -2889,9 +3054,21 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                 onOpenDeleteObject={target => openDeleteObject(target)}
                 onCopyUser={target => openCopyUser(target)}
                 onPrepareAccountAction={prepareAccountAction}
-                onLoadMembers={target => loadGroupMembers(target)}
+                membersMode={membersMode}
+                onMembersModeChange={(target, mode) =>
+                  loadGroupMembers(target, {
+                    recursive: mode === 'recursive',
+                    forceJob: mode === 'recursive',
+                  })
+                }
+                onLoadMembers={loadGroupMembers}
                 onOpenAddMember={target => openAddMemberModal(target)}
                 onRemoveMember={(group, member) => removeGroupMember(group, member)}
+                onSetPrimaryGroup={
+                  canManageActiveDirectory
+                    ? setPrimaryGroupSimulation
+                    : undefined
+                }
               />
             </section>
           </main>
@@ -3001,6 +3178,10 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
             setPropertiesModal(null)
             openCopyUser(target)
           },
+          onSetPrimaryGroup:
+            canManageActiveDirectory
+              ? setPrimaryGroupSimulation
+              : undefined,
           onPrepareAccountAction: (
             action,
             target
@@ -3011,8 +3192,13 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
               target
             )
           },
-          onLoadMembers: target =>
-            loadGroupMembers(target),
+          membersMode,
+          onMembersModeChange: (target, mode) =>
+            loadGroupMembers(target, {
+              recursive: mode === 'recursive',
+              forceJob: mode === 'recursive',
+            }),
+          onLoadMembers: loadGroupMembers,
           onOpenAddMember: target => {
             setPropertiesModal(null)
             openAddMemberModal(target)

@@ -23,10 +23,15 @@ function Get-EitasAdDomainDn {
     param([object]$Config)
 
     if ($null -ne $Config) {
-        if ($Config.DomainDn) { return [string]$Config.DomainDn }
-        if ($Config.DomainDN) { return [string]$Config.DomainDN }
-        if ($Config.BaseDn) { return [string]$Config.BaseDn }
-        if ($Config.BaseDN) { return [string]$Config.BaseDN }
+        foreach ($Name in @("DomainDn", "DomainDN", "BaseDn", "BaseDN")) {
+            $Property = $Config.PSObject.Properties[$Name]
+            if ($null -ne $Property) {
+                $Value = [string]$Property.Value
+                if (-not [string]::IsNullOrWhiteSpace($Value)) {
+                    return $Value
+                }
+            }
+        }
     }
 
     $Domain = Get-EitasAdDomainInfo
@@ -37,14 +42,15 @@ function Get-EitasAllowedBaseDn {
     param([object]$Config)
 
     if ($null -ne $Config) {
-        if ($Config.AllowedBaseDn) { return [string]$Config.AllowedBaseDn }
-        if ($Config.AllowedBaseDN) { return [string]$Config.AllowedBaseDN }
-        if ($Config.EitasBaseDn) { return [string]$Config.EitasBaseDn }
-        if ($Config.EitasBaseDN) { return [string]$Config.EitasBaseDN }
-        if ($Config.RootOuDn) { return [string]$Config.RootOuDn }
-        if ($Config.RootOUDN) { return [string]$Config.RootOUDN }
-        if ($Config.EitasOuDn) { return [string]$Config.EitasOuDn }
-        if ($Config.EitasOUDN) { return [string]$Config.EitasOUDN }
+        foreach ($Name in @("AllowedBaseDn", "AllowedBaseDN", "EitasBaseDn", "EitasBaseDN", "EitasBaseOu", "RootOuDn", "RootOUDN", "EitasOuDn", "EitasOUDN")) {
+            $Property = $Config.PSObject.Properties[$Name]
+            if ($null -ne $Property) {
+                $Value = [string]$Property.Value
+                if (-not [string]::IsNullOrWhiteSpace($Value)) {
+                    return $Value
+                }
+            }
+        }
     }
 
     $DomainDn = Get-EitasAdDomainDn -Config $Config
