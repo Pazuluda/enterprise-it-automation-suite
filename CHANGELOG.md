@@ -4,6 +4,26 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.02] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- second checkpoint fonctionnel du chantier C4 ;
+- ajout d’une matrice de compatibilité des portées pour l’imbrication de groupes ;
+- groupe cible Global : seuls les groupes Global compatibles sont acceptés ;
+- groupe cible Universal : groupes Global et Universal pris en charge ;
+- groupe cible DomainLocal : groupes Global, Universal et DomainLocal pris en charge dans le périmètre autorisé ;
+- résolution réelle de `GroupScope` avant le retour Simulation ;
+- combinaison incompatible `Global <- DomainLocal` refusée avant toute écriture Active Directory ;
+- validation runtime sur SRV-DC01 des combinaisons disponibles dans le lab ;
+- validation E2E Simulation de `Global <- Global` avec résultat `completed` ;
+- validation E2E Simulation de `Global <- DomainLocal` avec résultat `failed` et motif de compatibilité attendu ;
+- Active Directory confirmé inchangé après les deux scénarios E2E ;
+- PowerShell 5.1 validé sans erreur de parsing sur SRV-DC01 ;
+- 17 tests ciblés C4.2A/C4.2B validés ;
+- suite backend complète : 326 tests et 301 sous-tests validés ;
+- aucun groupe Universal n’étant actuellement présent dans le lab, ces branches restent couvertes par les tests automatisés.
+
 ## [0.4.0-alpha.01] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances

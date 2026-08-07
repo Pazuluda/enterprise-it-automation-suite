@@ -1088,7 +1088,7 @@ function Resolve-EitasAdAdminGroup {
 
     Import-EitasActiveDirectoryModule | Out-Null
 
-    $Group = Get-ADGroup -Identity $Identity -Properties Description -ErrorAction Stop
+    $Group = Get-ADGroup -Identity $Identity -Properties Description, GroupScope -ErrorAction Stop
     Assert-EitasDnSafe -DistinguishedName $Group.DistinguishedName -Config $Config | Out-Null
 
     return $Group
@@ -1282,6 +1282,100 @@ function Test-EitasAdAdminGroupContainsGroup {
 }
 
 
+
+function Assert-EitasAdAdminGroupScopeCompatibility {
+    param(
+        [object]$Group,
+        [object]$Member
+    )
+
+    $MemberObjectClass = (
+        [string]$Member.ObjectClass
+    ).Trim()
+
+    if ($MemberObjectClass -ine "group") {
+        return $null
+    }
+
+    $TargetScope = (
+        [string]$Group.GroupScope
+    ).Trim()
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $TargetScope
+        )
+    ) {
+        throw "Portee du groupe cible introuvable"
+    }
+
+    $MemberGroup = Get-ADGroup `
+        -Identity $Member.DistinguishedName `
+        -Properties GroupScope `
+        -ErrorAction Stop
+
+    $MemberScope = (
+        [string]$MemberGroup.GroupScope
+    ).Trim()
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $MemberScope
+        )
+    ) {
+        throw "Portee du groupe membre introuvable"
+    }
+
+    $AllowedScopes = @()
+
+    switch ($TargetScope) {
+        "Global" {
+            $AllowedScopes = @(
+                "Global"
+            )
+        }
+
+        "Universal" {
+            $AllowedScopes = @(
+                "Global",
+                "Universal"
+            )
+        }
+
+        "DomainLocal" {
+            $AllowedScopes = @(
+                "Global",
+                "Universal",
+                "DomainLocal"
+            )
+        }
+
+        default {
+            throw (
+                "Portee du groupe cible non prise en charge : " +
+                $TargetScope
+            )
+        }
+    }
+
+    if (
+        $AllowedScopes -notcontains
+        $MemberScope
+    ) {
+        throw (
+            "Imbrication de groupes incompatible : " +
+            "groupe cible $TargetScope, " +
+            "groupe membre $MemberScope"
+        )
+    }
+
+    return [pscustomobject]@{
+        target_group_scope = $TargetScope
+        member_group_scope = $MemberScope
+    }
+}
+
+
 function Assert-EitasAdAdminGroupMembershipAdditionSafe {
     param(
         [object]$Group,
@@ -1307,7 +1401,13 @@ function Assert-EitasAdAdminGroupMembershipAdditionSafe {
         [string]$Member.ObjectClass -ieq
         "group"
     ) {
-        $WouldCreateCycle =
+
+    $null =
+        Assert-EitasAdAdminGroupScopeCompatibility `
+            -Group $Group `
+            -Member $Member
+
+$WouldCreateCycle =
             Test-EitasAdAdminGroupContainsGroup `
                 -RootGroup $Member `
                 -ExpectedGroup $Group
