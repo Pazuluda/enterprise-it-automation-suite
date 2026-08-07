@@ -10,15 +10,15 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.4.0-alpha.07
+## État courant — v0.4.0
 
 | Indicateur | Avancement |
 |---|---:|
-| C4 — Groupes, imbrication et appartenances |       93 % |
-| Explorateur Active Directory complet       |       56 % |
-| Projet EITAS global | 81 % |
+| C4 — Groupes, imbrication et appartenances |      100 % |
+| Explorateur Active Directory complet       |       58 % |
+| Projet EITAS global | 82 % |
 
-La version `v0.4.0-alpha.07` clôt C4.6 « Propriétés avancées et gestionnaire des groupes » après prévalidation réelle en Simulation de l’objet cible et du gestionnaire Active Directory.
+La version `v0.4.0` clôt le chantier C4 « Groupes, imbrication et appartenances » à 100 % après validation fonctionnelle, runtime, frontend et backend de l’ensemble du périmètre C4.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -29,7 +29,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
-| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.6 clôturé — 93 % |
+| C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
@@ -75,13 +75,11 @@ Le chantier C2 est terminé et validé à 100 %. La consultation HAB et sa simul
 
 Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisateurs est disponible avec des contrôles de sécurité, des validations réelles et un lookup live complet.
 
-## Prochaine version
-
 ### v0.4.0 — C4
 
 Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
 
-**Checkpoint actuel :** **`v0.4.0-alpha.07`**
+**Version stable :** **`v0.4.0`**
 
 - C4.1 : audit fonctionnel et technique terminé ;
 - C4.2A : ajout groupe vers groupe sécurisé et validé ;
@@ -132,6 +130,13 @@ Objectif : développer la gestion avancée des groupes, de l’imbrication et de
   - clear `managedBy` validé ;
   - Simulation confirmée sans écriture Active Directory ;
 - C4.6 est validé fonctionnellement.
+- test frontend de clôture `adGroupAdvancedManagementUi.test.mjs` validé ;
+- suite frontend complète validée depuis la racine du dépôt avec `TEST_FAILED=0` ;
+- lint frontend validé avec 34 warnings connus et 0 erreur ;
+- build Vite de production validé ;
+- suite backend complète finale : 386 tests, 31 warnings connus et 317 sous-tests validés ;
+- `git diff --check` final propre ;
+- C4 est terminé et validé à 100 %.
 
 ## Version v1.0.0
 

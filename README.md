@@ -1,11 +1,11 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.4.0--alpha.06-2563eb)
+![Version](https://img.shields.io/badge/version-v0.4.0-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 ![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
-![C4](https://img.shields.io/badge/C4-en_cours_93_%25-orange)
+![C4](https://img.shields.io/badge/C4-terminé_à_100_%25-16a34a)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -13,9 +13,9 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 ## Version actuelle
 
-La version officielle actuelle est **v0.4.0-alpha.07**.
+La version officielle actuelle est **v0.4.0**.
 
-Cette version poursuit le chantier C4 avec un septième checkpoint fonctionnel qui clôt C4.6 « Propriétés avancées et gestionnaire des groupes » après prévalidation réelle en Simulation de l’objet cible et du gestionnaire Active Directory.
+Cette version clôt le chantier C4 « Groupes, imbrication et appartenances » après validation fonctionnelle, runtime et de non-régression des appartenances, de l’imbrication, du groupe principal, des conversions de portée et de catégorie, du cycle de vie structurel et des propriétés avancées des groupes.
 
 Elle consolide la clôture à 100 % de :
 
@@ -25,9 +25,11 @@ Elle consolide la clôture à 100 % de :
 
 > **C3 — Gestion avancée des utilisateurs**
 
+> **C4 — Groupes, imbrication et appartenances**
+
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.4.0-alpha.07` est un checkpoint fonctionnel validé du chantier C4, mais pas encore la version générale stable `v1.0.0`.
+EITAS reste en développement actif. `v0.4.0` est la version stable du chantier C4, mais pas encore la version générale stable `v1.0.0`.
 
 ## Fonctionnalités disponibles
 
@@ -129,7 +131,7 @@ Composants principaux :
 
 | État | Version |
 |---|---:|
-| Version officielle actuelle | `v0.4.0-alpha.07` |
+| Version officielle actuelle | `v0.4.0` |
 | Premier checkpoint C4 | `v0.4.0-alpha.01` |
 | Deuxième checkpoint C4 | `v0.4.0-alpha.02` |
 | Troisième checkpoint C4 | `v0.4.0-alpha.03` |
@@ -137,6 +139,7 @@ Composants principaux :
 | Cinquième checkpoint C4           | `v0.4.0-alpha.05` |
 | Sixième checkpoint C4             | `v0.4.0-alpha.06` |
 | Septième checkpoint C4            | `v0.4.0-alpha.07` |
+| C4 terminé                         | `v0.4.0` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -151,7 +154,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 
 1. C2 — Éditeur d'attributs LDAP — terminé dans `v0.2.0` ;
 2. C3 — Gestion avancée des utilisateurs — terminé dans `v0.3.0` ;
-3. C4 — Groupes, imbrication et appartenances ;
+3. C4 — Groupes, imbrication et appartenances — terminé dans `v0.4.0` ;
 4. C5 — Ordinateurs, OU, conteneurs et contacts ;
 5. C6 — Recherche, colonnes, filtres et requêtes ;
 6. C7 — Sélection multiple, copie et glisser-déposer ;

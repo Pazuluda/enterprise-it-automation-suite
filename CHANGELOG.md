@@ -4,6 +4,30 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- version stable du chantier C4 ;
+- C4.1 à C4.6 terminés et validés à 100 % ;
+- gestion des membres et de l’imbrication sécurisée, avec blocage de l’auto-imbrication et des cycles transitifs ;
+- compatibilité des portées Global / Universal / DomainLocal prévalidée avant toute écriture ;
+- retrait de membre idempotent et validé sur l’état Active Directory réel ;
+- groupe principal exposé et action `set_primary_group` maintenue strictement en Simulation ;
+- conversions contrôlées de `GroupScope` et `GroupCategory` validées ;
+- création, suppression, renommage et déplacement de groupes prévalidés sur l’état réel avant Simulation ;
+- `managedBy` résolu comme utilisateur actif du domaine autorisé, avec clear contrôlé ;
+- validations runtime Windows PowerShell 5.1 confirmées sans écriture Active Directory pour les chemins Simulation ;
+- module Windows actif inchangé depuis `v0.4.0-alpha.07`, SHA-256 `B6B7E9C11228F3789D92B271F5039715A3D04D000B9F0F530DC7F1BA8511D7E4` ;
+- ajout du test frontend de clôture `frontend/tests/adGroupAdvancedManagementUi.test.mjs` ;
+- suite frontend complète validée depuis la racine du dépôt avec `TEST_FAILED=0` ;
+- lint frontend : 34 warnings connus, 0 erreur ;
+- build Vite de production validé ;
+- suite backend complète finale : 386 tests, 31 warnings connus et 317 sous-tests validés ;
+- `git diff --check` final propre ;
+- C4 clôturé à 100 %.
+
+
 ## [0.4.0-alpha.07] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances
