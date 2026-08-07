@@ -4,6 +4,24 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.05] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- cinquième checkpoint fonctionnel du chantier C4 ;
+- C4.4 « Conversion contrôlée de la portée et de la catégorie des groupes » clôturé ;
+- prévalidation de `GroupScope` et `GroupCategory` sur l’état Active Directory réel avant le retour Simulation ;
+- conversion directe `Global ↔ DomainLocal` refusée avec passage intermédiaire par `Universal` ;
+- transitions `Global → Universal`, `DomainLocal → Universal`, `Universal → Global` et `Universal → DomainLocal` validées au runtime ;
+- changement `Security → Distribution` validé en Simulation avec avertissement explicite sur l’impact des ACE ;
+- helper de prévalidation confirmé strictement read-only, sans commande d’écriture Active Directory ;
+- module Windows validé sous PowerShell 5.1 puis déployé avec sauvegarde et contrôle SHA-256 ;
+- SHA-256 actif `93049F5F5DB033707B2FA61D1EE6C1E6832308C0FAC9CE96A3DF0BEBFEDD320A` ;
+- groupe Universal temporaire `GG_C44_UNIVERSAL_TEST` supprimé après validation et absence confirmée dans Active Directory ;
+- 35 tests dédiés C4.2/C4.3/C4.4 validés, avec 16 sous-tests ;
+- suite backend complète : 376 tests, 31 warnings connus et 317 sous-tests validés ;
+- `git diff --check` propre et contrôle de sécurité pré-commit validé sur les fichiers fonctionnels.
+
 ## [0.4.0-alpha.04] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances

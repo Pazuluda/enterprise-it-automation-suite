@@ -1859,6 +1859,371 @@ function Repair-EitasTextEncoding {
 }
 
 
+
+function Assert-EitasAdAdminGroupUpdateTransitionSafe {
+    param(
+        [object]$Config,
+        [string]$ObjectIdentity,
+        [object]$Properties
+    )
+
+    if (
+        $null -eq $Properties -or
+        (
+            -not $Properties.ContainsKey("groupScope") -and
+            -not $Properties.ContainsKey("groupCategory")
+        )
+    ) {
+        return $null
+    }
+
+    $Object = Resolve-EitasAdAdminObject `
+        -Config $Config `
+        -Identity $ObjectIdentity
+
+    if (
+        ([string]$Object.ObjectClass).Trim().ToLowerInvariant() -ne
+        "group"
+    ) {
+        throw "groupScope et groupCategory sont reserves aux objets groupe"
+    }
+
+    $Group = Get-ADGroup `
+        -Identity $Object.DistinguishedName `
+        -Properties GroupScope, GroupCategory, MemberOf, SID `
+        -ErrorAction Stop
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $Group.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    $CurrentScope = ([string]$Group.GroupScope).Trim()
+    $CurrentCategory = ([string]$Group.GroupCategory).Trim()
+
+    if (
+        @("Global", "Universal", "DomainLocal") -notcontains
+        $CurrentScope
+    ) {
+        throw (
+            "Portee actuelle du groupe non prise en charge : " +
+            $CurrentScope
+        )
+    }
+
+    if (
+        @("Security", "Distribution") -notcontains
+        $CurrentCategory
+    ) {
+        throw (
+            "Categorie actuelle du groupe non prise en charge : " +
+            $CurrentCategory
+        )
+    }
+
+    $RequestedScope = $CurrentScope
+    $RequestedCategory = $CurrentCategory
+
+    if ($Properties.ContainsKey("groupScope")) {
+        $RequestedScope = (
+            [string]$Properties["groupScope"]
+        ).Trim()
+    }
+
+    if ($Properties.ContainsKey("groupCategory")) {
+        $RequestedCategory = (
+            [string]$Properties["groupCategory"]
+        ).Trim()
+    }
+
+    if (
+        @("Global", "Universal", "DomainLocal") -notcontains
+        $RequestedScope
+    ) {
+        throw "groupScope doit etre Global, Universal ou DomainLocal"
+    }
+
+    if (
+        @("Security", "Distribution") -notcontains
+        $RequestedCategory
+    ) {
+        throw "groupCategory doit etre Security ou Distribution"
+    }
+
+    $DirectScopeConversionForbidden = (
+        (
+            $CurrentScope -eq "Global" -and
+            $RequestedScope -eq "DomainLocal"
+        ) -or
+        (
+            $CurrentScope -eq "DomainLocal" -and
+            $RequestedScope -eq "Global"
+        )
+    )
+
+    if ($DirectScopeConversionForbidden) {
+        throw (
+            "Conversion directe de portee refusee : " +
+            "$CurrentScope vers $RequestedScope. " +
+            "Utiliser Universal comme etape intermediaire."
+        )
+    }
+
+    $ScopeTransition = "$CurrentScope vers $RequestedScope"
+    $ParentChecks = @()
+    $MemberChecks = @()
+    $GroupDomainSid = ""
+
+    if ($null -ne $Group.SID) {
+        $GroupDomainSid = [string]$Group.SID.AccountDomainSid.Value
+    }
+
+    if (
+        $CurrentScope -ine $RequestedScope -and
+        [string]::IsNullOrWhiteSpace($GroupDomainSid)
+    ) {
+        throw "SID de domaine du groupe introuvable"
+    }
+
+    if ($ScopeTransition -eq "Global vers Universal") {
+        foreach ($ParentDn in @($Group.MemberOf)) {
+            $ParentGroup = Get-ADGroup `
+                -Identity $ParentDn `
+                -Properties GroupScope, SID `
+                -ErrorAction Stop
+
+            $parent_group_scope = (
+                [string]$ParentGroup.GroupScope
+            ).Trim()
+
+            $ParentChecks += [pscustomobject]@{
+                group_dn = [string]$ParentGroup.DistinguishedName
+                group_scope = $parent_group_scope
+            }
+
+            if ($parent_group_scope -eq "Global") {
+                throw (
+                    "Conversion Global vers Universal refusee : " +
+                    "le groupe est membre du groupe global " +
+                    [string]$ParentGroup.Name
+                )
+            }
+        }
+    }
+
+    if ($ScopeTransition -eq "DomainLocal vers Universal") {
+        foreach (
+            $Member in @(
+                Get-ADGroupMember `
+                    -Identity $Group.DistinguishedName `
+                    -ErrorAction Stop
+            )
+        ) {
+            $MemberClass = (
+                [string]$Member.ObjectClass
+            ).Trim()
+
+            if ($MemberClass -ieq "foreignSecurityPrincipal") {
+                throw (
+                    "Conversion DomainLocal vers Universal refusee : " +
+                    "le groupe contient un foreignSecurityPrincipal"
+                )
+            }
+
+            if ($MemberClass -ine "group") {
+                continue
+            }
+
+            $MemberGroup = Get-ADGroup `
+                -Identity $Member.DistinguishedName `
+                -Properties GroupScope, SID `
+                -ErrorAction Stop
+
+            $member_group_scope = (
+                [string]$MemberGroup.GroupScope
+            ).Trim()
+
+            $MemberChecks += [pscustomobject]@{
+                group_dn = [string]$MemberGroup.DistinguishedName
+                group_scope = $member_group_scope
+            }
+
+            if ($member_group_scope -eq "DomainLocal") {
+                throw (
+                    "Conversion DomainLocal vers Universal refusee : " +
+                    "le groupe contient le groupe local de domaine " +
+                    [string]$MemberGroup.Name
+                )
+            }
+        }
+    }
+
+    if ($ScopeTransition -eq "Universal vers Global") {
+        foreach (
+            $Member in @(
+                Get-ADGroupMember `
+                    -Identity $Group.DistinguishedName `
+                    -ErrorAction Stop
+            )
+        ) {
+            $MemberClass = (
+                [string]$Member.ObjectClass
+            ).Trim()
+
+            if ($MemberClass -ieq "foreignSecurityPrincipal") {
+                throw (
+                    "Conversion Universal vers Global refusee : " +
+                    "un membre appartient a un autre domaine ou foret"
+                )
+            }
+
+            $MemberDomainSid = ""
+
+            if ($null -ne $Member.SID) {
+                $MemberDomainSid = (
+                    [string]$Member.SID.AccountDomainSid.Value
+                )
+            }
+
+            $same_domain = (
+                -not [string]::IsNullOrWhiteSpace($MemberDomainSid) -and
+                $MemberDomainSid -ieq $GroupDomainSid
+            )
+
+            $member_group_scope = $null
+
+            if ($MemberClass -ieq "group") {
+                $MemberGroup = Get-ADGroup `
+                    -Identity $Member.DistinguishedName `
+                    -Properties GroupScope, SID `
+                    -ErrorAction Stop
+
+                $member_group_scope = (
+                    [string]$MemberGroup.GroupScope
+                ).Trim()
+
+                if ($member_group_scope -eq "Universal") {
+                    throw (
+                        "Conversion Universal vers Global refusee : " +
+                        "le groupe contient un groupe Universal"
+                    )
+                }
+
+                $MemberDomainSid = (
+                    [string]$MemberGroup.SID.AccountDomainSid.Value
+                )
+
+                $same_domain = (
+                    -not [string]::IsNullOrWhiteSpace($MemberDomainSid) -and
+                    $MemberDomainSid -ieq $GroupDomainSid
+                )
+            }
+
+            $MemberChecks += [pscustomobject]@{
+                object_dn = [string]$Member.DistinguishedName
+                object_class = $MemberClass
+                member_group_scope = $member_group_scope
+                same_domain = $same_domain
+            }
+
+            if (-not $same_domain) {
+                throw (
+                    "Conversion Universal vers Global refusee : " +
+                    "tous les membres doivent appartenir au meme domaine"
+                )
+            }
+        }
+    }
+
+    if ($ScopeTransition -eq "Universal vers DomainLocal") {
+        foreach ($ParentDn in @($Group.MemberOf)) {
+            $ParentGroup = Get-ADGroup `
+                -Identity $ParentDn `
+                -Properties GroupScope, SID `
+                -ErrorAction Stop
+
+            $parent_group_scope = (
+                [string]$ParentGroup.GroupScope
+            ).Trim()
+
+            $ParentDomainSid = ""
+
+            if ($null -ne $ParentGroup.SID) {
+                $ParentDomainSid = (
+                    [string]$ParentGroup.SID.AccountDomainSid.Value
+                )
+            }
+
+            $same_domain = (
+                -not [string]::IsNullOrWhiteSpace($ParentDomainSid) -and
+                $ParentDomainSid -ieq $GroupDomainSid
+            )
+
+            $ParentChecks += [pscustomobject]@{
+                group_dn = [string]$ParentGroup.DistinguishedName
+                parent_group_scope = $parent_group_scope
+                same_domain = $same_domain
+            }
+
+            if ($parent_group_scope -eq "Universal") {
+                throw (
+                    "Conversion Universal vers DomainLocal refusee : " +
+                    "le groupe est membre d'un groupe Universal"
+                )
+            }
+
+            if (
+                $parent_group_scope -eq "DomainLocal" -and
+                -not $same_domain
+            ) {
+                throw (
+                    "Conversion Universal vers DomainLocal refusee : " +
+                    "le groupe est membre d'un groupe DomainLocal " +
+                    "d'un autre domaine"
+                )
+            }
+        }
+    }
+
+    $security_impact_warning = $null
+
+    if ($CurrentCategory -ine $RequestedCategory) {
+        if (
+            $CurrentCategory -eq "Security" -and
+            $RequestedCategory -eq "Distribution"
+        ) {
+            $security_impact_warning = (
+                "Passage Security vers Distribution : " +
+                "les ACE utilisant ce groupe ne seront plus " +
+                "prises en compte par le systeme de securite."
+            )
+        }
+        else {
+            $security_impact_warning = (
+                "Changement de categorie de groupe : verifier " +
+                "les usages de securite et de messagerie."
+            )
+        }
+    }
+
+    return [pscustomobject]@{
+        group_dn = [string]$Group.DistinguishedName
+        group = [string]$Group.Name
+        current_scope = $CurrentScope
+        requested_scope = $RequestedScope
+        current_category = $CurrentCategory
+        requested_category = $RequestedCategory
+        scope_changed = ($CurrentScope -ine $RequestedScope)
+        category_changed = (
+            $CurrentCategory -ine $RequestedCategory
+        )
+        transition = $ScopeTransition
+        parent_checks = @($ParentChecks)
+        member_checks = @($MemberChecks)
+        security_impact_warning = $security_impact_warning
+    }
+}
+
 function Invoke-EitasAdAdminUpdateObjectProperties {
     param(
         [object]$Config,
@@ -1981,12 +2346,26 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    $GroupTransitionPreview = $null
+
+    if (
+        $Properties.ContainsKey("groupScope") -or
+        $Properties.ContainsKey("groupCategory")
+    ) {
+        $GroupTransitionPreview =
+            Assert-EitasAdAdminGroupUpdateTransitionSafe `
+                -Config $Config `
+                -ObjectIdentity $ObjectIdentity `
+                -Properties $Properties
+    }
+
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "update_object_properties"
             simulated = $true
             object_identity = $ObjectIdentity
             properties = $Properties
+            group_transition = $GroupTransitionPreview
             message = "Simulation modification propriétés objet AD"
         }
     }

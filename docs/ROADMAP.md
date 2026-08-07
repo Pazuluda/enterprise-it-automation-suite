@@ -10,15 +10,15 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.4.0-alpha.04
+## État courant — v0.4.0-alpha.05
 
 | Indicateur | Avancement |
 |---|---:|
-| C4 — Groupes, imbrication et appartenances | 73 % |
-| Explorateur Active Directory complet | 52 % |
+| C4 — Groupes, imbrication et appartenances |       80 % |
+| Explorateur Active Directory complet       |       53 % |
 | Projet EITAS global | 80 % |
 
-La version `v0.4.0-alpha.04` clôt C4.2 et valide C4.3 « Membre de / groupe principal » en Simulation de bout en bout, y compris depuis l’interface réelle.
+La version `v0.4.0-alpha.05` clôt C4.4 « Conversion contrôlée de la portée et de la catégorie des groupes » après validation de la matrice en Simulation contre l’état Active Directory réel.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -29,7 +29,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
-| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.2 clôturé et C4.3 validé — 73 % |
+| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.4 clôturé — 80 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
@@ -39,9 +39,9 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 
 ## Version actuelle
 
-### v0.4.0-alpha.04 — Checkpoint C4.3
+### v0.4.0-alpha.05 — Checkpoint C4.4
 
-Ce checkpoint valide C4.3 « Membre de / groupe principal » en Simulation. Le chemin UI → API → worker Windows → Active Directory a été validé sans écriture AD réelle.
+Ce checkpoint clôt C4.4 « Conversion contrôlée de la portée et de la catégorie des groupes ». Les transitions sont prévalidées sur l’état Active Directory réel avant le retour Simulation, sans écriture AD.
 
 ## Versions de chantier terminées
 
@@ -61,7 +61,7 @@ Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisa
 
 Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
 
-**Checkpoint actuel :** **`v0.4.0-alpha.04`**
+**Checkpoint actuel :** **`v0.4.0-alpha.05`**
 
 - C4.1 : audit fonctionnel et technique terminé ;
 - C4.2A : ajout groupe vers groupe sécurisé et validé ;
@@ -84,6 +84,15 @@ Objectif : développer la gestion avancée des groupes, de l’imbrication et de
 - Active Directory confirmé inchangé après les Simulations ;
 - 365 tests backend et 317 sous-tests validés ;
 - C4.3 est validé fonctionnellement.
+- C4.4 : conversion contrôlée de `GroupScope` et `GroupCategory` ;
+- état réel du groupe lu avant le retour Simulation ;
+- conversion directe `Global ↔ DomainLocal` refusée avec passage intermédiaire par `Universal` ;
+- transitions `Global → Universal`, `DomainLocal → Universal`, `Universal → Global` et `Universal → DomainLocal` validées au runtime ;
+- changement `Security → Distribution` accompagné d’un avertissement explicite sur l’impact sécurité ;
+- helper de prévalidation confirmé strictement read-only ;
+- groupe Universal temporaire de validation supprimé après les tests ;
+- suite backend complète : 376 tests et 317 sous-tests validés ;
+- C4.4 est validé fonctionnellement.
 
 ## Version v1.0.0
 
