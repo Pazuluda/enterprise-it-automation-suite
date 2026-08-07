@@ -4,6 +4,25 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.01] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- premier checkpoint fonctionnel du chantier C4 ;
+- ajout groupe vers groupe prévalidé sur les objets Active Directory réels ;
+- auto-imbrication d’un groupe explicitement refusée ;
+- détection transitive des cycles par parcours des groupes membres directs ;
+- protection contre les boucles de parcours avec suivi des groupes visités ;
+- mode Simulation conservé sans écriture Active Directory ;
+- résolution réelle du groupe cible et du membre avant validation Simulation ;
+- comportement idempotent conservé lorsqu’un membre direct existe déjà ;
+- validation PowerShell 5.1 effectuée sur SRV-DC01 ;
+- module AD Admin Windows déployé avec sauvegarde et contrôle SHA-256 ;
+- job `add_group_member` validé de bout en bout en Simulation ;
+- absence d’écriture vérifiée directement dans Active Directory après le job ;
+- 7 tests ciblés C4 validés ;
+- 316 tests backend complets validés.
+
 ## [0.3.1] — 2026-08-06
 
 ### Documentation

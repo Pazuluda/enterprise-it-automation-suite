@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.3.1
+## État courant — v0.4.0-alpha.01
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,7 +18,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet | 31 % |
 | Projet EITAS global | 77 % |
 
-La version `v0.3.1` corrige la présentation documentaire de la clôture C3, sans changement fonctionnel.
+La version `v0.4.0-alpha.01` ouvre C4 avec un premier checkpoint validé sur la sécurisation des appartenances et de l’imbrication de groupes.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -29,7 +29,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
-| C4 | Groupes, imbrication et appartenances | `v0.4.0` | Planifié |
+| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.2A validé |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
@@ -60,6 +60,14 @@ Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisa
 ### v0.4.0 — C4
 
 Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
+
+**Checkpoint actuel : `v0.4.0-alpha.01`**
+
+- C4.1 : audit fonctionnel et technique terminé ;
+- C4.2A : ajout groupe vers groupe sécurisé et validé ;
+- auto-imbrication et cycles transitifs bloqués ;
+- Simulation validée de bout en bout sans modification AD ;
+- poursuite de C4.2 en cours.
 
 ## Version v1.0.0
 

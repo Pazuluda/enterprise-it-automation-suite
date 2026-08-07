@@ -1155,6 +1155,170 @@ function Convert-EitasAdAdminObjectItem {
     }
 }
 
+function Test-EitasAdAdminGroupContainsGroup {
+    param(
+        [object]$RootGroup,
+        [object]$ExpectedGroup
+    )
+
+    if (
+        $null -eq $RootGroup -or
+        $null -eq $ExpectedGroup
+    ) {
+        return $false
+    }
+
+    $ExpectedDn =
+        [string]$ExpectedGroup.DistinguishedName
+
+    $RootDn =
+        [string]$RootGroup.DistinguishedName
+
+    if (
+        [string]::IsNullOrWhiteSpace($ExpectedDn) -or
+        [string]::IsNullOrWhiteSpace($RootDn)
+    ) {
+        return $false
+    }
+
+    $Pending =
+        New-Object System.Collections.ArrayList
+
+    $Visited = @{}
+
+    [void]$Pending.Add($RootGroup)
+
+    while ($Pending.Count -gt 0) {
+        $LastIndex =
+            $Pending.Count - 1
+
+        $Current =
+            $Pending[$LastIndex]
+
+        $Pending.RemoveAt($LastIndex)
+
+        $CurrentDn =
+            [string]$Current.DistinguishedName
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $CurrentDn
+            )
+        ) {
+            continue
+        }
+
+        $CurrentKey =
+            $CurrentDn.ToLowerInvariant()
+
+        if (
+            $Visited.ContainsKey(
+                $CurrentKey
+            )
+        ) {
+            continue
+        }
+
+        $Visited[$CurrentKey] = $true
+
+        if (
+            $CurrentDn -ieq
+            $ExpectedDn
+        ) {
+            return $true
+        }
+
+        $DirectMembers = @(
+            Get-ADGroupMember `
+                -Identity $CurrentDn `
+                -ErrorAction Stop
+        )
+
+        foreach (
+            $DirectMember in
+            $DirectMembers
+        ) {
+            if (
+                [string]$DirectMember.ObjectClass `
+                    -ine "group"
+            ) {
+                continue
+            }
+
+            $DirectMemberDn =
+                [string]$DirectMember.DistinguishedName
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $DirectMemberDn
+                )
+            ) {
+                continue
+            }
+
+            if (
+                $DirectMemberDn -ieq
+                $ExpectedDn
+            ) {
+                return $true
+            }
+
+            $DirectMemberKey =
+                $DirectMemberDn.ToLowerInvariant()
+
+            if (
+                -not $Visited.ContainsKey(
+                    $DirectMemberKey
+                )
+            ) {
+                [void]$Pending.Add(
+                    $DirectMember
+                )
+            }
+        }
+    }
+
+    return $false
+}
+
+
+function Assert-EitasAdAdminGroupMembershipAdditionSafe {
+    param(
+        [object]$Group,
+        [object]$Member
+    )
+
+    if ($null -eq $Group) {
+        throw "Groupe cible introuvable"
+    }
+
+    if ($null -eq $Member) {
+        throw "Membre introuvable"
+    }
+
+    if (
+        [string]$Group.DistinguishedName -ieq
+        [string]$Member.DistinguishedName
+    ) {
+        throw "Un groupe ne peut pas etre membre de lui-meme"
+    }
+
+    if (
+        [string]$Member.ObjectClass -ieq
+        "group"
+    ) {
+        $WouldCreateCycle =
+            Test-EitasAdAdminGroupContainsGroup `
+                -RootGroup $Member `
+                -ExpectedGroup $Group
+
+        if ($WouldCreateCycle) {
+            throw "Imbrication refusee : cette relation creerait un cycle entre groupes"
+        }
+    }
+}
+
+
 function Invoke-EitasAdAdminAddGroupMember {
     param(
         [object]$Config,
@@ -1166,39 +1330,62 @@ function Invoke-EitasAdAdminAddGroupMember {
     $MemberIdentity = Get-EitasObjectValue -Object $Payload -Names @("member_identity", "memberIdentity", "member_dn", "memberDn", "member_name", "memberName", "member", "user_identity", "username", "sam_account_name", "samAccountName")
 
     if ([string]::IsNullOrWhiteSpace($GroupIdentity)) {
-        throw "Identité groupe manquante"
+        throw "Identite groupe manquante"
     }
 
     if ([string]::IsNullOrWhiteSpace($MemberIdentity)) {
-        throw "Identité membre manquante"
+        throw "Identite membre manquante"
+    }
+
+    $Group = Resolve-EitasAdAdminGroup `
+        -Config $Config `
+        -Identity $GroupIdentity
+
+    $Member = Resolve-EitasAdAdminMember `
+        -Config $Config `
+        -Identity $MemberIdentity
+
+    Assert-EitasAdAdminGroupMembershipAdditionSafe `
+        -Group $Group `
+        -Member $Member
+
+    $Existing = @(
+        Get-ADGroupMember `
+            -Identity $Group.DistinguishedName `
+            -ErrorAction Stop |
+            Where-Object {
+                $_.DistinguishedName -ieq
+                $Member.DistinguishedName
+            }
+    )
+
+    if ($Existing.Count -gt 0) {
+        return [pscustomobject]@{
+            action = "add_group_member"
+            simulated = ($Mode -ne "Production")
+            already_member = $true
+            group = $Group.Name
+            member = $Member.Name
+            group_dn = $Group.DistinguishedName
+            member_dn = $Member.DistinguishedName
+            member_object = Convert-EitasAdAdminObjectItem `
+                -Object $Member
+            message = "Le membre est deja dans le groupe"
+        }
     }
 
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "add_group_member"
             simulated = $true
-            group_identity = $GroupIdentity
-            member_identity = $MemberIdentity
-            message = "Simulation ajout membre groupe"
-        }
-    }
-
-    $Group = Resolve-EitasAdAdminGroup -Config $Config -Identity $GroupIdentity
-    $Member = Resolve-EitasAdAdminMember -Config $Config -Identity $MemberIdentity
-
-    $Existing = @(Get-ADGroupMember -Identity $Group.DistinguishedName -ErrorAction Stop |
-        Where-Object { $_.DistinguishedName -ieq $Member.DistinguishedName })
-
-    if ($Existing.Count -gt 0) {
-        return [pscustomobject]@{
-            action = "add_group_member"
-            simulated = $false
-            already_member = $true
+            already_member = $false
             group = $Group.Name
             member = $Member.Name
             group_dn = $Group.DistinguishedName
             member_dn = $Member.DistinguishedName
-            message = "Le membre est déjà dans le groupe"
+            member_object = Convert-EitasAdAdminObjectItem `
+                -Object $Member
+            message = "Simulation ajout membre groupe validee"
         }
     }
 
@@ -1215,8 +1402,9 @@ function Invoke-EitasAdAdminAddGroupMember {
         member = $Member.Name
         group_dn = $Group.DistinguishedName
         member_dn = $Member.DistinguishedName
-        member_object = Convert-EitasAdAdminObjectItem -Object $Member
-        message = "Membre ajouté au groupe"
+        member_object = Convert-EitasAdAdminObjectItem `
+            -Object $Member
+        message = "Membre ajoute au groupe"
     }
 }
 
