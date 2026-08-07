@@ -5,6 +5,7 @@
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 ![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
+![C4](https://img.shields.io/badge/C4-en_cours_25_%25-orange)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
