@@ -4,6 +4,26 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.03] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- troisième checkpoint fonctionnel du chantier C4 ;
+- sécurisation du chemin `remove_group_member` ;
+- résolution réelle du groupe et du membre avant le retour Simulation ;
+- vérification de l’appartenance directe réelle avant toute réponse Simulation ;
+- retour Simulation enrichi avec `was_member=true/false` selon l’état réel d’Active Directory ;
+- retrait d’un membre déjà absent conservé comme opération idempotente ;
+- `Remove-ADGroupMember` reste strictement réservé au chemin Production ;
+- retrait groupe vers groupe pris en charge ;
+- validation runtime directe des cas membre présent et membre absent ;
+- validation E2E des deux cas via le worker SRV-DC01 ;
+- Active Directory confirmé inchangé après les validations ;
+- worker Windows déployé avec le SHA-256 `1DEA242C976515059024FF59BC86D97DEF45ED8A6B0CD59E57BD8E0C77DEBD49` ;
+- PowerShell 5.1 validé sans erreur de parsing ;
+- 25 tests ciblés C4.2 validés ;
+- suite backend complète : 334 tests et 301 sous-tests validés.
+
 ## [0.4.0-alpha.02] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances

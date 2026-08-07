@@ -1519,30 +1519,55 @@ function Invoke-EitasAdAdminRemoveGroupMember {
     $MemberIdentity = Get-EitasObjectValue -Object $Payload -Names @("member_identity", "memberIdentity", "member_dn", "memberDn", "member_name", "memberName", "member", "user_identity", "username", "sam_account_name", "samAccountName")
 
     if ([string]::IsNullOrWhiteSpace($GroupIdentity)) {
-        throw "Identité groupe manquante"
+        throw "Identite groupe manquante"
     }
 
     if ([string]::IsNullOrWhiteSpace($MemberIdentity)) {
-        throw "Identité membre manquante"
+        throw "Identite membre manquante"
     }
 
+    $Group = Resolve-EitasAdAdminGroup `
+        -Config $Config `
+        -Identity $GroupIdentity
+
+    $Member = Resolve-EitasAdAdminMember `
+        -Config $Config `
+        -Identity $MemberIdentity
+
+    $Existing = @(
+        Get-ADGroupMember `
+            -Identity $Group.DistinguishedName `
+            -ErrorAction Stop |
+        Where-Object {
+            $_.DistinguishedName -ieq
+            $Member.DistinguishedName
+        }
+    )
+
+    $WasMember = $Existing.Count -gt 0
+
     if ($Mode -ne "Production") {
+        $Message = if ($WasMember) {
+            "Simulation retrait membre groupe validee"
+        }
+        else {
+            "Simulation retrait membre groupe : membre deja absent"
+        }
+
         return [pscustomobject]@{
             action = "remove_group_member"
             simulated = $true
-            group_identity = $GroupIdentity
-            member_identity = $MemberIdentity
-            message = "Simulation retrait membre groupe"
+            was_member = $WasMember
+            group = $Group.Name
+            member = $Member.Name
+            group_dn = $Group.DistinguishedName
+            member_dn = $Member.DistinguishedName
+            member_object = Convert-EitasAdAdminObjectItem -Object $Member
+            message = $Message
         }
     }
 
-    $Group = Resolve-EitasAdAdminGroup -Config $Config -Identity $GroupIdentity
-    $Member = Resolve-EitasAdAdminMember -Config $Config -Identity $MemberIdentity
-
-    $Existing = @(Get-ADGroupMember -Identity $Group.DistinguishedName -ErrorAction Stop |
-        Where-Object { $_.DistinguishedName -ieq $Member.DistinguishedName })
-
-    if ($Existing.Count -eq 0) {
+    if (-not $WasMember) {
         return [pscustomobject]@{
             action = "remove_group_member"
             simulated = $false
@@ -1551,7 +1576,7 @@ function Invoke-EitasAdAdminRemoveGroupMember {
             member = $Member.Name
             group_dn = $Group.DistinguishedName
             member_dn = $Member.DistinguishedName
-            message = "Le membre n’était pas dans le groupe"
+            message = "Le membre n'etait pas dans le groupe"
         }
     }
 
@@ -1570,7 +1595,7 @@ function Invoke-EitasAdAdminRemoveGroupMember {
         group_dn = $Group.DistinguishedName
         member_dn = $Member.DistinguishedName
         member_object = Convert-EitasAdAdminObjectItem -Object $Member
-        message = "Membre retiré du groupe"
+        message = "Membre retire du groupe"
     }
 }
 

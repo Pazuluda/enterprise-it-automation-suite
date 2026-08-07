@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.4.0-alpha.01
+## État courant — v0.4.0-alpha.03
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,7 +18,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet | 31 % |
 | Projet EITAS global | 77 % |
 
-La version `v0.4.0-alpha.02` poursuit C4 avec un second checkpoint validé sur la compatibilité des portées lors de l’imbrication de groupes.
+La version `v0.4.0-alpha.03` poursuit C4 avec un troisième checkpoint validé sur la prévalidation réelle et idempotente du retrait de membres de groupes.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -29,7 +29,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
-| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.2A et C4.2B validés — 35 % |
+| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.2A, C4.2B et C4.2C validés — 46 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
@@ -61,7 +61,7 @@ Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisa
 
 Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
 
-**Checkpoint actuel : `v0.4.0-alpha.01`**
+**Checkpoint actuel :** **`v0.4.0-alpha.03`**
 
 - C4.1 : audit fonctionnel et technique terminé ;
 - C4.2A : ajout groupe vers groupe sécurisé et validé ;
@@ -71,6 +71,10 @@ Objectif : développer la gestion avancée des groupes, de l’imbrication et de
 - matrice Global / Universal / DomainLocal prévalidée avant toute écriture ;
 - validation E2E Simulation des chemins autorisé et refusé ;
 - Active Directory confirmé inchangé après validation ;
+- C4.2C : retrait de membre prévalidé sur l’état AD réel et validé ;
+- Simulation du retrait enrichie avec `was_member` sans écriture Active Directory ;
+- retrait d’un membre déjà absent validé comme opération idempotente ;
+- validation runtime et E2E des cas présent et absent terminée ;
 - poursuite de C4.2 en cours.
 
 ## Version v1.0.0
