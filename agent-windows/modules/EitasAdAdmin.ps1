@@ -1832,6 +1832,53 @@ function Resolve-EitasAdAdminObject {
 
 
 
+function Resolve-EitasAdAdminManagedByUser {
+    param(
+        [object]$Config,
+        [string]$Identity
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Identity)) {
+        throw "Identité gestionnaire AD manquante"
+    }
+
+    $DomainDn = (
+        Get-EitasAdDomainDn -Config $Config
+    ).Trim()
+
+    $User = Get-ADUser `
+        -Identity $Identity `
+        -Properties Enabled, displayName, sAMAccountName `
+        -ErrorAction Stop
+
+    $UserDn = (
+        [string]$User.DistinguishedName
+    ).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($UserDn)) {
+        throw "DN du gestionnaire Active Directory introuvable"
+    }
+
+    $DomainDnLower = $DomainDn.ToLowerInvariant()
+    $UserDnLower = $UserDn.ToLowerInvariant()
+
+    if (
+        $UserDnLower -ine $DomainDnLower -and
+        -not $UserDnLower.EndsWith(
+            "," + $DomainDnLower
+        )
+    ) {
+        throw "Gestionnaire Active Directory hors domaine autorisé : $UserDn"
+    }
+
+    if (-not [bool]$User.Enabled) {
+        throw "Le gestionnaire Active Directory doit être un utilisateur actif"
+    }
+
+    return $User
+}
+
+
 
 function Repair-EitasTextEncoding {
     param(
@@ -2346,6 +2393,54 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    $Object = Resolve-EitasAdAdminObject `
+        -Config $Config `
+        -Identity $ObjectIdentity
+
+    $ObjectDn = (
+        [string]$Object.DistinguishedName
+    ).Trim()
+
+    $ObjectClassName = (
+        [string]$Object.ObjectClass
+    ).Trim().ToLowerInvariant()
+
+    if ($Properties.ContainsKey("managedBy")) {
+        $ManagedByPreviewValue = (
+            [string](
+                Repair-EitasTextEncoding `
+                    -Value $Properties["managedBy"]
+            )
+        ).Trim()
+
+        if (
+            -not [string]::IsNullOrWhiteSpace(
+                $ManagedByPreviewValue
+            )
+        ) {
+            $ManagedByPreview =
+                Resolve-EitasAdAdminManagedByUser `
+                    -Config $Config `
+                    -Identity $ManagedByPreviewValue
+
+            $Properties["managedBy"] = (
+                [string]$ManagedByPreview.DistinguishedName
+            ).Trim()
+        } else {
+            $Properties["managedBy"] = ""
+        }
+
+        if (
+            @(
+                "group",
+                "computer",
+                "organizationalunit"
+            ) -notcontains $ObjectClassName
+        ) {
+            throw "managedBy est réservé aux groupes, ordinateurs et unités d'organisation"
+        }
+    }
+
     $GroupTransitionPreview = $null
 
     if (
@@ -2369,9 +2464,6 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             message = "Simulation modification propriétés objet AD"
         }
     }
-
-    $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
-    $ObjectDn = ([string]$Object.DistinguishedName).Trim()
 
     $CurrentPostOfficeBoxes = @()
 
@@ -3202,10 +3294,6 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
             $Replace[$Key] = [string]$Value
         }
     }
-
-    $ObjectClassName = (
-        [string]$Object.ObjectClass
-    ).Trim().ToLowerInvariant()
 
     $HasGroupSamChanges =
         $null -ne $GroupSamAccountName

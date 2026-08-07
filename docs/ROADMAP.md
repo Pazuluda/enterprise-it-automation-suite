@@ -6,19 +6,19 @@
 |---|---:|
 | C1 — Fenêtres Propriétés complètes | 100 % |
 | Explorateur Active Directory complet | 25 % |
-| Projet EITAS global | 82 % |
+| Projet EITAS global | 81 % |
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.4.0-alpha.06
+## État courant — v0.4.0-alpha.07
 
 | Indicateur | Avancement |
 |---|---:|
-| C4 — Groupes, imbrication et appartenances |       85 % |
-| Explorateur Active Directory complet       |       54 % |
-| Projet EITAS global | 80 % |
+| C4 — Groupes, imbrication et appartenances |       93 % |
+| Explorateur Active Directory complet       |       56 % |
+| Projet EITAS global | 81 % |
 
-La version `v0.4.0-alpha.06` clôt C4.5 « Cycle de vie structurel des groupes » après prévalidation réelle en Simulation des créations, suppressions, renommages et déplacements.
+La version `v0.4.0-alpha.07` clôt C4.6 « Propriétés avancées et gestionnaire des groupes » après prévalidation réelle en Simulation de l’objet cible et du gestionnaire Active Directory.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -29,7 +29,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
-| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.5 clôturé — 85 % |
+| C4 | Groupes, imbrication et appartenances | `v0.4.0` | En cours — C4.6 clôturé — 93 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
@@ -38,6 +38,26 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.4.0-alpha.07 — Checkpoint C4.6
+
+Ce checkpoint clôt C4.6 « Propriétés avancées et gestionnaire des groupes ». La Simulation d’une modification de propriétés résout désormais l’objet Active Directory réel avant son retour, et `managedBy` est prévalidé comme utilisateur actif du domaine autorisé sans imposer à tort le sous-périmètre `OU=EITAS`.
+
+- objet cible résolu dans Active Directory avant le retour Simulation ;
+- `managedBy` résolu avec `Get-ADUser` avant le retour Simulation lorsqu’une valeur non vide est fournie ;
+- gestionnaire limité au domaine Active Directory autorisé et vérifié actif ;
+- gestionnaire actif situé hors `OU=EITAS` mais dans `API.LOCAL` accepté au runtime ;
+- DN de gestionnaire inexistant refusé avant le retour Simulation ;
+- utilisateur désactivé refusé comme gestionnaire ;
+- suppression de `managedBy` par valeur vide conservée et validée en Simulation ;
+- aucune commande d’écriture Active Directory déplacée avant le retour Simulation ;
+- module Windows validé sous PowerShell 5.1 avec zéro erreur de parsing ;
+- SHA-256 actif `B6B7E9C11228F3789D92B271F5039715A3D04D000B9F0F530DC7F1BA8511D7E4` ;
+- worker `EITAS AD Admin Worker` redémarré et confirmé actif ;
+- 4 tests dédiés C4.6 validés ;
+- régression groupes C4.2 à C4.6 : 60 tests, 17 warnings connus et 16 sous-tests validés ;
+- suite backend complète : 386 tests, 31 warnings connus et 317 sous-tests validés ;
+- `git diff --check` propre.
 
 ### v0.4.0-alpha.06 — Checkpoint C4.5
 
@@ -61,7 +81,7 @@ Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisa
 
 Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
 
-**Checkpoint actuel :** **`v0.4.0-alpha.06`**
+**Checkpoint actuel :** **`v0.4.0-alpha.07`**
 
 - C4.1 : audit fonctionnel et technique terminé ;
 - C4.2A : ajout groupe vers groupe sécurisé et validé ;
@@ -104,6 +124,14 @@ Objectif : développer la gestion avancée des groupes, de l’imbrication et de
 - validations Simulation confirmées sans écriture Active Directory ;
 - suite backend complète : 382 tests, 31 warnings connus et 317 sous-tests validés ;
 - C4.5 est validé fonctionnellement.
+- C4.6 : propriétés avancées et gestionnaire des groupes validés ;
+  - résolution de l’objet cible avant tout retour Simulation ;
+  - résolution réelle de `managedBy` comme utilisateur Active Directory ;
+  - validation du domaine autorisé sans restriction indue à `OU=EITAS` ;
+  - refus des gestionnaires inexistants ou désactivés ;
+  - clear `managedBy` validé ;
+  - Simulation confirmée sans écriture Active Directory ;
+- C4.6 est validé fonctionnellement.
 
 ## Version v1.0.0
 

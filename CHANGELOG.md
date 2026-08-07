@@ -4,6 +4,30 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.4.0-alpha.07] — 2026-08-07
+
+### C4 — Groupes, imbrication et appartenances
+
+- septième checkpoint fonctionnel du chantier C4 ;
+- C4.6 « Propriétés avancées et gestionnaire des groupes » clôturé ;
+- `update_object_properties` résout l’objet Active Directory réel avant le retour Simulation ;
+- `managedBy` est prévalidé avec `Get-ADUser` avant le retour Simulation lorsqu’il est renseigné ;
+- gestionnaire limité au domaine Active Directory autorisé et vérifié actif ;
+- gestionnaire `Administrateur`, situé hors `OU=EITAS` mais dans `API.LOCAL`, accepté en Simulation ;
+- DN de gestionnaire inexistant refusé avant le retour Simulation ;
+- utilisateur désactivé refusé comme gestionnaire ;
+- suppression de `managedBy` par valeur vide validée en Simulation ;
+- Active Directory confirmé inchangé après chaque validation Simulation ;
+- module final validé sous Windows PowerShell 5.1 puis déployé avec sauvegarde ;
+- sauvegarde précédente conservée dans `C:\EnterpriseIT\backups\c4.6b4c-20260807-223953` ;
+- SHA-256 actif final `B6B7E9C11228F3789D92B271F5039715A3D04D000B9F0F530DC7F1BA8511D7E4` ;
+- worker `EITAS AD Admin Worker` redémarré et confirmé actif ;
+- 4 tests dédiés au contrat C4.6 validés ;
+- régression groupes C4.2 à C4.6 : 60 tests, 17 warnings connus et 16 sous-tests validés ;
+- suite backend complète : 386 tests, 31 warnings connus et 317 sous-tests validés ;
+- `git diff --check` propre.
+
+
 ## [0.4.0-alpha.06] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances
