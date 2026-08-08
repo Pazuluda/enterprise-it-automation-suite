@@ -4,6 +4,30 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.7.0] — 2026-08-08
+
+### C7 — Sélection multiple, copie et glisser-déposer
+
+- clôture stable de C7 ;
+- multi-sélection clavier et souris ;
+- copie groupée DN, noms et CSV ;
+- copie utilisateur contrôlée ;
+- glisser-déposer sécurisé vers OU et conteneurs ;
+- réutilisation du workflow historique `move_object` ;
+- refus des destinations invalides et du drag multi-objet ;
+- nettoyage du cycle de vie des sélections validé.
+
+### Validation
+
+- 39 tests C7 consolidés ;
+- 304 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- aucun bulk destructif ;
+- recette navigateur C7.1, C7.2 et C7.3 validée ;
+- contrôles de sécurité validés ;
+- progression : C7 100 %, Explorateur AD 94 %, EITAS 90 %.
+
 ## [0.7.0-alpha.03] — 2026-08-08
 
 ### C7.3 — Glisser-déposer et déplacement
