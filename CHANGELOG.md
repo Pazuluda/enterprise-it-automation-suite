@@ -4,6 +4,32 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.6.0-alpha.03] — 2026-08-08
+
+### C6.3 — Filtres avancés
+
+- Ajout de filtres avancés dans l’Explorateur Active Directory.
+- Filtrage par type d’objet et par état de compte.
+- Ajout de critères par colonne avec opérateurs texte et présence/absence de valeur.
+- Combinaison de plusieurs critères avec logique ET.
+- Compteur de filtres actifs, suppression individuelle et action `Effacer tout`.
+- Persistance sécurisée des filtres dans `localStorage`.
+- Compatibilité préservée avec la recherche globale C6.1, les colonnes configurables et le tri C6.2.
+- Recette navigateur validée avec quatre filtres simultanés, persistance après F5 et réinitialisation fonctionnelle.
+
+### Validation
+
+- 10 tests C6.3 dédiés validés.
+- 22 tests ciblés C6.1/C6.2/C6.3 validés.
+- Suite frontend complète : 253 tests, 0 échec.
+- Lint frontend : 34 warnings connus, 0 erreur.
+- Suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés.
+- Build Vite de production validé.
+- Build/runtime exact et 12 fichiers statiques publics vérifiés par SHA-256 via HTTPS.
+- Contrôles de sécurité pré-commit validés.
+- Progression : C6.3 100 %, C6 60 %, Explorateur AD 86 %, EITAS 88 %.
+
+
 ## [0.6.0-alpha.02] — 2026-08-08
 
 ### C6.2 — Colonnes configurables et tri

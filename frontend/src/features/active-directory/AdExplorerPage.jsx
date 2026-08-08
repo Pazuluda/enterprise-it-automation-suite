@@ -47,6 +47,18 @@ import {
   sortAdExplorerItems,
 } from './utils/adExplorerColumns'
 
+import {
+  AD_EXPLORER_FILTER_OPERATOR_OPTIONS,
+  AD_EXPLORER_TYPE_OPTIONS,
+  DEFAULT_AD_EXPLORER_FILTERS,
+  createAdExplorerFilterCondition,
+  filterAdExplorerItems,
+  getAdExplorerActiveFilterCount,
+  loadAdExplorerFilterPreferences,
+  normalizeAdExplorerFilters,
+  saveAdExplorerFilterPreferences,
+} from './utils/adExplorerFilters'
+
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
 import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
 import AdActivityModal from './components/AdActivityModal'
@@ -126,6 +138,20 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const [
     columnOptionsOpen,
     setColumnOptionsOpen
+  ] = useState(false)
+  const [
+    advancedFilters,
+    setAdvancedFilters
+  ] = useState(() =>
+    loadAdExplorerFilterPreferences(
+      typeof window === 'undefined'
+        ? null
+        : window.localStorage
+    )
+  )
+  const [
+    filterOptionsOpen,
+    setFilterOptionsOpen
   ] = useState(false)
   const [loading, setLoading] = useState(false)
   const nodeContentCacheRef = useRef(new Map())
@@ -413,11 +439,19 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     [visibleColumnIds]
   )
 
+  const advancedFilterCount = useMemo(
+    () =>
+      getAdExplorerActiveFilterCount(
+        advancedFilters
+      ),
+    [advancedFilters]
+  )
+
   const filteredViewItems = useMemo(() => {
     const filter =
       viewFilter.trim().toLowerCase()
 
-    const filtered = !filter
+    const textFiltered = !filter
       ? [...viewItems]
       : viewItems.filter(item =>
           JSON.stringify(item)
@@ -425,15 +459,39 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
             .includes(filter)
         )
 
+    const getColumnValue = (
+      item,
+      columnId
+    ) =>
+      getAdExplorerColumnValue(
+        item,
+        columnId,
+        {
+          getObjectName,
+          getObjectType,
+          getObjectDescription:
+            getGroupDescription,
+        }
+      )
+
+    const advancedFiltered =
+      filterAdExplorerItems(
+        textFiltered,
+        advancedFilters,
+        getColumnValue,
+        getObjectType
+      )
+
     return sortAdExplorerItems(
-      filtered,
+      advancedFiltered,
       viewSort,
-      getAdExplorerColumnValue
+      getColumnValue
     )
   }, [
     viewItems,
     viewFilter,
-    viewSort
+    viewSort,
+    advancedFilters
   ])
 
   const adExplorerGridTemplate =
@@ -462,6 +520,105 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       viewSort
     )
   }, [viewSort])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    saveAdExplorerFilterPreferences(
+      window.localStorage,
+      advancedFilters
+    )
+  }, [advancedFilters])
+
+  function updateAdExplorerFilterField(
+    field,
+    value
+  ) {
+    setAdvancedFilters(previous =>
+      normalizeAdExplorerFilters({
+        ...previous,
+        [field]: value
+      })
+    )
+  }
+
+  function addAdExplorerFilterCondition() {
+    setAdvancedFilters(previous => {
+      if (previous.conditions.length >= 8) {
+        return previous
+      }
+
+      return normalizeAdExplorerFilters({
+        ...previous,
+        conditions: [
+          ...previous.conditions,
+          createAdExplorerFilterCondition(
+            `filter-${Date.now()}`
+          )
+        ]
+      })
+    })
+  }
+
+  function updateAdExplorerFilterCondition(
+    conditionId,
+    field,
+    value
+  ) {
+    setAdvancedFilters(previous =>
+      normalizeAdExplorerFilters({
+        ...previous,
+        conditions: previous.conditions.map(
+          condition => {
+            if (condition.id !== conditionId) {
+              return condition
+            }
+
+            const updated = {
+              ...condition,
+              [field]: value
+            }
+
+            if (
+              field === 'operator'
+              && (
+                value === 'present'
+                || value === 'absent'
+              )
+            ) {
+              updated.value = ''
+            }
+
+            return updated
+          }
+        )
+      })
+    )
+  }
+
+  function removeAdExplorerFilterCondition(
+    conditionId
+  ) {
+    setAdvancedFilters(previous =>
+      normalizeAdExplorerFilters({
+        ...previous,
+        conditions: previous.conditions.filter(
+          condition =>
+            condition.id !== conditionId
+        )
+      })
+    )
+  }
+
+  function resetAdExplorerFilters() {
+    setAdvancedFilters(
+      normalizeAdExplorerFilters(
+        DEFAULT_AD_EXPLORER_FILTERS
+      )
+    )
+  }
 
   function toggleAdExplorerColumn(columnId) {
     const definition =
@@ -3058,6 +3215,287 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                     </button>
 
                     <div
+                      className="aduc-filter-options"
+                    >
+                      <button
+                        type="button"
+                        className="aduc-filter-options-trigger"
+                        title="Filtres avancés"
+                        aria-label="Configurer les filtres avancés"
+                        aria-expanded={
+                          filterOptionsOpen
+                        }
+                        onClick={() => {
+                          setColumnOptionsOpen(false)
+                          setFilterOptionsOpen(
+                            previous =>
+                              !previous
+                          )
+                        }}
+                      >
+                        <span>Filtres</span>
+                        {advancedFilterCount > 0 && (
+                          <strong>
+                            {advancedFilterCount}
+                          </strong>
+                        )}
+                      </button>
+
+                      {filterOptionsOpen && (
+                        <div
+                          className={
+                            "aduc-filter-options-menu"
+                          }
+                        >
+                          <header
+                            className={
+                              "aduc-filter-options-head"
+                            }
+                          >
+                            <div>
+                              <strong>
+                                Filtres avancés
+                              </strong>
+                              <small>
+                                Les critères sont combinés
+                                avec ET.
+                              </small>
+                            </div>
+
+                            {advancedFilterCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={
+                                  resetAdExplorerFilters
+                                }
+                              >
+                                Effacer tout
+                              </button>
+                            )}
+                          </header>
+
+                          <div
+                            className={
+                              "aduc-filter-primary-grid"
+                            }
+                          >
+                            <label>
+                              <span>Type d’objet</span>
+                              <select
+                                value={
+                                  advancedFilters.type
+                                }
+                                onChange={event =>
+                                  updateAdExplorerFilterField(
+                                    'type',
+                                    event.target.value
+                                  )
+                                }
+                              >
+                                {AD_EXPLORER_TYPE_OPTIONS.map(
+                                  option => (
+                                    <option
+                                      key={
+                                        option.value
+                                      }
+                                      value={
+                                        option.value
+                                      }
+                                    >
+                                      {option.label}
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </label>
+
+                            <label>
+                              <span>État du compte</span>
+                              <select
+                                value={
+                                  advancedFilters.enabled
+                                }
+                                onChange={event =>
+                                  updateAdExplorerFilterField(
+                                    'enabled',
+                                    event.target.value
+                                  )
+                                }
+                              >
+                                <option value="all">
+                                  Tous les états
+                                </option>
+                                <option value="enabled">
+                                  Activé
+                                </option>
+                                <option value="disabled">
+                                  Désactivé
+                                </option>
+                                <option value="unknown">
+                                  Non applicable / inconnu
+                                </option>
+                              </select>
+                            </label>
+                          </div>
+
+                          <div
+                            className={
+                              "aduc-filter-condition-list"
+                            }
+                          >
+                            {advancedFilters.conditions
+                              .map(condition => (
+                                <div
+                                  key={condition.id}
+                                  className={
+                                    "aduc-filter-condition"
+                                  }
+                                >
+                                  <select
+                                    aria-label={
+                                      "Colonne du filtre"
+                                    }
+                                    value={
+                                      condition.columnId
+                                    }
+                                    onChange={event =>
+                                      updateAdExplorerFilterCondition(
+                                        condition.id,
+                                        'columnId',
+                                        event.target.value
+                                      )
+                                    }
+                                  >
+                                    {AD_EXPLORER_COLUMNS.map(
+                                      column => (
+                                        <option
+                                          key={
+                                            column.id
+                                          }
+                                          value={
+                                            column.id
+                                          }
+                                        >
+                                          {column.label}
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+
+                                  <select
+                                    aria-label={
+                                      "Opérateur du filtre"
+                                    }
+                                    value={
+                                      condition.operator
+                                    }
+                                    onChange={event =>
+                                      updateAdExplorerFilterCondition(
+                                        condition.id,
+                                        'operator',
+                                        event.target.value
+                                      )
+                                    }
+                                  >
+                                    {AD_EXPLORER_FILTER_OPERATOR_OPTIONS
+                                      .map(option => (
+                                        <option
+                                          key={
+                                            option.value
+                                          }
+                                          value={
+                                            option.value
+                                          }
+                                        >
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                  </select>
+
+                                  {![
+                                    'present',
+                                    'absent'
+                                  ].includes(
+                                    condition.operator
+                                  ) && (
+                                    <input
+                                      aria-label={
+                                        "Valeur du filtre"
+                                      }
+                                      value={
+                                        condition.value
+                                      }
+                                      onChange={event =>
+                                        updateAdExplorerFilterCondition(
+                                          condition.id,
+                                          'value',
+                                          event.target.value
+                                        )
+                                      }
+                                      placeholder="Valeur..."
+                                    />
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    className={
+                                      "aduc-filter-remove"
+                                    }
+                                    title={
+                                      "Supprimer ce critère"
+                                    }
+                                    aria-label={
+                                      "Supprimer ce critère"
+                                    }
+                                    onClick={() =>
+                                      removeAdExplorerFilterCondition(
+                                        condition.id
+                                      )
+                                    }
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
+
+                          <footer
+                            className={
+                              "aduc-filter-options-footer"
+                            }
+                          >
+                            <button
+                              type="button"
+                              onClick={
+                                addAdExplorerFilterCondition
+                              }
+                              disabled={
+                                advancedFilters.conditions
+                                  .length >= 8
+                              }
+                            >
+                              + Ajouter un critère
+                            </button>
+
+                            <span>
+                              {advancedFilterCount}
+                              {' '}
+                              filtre
+                              {advancedFilterCount > 1
+                                ? 's'
+                                : ''}
+                              {' '}
+                              actif
+                              {advancedFilterCount > 1
+                                ? 's'
+                                : ''}
+                            </span>
+                          </footer>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
                       className="aduc-column-options"
                     >
                       <button
@@ -3068,12 +3506,13 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                         aria-expanded={
                           columnOptionsOpen
                         }
-                        onClick={() =>
+                        onClick={() => {
+                          setFilterOptionsOpen(false)
                           setColumnOptionsOpen(
                             previous =>
                               !previous
                           )
-                        }
+                        }}
                       >
                         <span aria-hidden="true">☷</span>
                         <span>Colonnes</span>

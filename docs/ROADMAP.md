@@ -5,8 +5,8 @@
 | Indicateur | Avancement |
 |---|---:|
 | C1 — Fenêtres Propriétés complètes | 100 % |
-| Explorateur Active Directory complet | 82 % |
-| Projet EITAS global | 87 % |
+| Explorateur Active Directory complet | 86 % |
+| Projet EITAS global | 88 % |
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
@@ -16,11 +16,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
-| C6 — Recherche, colonnes, filtres et requêtes |       40 % |
-| Explorateur Active Directory complet       |       82 % |
-| Projet EITAS global | 87 % |
+| C6 — Recherche, colonnes, filtres et requêtes |       60 % |
+| Explorateur Active Directory complet       |       86 % |
+| Projet EITAS global | 88 % |
 
-Le checkpoint `v0.6.0-alpha.02` clôt C6.2 « colonnes configurables + tri » à 100 %. C6 est désormais à 40 %. Progression actuelle : Explorateur Active Directory 82 %, EITAS 87 %. La prochaine étape est C6.3 « filtres avancés ».
+Le checkpoint `v0.6.0-alpha.03` clôt C6.3 « filtres avancés » à 100 %. C6 est désormais à 60 %. Progression actuelle : Explorateur Active Directory 86 %, EITAS 88 %. La prochaine étape est C6.4 « requêtes et recherches avancées enregistrées ».
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -32,13 +32,41 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
-| C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | En cours — 40 % |
+| C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | En cours — 60 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.6.0-alpha.03 — C6.3 Filtres avancés
+
+Ce checkpoint clôt C6.3 « filtres avancés ».
+
+- filtres avancés intégrés directement au pipeline de vue C6.2, sans nouveau moteur backend ;
+- filtrage par type d’objet Active Directory ;
+- filtrage par état de compte Activé, Désactivé ou Inconnu ;
+- critères par colonne avec opérateurs contient, égal, différent, commence par, se termine par, est renseigné et est vide ;
+- combinaison de plusieurs critères avec logique ET ;
+- compteur de filtres actifs, suppression individuelle et action `Effacer tout` ;
+- préférences de filtres persistées de manière sûre dans `localStorage` ;
+- compatibilité conservée avec la recherche globale C6.1, les colonnes configurables et le tri C6.2 ;
+- recette navigateur validée sur la recherche globale `e` : Utilisateurs + Activé + E-mail renseigné + Compte SAM contenant `l.` ;
+- persistance des quatre filtres validée après F5 ;
+- réinitialisation validée avec retour à zéro filtre actif.
+
+### Validation
+
+- 10 tests C6.3 dédiés validés ;
+- 22 tests ciblés C6.1/C6.2/C6.3 validés ;
+- suite frontend complète : 253 tests, 0 échec ;
+- lint frontend : 34 warnings connus, 0 erreur ;
+- suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés ;
+- build Vite de production validé ;
+- build/runtime exact et 12 fichiers statiques publics vérifiés par SHA-256 via HTTPS ;
+- contrôles de sécurité pré-commit validés ;
+- progression : C6.3 100 %, C6 60 %, Explorateur AD 86 %, EITAS 88 %.
 
 ### v0.6.0-alpha.02 — C6.2 Colonnes configurables et tri
 

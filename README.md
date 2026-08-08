@@ -1,13 +1,13 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.6.0--alpha.02-2563eb)
+![Version](https://img.shields.io/badge/version-v0.6.0--alpha.03-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 ![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
 ![C4](https://img.shields.io/badge/C4-terminé_à_100_%25-16a34a)
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
-![C6](https://img.shields.io/badge/C6-en_cours_40_%25-f59e0b)
+![C6](https://img.shields.io/badge/C6-en_cours_60_%25-f59e0b)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -17,7 +17,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.5.0**.
 
-Le checkpoint de développement **v0.6.0-alpha.02** clôt **C6.2 « colonnes configurables + tri »** à 100 %. La dernière version stable reste **v0.5.0**, qui clôt C5. C6 est désormais en cours à 40 %.
+Le checkpoint de développement **v0.6.0-alpha.03** clôt **C6.3 « filtres avancés »** à 100 %. La dernière version stable reste **v0.5.0**, qui clôt C5. C6 est désormais en cours à 60 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -31,11 +31,11 @@ Le checkpoint de développement **v0.6.0-alpha.02** clôt **C6.2 « colonnes con
 
 > **C5 — Ordinateurs, OU, conteneurs et contacts — terminé à 100 %**
 
-> **C6 — Recherche, colonnes, filtres et requêtes — en cours à 40 %**
+> **C6 — Recherche, colonnes, filtres et requêtes — en cours à 60 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.5.0` demeure la version stable ; `v0.6.0-alpha.02` est le deuxième checkpoint C6 et clôt C6.2 à 100 %. Progression actuelle : C6 40 %, Explorateur Active Directory 82 %, EITAS global 87 %. La version générale stable `v1.0.0` n’est pas encore atteinte.
+EITAS reste en développement actif. `v0.5.0` demeure la version stable ; `v0.6.0-alpha.03` est le troisième checkpoint C6 et clôt C6.3 à 100 %. Progression actuelle : C6 60 %, Explorateur Active Directory 86 %, EITAS global 88 %. La version générale stable `v1.0.0` n’est pas encore atteinte.
 
 ## Fonctionnalités disponibles
 
@@ -153,6 +153,7 @@ Composants principaux :
 | Version stable C5                    | `v0.5.0` |
 | Premier checkpoint C6                | `v0.6.0-alpha.01` |
 | Deuxième checkpoint C6               | `v0.6.0-alpha.02` |
+| Troisième checkpoint C6               | `v0.6.0-alpha.03` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
