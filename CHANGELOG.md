@@ -4,6 +4,40 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.6.0] — 2026-08-08
+
+### C6 — Recherche, colonnes, filtres et requêtes
+
+Cette version stable clôt le chantier C6 à 100 %.
+
+### Fonctionnalités
+
+- recherche Active Directory unifiée ;
+- colonnes configurables et tri persistant ;
+- filtres avancés combinables ;
+- recherches enregistrées persistantes ;
+- restauration complète de la requête, des filtres, des colonnes et du tri ;
+
+### Qualification finale
+
+- 34 tests C6 ciblés réussis ;
+- 265 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus et 0 erreur ;
+- build Vite de production validé ;
+- 12 fichiers statiques, 913870 octets ;
+- build et runtime déployé strictement identiques ;
+- intégrité SHA-256 publique validée ;
+- API et portail publics validés ;
+- contrôles de sécurité validés ;
+
+### Progression
+
+- C6 : 100 % ;
+- Explorateur Active Directory : 94 % ;
+- EITAS global : 90 % ;
+- prochain chantier : C7.
+
 ## [0.6.0-alpha.04] — 2026-08-08
 
 ### C6.4 — Recherches enregistrées

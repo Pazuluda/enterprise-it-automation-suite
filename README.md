@@ -1,13 +1,13 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.6.0--alpha.04-2563eb)
+![Version](https://img.shields.io/badge/version-v0.6.0-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 ![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
 ![C4](https://img.shields.io/badge/C4-terminé_à_100_%25-16a34a)
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
-![C6](https://img.shields.io/badge/C6-en_cours_80_%25-f59e0b)
+![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -15,9 +15,9 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 ## Version actuelle
 
-La version officielle actuelle est **v0.5.0**.
+La version officielle actuelle est **v0.6.0**.
 
-Le checkpoint de développement **v0.6.0-alpha.04** clôt **C6.4 « recherches enregistrées »** à 100 %. La dernière version stable reste **v0.5.0**, qui clôt C5. C6 est désormais en cours à 80 %.
+La version stable **v0.6.0** clôt le chantier **C6 « Recherche, colonnes, filtres et requêtes »** à 100 % après qualification de C6.1 à C6.4, non-régression frontend/backend, validation navigateur, build de production, contrôles runtime et sécurité.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -31,11 +31,11 @@ Le checkpoint de développement **v0.6.0-alpha.04** clôt **C6.4 « recherches e
 
 > **C5 — Ordinateurs, OU, conteneurs et contacts — terminé à 100 %**
 
-> **C6 — Recherche, colonnes, filtres et requêtes — en cours à 80 %**
+> **C6 — Recherche, colonnes, filtres et requêtes — terminé à 100 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.5.0` demeure la version stable ; `v0.6.0-alpha.04` est le quatrième checkpoint C6 et clôt C6.4 à 100 %. Progression actuelle : C6 80 %, Explorateur Active Directory 90 %, EITAS global 89 %. La version générale stable `v1.0.0` n’est pas encore atteinte.
+EITAS reste en développement actif. `v0.6.0` est la version stable ayant clôturé C6 à 100 % ; C1 à C6 sont désormais terminés. Progression actuelle : Explorateur Active Directory 94 %, EITAS global 90 %. Le prochain chantier est C7 « Sélection multiple, copie et glisser-déposer ». La version générale stable `v1.0.0` n’est pas encore atteinte.
 
 ## Fonctionnalités disponibles
 
@@ -137,7 +137,7 @@ Composants principaux :
 
 | État | Version |
 |---|---:|
-| Version officielle actuelle | `v0.5.0` |
+| Version officielle actuelle | `v0.6.0` |
 | Premier checkpoint C4 | `v0.4.0-alpha.01` |
 | Deuxième checkpoint C4 | `v0.4.0-alpha.02` |
 | Troisième checkpoint C4 | `v0.4.0-alpha.03` |
@@ -155,6 +155,7 @@ Composants principaux :
 | Deuxième checkpoint C6               | `v0.6.0-alpha.02` |
 | Troisième checkpoint C6               | `v0.6.0-alpha.03` |
 | Quatrième checkpoint C6             | `v0.6.0-alpha.04` |
+| Version stable C6                    | `v0.6.0` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -171,7 +172,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 2. C3 — Gestion avancée des utilisateurs — terminé dans `v0.3.0` ;
 3. C4 — Groupes, imbrication et appartenances — terminé dans `v0.4.0` ;
 4. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
-5. C6 — Recherche, colonnes, filtres et requêtes ;
+5. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
 6. C7 — Sélection multiple, copie et glisser-déposer ;
 7. C8 — ACL, sécurité et délégation ;
 8. C9 — Corbeille Active Directory et restauration ;

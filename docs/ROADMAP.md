@@ -10,17 +10,17 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.6.0-alpha.04
+## État courant — v0.6.0
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
-| C6 — Recherche, colonnes, filtres et requêtes |       80 % |
-| Explorateur Active Directory complet       |       90 % |
-| Projet EITAS global | 89 % |
+| C6 — Recherche, colonnes, filtres et requêtes |      100 % |
+| Explorateur Active Directory complet       |       94 % |
+| Projet EITAS global | 90 % |
 
-Le checkpoint `v0.6.0-alpha.04` clôt C6.4 « recherches enregistrées » à 100 %. C6 est désormais à 80 %. Progression actuelle : Explorateur Active Directory 90 %, EITAS 89 %. La prochaine étape est C6-FINAL.
+La version stable `v0.6.0` clôt le chantier C6 « Recherche, colonnes, filtres et requêtes » à 100 %. C1 à C6 sont désormais terminés. Progression actuelle : Explorateur Active Directory 94 %, EITAS 90 %. La prochaine phase est C7 « Sélection multiple, copie et glisser-déposer ».
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -32,13 +32,36 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
-| C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | En cours — 80 % |
+| C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.6.0 — C6
+
+**Version stable :** **`v0.6.0`**
+
+Le chantier C6 « Recherche, colonnes, filtres et requêtes » est terminé et validé à 100 %.
+
+- C6.1 : recherche Active Directory unifiée ;
+- C6.2 : colonnes configurables et tri persistant ;
+- C6.3 : filtres avancés combinables ;
+- C6.4 : recherches enregistrées persistantes ;
+- moteur `search_objects` unique et normalisé ;
+- restauration des requêtes, filtres, colonnes et tri ;
+- validation navigateur des parcours C6 ;
+- 34 tests C6 ciblés réussis ;
+- 265 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build de production : 12 fichiers, 913870 octets ;
+- intégrité SHA-256 publique validée ;
+- API et portail publics validés en HTTP 200 ;
+- contrôles de sécurité validés ;
+- progression après C6 : C6 100 %, Explorateur AD 94 %, EITAS 90 %.
 
 ### v0.6.0-alpha.04 — C6.4 Recherches enregistrées
 
