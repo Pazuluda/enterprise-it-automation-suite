@@ -1,11 +1,11 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.5.0--alpha.02-2563eb)
+![Version](https://img.shields.io/badge/version-v0.5.0--alpha.03-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
 ![C3](https://img.shields.io/badge/C3-terminé_à_100_%25-16a34a)
-![C5](https://img.shields.io/badge/C5-en_cours_40_%25-f59e0b)
+![C5](https://img.shields.io/badge/C5-en_cours_60_%25-f59e0b)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -15,7 +15,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.5.0-alpha.03**.
 
-Ce checkpoint clôt le sous-lot **C5.2 « OU : consolidation et validation formelle »** après validation backend, frontend, Windows PowerShell 5.1 et runtime Simulation, sans écriture Active Directory.
+Ce checkpoint clôt le sous-lot **C5.3 « Contacts : cycle de vie complet »** après validation backend, frontend, Windows PowerShell 5.1, runtime Simulation et recette navigateur, sans écriture Active Directory.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -31,7 +31,7 @@ Ce checkpoint clôt le sous-lot **C5.2 « OU : consolidation et validation forme
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.5.0-alpha.02` est le deuxième checkpoint du chantier C5 ; `v0.5.0-alpha.01` a clôturé C5.1 et `v0.4.0` reste la version stable ayant clôturé C4. La version générale stable `v1.0.0` n’est pas encore atteinte.
+EITAS reste en développement actif. `v0.5.0-alpha.03` est le troisième checkpoint du chantier C5 ; `v0.5.0-alpha.01` a clôturé C5.1, `v0.5.0-alpha.02` a clôturé C5.2 et `v0.4.0` reste la version stable ayant clôturé C4. La version générale stable `v1.0.0` n’est pas encore atteinte.
 
 ## Fonctionnalités disponibles
 
@@ -133,7 +133,7 @@ Composants principaux :
 
 | État | Version |
 |---|---:|
-| Version officielle actuelle | `v0.5.0-alpha.02` |
+| Version officielle actuelle | `v0.5.0-alpha.03` |
 | Premier checkpoint C4 | `v0.4.0-alpha.01` |
 | Deuxième checkpoint C4 | `v0.4.0-alpha.02` |
 | Troisième checkpoint C4 | `v0.4.0-alpha.03` |
@@ -144,6 +144,7 @@ Composants principaux :
 | C4 terminé                         | `v0.4.0` |
 | Premier checkpoint C5              | `v0.5.0-alpha.01` |
 | Deuxième checkpoint C5              | `v0.5.0-alpha.02` |
+| Troisième checkpoint C5             | `v0.5.0-alpha.03` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -159,7 +160,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 1. C2 — Éditeur d'attributs LDAP — terminé dans `v0.2.0` ;
 2. C3 — Gestion avancée des utilisateurs — terminé dans `v0.3.0` ;
 3. C4 — Groupes, imbrication et appartenances — terminé dans `v0.4.0` ;
-4. C5 — Ordinateurs, OU, conteneurs et contacts — en cours dans `v0.5.0-alpha.02` ;
+4. C5 — Ordinateurs, OU, conteneurs et contacts — en cours dans `v0.5.0-alpha.03` ;
 5. C6 — Recherche, colonnes, filtres et requêtes ;
 6. C7 — Sélection multiple, copie et glisser-déposer ;
 7. C8 — ACL, sécurité et délégation ;

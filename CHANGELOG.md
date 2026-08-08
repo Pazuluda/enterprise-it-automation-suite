@@ -2,6 +2,8 @@
 
 Toutes les modifications importantes d'Enterprise IT Automation Suite sont consignées dans ce fichier.
 
+## [À venir]
+
 ## [0.5.0-alpha.03] — 2026-08-08
 
 ### Ajoute
@@ -29,8 +31,6 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 - Build Vite et publication runtime valides.
 - Controle SHA-256 des assets publics valide.
 - Controles de securite pre-commit valides.
-
-## [À venir]
 
 ## [0.5.0-alpha.02] — 2026-08-08
 

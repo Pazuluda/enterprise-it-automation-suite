@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.5.0-alpha.02
+## État courant — v0.5.0-alpha.03
 
 | Indicateur | Avancement |
 |---|---:|
@@ -19,7 +19,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |       66 % |
 | Projet EITAS global | 83 % |
 
-La version `v0.5.0-alpha.02` clôt C5.2 « OU : consolidation et validation formelle » à 100 %. C5.1 et C5.2 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4.
+La version `v0.5.0-alpha.03` clôt C5.3 « Contacts : cycle de vie complet » à 100 %. C5.1, C5.2 et C5.3 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -83,7 +83,7 @@ Ce checkpoint clôt C5.2 « OU : consolidation et validation formelle ».
 - build Vite de production validé ;
 - suite backend complète : 420 tests, 32 warnings connus et 326 sous-tests validés ;
 - C5.2 terminé à 100 % ;
-- C5 global : 60 % ; Explorateur AD : 66 % ; EITAS : 83 %.
+- C5 global : 40 % ; Explorateur AD : 62 % ; EITAS : 82 %.
 
 ### v0.5.0-alpha.01 — Checkpoint C5.1
 
@@ -103,7 +103,7 @@ Ce checkpoint clôt C5.1 « Ordinateurs : consolidation et validation formelle �
 - suite backend complète : 407 tests, 32 warnings connus et 326 sous-tests validés ;
 - `git diff --check` validé ;
 - C5.1 terminé à 100 % ;
-- C5 global : 20 % ; Explorateur AD : 58 % ; EITAS : 83 %.
+- C5 global : 20 % ; Explorateur AD : 58 % ; EITAS : 82 %.
 
 ### v0.4.0-alpha.07 — Checkpoint C4.6
 
