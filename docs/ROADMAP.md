@@ -16,7 +16,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |       40 % |
-| Explorateur Active Directory complet       |       58 % |
+| Explorateur Active Directory complet       |       62 % |
 | Projet EITAS global | 82 % |
 
 La version `v0.5.0-alpha.02` clôt C5.2 « OU : consolidation et validation formelle » à 100 %. C5.1 et C5.2 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4.
