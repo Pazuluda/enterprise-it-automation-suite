@@ -4,6 +4,29 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.7.0-alpha.03] — 2026-08-08
+
+### C7.3 — Glisser-déposer et déplacement
+
+- ajout du glisser-déposer des objets AD gérés ;
+- destinations limitées aux OU et conteneurs EITAS ;
+- retour visuel valide/interdit pendant le drag ;
+- refus du parent courant et des descendants invalides ;
+- refus du drag en multi-sélection ;
+- réutilisation du workflow historique `move_object` ;
+- aucun déplacement direct au simple drop ;
+- recette Simulation validée sans modification réelle AD.
+
+### Validation
+
+- 10 tests C7.3 ciblés réussis ;
+- 297 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build/runtime et SHA-256 publics validés ;
+- recette navigateur complète validée ;
+- progression : C7.3 100 %, C7 75 %, Explorateur AD 94 %, EITAS 90 %.
+
 ## [0.7.0-alpha.02] — 2026-08-08
 
 ### C7.2 — Actions de sélection et copie

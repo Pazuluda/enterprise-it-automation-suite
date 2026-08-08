@@ -1,6 +1,6 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.7.0--alpha.02-2563eb)
+![Version](https://img.shields.io/badge/version-v0.7.0--alpha.03-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
@@ -8,7 +8,7 @@
 ![C4](https://img.shields.io/badge/C4-terminé_à_100_%25-16a34a)
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
-![C7](https://img.shields.io/badge/C7-en_cours_50_%25-f59e0b)
+![C7](https://img.shields.io/badge/C7-en_cours_75_%25-f59e0b)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -18,7 +18,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.6.0**.
 
-Le checkpoint de développement **v0.7.0-alpha.02** valide **C7.2 « actions de sélection et copie »** à 100 %. La version stable actuelle reste **v0.6.0**. C7 est désormais en cours à 50 %.
+Le checkpoint de développement **v0.7.0-alpha.03** valide **C7.3 « glisser-déposer et déplacement »** à 100 %. La version stable actuelle reste **v0.6.0**. C7 est désormais en cours à 75 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -33,11 +33,11 @@ Le checkpoint de développement **v0.7.0-alpha.02** valide **C7.2 « actions de 
 > **C5 — Ordinateurs, OU, conteneurs et contacts — terminé à 100 %**
 
 > **C6 — Recherche, colonnes, filtres et requêtes — terminé à 100 %**
-> **C7 — Sélection multiple, copie et glisser-déposer — en cours à 50 %**
+> **C7 — Sélection multiple, copie et glisser-déposer — en cours à 75 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.6.0` demeure la version stable ; `v0.7.0-alpha.02` valide C7.2 « actions de sélection et copie » à 100 %. Progression actuelle : C7 50 %, Explorateur Active Directory 94 %, EITAS global 90 %. La prochaine étape est C7.3.
+EITAS reste en développement actif. `v0.6.0` demeure la version stable ; `v0.7.0-alpha.03` valide C7.3 « glisser-déposer et déplacement » à 100 %. Progression actuelle : C7 75 %, Explorateur Active Directory 94 %, EITAS global 90 %. La prochaine étape est C7-FINAL.
 
 ## Fonctionnalités disponibles
 
@@ -160,6 +160,7 @@ Composants principaux :
 | Version stable C6                    | `v0.6.0` |
 | Premier checkpoint C7                 | `v0.7.0-alpha.01` |
 | Deuxième checkpoint C7                | `v0.7.0-alpha.02` |
+| Troisième checkpoint C7               | `v0.7.0-alpha.03` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -177,7 +178,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 3. C4 — Groupes, imbrication et appartenances — terminé dans `v0.4.0` ;
 4. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
 5. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
-6. C7 — Sélection multiple, copie et glisser-déposer — en cours, C7.1 multi-sélection et C7.2 actions de sélection/copie validés ;
+6. C7 — Sélection multiple, copie et glisser-déposer — en cours, C7.1 multi-sélection, C7.2 actions de sélection/copie et C7.3 glisser-déposer validés ;
 7. C8 — ACL, sécurité et délégation ;
 8. C9 — Corbeille Active Directory et restauration ;
 9. C10 — Performance, audit, tests et finition.

@@ -8622,3 +8622,26 @@ input.aduc-object-protection-checkbox {
 .aduc-selection-actions .secondary {
   margin-left: 0;
 }
+
+/* C7.3 - drag and drop */
+.aduc-table-row[draggable="true"] {
+  cursor: grab;
+}
+
+.aduc-table-row[data-drag-source="true"] {
+  opacity: 0.55;
+  cursor: grabbing;
+}
+
+.aduc-node[data-drop-state="valid"] {
+  background: rgba(34, 197, 94, 0.14);
+  outline: 2px solid rgba(34, 197, 94, 0.46);
+  outline-offset: -2px;
+}
+
+.aduc-node[data-drop-state="blocked"] {
+  background: rgba(239, 68, 68, 0.09);
+  outline: 2px dashed rgba(239, 68, 68, 0.42);
+  outline-offset: -2px;
+  cursor: not-allowed;
+}

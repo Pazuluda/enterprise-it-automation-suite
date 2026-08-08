@@ -127,6 +127,14 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const [selectedObject, setSelectedObject] = useState(null)
   const [selectedObjectIds, setSelectedObjectIds] = useState([])
   const [selectionAnchorId, setSelectionAnchorId] = useState("")
+  const [
+    draggedAdExplorerObject,
+    setDraggedAdExplorerObject
+  ] = useState(null)
+  const [
+    dragOverAdExplorerDn,
+    setDragOverAdExplorerDn
+  ] = useState("")
   const [newObjectModal, setNewObjectModal] = useState(null)
   const [propertiesModal, setPropertiesModal] = useState(null)
   const [searchOuModal, setSearchOuModal] = useState(null)
@@ -425,6 +433,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
   const {
     openMoveObject,
+    setMoveTargetDn,
   } = objectMove
   const [globalAdSearch, setGlobalAdSearch] = useState('')
   const [globalAdSearchLoading, setGlobalAdSearchLoading] = useState(false)
@@ -1717,6 +1726,314 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     }
   }
 
+
+  function getAdExplorerDragDn(item) {
+    return String(
+      getObjectDn(item) || ""
+    )
+      .trim()
+      .toUpperCase()
+  }
+
+  function getAdExplorerDropError(
+    destination
+  ) {
+    const source =
+      draggedAdExplorerObject
+
+    if (!source) {
+      return ""
+    }
+
+    if (
+      !canManageActiveDirectory
+      || !isEitasManagedObject(source)
+    ) {
+      return (
+        "Objet source hors du périmètre "
+        + "Active Directory administrable."
+      )
+    }
+
+    if (
+      !isOuObject(destination)
+      && !isContainerObject(destination)
+    ) {
+      return (
+        "La destination doit être une OU "
+        + "ou un conteneur."
+      )
+    }
+
+    if (
+      !isEitasManagedObject(destination)
+    ) {
+      return (
+        "La destination doit appartenir "
+        + "au périmètre OU=EITAS."
+      )
+    }
+
+    const sourceDn =
+      getObjectDn(source)
+
+    const destinationDn =
+      getObjectDn(destination)
+
+    if (
+      !sourceDn
+      || !destinationDn
+    ) {
+      return (
+        "Objet ou destination Active "
+        + "Directory invalide."
+      )
+    }
+
+    const sourceKey =
+      sourceDn.trim().toUpperCase()
+
+    const destinationKey =
+      destinationDn.trim().toUpperCase()
+
+    const currentParentDn =
+      getParentDn(sourceDn)
+
+    if (
+      currentParentDn
+      && destinationKey
+        === currentParentDn
+          .trim()
+          .toUpperCase()
+    ) {
+      return (
+        "Cet objet se trouve déjà "
+        + "dans cet emplacement."
+      )
+    }
+
+    if (
+      destinationKey === sourceKey
+      || destinationKey.endsWith(
+        "," + sourceKey
+      )
+    ) {
+      return (
+        "Un objet structurel ne peut "
+        + "pas être déplacé dans lui-même "
+        + "ou dans un descendant."
+      )
+    }
+
+    return ""
+  }
+
+  function getAdExplorerDropState(
+    destination
+  ) {
+    if (!draggedAdExplorerObject) {
+      return ""
+    }
+
+    const destinationDn =
+      getAdExplorerDragDn(
+        destination
+      )
+
+    if (
+      !destinationDn
+      || destinationDn
+        !== dragOverAdExplorerDn
+    ) {
+      return ""
+    }
+
+    return getAdExplorerDropError(
+      destination
+    )
+      ? "blocked"
+      : "valid"
+  }
+
+  function startAdExplorerDrag(
+    event,
+    item
+  ) {
+    if (
+      !canManageActiveDirectory
+      || !isEitasManagedObject(item)
+    ) {
+      event.preventDefault()
+      return
+    }
+
+    if (
+      selectedObjectIds.length > 1
+    ) {
+      event.preventDefault()
+
+      const message =
+        "Le glisser-déposer déplace "
+        + "un seul objet à la fois."
+
+      setStatus(message)
+      setMessage?.(message)
+
+      return
+    }
+
+    const objectDn =
+      getObjectDn(item)
+
+    if (!objectDn) {
+      event.preventDefault()
+      return
+    }
+
+    selectObject(
+      item,
+      null,
+      filteredViewItems
+    )
+
+    setDraggedAdExplorerObject(
+      item
+    )
+
+    setDragOverAdExplorerDn("")
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed =
+        "move"
+
+      event.dataTransfer.setData(
+        "text/plain",
+        objectDn
+      )
+    }
+  }
+
+  function finishAdExplorerDrag() {
+    setDraggedAdExplorerObject(null)
+    setDragOverAdExplorerDn("")
+  }
+
+  function enterAdExplorerDropTarget(
+    destination
+  ) {
+    if (!draggedAdExplorerObject) {
+      return
+    }
+
+    setDragOverAdExplorerDn(
+      getAdExplorerDragDn(
+        destination
+      )
+    )
+  }
+
+  function leaveAdExplorerDropTarget(
+    event,
+    destination
+  ) {
+    if (
+      event.currentTarget
+      && event.relatedTarget
+      && event.currentTarget.contains(
+        event.relatedTarget
+      )
+    ) {
+      return
+    }
+
+    const destinationDn =
+      getAdExplorerDragDn(
+        destination
+      )
+
+    if (
+      dragOverAdExplorerDn
+      === destinationDn
+    ) {
+      setDragOverAdExplorerDn("")
+    }
+  }
+
+  function overAdExplorerDropTarget(
+    event,
+    destination
+  ) {
+    if (!draggedAdExplorerObject) {
+      return
+    }
+
+    const error =
+      getAdExplorerDropError(
+        destination
+      )
+
+    if (error) {
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect =
+          "none"
+      }
+
+      return
+    }
+
+    event.preventDefault()
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect =
+        "move"
+    }
+  }
+
+  function dropAdExplorerObject(
+    event,
+    destination
+  ) {
+    event.preventDefault()
+
+    const source =
+      draggedAdExplorerObject
+
+    const destinationDn =
+      getObjectDn(destination)
+
+    const error =
+      source
+        ? getAdExplorerDropError(
+            destination
+          )
+        : "Aucun objet à déplacer."
+
+    finishAdExplorerDrag()
+
+    if (!source) {
+      return
+    }
+
+    if (error) {
+      setStatus(error)
+      setMessage?.(error)
+      return
+    }
+
+    openMoveObject(source)
+
+    setMoveTargetDn(
+      destinationDn
+    )
+
+    const message =
+      "Déplacement préparé vers "
+      + destinationDn
+      + ". Vérifiez puis confirmez."
+
+    setStatus(message)
+    setMessage?.(message)
+  }
 
   function getSelectedAdExplorerObjects() {
     const selectedIds = new Set(
@@ -3556,6 +3873,44 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                         style={{ paddingLeft: `${18 + Math.min(item.depth, 5) * 22}px` }}
                         onClick={() => loadNodeContent(item, kind)}
                         onContextMenu={event => openContextMenu(event, item, 'tree')}
+                        data-drop-state={
+                          getAdExplorerDropState(
+                            item
+                          ) || undefined
+                        }
+                        onDragEnter={() =>
+                          enterAdExplorerDropTarget(
+                            item
+                          )
+                        }
+                        onDragOver={event =>
+                          overAdExplorerDropTarget(
+                            event,
+                            item
+                          )
+                        }
+                        onDragLeave={event =>
+                          leaveAdExplorerDropTarget(
+                            event,
+                            item
+                          )
+                        }
+                        onDrop={event =>
+                          dropAdExplorerObject(
+                            event,
+                            item
+                          )
+                        }
+                        title={
+                          draggedAdExplorerObject
+                            ? (
+                                getAdExplorerDropError(
+                                  item
+                                )
+                                || "Déposer ici pour préparer le déplacement"
+                              )
+                            : undefined
+                        }
                       >
                         <span>{objectIcon(item)}</span>
                         <strong>{item.name}</strong>
@@ -4366,6 +4721,43 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                             gridTemplateColumns:
                               adExplorerGridTemplate
                           }}
+                          draggable={
+                            canManageActiveDirectory
+                            && isEitasManagedObject(
+                              item
+                            )
+                          }
+                          data-drag-source={
+                            draggedAdExplorerObject
+                            && getAdExplorerSelectionId(
+                              draggedAdExplorerObject
+                            )
+                            === getAdExplorerSelectionId(
+                              item
+                            )
+                              ? "true"
+                              : undefined
+                          }
+                          aria-grabbed={
+                            Boolean(
+                              draggedAdExplorerObject
+                              && getAdExplorerSelectionId(
+                                draggedAdExplorerObject
+                              )
+                              === getAdExplorerSelectionId(
+                                item
+                              )
+                            )
+                          }
+                          onDragStart={event =>
+                            startAdExplorerDrag(
+                              event,
+                              item
+                            )
+                          }
+                          onDragEnd={
+                            finishAdExplorerDrag
+                          }
                           onClick={event =>
                             selectObject(
                               item,

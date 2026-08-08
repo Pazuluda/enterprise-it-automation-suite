@@ -10,18 +10,18 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.7.0-alpha.02
+## État courant — v0.7.0-alpha.03
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
-| C7 — Sélection multiple, copie et glisser-déposer |       50 % |
+| C7 — Sélection multiple, copie et glisser-déposer |       75 % |
 | Explorateur Active Directory complet       |       94 % |
 | Projet EITAS global | 90 % |
 
-Le checkpoint `v0.7.0-alpha.02` valide C7.2 « actions de sélection et copie » à 100 %. C7 est désormais à 50 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C7.3.
+Le checkpoint `v0.7.0-alpha.03` valide C7.3 « glisser-déposer et déplacement » à 100 %. C7 est désormais à 75 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C7-FINAL.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -34,12 +34,34 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
-| C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | En cours — 50 % |
+| C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | En cours — 75 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.7.0-alpha.03 — C7.3 Glisser-déposer et déplacement
+
+Ce checkpoint valide C7.3 à 100 %.
+
+- lignes AD gérées utilisables comme sources de drag ;
+- OU et conteneurs EITAS utilisables comme destinations ;
+- signal visuel vert pour une destination valide ;
+- signal visuel rouge pour une destination refusée ;
+- refus du parent courant ;
+- refus d un objet vers lui-même ou un descendant ;
+- refus du glisser-déposer avec multi-sélection ;
+- le drop prépare uniquement la fenêtre de déplacement existante ;
+- aucun nouveau job backend de déplacement ;
+- réutilisation exclusive du job canonique `move_object` ;
+- workflow Simulation validé sans modification réelle AD ;
+- 10 tests C7.3 ciblés réussis ;
+- 297 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build/runtime public et SHA-256 validés ;
+- progression : C7.3 100 %, C7 75 %, Explorateur AD 94 %, EITAS 90 %.
 
 ### v0.7.0-alpha.02 — C7.2 Actions de sélection et copie
 
