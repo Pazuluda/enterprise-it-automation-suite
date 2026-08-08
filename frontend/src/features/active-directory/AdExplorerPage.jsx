@@ -66,6 +66,11 @@ import {
   replaceAdExplorerSavedSearch,
   saveAdExplorerSavedSearches,
 } from './utils/adExplorerSavedSearches'
+import {
+  normalizeAdExplorerSelectionId,
+  resolveAdExplorerSelection,
+  selectAllAdExplorerSelection,
+} from "./utils/adExplorerSelection"
 
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
 import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
@@ -117,6 +122,8 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
   const [viewType, setViewType] = useState('ou')
   const [selectedObject, setSelectedObject] = useState(null)
+  const [selectedObjectIds, setSelectedObjectIds] = useState([])
+  const [selectionAnchorId, setSelectionAnchorId] = useState("")
   const [newObjectModal, setNewObjectModal] = useState(null)
   const [propertiesModal, setPropertiesModal] = useState(null)
   const [searchOuModal, setSearchOuModal] = useState(null)
@@ -572,6 +579,15 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       savedSearches
     )
   }, [savedSearches])
+
+  useEffect(() => {
+    if (selectedObject) {
+      return
+    }
+
+    setSelectedObjectIds([])
+    setSelectionAnchorId("")
+  }, [selectedObject])
 
   function updateAdExplorerFilterField(
     field,
@@ -1546,16 +1562,155 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     }
   }
 
-  function selectObject(item) {
-    setSelectedObject(item)
+  function getAdExplorerSelectionId(item) {
+    return normalizeAdExplorerSelectionId(
+      getObjectDn(item)
+    )
+  }
+
+  function clearAdExplorerSelection() {
+    setSelectedObjectIds([])
+    setSelectionAnchorId("")
+    setSelectedObject(null)
     setObjectMembers([])
-    setMembersError('')
-    setMembersMode('direct')
+    setMembersError("")
+    setMembersMode("direct")
+  }
+
+  function activateAdExplorerPrimaryObject(item) {
+    setSelectedObject(item || null)
+    setObjectMembers([])
+    setMembersError("")
+    setMembersMode("direct")
+
+    if (!item) {
+      return
+    }
 
     prefetchUserDetails(item)
 
     if (isGroupObject(item)) {
-      loadGroupMembers(item, { recursive: false })
+      loadGroupMembers(
+        item,
+        { recursive: false }
+      )
+    }
+  }
+
+  function selectObject(item) {
+    const event = arguments[1] || null
+    const visibleItems =
+      arguments[2] || [item]
+
+    const itemId =
+      getAdExplorerSelectionId(item)
+
+    if (!itemId) {
+      setSelectedObjectIds([])
+      setSelectionAnchorId("")
+      activateAdExplorerPrimaryObject(item)
+      return
+    }
+
+    const sourceItems =
+      Array.isArray(visibleItems)
+        ? visibleItems
+        : [item]
+
+    const next = resolveAdExplorerSelection({
+      currentIds: selectedObjectIds,
+      clickedId: itemId,
+      anchorId: selectionAnchorId,
+      visibleIds: sourceItems.map(
+        getAdExplorerSelectionId
+      ),
+      ctrlKey: Boolean(event?.ctrlKey),
+      metaKey: Boolean(event?.metaKey),
+      shiftKey: Boolean(event?.shiftKey),
+    })
+
+    setSelectedObjectIds(next.ids)
+    setSelectionAnchorId(next.anchorId)
+
+    const primary =
+      next.ids.includes(itemId)
+        ? item
+        : sourceItems.find(candidate =>
+            next.ids.includes(
+              getAdExplorerSelectionId(
+                candidate
+              )
+            )
+          ) || null
+
+    if (primary === item) {
+      setSelectedObject(item)
+      setObjectMembers([])
+      setMembersError("")
+      setMembersMode("direct")
+
+      prefetchUserDetails(item)
+
+      if (isGroupObject(item)) {
+        loadGroupMembers(item, { recursive: false })
+      }
+
+      return
+    }
+
+    activateAdExplorerPrimaryObject(
+      primary
+    )
+  }
+
+  function handleAdExplorerSelectionKeyDown(
+    event
+  ) {
+    if (
+      (event.ctrlKey || event.metaKey)
+      && String(event.key || "")
+        .toLowerCase() === "a"
+    ) {
+      const ids =
+        selectAllAdExplorerSelection(
+          filteredViewItems.map(
+            getAdExplorerSelectionId
+          )
+        )
+
+      if (ids.length === 0) {
+        return
+      }
+
+      event.preventDefault()
+
+      setSelectedObjectIds(ids)
+      setSelectionAnchorId(ids[0])
+
+      const currentId =
+        getAdExplorerSelectionId(
+          selectedObject
+        )
+
+      const primary =
+        currentId
+        && ids.includes(currentId)
+          ? selectedObject
+          : filteredViewItems[0] || null
+
+      activateAdExplorerPrimaryObject(
+        primary
+      )
+
+      return
+    }
+
+    if (
+      event.key === "Escape"
+      && selectedObjectIds.length > 0
+    ) {
+      event.preventDefault()
+      clearAdExplorerSelection()
     }
   }
 
@@ -3848,7 +4003,21 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                   </div>
                 </div>
 
-                <div className="aduc-table">
+                <div
+                  className="aduc-table"
+                  role="grid"
+                  aria-multiselectable="true"
+                  tabIndex={0}
+                  onKeyDown={
+                    handleAdExplorerSelectionKeyDown
+                  }
+                  title={
+                    "Ctrl/Cmd + clic : ajouter ou retirer ; "
+                    + "Maj + clic : selectionner une plage ; "
+                    + "Ctrl/Cmd + A : tout selectionner ; "
+                    + "Echap : vider la selection"
+                  }
+                >
                   <div
                     className="aduc-table-row header"
                     style={{
@@ -3908,24 +4077,45 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                             || item.sam_account_name
                             || index
                           }
+                          role="row"
+                          tabIndex={0}
+                          aria-selected={
+                            selectedObjectIds.includes(
+                              getAdExplorerSelectionId(
+                                item
+                              )
+                            )
+                          }
                           className={
                             `aduc-table-row ${
-                              getObjectDn(
+                              selectedObjectIds.includes(
+                                getAdExplorerSelectionId(
+                                  item
+                                )
+                              )
+                                ? "selected-object"
+                                : ""
+                            } ${
+                              getAdExplorerSelectionId(
                                 selectedObject
                               )
-                              && getObjectDn(
-                                selectedObject
-                              ) === getObjectDn(item)
-                                ? 'selected-object'
-                                : ''
+                              === getAdExplorerSelectionId(
+                                item
+                              )
+                                ? "primary-selected-object"
+                                : ""
                             }`
                           }
                           style={{
                             gridTemplateColumns:
                               adExplorerGridTemplate
                           }}
-                          onClick={() =>
-                            selectObject(item)
+                          onClick={event =>
+                            selectObject(
+                              item,
+                              event,
+                              filteredViewItems
+                            )
                           }
                           onDoubleClick={() => {
                             if (
@@ -4031,8 +4221,19 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                 </div>
 
                 <footer className="aduc-list-footer">
-                  <span>{filteredViewItems.length} objet(s)</span>
-                  <span>Affichage 1 - {filteredViewItems.length} sur {filteredViewItems.length}</span>
+                  <span>
+                    {filteredViewItems.length} objet(s)
+                  </span>
+                  <span>
+                    {selectedObjectIds.length}
+                    {" "}
+                    selectionne(s)
+                  </span>
+                  <span>
+                    Affichage 1 - {filteredViewItems.length}
+                    {" "}
+                    sur {filteredViewItems.length}
+                  </span>
                 </footer>
               </div>
 

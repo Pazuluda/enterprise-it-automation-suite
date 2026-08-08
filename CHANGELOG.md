@@ -4,6 +4,30 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.7.0-alpha.01] — 2026-08-08
+
+### C7.1 — Multi-sélection
+
+- ajout de la sélection multiple dans l’Explorateur AD ;
+- clic simple, Ctrl/Cmd + clic et Maj + clic ;
+- combinaison Ctrl/Cmd + Maj + clic ;
+- Ctrl/Cmd + A sur les objets visibles ;
+- Échap pour vider la sélection ;
+- compteur de sélection ;
+- conservation d’un objet primaire pour les propriétés ;
+- compatibilité avec les comportements historiques utilisateur et groupe ;
+
+### Validation
+
+- recette navigateur complète validée ;
+- 12 tests C7.1 ciblés réussis ;
+- 277 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build et runtime public validés ;
+- intégrité SHA-256 publique validée ;
+- progression : C7.1 100 %, C7 25 %, Explorateur AD 94 %, EITAS 90 %.
+
 ## [0.6.0] — 2026-08-08
 
 ### C6 — Recherche, colonnes, filtres et requêtes

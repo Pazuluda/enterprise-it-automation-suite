@@ -10,17 +10,18 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.6.0
+## État courant — v0.7.0-alpha.01
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
+| C7 — Sélection multiple, copie et glisser-déposer |       25 % |
 | Explorateur Active Directory complet       |       94 % |
 | Projet EITAS global | 90 % |
 
-La version stable `v0.6.0` clôt le chantier C6 « Recherche, colonnes, filtres et requêtes » à 100 %. C1 à C6 sont désormais terminés. Progression actuelle : Explorateur Active Directory 94 %, EITAS 90 %. La prochaine phase est C7 « Sélection multiple, copie et glisser-déposer ».
+Le checkpoint `v0.7.0-alpha.01` valide C7.1 « multi-sélection » à 100 %. C7 est désormais à 25 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C7.2.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -33,12 +34,33 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
-| C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
+| C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | En cours — 25 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.7.0-alpha.01 — C7.1 Multi-sélection
+
+Ce checkpoint valide C7.1 à 100 %.
+
+- clic simple conservé comme sélection primaire ;
+- Ctrl/Cmd + clic pour ajouter ou retirer un objet ;
+- Maj + clic pour sélectionner une plage visible ;
+- Ctrl/Cmd + Maj + clic pour étendre une sélection ;
+- Ctrl/Cmd + A pour sélectionner tous les objets visibles ;
+- Échap pour vider la sélection ;
+- compteur de sélection dans le pied de liste ;
+- objet primaire conservé dans le panneau de propriétés ;
+- compatibilité avec le préchargement utilisateur et les membres de groupe historiques ;
+- 12 tests C7.1 ciblés réussis ;
+- 277 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build, runtime statique et SHA-256 public validés ;
+- recette navigateur validée : 1, 3, 5 puis 0 sélection ;
+- progression : C7.1 100 %, C7 25 %, Explorateur AD 94 %, EITAS 90 %.
 
 ### v0.6.0 — C6
 

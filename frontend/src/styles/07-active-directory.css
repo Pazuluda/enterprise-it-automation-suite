@@ -8563,3 +8563,22 @@ input.aduc-object-protection-checkbox {
     grid-template-columns: 1fr;
   }
 }
+
+/* C7.1 - multi-selection AD Explorer */
+.aduc-table:focus-visible {
+  outline: 2px solid rgba(79, 70, 229, 0.42);
+  outline-offset: -2px;
+}
+
+.aduc-table-row:not(.header) {
+  user-select: none;
+}
+
+.aduc-table-row.selected-object {
+  background: rgba(37, 99, 235, 0.10);
+}
+
+.aduc-table-row.primary-selected-object {
+  outline: 2px solid rgba(37, 99, 235, 0.36);
+  outline-offset: -2px;
+}
