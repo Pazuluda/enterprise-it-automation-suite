@@ -5,21 +5,21 @@
 | Indicateur | Avancement |
 |---|---:|
 | C1 — Fenêtres Propriétés complètes | 100 % |
-| Explorateur Active Directory complet | 25 % |
-| Projet EITAS global | 81 % |
+| Explorateur Active Directory complet | 74 % |
+| Projet EITAS global | 85 % |
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.5.0-alpha.04
+## État courant — v0.5.0
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
-| C5 — Ordinateurs, OU, conteneurs et contacts |       80 % |
-| Explorateur Active Directory complet       |       70 % |
-| Projet EITAS global | 84 % |
+| C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
+| Explorateur Active Directory complet       |       74 % |
+| Projet EITAS global | 85 % |
 
-La version `v0.5.0-alpha.04` clôt C5.4 « Conteneurs Active Directory natifs » à 100 %. C5.1 à C5.4 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4 à 100 %.
+La version stable `v0.5.0` clôt le chantier C5 « Ordinateurs, OU, conteneurs et contacts » à 100 %. C1 à C5 sont désormais terminés. La prochaine phase de l’Explorateur Active Directory est C6.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -31,7 +31,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
-| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 80 % |
+| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
@@ -39,6 +39,23 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.5.0 — C5 stable
+
+Cette version stable clôt C5 « Ordinateurs, OU, conteneurs et contacts ».
+
+- C5.1 Ordinateurs consolidé et couvert par un test frontend dédié.
+- C5.2 OU validé de bout en bout.
+- C5.3 Contacts validé de bout en bout.
+- C5.4 Conteneurs Active Directory natifs validé de bout en bout.
+- Protection hors périmètre confirmée sur le contrôleur de domaine `SRV-DC01`.
+- Aucun ordinateur géré n’étant présent sous `OU=EITAS`, aucun objet artificiel n’a été recré pour la recette finale.
+- Historique objet, navigation structurelle, propriétés et actions de gestion validés en recette navigateur.
+- Suite backend complète : 452 tests et 339 sous-tests validés.
+- Suite frontend complète : 231 tests validés.
+- Lint frontend : 34 warnings connus, 0 erreur.
+- Contrôles de sécurité pré-commit validés.
+- **Progression après C5 : C5 100 %, Explorateur AD 74 %, EITAS 85 %.**
 
 ### v0.5.0-alpha.04 — C5.4 Conteneurs Active Directory natifs
 - Objet `container` pris en charge de bout en bout comme classe Active Directory native.

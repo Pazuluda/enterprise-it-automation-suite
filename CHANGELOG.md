@@ -4,6 +4,31 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.5.0] — 2026-08-08
+
+### C5-FINAL — Ordinateurs, OU, conteneurs et contacts
+
+- Clôture stable du chantier C5 à 100 %.
+- Consolidation des quatre sous-lots C5.1 Ordinateurs, C5.2 OU, C5.3 Contacts et C5.4 Conteneurs Active Directory natifs.
+- Ajout d’un test frontend dédié C5.1 pour verrouiller la gestion des ordinateurs.
+- Validation navigateur croisée des OU, contacts et conteneurs.
+- Protection lecture seule hors périmètre EITAS confirmée sur `SRV-DC01`.
+- Aucun ordinateur n’étant actuellement présent sous `OU=EITAS`, aucun fixture artificiel n’a été recré pour la seule recette visuelle.
+- Historique AD Admin filtré par objet confirmé en recette finale.
+- Mode agent Simulation confirmé avant publication stable.
+
+### Validation
+
+- Matrice backend C5 : 63 tests et 22 sous-tests validés.
+- Audit TODO/FIXME C5 : aucun marqueur incomplet réel.
+- Suite backend complète : 452 tests, 36 warnings connus et 339 sous-tests validés.
+- Suite frontend complète : 231 tests, 0 échec.
+- Lint frontend : 34 warnings connus, 0 erreur.
+- Build Vite de production validé.
+- Contrôles de sécurité pré-commit validés.
+- Runtime public HTTPS validé sur le port 62443.
+- Progression : C5 100 %, Explorateur AD 74 %, EITAS 85 %.
+
 ## [0.5.0-alpha.04] — 2026-08-08
 ### C5.4 — Conteneurs Active Directory natifs
 - Prise en charge de bout en bout des objets `objectClass=container` sans les déguiser en OU.
