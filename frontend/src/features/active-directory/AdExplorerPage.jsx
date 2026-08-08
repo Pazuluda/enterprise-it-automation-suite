@@ -59,6 +59,14 @@ import {
   saveAdExplorerFilterPreferences,
 } from './utils/adExplorerFilters'
 
+import {
+  addAdExplorerSavedSearch,
+  loadAdExplorerSavedSearches,
+  removeAdExplorerSavedSearch,
+  replaceAdExplorerSavedSearch,
+  saveAdExplorerSavedSearches,
+} from './utils/adExplorerSavedSearches'
+
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
 import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
 import AdActivityModal from './components/AdActivityModal'
@@ -153,6 +161,28 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     filterOptionsOpen,
     setFilterOptionsOpen
   ] = useState(false)
+  const [
+    savedSearches,
+    setSavedSearches
+  ] = useState(() =>
+    loadAdExplorerSavedSearches(
+      typeof window === 'undefined'
+        ? null
+        : window.localStorage
+    )
+  )
+  const [
+    savedSearchesOpen,
+    setSavedSearchesOpen
+  ] = useState(false)
+  const [
+    savedSearchName,
+    setSavedSearchName
+  ] = useState('')
+  const [
+    savedSearchError,
+    setSavedSearchError
+  ] = useState('')
   const [loading, setLoading] = useState(false)
   const nodeContentCacheRef = useRef(new Map())
   const nodeContentPromisesRef = useRef(new Map())
@@ -532,6 +562,17 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     )
   }, [advancedFilters])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    saveAdExplorerSavedSearches(
+      window.localStorage,
+      savedSearches
+    )
+  }, [savedSearches])
+
   function updateAdExplorerFilterField(
     field,
     value
@@ -617,6 +658,84 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       normalizeAdExplorerFilters(
         DEFAULT_AD_EXPLORER_FILTERS
       )
+    )
+  }
+
+  function buildCurrentSavedSearch(name) {
+    return {
+      id:
+        `saved-${Date.now()}-${Math.random()
+          .toString(16)
+          .slice(2, 8)}`,
+      name,
+      query: globalAdSearch,
+      columnIds: visibleColumnIds,
+      sort: viewSort,
+      filters: advancedFilters,
+    }
+  }
+
+  function saveCurrentAdExplorerSearch() {
+    const result = addAdExplorerSavedSearch(
+      savedSearches,
+      buildCurrentSavedSearch(
+        savedSearchName
+      )
+    )
+
+    setSavedSearches(result.searches)
+    setSavedSearchError(result.error)
+
+    if (!result.error) {
+      setSavedSearchName('')
+      setStatus('Recherche enregistrée.')
+    }
+  }
+
+  function replaceCurrentAdExplorerSearch(saved) {
+    const result =
+      replaceAdExplorerSavedSearch(
+        savedSearches,
+        saved.id,
+        buildCurrentSavedSearch(saved.name)
+      )
+
+    setSavedSearches(result.searches)
+    setSavedSearchError(result.error)
+
+    if (!result.error) {
+      setStatus(
+        `Recherche ${saved.name} remplacée.`
+      )
+    }
+  }
+
+  function deleteAdExplorerSavedSearch(saved) {
+    setSavedSearches(previous =>
+      removeAdExplorerSavedSearch(
+        previous,
+        saved.id
+      )
+    )
+    setSavedSearchError('')
+  }
+
+  async function loadAdExplorerSavedSearch(saved) {
+    setVisibleColumnIds(saved.columnIds)
+    setViewSort(saved.sort)
+    setAdvancedFilters(saved.filters)
+    setGlobalAdSearch(saved.query)
+    setSavedSearchName(saved.name)
+    setSavedSearchError('')
+    setSavedSearchesOpen(false)
+
+    if (saved.query) {
+      await runGlobalAdSearch(null, saved.query)
+      return
+    }
+
+    setStatus(
+      `Recherche ${saved.name} restaurée.`
     )
   }
 
@@ -2134,14 +2253,18 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   }
 
 
-  async function runGlobalAdSearch(event) {
+  async function runGlobalAdSearch(event, queryOverride = null) {
     event?.preventDefault?.()
 
-    const query = globalAdSearch.trim()
+    const query = String(queryOverride ?? globalAdSearch).trim()
 
     if (!query) {
       setStatus('Recherche AD vide.')
       return
+    }
+
+    if (queryOverride !== null) {
+      setGlobalAdSearch(query)
     }
 
     setGlobalAdSearchLoading(true)
@@ -3215,6 +3338,146 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                     </button>
 
                     <div
+                      className="aduc-saved-searches"
+                    >
+                      <button
+                        type="button"
+                        className="aduc-saved-searches-trigger"
+                        title="Recherches enregistrées"
+                        aria-label="Gérer les recherches enregistrées"
+                        aria-expanded={savedSearchesOpen}
+                        onClick={() => {
+                          setFilterOptionsOpen(false)
+                          setColumnOptionsOpen(false)
+                          setSavedSearchError('')
+                          setSavedSearchesOpen(
+                            previous => !previous
+                          )
+                        }}
+                      >
+                        Recherches
+                      </button>
+
+                      {savedSearchesOpen && (
+                        <div
+                          className="aduc-saved-searches-menu"
+                        >
+                          <header
+                            className="aduc-saved-searches-head"
+                          >
+                            <strong>
+                              Recherches enregistrées
+                            </strong>
+                            <small>
+                              Mémorise la recherche globale,
+                              les filtres, les colonnes et le tri.
+                            </small>
+                          </header>
+
+                          <div
+                            className="aduc-saved-search-create"
+                          >
+                            <input
+                              value={savedSearchName}
+                              onChange={event => {
+                                setSavedSearchName(
+                                  event.target.value
+                                )
+                                setSavedSearchError('')
+                              }}
+                              placeholder="Nom de la recherche..."
+                              maxLength={80}
+                            />
+                            <button
+                              type="button"
+                              onClick={
+                                saveCurrentAdExplorerSearch
+                              }
+                            >
+                              Enregistrer
+                            </button>
+                          </div>
+
+                          {savedSearchError && (
+                            <div
+                              className="aduc-saved-search-error"
+                            >
+                              {savedSearchError}
+                            </div>
+                          )}
+
+                          <div
+                            className="aduc-saved-search-list"
+                          >
+                            {savedSearches.length === 0 ? (
+                              <div
+                                className="aduc-saved-search-empty"
+                              >
+                                Aucune recherche enregistrée.
+                              </div>
+                            ) : (
+                              savedSearches.map(saved => (
+                                <div
+                                  key={saved.id}
+                                  className="aduc-saved-search-item"
+                                >
+                                  <div>
+                                    <strong>
+                                      {saved.name}
+                                    </strong>
+                                    <span
+                                      className="aduc-saved-search-summary"
+                                    >
+                                      {saved.query
+                                        ? `Recherche : ${saved.query}`
+                                        : 'Vue courante sans recherche globale'}
+                                    </span>
+                                  </div>
+
+                                  <div
+                                    className="aduc-saved-search-actions"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        loadAdExplorerSavedSearch(
+                                          saved
+                                        )
+                                      }
+                                    >
+                                      Charger
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        replaceCurrentAdExplorerSearch(
+                                          saved
+                                        )
+                                      }
+                                    >
+                                      Remplacer
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="danger"
+                                      onClick={() =>
+                                        deleteAdExplorerSavedSearch(
+                                          saved
+                                        )
+                                      }
+                                    >
+                                      Supprimer
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div
                       className="aduc-filter-options"
                     >
                       <button
@@ -3227,6 +3490,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                         }
                         onClick={() => {
                           setColumnOptionsOpen(false)
+                          setSavedSearchesOpen(false)
                           setFilterOptionsOpen(
                             previous =>
                               !previous
@@ -3508,6 +3772,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                         }
                         onClick={() => {
                           setFilterOptionsOpen(false)
+                          setSavedSearchesOpen(false)
                           setColumnOptionsOpen(
                             previous =>
                               !previous

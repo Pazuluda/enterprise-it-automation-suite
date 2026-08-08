@@ -4,6 +4,29 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.6.0-alpha.04] — 2026-08-08
+
+### C6.4 — Recherches enregistrées
+
+- ajout des recherches Active Directory enregistrées ;
+- mémorisation de la requête globale, des filtres, des colonnes et du tri ;
+- persistance locale avec limite de 20 entrées ;
+- protection contre les doublons de nom ;
+- actions Charger, Remplacer et Supprimer ;
+- chargement par le moteur unifié `search_objects` ;
+- compatibilité C6.1, C6.2 et C6.3 conservée ;
+
+### Validation
+
+- recette navigateur complète validée ;
+- 34 tests C6 ciblés réussis ;
+- 265 tests frontend réussis ;
+- 459 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build Vite et publication runtime validés ;
+- contrôles de sécurité validés ;
+- progression : C6.4 100 %, C6 80 %, Explorateur AD 90 %, EITAS 89 %.
+
 ## [0.6.0-alpha.03] — 2026-08-08
 
 ### C6.3 — Filtres avancés

@@ -11,7 +11,7 @@ const source = fs.readFileSync(
 )
 
 const start = source.indexOf(
-  '  async function runGlobalAdSearch(event) {'
+  '  async function runGlobalAdSearch('
 )
 
 const end = source.indexOf(
