@@ -4,6 +4,28 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.5.0-alpha.01] — 2026-08-08
+
+### C5.1 — Ordinateurs : consolidation et validation formelle
+
+- premier checkpoint fonctionnel du chantier C5 ;
+- création ordinateur prévalidée sur l’état Active Directory réel avant Simulation ;
+- OU cible inexistante refusée et doublon ordinateur détecté au niveau du domaine ;
+- renommage ordinateur normalisé et prévalidé avant Simulation, y compris conflits `sAMAccountName` ;
+- règles de nom ordinateur harmonisées entre création et renommage ;
+- mise à jour des propriétés ordinateur entièrement prévalidée avant la frontière Simulation ;
+- propriétés système, `sAMAccountName`, `managedBy` et protection contre la suppression accidentelle couvertes ;
+- aucune commande d’écriture Active Directory exécutée avant le retour Simulation ;
+- resolver AD fiabilisé avec `Get-EitasAdDomainDn`, supprimant le défaut `SearchBase` nul sur objet inexistant ;
+- validation runtime de création, renommage et mise à jour sans modification Active Directory ;
+- fixture temporaire supprimé après les contrôles ;
+- module Windows validé sous PowerShell 5.1 et déployé avec SHA-256 `2BDF63F9F8FEFB841D22E2E83936E7CAC1CBC949E0C2E4E0FECBCE0580578BE5` ;
+- worker `EITAS AD Admin Worker` redémarré et confirmé actif ;
+- 21 tests dédiés C5.1 validés ;
+- suite backend complète : 407 tests, 32 warnings connus et 326 sous-tests validés ;
+- C5.1 clôturé à 100 %, C5 global à 20 %.
+
+
 ## [0.4.0] — 2026-08-07
 
 ### C4 — Groupes, imbrication et appartenances

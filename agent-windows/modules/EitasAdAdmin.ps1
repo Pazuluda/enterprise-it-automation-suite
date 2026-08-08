@@ -960,20 +960,6 @@ function Invoke-EitasAdAdminCreateComputer {
         -Value $EnabledValue `
         -Default $false
 
-    if ($Mode -ne "Production") {
-        return [pscustomobject]@{
-            action = "create_computer"
-            simulated = $true
-            name = $Name
-            sam_account_name = $ComputerSamAccountName
-            target_ou_dn = $TargetOuDn
-            description = $DescriptionText
-            location = $LocationText
-            enabled = $Enabled
-            message = "Simulation création ordinateur AD"
-        }
-    }
-
     Import-EitasActiveDirectoryModule |
         Out-Null
 
@@ -1005,6 +991,20 @@ function Invoke-EitasAdAdminCreateComputer {
 
     if ($null -ne $ExistingComputer) {
         throw "Ordinateur déjà existant : $Name ($($ExistingComputer.DistinguishedName))"
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "create_computer"
+            simulated = $true
+            name = $Name
+            sam_account_name = $ComputerSamAccountName
+            target_ou_dn = $TargetOuDn
+            description = $DescriptionText
+            location = $LocationText
+            enabled = $Enabled
+            message = "Simulation création ordinateur AD"
+        }
     }
 
     $CreateParams = @{
@@ -1803,7 +1803,9 @@ function Resolve-EitasAdAdminObject {
     }
 
     if ($null -eq $Object) {
-        $SearchBase = Get-EitasObjectValue -Object $Config -Names @("AdBaseDn", "BaseDn", "DomainDn")
+        $SearchBase = (
+            Get-EitasAdDomainDn -Config $Config
+        ).Trim()
         $SafeIdentity = $Identity.Replace("\", "\5c").Replace("*", "\2a").Replace("(", "\28").Replace(")", "\29")
 
         $Matches = @(Get-ADObject `
@@ -2452,17 +2454,6 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
                 -Config $Config `
                 -ObjectIdentity $ObjectIdentity `
                 -Properties $Properties
-    }
-
-    if ($Mode -ne "Production") {
-        return [pscustomobject]@{
-            action = "update_object_properties"
-            simulated = $true
-            object_identity = $ObjectIdentity
-            properties = $Properties
-            group_transition = $GroupTransitionPreview
-            message = "Simulation modification propriétés objet AD"
-        }
     }
 
     $CurrentPostOfficeBoxes = @()
@@ -3517,6 +3508,17 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         }
     }
 
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "update_object_properties"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            properties = $Properties
+            group_transition = $GroupTransitionPreview
+            message = "Simulation modification propriétés objet AD"
+        }
+    }
+
     if ($Replace.Count -gt 0) {
         Set-ADObject `
             -Identity $ObjectDn `
@@ -4085,16 +4087,6 @@ function Invoke-EitasAdAdminRenameObject {
 
     $Object = Resolve-EitasAdAdminObject -Config $Config -Identity $ObjectIdentity
 
-    if ($Mode -ne "Production") {
-        return [pscustomobject]@{
-            action = "rename_object"
-            simulated = $true
-            object_identity = $ObjectIdentity
-            new_name = $NewName
-            message = "Simulation renommage objet AD"
-        }
-    }
-
     $ObjectDn = [string]$Object.DistinguishedName
     $ObjectClass = ([string]$Object.ObjectClass).Trim().ToLowerInvariant()
     $IsComputer = $ObjectClass -eq "computer"
@@ -4111,6 +4103,17 @@ function Invoke-EitasAdAdminRenameObject {
             -or $NewName -notmatch '^[A-Z0-9-]+$'
         ) {
             throw "Nom ordinateur invalide : 1 à 15 caractères, lettres A-Z, chiffres et tirets uniquement"
+        }
+
+        if (
+            $NewName.StartsWith("-") -or
+            $NewName.EndsWith("-")
+        ) {
+            throw "Le nom ordinateur ne peut pas commencer ou finir par un tiret"
+        }
+
+        if ($NewName -match "^[0-9]+$") {
+            throw "Le nom ordinateur ne peut pas contenir uniquement des chiffres"
         }
 
         $ComputerBefore = Get-ADComputer `
@@ -4132,6 +4135,16 @@ function Invoke-EitasAdAdminRenameObject {
 
         if ($null -ne $ComputerConflict) {
             throw "Un compte ordinateur utilise déjà l’identifiant $NewSamAccountName"
+        }
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "rename_object"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            new_name = $NewName
+            message = "Simulation renommage objet AD"
         }
     }
 

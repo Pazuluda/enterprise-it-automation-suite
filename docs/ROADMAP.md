@@ -10,15 +10,16 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.4.0
+## État courant — v0.5.0-alpha.01
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
+| C5 — Ordinateurs, OU, conteneurs et contacts |       20 % |
 | Explorateur Active Directory complet       |       58 % |
 | Projet EITAS global | 82 % |
 
-La version `v0.4.0` clôt le chantier C4 « Groupes, imbrication et appartenances » à 100 % après validation fonctionnelle, runtime, frontend et backend de l’ensemble du périmètre C4.
+La version `v0.5.0-alpha.01` ouvre le chantier C5 et clôt C5.1 « Ordinateurs : consolidation et validation formelle » à 100 %. `v0.4.0` reste la version stable de clôture du chantier C4.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -30,7 +31,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
-| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Planifié |
+| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 20 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
@@ -38,6 +39,26 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.5.0-alpha.01 — Checkpoint C5.1
+
+Ce checkpoint clôt C5.1 « Ordinateurs : consolidation et validation formelle ».
+
+- création ordinateur consolidée avec validation réelle de l’OU cible avant le retour Simulation ;
+- détection des comptes ordinateur déjà existants dans le domaine avant Simulation ;
+- règles de nom ordinateur alignées : 1 à 15 caractères, A-Z, chiffres et tirets, sans tiret initial/final et sans valeur uniquement numérique ;
+- renommage ordinateur prévalidé avant Simulation avec synchronisation prévue du `sAMAccountName` et détection des conflits ;
+- mise à jour ordinateur prévalidée avant Simulation pour `sAMAccountName`, propriétés système, `managedBy` et protection contre la suppression accidentelle ;
+- toutes les écritures Active Directory restent après la frontière Simulation ;
+- resolver AD corrigé pour utiliser `Get-EitasAdDomainDn` et retourner proprement « Objet AD introuvable » au lieu d’un `SearchBase` nul ;
+- validations runtime Windows PowerShell 5.1 confirmées sans écriture Active Directory ;
+- fixture ordinateur temporaire supprimé après validation ;
+- module Windows actif SHA-256 `2BDF63F9F8FEFB841D22E2E83936E7CAC1CBC949E0C2E4E0FECBCE0580578BE5` ;
+- 21 tests dédiés C5.1 validés ;
+- suite backend complète : 407 tests, 32 warnings connus et 326 sous-tests validés ;
+- `git diff --check` validé ;
+- C5.1 terminé à 100 % ;
+- C5 global : 20 % ; Explorateur AD : 58 % ; EITAS : 82 %.
 
 ### v0.4.0-alpha.07 — Checkpoint C4.6
 
