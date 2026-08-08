@@ -71,6 +71,9 @@ import {
   resolveAdExplorerSelection,
   selectAllAdExplorerSelection,
 } from "./utils/adExplorerSelection"
+import {
+  isCopyableUserSource,
+} from "./utils/adUserCopy"
 
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
 import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
@@ -1714,6 +1717,184 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     }
   }
 
+
+  function getSelectedAdExplorerObjects() {
+    const selectedIds = new Set(
+      selectedObjectIds
+    )
+
+    return filteredViewItems.filter(
+      item =>
+        selectedIds.has(
+          getAdExplorerSelectionId(
+            item
+          )
+        )
+    )
+  }
+
+  function getAdExplorerSelectionName(item) {
+    return String(
+      item?.display_name
+      || item?.displayName
+      || item?.name
+      || item?.cn
+      || item?.sam_account_name
+      || item?.samAccountName
+      || getObjectDn(item)
+      || ""
+    ).trim()
+  }
+
+  function escapeAdExplorerSelectionCsv(value) {
+    const text = String(
+      value ?? ""
+    )
+
+    if (
+      text.includes(";")
+      || text.includes("\"")
+      || text.includes("\n")
+      || text.includes("\r")
+    ) {
+      return (
+        "\""
+        + text.replaceAll(
+          "\"",
+          "\"\""
+        )
+        + "\""
+      )
+    }
+
+    return text
+  }
+
+  function buildAdExplorerSelectionText(
+    selectedItems,
+    format
+  ) {
+    if (format === "dn") {
+      return selectedItems
+        .map(getObjectDn)
+        .filter(Boolean)
+        .join("\n")
+    }
+
+    if (format === "name") {
+      return selectedItems
+        .map(
+          getAdExplorerSelectionName
+        )
+        .filter(Boolean)
+        .join("\n")
+    }
+
+    if (format === "csv") {
+      const rows = [
+        "Nom;Type;Compte SAM;E-mail;DN"
+      ]
+
+      for (const item of selectedItems) {
+        rows.push(
+          [
+            getAdExplorerSelectionName(
+              item
+            ),
+            String(
+              item?.type
+              || item?.object_type
+              || item?.objectType
+              || ""
+            ),
+            String(
+              item?.sam_account_name
+              || item?.samAccountName
+              || item?.sAMAccountName
+              || ""
+            ),
+            String(
+              item?.mail
+              || item?.email
+              || item?.email_address
+              || ""
+            ),
+            getObjectDn(item),
+          ]
+            .map(
+              escapeAdExplorerSelectionCsv
+            )
+            .join(";")
+        )
+      }
+
+      return rows.join("\n")
+    }
+
+    throw new Error(
+      "Format de copie inconnu."
+    )
+  }
+
+  async function copyAdExplorerSelection(
+    format
+  ) {
+    const selectedItems =
+      getSelectedAdExplorerObjects()
+
+    if (selectedItems.length === 0) {
+      const message =
+        "Aucun objet selectionne a copier."
+
+      setStatus(message)
+      setMessage?.(message)
+      return
+    }
+
+    try {
+      const text =
+        buildAdExplorerSelectionText(
+          selectedItems,
+          format
+        )
+
+      if (!text.trim()) {
+        throw new Error(
+          "Aucune donnee a copier."
+        )
+      }
+
+      await copyText(text)
+
+      const label =
+        format === "dn"
+          ? "DN"
+          : format === "name"
+            ? "noms"
+            : "CSV"
+
+      const message =
+        selectedItems.length
+        + " objet(s) : "
+        + label
+        + " copie(s) dans le presse-papiers."
+
+      setStatus(message)
+      setMessage?.(message)
+    } catch (error) {
+      const message =
+        error?.message
+        || "Impossible de copier la selection."
+
+      setStatus(
+        "Erreur : " + message
+      )
+
+      setMessage?.(
+        "Erreur : " + message
+      )
+    }
+  }
 
   function resolveLinkedObject(target) {
     const targetDn =
@@ -4018,6 +4199,81 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                     + "Echap : vider la selection"
                   }
                 >
+                  {selectedObjectIds.length > 0 && (
+                    <div
+                      className="aduc-selection-actions"
+                      role="toolbar"
+                      aria-label="Actions sur la sélection"
+                    >
+                      <strong>
+                        {selectedObjectIds.length}
+                        {" "}
+                        sélectionné(s)
+                      </strong>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyAdExplorerSelection(
+                            "dn"
+                          )
+                        }
+                      >
+                        ⎙ Copier les DN
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyAdExplorerSelection(
+                            "name"
+                          )
+                        }
+                      >
+                        ⎙ Copier les noms
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyAdExplorerSelection(
+                            "csv"
+                          )
+                        }
+                      >
+                        ⇩ Copier CSV
+                      </button>
+
+                      {(
+                        selectedObjectIds.length === 1
+                        && isCopyableUserSource(
+                          selectedObject
+                        )
+                      ) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openCopyUser(
+                              selectedObject
+                            )
+                          }
+                        >
+                          👤 Copier utilisateur
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={
+                          clearAdExplorerSelection
+                        }
+                      >
+                        ✕ Désélectionner
+                      </button>
+                    </div>
+                  )}
+
                   <div
                     className="aduc-table-row header"
                     style={{

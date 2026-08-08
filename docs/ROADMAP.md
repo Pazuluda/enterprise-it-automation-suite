@@ -10,18 +10,18 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.7.0-alpha.01
+## État courant — v0.7.0-alpha.02
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
-| C7 — Sélection multiple, copie et glisser-déposer |       25 % |
+| C7 — Sélection multiple, copie et glisser-déposer |       50 % |
 | Explorateur Active Directory complet       |       94 % |
 | Projet EITAS global | 90 % |
 
-Le checkpoint `v0.7.0-alpha.01` valide C7.1 « multi-sélection » à 100 %. C7 est désormais à 25 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C7.2.
+Le checkpoint `v0.7.0-alpha.02` valide C7.2 « actions de sélection et copie » à 100 %. C7 est désormais à 50 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C7.3.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -34,12 +34,34 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
-| C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | En cours — 25 % |
+| C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | En cours — 50 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.7.0-alpha.02 — C7.2 Actions de sélection et copie
+
+Ce checkpoint valide C7.2 à 100 %.
+
+- barre compacte d actions sur la sélection multiple ;
+- copie des DN de tous les objets sélectionnés ;
+- copie des noms de tous les objets sélectionnés ;
+- export presse-papiers CSV `Nom;Type;Compte SAM;E-mail;DN` ;
+- réutilisation du workflow historique Copier utilisateur pour une source utilisateur unique ;
+- désélection explicite depuis la barre ;
+- aucun nouveau job destructif bulk ;
+- aucun changement backend ;
+- correction du crash runtime lié au helper utilisateur ;
+- reconstruction propre de la barre après validation du layout navigateur ;
+- navigation des OU revalidée sans régression ;
+- 10 tests C7.2 ciblés réussis ;
+- 287 tests frontend réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build/runtime statique et SHA-256 public validés ;
+- recette navigateur DN, noms, CSV et navigation validée ;
+- progression : C7.2 100 %, C7 50 %, Explorateur AD 94 %, EITAS 90 %.
 
 ### v0.7.0-alpha.01 — C7.1 Multi-sélection
 

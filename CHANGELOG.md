@@ -4,6 +4,30 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.7.0-alpha.02] — 2026-08-08
+
+### C7.2 — Actions de sélection et copie
+
+- ajout d une barre compacte pour la sélection multiple ;
+- copie groupée des DN ;
+- copie groupée des noms ;
+- export CSV vers le presse-papiers ;
+- réutilisation du workflow de copie utilisateur pour une sélection utilisateur unique ;
+- ajout d une action de désélection explicite ;
+- aucun bulk destructif ajouté ;
+- aucun changement backend.
+
+### Validation
+
+- 10 tests C7.2 ciblés réussis ;
+- 287 tests frontend réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build et runtime public identiques ;
+- intégrité SHA-256 publique validée ;
+- recette navigateur des copies DN, noms et CSV validée ;
+- navigation `Users` revalidée sans régression ;
+- progression : C7.2 100 %, C7 50 %, Explorateur AD 94 %, EITAS 90 %.
+
 ## [0.7.0-alpha.01] — 2026-08-08
 
 ### C7.1 — Multi-sélection

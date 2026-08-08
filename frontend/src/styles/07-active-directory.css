@@ -8582,3 +8582,43 @@ input.aduc-object-protection-checkbox {
   outline: 2px solid rgba(37, 99, 235, 0.36);
   outline-offset: -2px;
 }
+
+/* C7.2 - selection action bar */
+.aduc-selection-actions {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  width: auto;
+  max-width: calc(100% - 16px);
+  gap: 6px;
+  margin: 8px;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.07);
+}
+
+.aduc-selection-actions strong {
+  margin-right: 2px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.aduc-selection-actions button {
+  flex: 0 0 auto;
+  min-height: 27px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.aduc-selection-actions .secondary {
+  margin-left: 0;
+}
