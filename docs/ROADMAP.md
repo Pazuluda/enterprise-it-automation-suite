@@ -10,16 +10,16 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.5.0-alpha.01
+## État courant — v0.5.0-alpha.02
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
-| C5 — Ordinateurs, OU, conteneurs et contacts |       20 % |
+| C5 — Ordinateurs, OU, conteneurs et contacts |       40 % |
 | Explorateur Active Directory complet       |       58 % |
 | Projet EITAS global | 82 % |
 
-La version `v0.5.0-alpha.01` ouvre le chantier C5 et clôt C5.1 « Ordinateurs : consolidation et validation formelle » à 100 %. `v0.4.0` reste la version stable de clôture du chantier C4.
+La version `v0.5.0-alpha.02` clôt C5.2 « OU : consolidation et validation formelle » à 100 %. C5.1 et C5.2 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -31,7 +31,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
-| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 20 % |
+| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 40 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
@@ -39,6 +39,31 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.5.0-alpha.02 — Checkpoint C5.2
+
+Ce checkpoint clôt C5.2 « OU : consolidation et validation formelle ».
+
+- création d’OU prévalidée sur le parent Active Directory réel avant Simulation ;
+- parent limité aux classes `organizationalUnit` et `container` dans le périmètre EITAS ;
+- doublon d’OU détecté avant le retour Simulation ;
+- suppression d’OU prévalidée sur la vacuité et l’état de protection avant Simulation ;
+- désactivation réelle de la protection et suppression conservées strictement en Production ;
+- collision d’OU sœur détectée avant renommage simulé ;
+- collision de nom dans la destination détectée avant déplacement simulé ;
+- `managedBy` et `protectedFromAccidentalDeletion` couverts pour les propriétés OU ;
+- huit scénarios runtime validés, avec quatre succès Simulation et quatre refus attendus ;
+- Active Directory confirmé inchangé après les scénarios Simulation ;
+- fixtures C5.2 supprimées avec `FIXTURE_REMAINING=0` ;
+- module Windows actif SHA-256 `3673C85799DFB5ED8ADF90AA2E253D0CEF1FA67236C164A4B1D0ECB0C7C74196` ;
+- 13 tests backend dédiés C5.2 validés ;
+- 5 tests frontend dédiés OU validés ;
+- suite frontend complète : 198 tests validés ;
+- lint frontend : 34 warnings connus, 0 erreur ;
+- build Vite de production validé ;
+- suite backend complète : 420 tests, 32 warnings connus et 326 sous-tests validés ;
+- C5.2 terminé à 100 % ;
+- C5 global : 40 % ; Explorateur AD : 62 % ; EITAS : 82 %.
 
 ### v0.5.0-alpha.01 — Checkpoint C5.1
 

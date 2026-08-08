@@ -149,6 +149,36 @@ function Invoke-EitasAdAdminCreateOu {
 
     Assert-EitasDnSafe -DistinguishedName $ParentDn -Config $Config | Out-Null
 
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $ParentObject = Get-ADObject `
+        -Identity $ParentDn `
+        -Properties objectClass, distinguishedName, name `
+        -ErrorAction Stop
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $ParentObject.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    $ParentObjectClass = ([string]$ParentObject.ObjectClass).Trim()
+
+    if (
+        $ParentObjectClass -ine "organizationalUnit" `
+        -and $ParentObjectClass -ine "container"
+    ) {
+        throw "Parent invalide : la création d'une OU nécessite une OU ou un conteneur AD"
+    }
+
+    if (
+        Test-EitasAdObjectExists `
+            -Identity $Name `
+            -SearchBase $ParentDn `
+            -ObjectClass "organizationalUnit"
+    ) {
+        throw "OU déjà existante : $Name dans $ParentDn"
+    }
+
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "create_ou"
@@ -157,12 +187,6 @@ function Invoke-EitasAdAdminCreateOu {
             parent_dn = $ParentDn
             message = "Simulation création OU"
         }
-    }
-
-    Import-EitasActiveDirectoryModule | Out-Null
-
-    if (Test-EitasAdObjectExists -Identity $Name -SearchBase $ParentDn -ObjectClass "organizationalUnit") {
-        throw "OU déjà existante : $Name dans $ParentDn"
     }
 
     $Params = @{
@@ -3982,20 +4006,9 @@ function Invoke-EitasAdAdminDeleteObject {
         throw "Confirmation DN invalide. DN réel : $ObjectDn"
     }
 
-    if ($Mode -ne "Production") {
-        return [pscustomobject]@{
-            action = "delete_object"
-            simulated = $true
-            object_identity = $ObjectIdentity
-            confirm_dn = $ConfirmDn
-            message = "Simulation suppression objet AD"
-        }
-    }
-
-    $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
     $IsOu = ([string]$Object.ObjectClass -ieq "organizationalUnit")
     $OuEmptyVerified = $false
-    $OuProtectionDisabled = $false
+    $OuWasProtected = $false
 
     if ($IsOu) {
         $Children = @(
@@ -4018,14 +4031,31 @@ function Invoke-EitasAdAdminDeleteObject {
             -Properties ProtectedFromAccidentalDeletion `
             -ErrorAction Stop
 
-        if ([bool]$Ou.ProtectedFromAccidentalDeletion) {
-            Set-ADOrganizationalUnit `
-                -Identity $ObjectDn `
-                -ProtectedFromAccidentalDeletion $false `
-                -ErrorAction Stop
+        $OuWasProtected = [bool]$Ou.ProtectedFromAccidentalDeletion
+    }
 
-            $OuProtectionDisabled = $true
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "delete_object"
+            simulated = $true
+            object_identity = $ObjectIdentity
+            confirm_dn = $ConfirmDn
+            ou_empty_verified = $OuEmptyVerified
+            ou_was_protected = $OuWasProtected
+            message = "Simulation suppression objet AD"
         }
+    }
+
+    $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
+    $OuProtectionDisabled = $false
+
+    if ($IsOu -and $OuWasProtected) {
+        Set-ADOrganizationalUnit `
+            -Identity $ObjectDn `
+            -ProtectedFromAccidentalDeletion $false `
+            -ErrorAction Stop
+
+        $OuProtectionDisabled = $true
     }
 
     Remove-ADObject `
@@ -4090,6 +4120,7 @@ function Invoke-EitasAdAdminRenameObject {
     $ObjectDn = [string]$Object.DistinguishedName
     $ObjectClass = ([string]$Object.ObjectClass).Trim().ToLowerInvariant()
     $IsComputer = $ObjectClass -eq "computer"
+    $IsOu = $ObjectClass -eq "organizationalunit"
 
     $OldSamAccountName = $null
     $NewSamAccountName = $null
@@ -4135,6 +4166,32 @@ function Invoke-EitasAdAdminRenameObject {
 
         if ($null -ne $ComputerConflict) {
             throw "Un compte ordinateur utilise déjà l’identifiant $NewSamAccountName"
+        }
+    }
+
+    if ($IsOu) {
+        $OuCommaIndex = $ObjectDn.IndexOf(",")
+
+        if ($OuCommaIndex -lt 1) {
+            throw "DN objet invalide : $ObjectDn"
+        }
+
+        $OuParentDn = $ObjectDn.Substring($OuCommaIndex + 1)
+        $SafeOuName = $NewName.Replace("\", "\5c").Replace("*", "\2a").Replace("(", "\28").Replace(")", "\29")
+
+        $OuConflict = Get-ADOrganizationalUnit `
+            -LDAPFilter "(name=$SafeOuName)" `
+            -SearchBase $OuParentDn `
+            -SearchScope OneLevel `
+            -Properties distinguishedName `
+            -ErrorAction Stop |
+            Where-Object {
+                [string]$_.DistinguishedName -ine $ObjectDn
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $OuConflict) {
+            throw "OU déjà existante : $NewName dans $OuParentDn"
         }
     }
 
@@ -4332,6 +4389,24 @@ function Invoke-EitasAdAdminMoveObject {
 
     if ($TargetDn -ieq $ObjectDn -or $TargetDn.ToLowerInvariant().EndsWith("," + $ObjectDn.ToLowerInvariant())) {
         throw "Déplacement impossible : la destination est l’objet lui-même ou un de ses enfants"
+    }
+
+    $MoveObjectName = ([string]$Object.Name).Trim()
+    $SafeMoveName = $MoveObjectName.Replace("\", "\5c").Replace("*", "\2a").Replace("(", "\28").Replace(")", "\29")
+
+    $MoveConflict = Get-ADObject `
+        -LDAPFilter "(name=$SafeMoveName)" `
+        -SearchBase $TargetDn `
+        -SearchScope OneLevel `
+        -Properties distinguishedName `
+        -ErrorAction Stop |
+        Where-Object {
+            [string]$_.DistinguishedName -ine $ObjectDn
+        } |
+        Select-Object -First 1
+
+    if ($null -ne $MoveConflict) {
+        throw "Un objet du même nom existe déjà dans la destination : $MoveObjectName"
     }
 
     if ($Mode -ne "Production") {

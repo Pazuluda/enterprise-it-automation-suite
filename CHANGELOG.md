@@ -4,6 +4,34 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.5.0-alpha.02] — 2026-08-08
+
+### C5.2 — OU : consolidation et validation formelle
+
+- deuxième checkpoint fonctionnel du chantier C5 ;
+- création d’OU prévalidée sur le parent Active Directory réel avant Simulation ;
+- parent de création limité à une OU ou un conteneur AD dans le périmètre autorisé ;
+- doublon d’OU détecté avant toute réponse Simulation ;
+- suppression d’OU prévalidée sur la vacuité et l’état de protection ;
+- désactivation de la protection et suppression réelle maintenues exclusivement en Production ;
+- renommage d’OU prévalidé contre les collisions avec une OU sœur ;
+- déplacement prévalidé contre les collisions de nom dans la destination ;
+- propriétés OU `managedBy` et protection contre la suppression accidentelle couvertes ;
+- huit scénarios runtime Windows validés avec quatre succès Simulation et quatre refus attendus ;
+- Active Directory confirmé inchangé après les validations Simulation ;
+- fixtures temporaires supprimées, aucun objet C5.2 résiduel ;
+- module Windows PowerShell 5.1 validé et déployé avec SHA-256 `3673C85799DFB5ED8ADF90AA2E253D0CEF1FA67236C164A4B1D0ECB0C7C74196` ;
+- worker `EITAS AD Admin Worker` confirmé actif ;
+- 13 tests backend dédiés C5.2 validés ;
+- 5 tests frontend dédiés OU validés ;
+- suite frontend complète : 198 tests, 0 échec ;
+- lint frontend : 34 warnings connus, 0 erreur ;
+- build Vite de production validé ;
+- suite backend complète : 420 tests, 32 warnings connus et 326 sous-tests validés ;
+- contrôles de sécurité sans secret validés ;
+- C5.2 clôturé à 100 %, C5 global à 40 %.
+
+
 ## [0.5.0-alpha.01] — 2026-08-08
 
 ### C5.1 — Ordinateurs : consolidation et validation formelle
