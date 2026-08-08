@@ -6,6 +6,7 @@ import {
   getObjectDn,
   isEitasManagedDn,
   isEitasManagedObject,
+  isContainerObject,
 } from '../utils/adExplorerCore'
 import {
   dedupeCreateUserOuOptions,
@@ -37,6 +38,7 @@ function useAdAdminCreation({
   getOuPathLabelFromDn,
   isOuDn,
   splitLdapDn,
+  adminParentItems = [],
 }) {
   const [adminModal, setAdminModal] = useState(null)
   const [adminOuOptions, setAdminOuOptions] = useState([])
@@ -74,6 +76,24 @@ function useAdAdminCreation({
       return 'EITAS'
     }
 
+    if (/^CN=/i.test(cleanDn)) {
+      const labels = splitLdapDn(cleanDn)
+        .filter(part => /^(OU|CN)=/i.test(part))
+        .reverse()
+        .map(part =>
+          part.replace(/^(OU|CN)=/i, '')
+        )
+        .filter((label, index) =>
+          !(
+            index === 0
+            && label.toUpperCase() === 'EITAS'
+          )
+        )
+
+      return labels.length
+        ? `EITAS / ${labels.join(' / ')}`
+        : 'EITAS'
+    }
     const pathLabel = getOuPathLabelFromDn(
       cleanDn,
       EITAS_DN
@@ -126,6 +146,62 @@ function useAdAdminCreation({
     )
   }
 
+  function isAdminParentDn(dn) {
+    const cleanDn = String(dn || '').trim()
+
+    return Boolean(
+      cleanDn
+      && isEitasManagedDn(cleanDn)
+      && /^(OU|CN)=/i.test(cleanDn)
+    )
+  }
+
+  function normalizeAdminParentOptions(items) {
+    const sourceItems = [
+      {
+        distinguished_name: EITAS_DN,
+        type: 'ou',
+      },
+      ...(Array.isArray(items) ? items : []),
+    ]
+
+    return sortCreateUserOuOptions(
+      dedupeCreateUserOuOptions(
+        sourceItems
+          .filter(item => {
+            const dn = String(
+              getObjectDn(item)
+              || item?.dn
+              || item?.distinguished_name
+              || ''
+            ).trim()
+
+            return Boolean(
+              dn
+              && isEitasManagedDn(dn)
+              && (
+                /^OU=/i.test(dn)
+                || isContainerObject(item)
+              )
+            )
+          })
+          .map(item => {
+            const dn = String(
+              getObjectDn(item)
+              || item?.dn
+              || item?.distinguished_name
+              || ''
+            ).trim()
+
+            return {
+              dn,
+              label:
+                getAdminCreationOuDisplayLabel(dn),
+            }
+          })
+      )
+    )
+  }
   function getAdminCreationValidationError(
     form = adminForm,
     modal = adminModal
@@ -146,13 +222,13 @@ function useAdAdminCreation({
       /[,+\=<>#;"\\]/
 
     if (!parentDn) {
-      return 'Choisis une OU de destination.'
+      return 'Choisis une OU ou un conteneur de destination.'
     }
 
-    if (!isOuDn(parentDn)) {
+    if (!isAdminParentDn(parentDn)) {
       return (
-        'La destination doit être le DN '
-        + 'd’une unité d’organisation.'
+        'La destination doit être une OU ou '
+        + 'un conteneur Active Directory.'
       )
     }
 
@@ -231,7 +307,7 @@ function useAdAdminCreation({
     if (
       parentDn
       && (
-        !isOuDn(parentDn)
+        !isAdminParentDn(parentDn)
         || !isEitasManagedDn(parentDn)
       )
     ) {
@@ -312,6 +388,30 @@ function useAdAdminCreation({
     return parts.slice(1).join(',')
   }
 
+  function getCreateAdminStructuralParentDn(
+    target = selectedNode
+  ) {
+    const targetDn = String(
+      getObjectDn(target) || ''
+    ).trim()
+
+    if (!targetDn) {
+      return ''
+    }
+
+    if (
+      /^OU=/i.test(targetDn)
+      || isContainerObject(target)
+    ) {
+      return targetDn
+    }
+
+    const parts = splitLdapDn(targetDn)
+
+    return parts.length > 1
+      ? parts.slice(1).join(',')
+      : ''
+  }
   async function loadAdminOuOptions(
     parentDn = ''
   ) {
@@ -346,21 +446,29 @@ function useAdAdminCreation({
       const completedJob =
         await waitForAdExplorerJob(jobId)
 
-      const items =
-        getCreateUserOuItemsFromJob(
+      const items = [
+        ...getCreateUserOuItemsFromJob(
           completedJob
-        )
+        ),
+        ...(Array.isArray(adminParentItems)
+          ? adminParentItems
+          : []),
+        ...(selectedNode ? [selectedNode] : []),
+      ]
 
       let finalOptions =
-        normalizeAdminCreationOptions(items)
+        normalizeAdminParentOptions(items)
 
       if (!finalOptions.length) {
         finalOptions =
-          normalizeAdminCreationOptions(
-            getFallbackCreateUserOuOptions(
+          normalizeAdminParentOptions([
+            ...getFallbackCreateUserOuOptions(
               searchBaseDn
-            )
-          )
+            ),
+            ...(Array.isArray(adminParentItems)
+              ? adminParentItems
+              : []),
+          ])
       }
 
       setAdminOuOptions(finalOptions)
@@ -407,11 +515,14 @@ function useAdAdminCreation({
       )
 
       const fallbackOptions =
-        normalizeAdminCreationOptions(
-          getFallbackCreateUserOuOptions(
+        normalizeAdminParentOptions([
+          ...getFallbackCreateUserOuOptions(
             searchBaseDn
-          )
-        )
+          ),
+          ...(Array.isArray(adminParentItems)
+            ? adminParentItems
+            : []),
+        ])
 
       setAdminOuOptions(fallbackOptions)
 
@@ -443,7 +554,7 @@ function useAdAdminCreation({
     loadAdAgentMode()
 
     const parentDn =
-      getCreateAdminParentDn(target)
+      getCreateAdminStructuralParentDn(target)
 
     if (
       !parentDn
@@ -482,6 +593,57 @@ function useAdAdminCreation({
     )
   }
 
+  function openCreateContainer(
+    target = selectedNode
+  ) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : objet hors périmètre EITAS.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
+    loadAdAgentMode()
+
+    const parentDn =
+      getCreateAdminStructuralParentDn(target)
+
+    if (!isAdminParentDn(parentDn)) {
+      setMessage?.(
+        'Sélectionne une OU ou un conteneur EITAS.'
+      )
+      return
+    }
+
+    setContextMenu(null)
+    setAdminError('')
+    setAdminOuOptions([])
+
+    setAdminForm({
+      name: '',
+      description: '',
+      sam_account_name: '',
+      group_scope: 'Global',
+      group_category: 'Security',
+      protected_from_accidental_deletion: true,
+      parent_dn: parentDn,
+    })
+
+    setAdminModal({
+      action: 'create_container',
+      title: 'Créer un conteneur',
+      parent_dn: parentDn,
+      search_base_dn: EITAS_DN,
+    })
+
+    window.setTimeout(
+      () => loadAdminOuOptions(parentDn),
+      0
+    )
+  }
   function openCreateContact(
     target = selectedNode
   ) {
@@ -500,7 +662,7 @@ function useAdAdminCreation({
     loadAdAgentMode()
 
     const parentDn =
-      getCreateAdminParentDn(target)
+      getCreateAdminStructuralParentDn(target)
 
     if (
       !parentDn
@@ -567,7 +729,7 @@ function useAdAdminCreation({
     loadAdAgentMode()
 
     const parentDn =
-      getCreateAdminParentDn(target)
+      getCreateAdminStructuralParentDn(target)
 
     if (
       !parentDn
@@ -638,9 +800,11 @@ function useAdAdminCreation({
     const actionLabel =
       adminModal.action === 'create_ou'
         ? 'La création de l’OU'
-        : adminModal.action === 'create_contact'
-          ? 'La création du contact'
-          : 'La création du groupe'
+        : adminModal.action === 'create_container'
+          ? 'La création du conteneur'
+          : adminModal.action === 'create_contact'
+            ? 'La création du contact'
+            : 'La création du groupe'
 
     const targetSummary =
       `${name} dans `
@@ -664,9 +828,11 @@ function useAdAdminCreation({
     setStatus(
       adminModal.action === 'create_ou'
         ? 'Création de l’OU en cours...'
-        : adminModal.action === 'create_contact'
-          ? 'Création du contact en cours...'
-          : 'Création du groupe en cours...'
+        : adminModal.action === 'create_container'
+          ? 'Création du conteneur en cours...'
+          : adminModal.action === 'create_contact'
+            ? 'Création du contact en cours...'
+            : 'Création du groupe en cours...'
     )
 
     try {
@@ -728,6 +894,16 @@ function useAdAdminCreation({
           )
       }
 
+      if (
+        adminModal.action === 'create_container'
+      ) {
+        payload.protected_from_accidental_deletion =
+          Boolean(
+            adminForm
+              .protected_from_accidental_deletion
+          )
+      }
+
       const job = await runAdAdminJob(payload)
 
       const destinationLabel =
@@ -738,9 +914,11 @@ function useAdAdminCreation({
       const message = cleanAdHistoryText(
         adminModal.action === 'create_ou'
           ? `OU ${name} créée dans ${destinationLabel}.`
-          : adminModal.action === 'create_contact'
-            ? `Contact ${name} créé dans ${destinationLabel}.`
-            : `Groupe ${name} créé dans ${destinationLabel}.`
+          : adminModal.action === 'create_container'
+            ? `Conteneur ${name} créé dans ${destinationLabel}.`
+            : adminModal.action === 'create_contact'
+              ? `Contact ${name} créé dans ${destinationLabel}.`
+              : `Groupe ${name} créé dans ${destinationLabel}.`
       )
 
       setAdminModal(null)
@@ -802,6 +980,7 @@ function useAdAdminCreation({
     getCreateAdminParentDn,
     loadAdminOuOptions,
     openCreateOu,
+    openCreateContainer,
     openCreateContact,
     openCreateGroup,
     submitAdAdminJob,

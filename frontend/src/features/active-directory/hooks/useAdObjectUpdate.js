@@ -11,6 +11,7 @@ import {
   getObjectDn,
   getObjectType,
   isOuObject,
+  isContainerObject,
   isEitasManagedObject,
 } from '../utils/adExplorerCore'
 
@@ -317,6 +318,9 @@ function useAdObjectUpdate({
       || getObjectType(target) === 'Contact'
   }
 
+  function isUpdateContainerTarget(target) {
+    return isContainerObject(target)
+  }
   function isUpdateOrganizationalUnitTarget(target) {
     return isOuObject(target)
   }
@@ -1476,6 +1480,7 @@ function useAdObjectUpdate({
       const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Propriétés objet AD modifiées')
       setStatus(message)
 
+      setMessage?.(message)
       setUpdateSaveNotice(
         message.toLowerCase().includes('simulation')
           ? 'Simulation réussie : Active Directory n’a pas été modifié.'
@@ -1561,6 +1566,7 @@ function useAdObjectUpdate({
     pendingUserAccountOptionFields,
     isUpdateComputerTarget,
     isUpdateContactTarget,
+    isUpdateContainerTarget,
     isUpdateOrganizationalUnitTarget,
     updateForm,
     updateObjectFormField,

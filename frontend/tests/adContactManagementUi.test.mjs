@@ -50,7 +50,7 @@ test('C5.3 opens contact creation only inside the managed EITAS perimeter', () =
   )
 
   assert.match(block, /isEitasManagedObject\(target\)/)
-  assert.match(block, /getCreateAdminParentDn\(target\)/)
+  assert.match(block, /getCreateAdminStructuralParentDn\(target\)/)
   assert.match(block, /isEitasManagedDn\(parentDn\)/)
   assert.match(block, /action:\s*'create_contact'/)
   assert.match(block, /title:\s*'Créer un contact'/)
@@ -140,6 +140,6 @@ test('C5.3 history treats create_contact as a creation action', () => {
   assert.match(history, /job\?\.action === 'create_contact'/)
   assert.match(
     details,
-    /\['create_ou',\s*'create_group',\s*'create_user',\s*'create_computer',\s*'create_contact'\]/
+    /\['create_ou',\s*'create_container',\s*'create_group',\s*'create_user',\s*'create_computer',\s*'create_contact'\]/
   )
 })

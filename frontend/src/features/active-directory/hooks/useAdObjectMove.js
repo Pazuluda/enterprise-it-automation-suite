@@ -7,6 +7,7 @@ import {
   getObjectName,
   isEitasManagedDn,
   isEitasManagedObject,
+  isContainerObject,
   splitLdapDn,
 } from '../utils/adExplorerCore'
 import {
@@ -68,7 +69,11 @@ function useAdObjectMove({
       return false
     }
 
-    if (!isOuDn(objectDn)) {
+    if (
+      !/^(OU|CN)=/i.test(
+        String(objectDn || '').trim()
+      )
+    ) {
       return false
     }
 
@@ -102,6 +107,24 @@ function useAdObjectMove({
       return 'EITAS'
     }
 
+    if (/^CN=/i.test(cleanDn)) {
+      const labels = splitLdapDn(cleanDn)
+        .filter(part => /^(OU|CN)=/i.test(part))
+        .reverse()
+        .map(part =>
+          part.replace(/^(OU|CN)=/i, '')
+        )
+        .filter((label, index) =>
+          !(
+            index === 0
+            && label.toUpperCase() === 'EITAS'
+          )
+        )
+
+      return labels.length
+        ? `EITAS / ${labels.join(' / ')}`
+        : 'EITAS'
+    }
     const pathLabel = getOuPathLabelFromDn(
       cleanDn,
       EITAS_DN
@@ -149,7 +172,14 @@ function useAdObjectMove({
           || ''
         ).trim()
 
-        if (!dn || !isOuDn(dn)) {
+        if (
+          !dn
+          || !(
+            isOuDn(dn)
+            || isContainerObject(item)
+            || /^CN=/i.test(dn)
+          )
+        ) {
           return null
         }
 
@@ -183,6 +213,25 @@ function useAdObjectMove({
       )
   }
 
+  function isMoveStructuralDestination(dn) {
+    const value = String(dn || '').trim()
+
+    if (isOuDn(value)) {
+      return true
+    }
+
+    if (!/^CN=/i.test(value)) {
+      return false
+    }
+
+    const key = value.toUpperCase()
+
+    return moveOuOptions.some(option =>
+      String(option?.dn || '')
+        .trim()
+        .toUpperCase() === key
+    )
+  }
   function getMoveValidationError(
     target = moveModal,
     targetParentDn = moveTargetDn
@@ -197,13 +246,13 @@ function useAdObjectMove({
     }
 
     if (!destination) {
-      return 'Choisis une OU de destination.'
+      return 'Choisis une OU ou un conteneur de destination.'
     }
 
-    if (!isOuDn(destination)) {
+    if (!isMoveStructuralDestination(destination)) {
       return (
-        'La destination doit être une unité '
-        + 'd’organisation.'
+        'La destination doit être une OU ou '
+        + 'un conteneur Active Directory.'
       )
     }
 
@@ -223,7 +272,7 @@ function useAdObjectMove({
         === currentParentDn.toUpperCase()
     ) {
       return (
-        'Cet objet se trouve déjà dans cette OU.'
+        'Cet objet se trouve déjà dans cet emplacement.'
       )
     }
 
@@ -234,8 +283,8 @@ function useAdObjectMove({
       )
     ) {
       return (
-        'Une OU ne peut pas être déplacée '
-        + 'dans elle-même ou dans une OU enfant.'
+        'Un objet structurel ne peut pas être déplacé '
+        + 'dans lui-même ou dans un descendant.'
       )
     }
 
@@ -323,18 +372,18 @@ function useAdObjectMove({
         && !fallbackOptions.length
       ) {
         setMoveOuError(
-          'Aucune OU de destination disponible.'
+          'Aucun emplacement de destination disponible.'
         )
       }
     } catch (error) {
       console.warn(
-        'Chargement des OU de déplacement impossible',
+        'Chargement des destinations de déplacement impossible',
         error
       )
 
       setMoveOuError(
         error?.message
-        || 'Chargement des OU impossible.'
+        || 'Chargement des destinations impossible.'
       )
     } finally {
       setMoveOuLoading(false)

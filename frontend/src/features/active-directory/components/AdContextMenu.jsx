@@ -16,6 +16,7 @@ function AdContextMenu({
     openSearchOuModal,
     openNewObjectMenu,
     openCreateOu,
+    openCreateContainer,
     openCreateGroup,
     openCreateContact,
     openCreateUser,
@@ -60,7 +61,25 @@ function AdContextMenu({
 
               <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau ›</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
-              <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
+                             <button
+                 type="button"
+                 data-eitas-action="create-container-context"
+                 disabled={
+                   !isEitasManagedObject(
+                     contextMenu?.target
+                     || selectedNode
+                   )
+                 }
+                 onClick={() =>
+                   openCreateContainer(
+                     contextMenu?.target
+                     || selectedNode
+                   )
+                 }
+               >
+                 📦 Créer un conteneur
+               </button>
+               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
               <button
                 type="button"
                 data-eitas-action="create-contact-context"

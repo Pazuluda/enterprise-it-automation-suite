@@ -10,6 +10,7 @@ import {
   getAdSnapshotChildren,
   getAdSnapshotGroupMembers,
   getAdSnapshotItems,
+  getAdSnapshotNavigationNodes,
   getAdSnapshotOus,
   isAdSnapshotUsable,
   normalizeAdSnapshot,
@@ -170,6 +171,20 @@ function useAdSnapshot({
     return getAdSnapshotOus(current)
   }
 
+  async function getNavigationNodes(
+    options = {}
+  ) {
+    const current =
+      await resolveSnapshot(options)
+
+    if (!current) {
+      return null
+    }
+
+    return getAdSnapshotNavigationNodes(
+      current
+    )
+  }
   async function getChildren(
     distinguishedName,
     options = {}
@@ -237,6 +252,11 @@ function useAdSnapshot({
     )
   }
 
+  function getNavigationNodesSync() {
+    return getAdSnapshotNavigationNodes(
+      snapshotRef.current
+    )
+  }
   function getChildrenSync(
     distinguishedName
   ) {
@@ -321,10 +341,12 @@ function useAdSnapshot({
     snapshotRevision,
     refreshSnapshot,
     getOus,
+    getNavigationNodes,
     getChildren,
     search,
     getGroupMembers,
     getOusSync,
+    getNavigationNodesSync,
     getChildrenSync,
     findByDnSync,
     canServeDn,

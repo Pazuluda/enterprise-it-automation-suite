@@ -125,6 +125,10 @@ function Get-EitasSnapshotObjectType {
             return "contact"
         }
 
+        "container" {
+            return "container"
+        }
+
         "user" {
             return "user"
         }
@@ -302,7 +306,8 @@ function Convert-EitasSnapshotObject {
         $Type -in @(
             "ou",
             "computer",
-            "contact"
+            "contact",
+            "container"
         )
     ) {
         $ProtectedFromAccidentalDeletion =
@@ -672,7 +677,7 @@ function New-EitasAdSnapshot {
         "objectSid"
     )
 
-    $LdapFilter = "(|(objectClass=organizationalUnit)(objectClass=group)(&(objectCategory=person)(objectClass=user))(objectClass=computer)(objectClass=contact))"
+    $LdapFilter = "(|(objectClass=organizationalUnit)(objectClass=container)(objectClass=group)(&(objectCategory=person)(objectClass=user))(objectClass=computer)(objectClass=contact))"
 
     $Watch = [System.Diagnostics.Stopwatch]::StartNew()
 

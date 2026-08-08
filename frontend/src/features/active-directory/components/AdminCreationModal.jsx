@@ -75,9 +75,11 @@ function AdminCreationModal({
                       ? (
                         adminModal.action === 'create_ou'
                           ? 'L’OU sera réellement créée dans Active Directory.'
-                          : adminModal.action === 'create_contact'
-                            ? 'Le contact sera réellement créé dans Active Directory.'
-                            : 'Le groupe sera réellement créé dans Active Directory.'
+                          : adminModal.action === 'create_container'
+                            ? 'Le conteneur sera réellement créé dans Active Directory.'
+                            : adminModal.action === 'create_contact'
+                              ? 'Le contact sera réellement créé dans Active Directory.'
+                              : 'Le groupe sera réellement créé dans Active Directory.'
                       )
                       : 'Simulation active : aucun objet réel ne sera créé.'}
                   </p>
@@ -225,9 +227,11 @@ function AdminCreationModal({
                       <strong>
                         {adminModal.action === 'create_ou'
                           ? 'Nouvelle unité d’organisation'
-                          : adminModal.action === 'create_contact'
-                            ? 'Nouveau contact Active Directory'
-                            : 'Nouveau groupe Active Directory'}
+                          : adminModal.action === 'create_container'
+                            ? 'Nouveau conteneur Active Directory'
+                            : adminModal.action === 'create_contact'
+                              ? 'Nouveau contact Active Directory'
+                              : 'Nouveau groupe Active Directory'}
                       </strong>
                     </div>
                   </div>
@@ -249,9 +253,11 @@ function AdminCreationModal({
                       <span>
                         {adminModal.action === 'create_ou'
                           ? 'Nom de l’OU'
-                          : adminModal.action === 'create_contact'
-                            ? 'Nom du contact'
-                            : 'Nom du groupe'}
+                          : adminModal.action === 'create_container'
+                            ? 'Nom du conteneur'
+                            : adminModal.action === 'create_contact'
+                              ? 'Nom du contact'
+                              : 'Nom du groupe'}
                       </span>
 
                       <input
@@ -472,6 +478,28 @@ function AdminCreationModal({
                   )}
 
                   {adminModal.action
+                    === 'create_container' && (
+                    <label className="aduc-admin-field">
+                      <span>
+                        Protégé contre la suppression accidentelle
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(
+                          adminForm
+                            .protected_from_accidental_deletion
+                        )}
+                        onChange={event =>
+                          updateAdminFormField(
+                            'protected_from_accidental_deletion',
+                            event.target.checked
+                          )
+                        }
+                        disabled={adminLoading}
+                      />
+                    </label>
+                  )}
+                  {adminModal.action
                     === 'create_group' && (
                     <div
                       className={
@@ -623,9 +651,12 @@ function AdminCreationModal({
                           === 'create_ou'
                           ? 'Créer l’OU'
                           : adminModal.action
-                            === 'create_contact'
-                            ? 'Créer le contact'
-                            : 'Créer le groupe'}
+                            === 'create_container'
+                            ? 'Créer le conteneur'
+                            : adminModal.action
+                              === 'create_contact'
+                              ? 'Créer le contact'
+                              : 'Créer le groupe'}
                   </button>
                 </footer>
               </form>

@@ -15,6 +15,7 @@ _ALLOWED_OBJECT_TYPES = {
     "user",
     "computer",
     "contact",
+    "container",
 }
 
 _FORBIDDEN_KEYS = {

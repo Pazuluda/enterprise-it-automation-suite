@@ -836,7 +836,7 @@ function Invoke-EitasAdExplorerListChildren {
         "objectSid"
     )
 
-    $LdapFilter = "(|(objectClass=organizationalUnit)(objectClass=group)(&(objectCategory=person)(objectClass=user)))"
+    $LdapFilter = "(|(objectClass=organizationalUnit)(objectClass=container)(objectClass=group)(&(objectCategory=person)(objectClass=user)))"
 
     $Objects = @(
         Get-ADObject `
@@ -880,6 +880,22 @@ function Invoke-EitasAdExplorerListChildren {
             continue
         }
 
+        if ($ObjectClass -eq "container") {
+            $Items += [pscustomobject]@{
+                type = "container"
+                object_class = "container"
+                name = [string]$Object.Name
+                display_name = [string]$Object.displayName
+                distinguished_name = [string]$Object.DistinguishedName
+                dn = [string]$Object.DistinguishedName
+                canonical_name = [string]$Object.canonicalName
+                description = [string]$Object.description
+                protected_from_accidental_deletion = (
+                    [bool]$Object.ProtectedFromAccidentalDeletion
+                )
+            }
+            continue
+        }
         if ($ObjectClass -eq "group") {
             $Items += [pscustomobject]@{
                 type = "group"
@@ -1009,7 +1025,7 @@ function Invoke-EitasAdExplorerListChildren {
         count = @($Items).Count
         items = @($Items)
         warnings = @()
-        message = "Contenu de l'OU chargé"
+        message = "Contenu Active Directory chargé"
     }
 }
 

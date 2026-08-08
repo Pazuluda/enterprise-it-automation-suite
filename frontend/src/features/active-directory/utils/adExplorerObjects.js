@@ -40,13 +40,25 @@ function normalizeBaseDn(value) {
 
 function getOuDepth(item) {
   const dn = String(item?.distinguished_name || '')
-  const ouParts = dn.split(',').filter(part => part.trim().toUpperCase().startsWith('OU='))
-  return Math.max(0, ouParts.length - 1)
+  const structuralParts = dn
+    .split(',')
+    .filter(part => /^(OU|CN)=/i.test(part.trim()))
+
+  return Math.max(0, structuralParts.length - 1)
 }
 
 function buildOuTree(items) {
   return items
-    .filter(item => String(item?.distinguished_name || '').startsWith('OU='))
+    .filter(item => {
+      const dn = String(
+        item?.distinguished_name
+        || item?.dn
+        || ''
+      ).trim()
+
+      return /^OU=/i.test(dn)
+        || isContainerObject(item)
+    })
     .map(item => ({
       ...item,
       depth: getOuDepth(item)
@@ -334,6 +346,18 @@ function isGroupObject(item) {
   return getObjectType(item).includes('Groupe')
 }
 
+function isContainerObject(item) {
+  const rawType = String(
+    item?.type
+    || item?.object_class
+    || item?.objectClass
+    || ''
+  )
+    .trim()
+    .toLowerCase()
+
+  return rawType === 'container'
+}
 function getRenameDefaultName(item) {
   return item?.name || item?.sam_account_name || ''
 }
@@ -366,14 +390,14 @@ function buildAdCanonicalName(dn) {
     .filter(part => /^DC=/i.test(part))
     .map(getAdDnPartLabel)
 
-  const ouParts = parts
-    .filter(part => /^OU=/i.test(part))
+  const structuralParts = parts
+    .filter(part => /^(OU|CN)=/i.test(part))
     .reverse()
     .map(getAdDnPartLabel)
 
   return [
     domainParts.join('.'),
-    ...ouParts
+    ...structuralParts
   ]
     .filter(Boolean)
     .join('/')
@@ -400,7 +424,11 @@ function buildAdNavigationNode(dn) {
 
   return {
     name: name || cleanDn,
-    type: isDomain ? 'domain' : 'ou',
+    type: isDomain
+      ? 'domain'
+      : /^CN=/i.test(firstPart)
+        ? 'container'
+        : 'ou',
     distinguished_name: cleanDn,
     dn: cleanDn,
     canonical_name:
@@ -443,13 +471,13 @@ function buildAdBreadcrumbs(dn) {
     }
   ]
 
-  const ouPartsFromRoot = parts
-    .filter(part => /^OU=/i.test(part))
+  const structuralPartsFromRoot = parts
+    .filter(part => /^(OU|CN)=/i.test(part))
     .reverse()
 
-  ouPartsFromRoot.forEach((part, index) => {
-    const currentOuDn = [
-      ...ouPartsFromRoot
+  structuralPartsFromRoot.forEach((part, index) => {
+    const currentDn = [
+      ...structuralPartsFromRoot
         .slice(0, index + 1)
         .reverse(),
       ...domainParts
@@ -457,8 +485,8 @@ function buildAdBreadcrumbs(dn) {
 
     breadcrumbs.push({
       label: getAdDnPartLabel(part),
-      dn: currentOuDn,
-      node: buildAdNavigationNode(currentOuDn)
+      dn: currentDn,
+      node: buildAdNavigationNode(currentDn)
     })
   })
 
@@ -490,6 +518,7 @@ export {
   formatGroupCategory,
   getObjectMetaRows,
   isGroupObject,
+  isContainerObject,
   getRenameDefaultName,
   getParentDn,
   getAdDnPartLabel,

@@ -36,6 +36,7 @@ function UpdateObjectForm({
     hasUpdateChanges,
     isUpdateComputerTarget,
     isUpdateContactTarget,
+    isUpdateContainerTarget,
     isUpdateOrganizationalUnitTarget,
     updateForm,
     updateOriginalForm,
@@ -1729,7 +1730,10 @@ function UpdateObjectForm({
       </>
     )}
 
-    {isUpdateContactTarget(currentTarget) && (
+    {(
+      isUpdateContactTarget(currentTarget)
+      || isUpdateContainerTarget(currentTarget)
+    ) && (
       <section>
         <h4>Objet</h4>
 

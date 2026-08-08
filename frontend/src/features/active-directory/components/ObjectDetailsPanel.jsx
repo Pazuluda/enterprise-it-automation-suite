@@ -25,18 +25,20 @@ import {
   getObjectType,
   getObjectDn,
   isOuObject,
+  isContainerObject,
   formatAdValue,
   formatGroupScope,
   formatGroupCategory,
   getObjectMetaRows,
   isGroupObject,
+  adHistoryJobMatchesObject,
   formatAdHistoryAction,
   formatAdHistoryDate,
   formatAdHistoryStatus,
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -56,6 +58,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     objectClass === 'computer-container'
 
   const isOu = isOuObject(displayed)
+  const isContainer = isContainerObject(displayed)
 
   const isContact =
     type === 'Contact' ||
@@ -76,7 +79,16 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       objectClass === 'computer'
     )
   const members = Array.isArray(memberItems) ? memberItems : []
-  const history = Array.isArray(historyItems) ? historyItems : []
+  const history = (
+    Array.isArray(historyItems)
+      ? historyItems
+      : []
+  ).filter(job =>
+    adHistoryJobMatchesObject(
+      job,
+      dn
+    )
+  )
 
   function getHistoryStatus(job) {
     if (job?.status === 'failed' || job?.success === false) return 'failed'
@@ -95,7 +107,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       if (filterValue === 'running') return status === 'processing' || status === 'pending'
       if (filterValue === 'failed') return status === 'failed'
       if (filterValue === 'members') return ['add_group_member', 'remove_group_member', 'set_primary_group'].includes(job.action)
-      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer', 'create_contact'].includes(job.action)
+      if (filterValue === 'create') return ['create_ou', 'create_container', 'create_group', 'create_user', 'create_computer', 'create_contact'].includes(job.action)
       if (filterValue === 'delete') return job.action === 'delete_object'
       if (filterValue === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
       if (filterValue === 'move') return job.action === 'move_object'
@@ -112,7 +124,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     if (historyFilter === 'running') return status === 'processing' || status === 'pending'
     if (historyFilter === 'failed') return status === 'failed'
     if (historyFilter === 'members') return ['add_group_member', 'remove_group_member', 'set_primary_group'].includes(job.action)
-    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer', 'create_contact'].includes(job.action)
+    if (historyFilter === 'create') return ['create_ou', 'create_container', 'create_group', 'create_user', 'create_computer', 'create_contact'].includes(job.action)
     if (historyFilter === 'delete') return job.action === 'delete_object'
     if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
     if (historyFilter === 'move') return job.action === 'move_object'
@@ -1954,7 +1966,16 @@ const objectTechnicalRows = [
         <>
           <div className="aduc-aduc-actionbar">
             <button type="button" onClick={() => onCopyDn(displayed)} disabled={!dn}>Copier DN</button>
-            {isOu && <button type="button" onClick={() => onExplore(displayed)}>Explorer cette OU</button>}
+            {(isOu || isContainer) && (
+              <button
+                type="button"
+                onClick={() => onExplore(displayed)}
+              >
+                {isContainer
+                  ? 'Explorer ce conteneur'
+                  : 'Explorer cette OU'}
+              </button>
+            )}
 
             {object && isManagedScope && (
               <>
@@ -2182,19 +2203,25 @@ const objectTechnicalRows = [
               renderHistoryTab()}
           </div>
 
-          {isOu &&
+          {(isOu || isContainer) &&
             isEitasManagedDn(
               getObjectDn(displayed)
             ) && (
               <div className="aduc-details-quick">
                 <button type="button" onClick={() => onCreateOu(displayed)}>＋ OU ici</button>
+                <button
+                  type="button"
+                  onClick={() => onCreateContainer?.(displayed)}
+                >
+                  ＋ Conteneur ici
+                </button>
                 <button type="button" onClick={() => onCreateGroup(displayed)}>＋ Groupe ici</button>
               </div>
             )}
         </>
       ) : (
         <div className="aduc-details-empty">
-          Sélectionne une OU, un utilisateur, un groupe, un ordinateur ou un contact dans la liste centrale.
+          Sélectionne une OU, un conteneur, un utilisateur, un groupe, un ordinateur ou un contact dans la liste centrale.
         </div>
       )}
     </aside>

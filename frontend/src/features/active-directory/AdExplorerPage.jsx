@@ -23,6 +23,7 @@ import {
   getObjectType,
   getObjectDn,
   isOuObject,
+  isContainerObject,
   isGroupObject,
   getParentDn,
   buildAdNavigationNode,
@@ -216,6 +217,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     getOuPathLabelFromDn,
     isOuDn,
     splitLdapDn,
+    adminParentItems: adSnapshot.snapshotItems,
   })
 
   const {
@@ -223,6 +225,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     normalizeAdminCreationOptions,
     getCreateAdminParentDn,
     openCreateOu,
+    openCreateContainer,
     openCreateContact,
     openCreateGroup,
   } = adAdminCreation
@@ -727,7 +730,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
   async function loadTree(options = {}) {
     const snapshotOus =
-      await adSnapshot.getOus({
+      await adSnapshot.getNavigationNodes({
         force: Boolean(options.forceRefresh),
       })
 
@@ -975,7 +978,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     setAdAdminHistoryError('')
 
     try {
-      const data = await apiFetch('/api/ad-admin/jobs?limit=50')
+      const data = await apiFetch('/api/ad-admin/jobs?limit=1000')
       setAdAdminHistory(Array.isArray(data.jobs) ? data.jobs : [])
     } catch (err) {
       setAdAdminHistoryError(err.message || 'Impossible de charger l’historique AD Admin.')
@@ -986,7 +989,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
   async function refreshAdAdminHistoryQuietly() {
     try {
-      const data = await apiFetch('/api/ad-admin/jobs?limit=50')
+      const data = await apiFetch('/api/ad-admin/jobs?limit=1000')
       setAdAdminHistory(Array.isArray(data.jobs) ? data.jobs : [])
       setAdAdminHistoryError('')
     } catch {
@@ -2462,7 +2465,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     nodeContentCacheRef.current.clear()
 
     const snapshotOus =
-      adSnapshot.getOusSync()
+      adSnapshot.getNavigationNodesSync()
 
     setTreeItems(snapshotOus)
 
@@ -2637,6 +2640,18 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
             <section className="aduc-toolbar">
               <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
+                            <button
+                type="button"
+                data-eitas-action="create-container-toolbar"
+                disabled={
+                  !isEitasManagedObject(selectedNode)
+                }
+                onClick={() =>
+                  openCreateContainer(selectedNode)
+                }
+              >
+                📦 Créer un conteneur
+              </button>
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
               <button
                 type="button"
@@ -3003,7 +3018,10 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                         className={`aduc-table-row ${getObjectDn(selectedObject) && getObjectDn(selectedObject) === getObjectDn(item) ? 'selected-object' : ''}`}
                         onClick={() => selectObject(item)}
                         onDoubleClick={() => {
-                          if (isOuObject(item)) {
+                          if (
+                            isOuObject(item)
+                            || isContainerObject(item)
+                          ) {
                             loadNodeContent(
                               item,
                               getNodeKind(item)
@@ -3066,6 +3084,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                   )
                 }
                 onCreateOu={target => openCreateOu(target)}
+                onCreateContainer={target => openCreateContainer(target)}
                 onCreateGroup={target => openCreateGroup(target)}
                 onOpenMoveObject={target => openMoveObject(target)}
                 onOpenUpdateObject={target => openUpdateObject(target)}
@@ -3172,6 +3191,10 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
           onCreateOu: target => {
             setPropertiesModal(null)
             openCreateOu(target)
+          },
+          onCreateContainer: target => {
+            setPropertiesModal(null)
+            openCreateContainer(target)
           },
           onCreateGroup: target => {
             setPropertiesModal(null)
@@ -3322,6 +3345,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
           openSearchOuModal,
           openNewObjectMenu,
           openCreateOu,
+          openCreateContainer,
           openCreateGroup,
           openCreateContact,
           openCreateUser,

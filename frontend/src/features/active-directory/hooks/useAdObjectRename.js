@@ -102,6 +102,7 @@ function useAdObjectRename({
 
       const message = cleanAdHistoryText(job?.message || job?.output?.message || 'Objet AD renommé')
       setStatus(message)
+      setMessage?.(message)
       setRenameModal(null)
       setRenameNewName('')
 

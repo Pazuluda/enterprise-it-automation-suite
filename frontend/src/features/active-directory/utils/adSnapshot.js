@@ -55,9 +55,10 @@ function compareSnapshotItems(first, second) {
   const typeOrder = {
     ou: 0,
     organizationalunit: 0,
-    group: 1,
-    user: 2,
-    computer: 3,
+    container: 1,
+    group: 2,
+    user: 3,
+    computer: 4,
   }
 
   const firstType = getSnapshotObjectType(first)
@@ -222,6 +223,24 @@ function getAdSnapshotOus(snapshot) {
     .sort(compareSnapshotItems)
 }
 
+function getAdSnapshotNavigationNodes(snapshot) {
+  if (!isAdSnapshotUsable(snapshot)) {
+    return []
+  }
+
+  return getAdSnapshotItems(snapshot)
+    .filter(item => {
+      const objectType =
+        getSnapshotObjectType(item)
+
+      return (
+        objectType === 'ou'
+        || objectType === 'organizationalunit'
+        || objectType === 'container'
+      )
+    })
+    .sort(compareSnapshotItems)
+}
 function getAdSnapshotChildren(
   snapshot,
   distinguishedName
@@ -541,6 +560,7 @@ export {
   getAdSnapshotGroupMembers,
   getAdSnapshotChildren,
   getAdSnapshotItems,
+  getAdSnapshotNavigationNodes,
   getAdSnapshotOus,
   isAdSnapshotUsable,
   normalizeAdSnapshot,

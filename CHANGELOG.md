@@ -4,6 +4,29 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.5.0-alpha.04] — 2026-08-08
+### C5.4 — Conteneurs Active Directory natifs
+- Prise en charge de bout en bout des objets `objectClass=container` sans les déguiser en OU.
+- Action backend `create_container` et exécution Windows native via `New-ADObject -Type container`.
+- Navigation, création, propriétés, renommage, déplacement, suppression et protection contre la suppression accidentelle intégrés au portail.
+- Parents structurels OU ou conteneur pris en charge dans le périmètre EITAS.
+- Snapshot et lookup live enrichis pour exposer les conteneurs natifs.
+- Prévalidations des doublons, collisions, vacuité et protection exécutées avant la frontière Simulation.
+- Historique des propriétés filtré par objet et fenêtre AD Admin portée à 1000 jobs pour couvrir l’historique disponible.
+- Toasts de succès ajoutés pour la modification de propriétés et le renommage.
+- Badge C4 restauré dans le README et conservé à 100 %.
+- Version API synchronisée avec le fichier `VERSION` afin d’éviter un numéro de version runtime obsolète.
+### Validation
+- Suite backend complète : 452 tests, 36 warnings connus et 339 sous-tests validés.
+- Suite frontend complète : 229 tests, 0 échec.
+- Lint frontend : 34 warnings connus, 0 erreur.
+- Build Vite de production et publication `/static/app/` validés.
+- Les 12 fichiers statiques publics ont été vérifiés par SHA-256 via HTTPS.
+- Recette navigateur validée sur de vrais conteneurs Active Directory.
+- Simulation validée pour création, modification, renommage, déplacement et suppression sans écriture Active Directory.
+- Fixtures temporaires supprimées avec zéro objet C5.4 résiduel.
+- Contrôles de sécurité pré-commit validés.
+
 ## [0.5.0-alpha.03] — 2026-08-08
 
 ### Ajoute

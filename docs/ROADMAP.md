@@ -10,16 +10,16 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.5.0-alpha.03
+## État courant — v0.5.0-alpha.04
 
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
-| C5 — Ordinateurs, OU, conteneurs et contacts |       60 % |
-| Explorateur Active Directory complet       |       66 % |
-| Projet EITAS global | 83 % |
+| C5 — Ordinateurs, OU, conteneurs et contacts |       80 % |
+| Explorateur Active Directory complet       |       70 % |
+| Projet EITAS global | 84 % |
 
-La version `v0.5.0-alpha.03` clôt C5.3 « Contacts : cycle de vie complet » à 100 %. C5.1, C5.2 et C5.3 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4.
+La version `v0.5.0-alpha.04` clôt C5.4 « Conteneurs Active Directory natifs » à 100 %. C5.1 à C5.4 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4 à 100 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 
@@ -31,7 +31,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
-| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 60 % |
+| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 80 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
@@ -40,6 +40,22 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 
 ## Version actuelle
 
+### v0.5.0-alpha.04 — C5.4 Conteneurs Active Directory natifs
+- Objet `container` pris en charge de bout en bout comme classe Active Directory native.
+- Création Windows via `New-ADObject -Type container` avec parent OU ou conteneur.
+- Snapshot, lookup live, arborescence et breadcrumbs enrichis pour les conteneurs.
+- Création, modification, renommage, déplacement et suppression validés en Simulation.
+- Protection contre la suppression accidentelle exposée et prévalidée.
+- Collisions, doublons et vacuité vérifiés avant toute frontière d’écriture.
+- Recette navigateur validée sur une fixture native composée de trois conteneurs.
+- Preuve zero-write finale validée puis cleanup complet avec zéro objet résiduel.
+- Historique des propriétés désormais filtré par DN d’objet avec fenêtre AD Admin à 1000 jobs.
+- Toasts de succès validés pour modification et renommage.
+- Suite backend complète : 452 tests, 36 warnings connus et 339 sous-tests validés.
+- Suite frontend complète : 229 tests, 0 échec ; lint : 34 warnings connus, 0 erreur.
+- Build de production, déploiement `/static/app/` et hashes publics SHA-256 validés.
+- C5.4 terminé à 100 %.
+- **Progression après C5.4 : C5 80 %, Explorateur AD 70 %, EITAS 84 %.**
 ### v0.5.0-alpha.03 — C5.3 Contacts
 
 - Cycle de vie des contacts Active Directory valide de bout en bout.

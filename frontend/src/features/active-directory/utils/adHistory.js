@@ -1,5 +1,6 @@
 const AD_ADMIN_ACTION_LABELS = Object.freeze({
   create_ou: 'Créer une OU',
+  create_container: 'Créer un conteneur',
   create_group: 'Créer un groupe',
   create_user: 'Créer un utilisateur',
   create_computer: 'Créer un ordinateur',
@@ -168,6 +169,10 @@ function formatAdHistoryMessage(job) {
     return `OU ${payload.name || output.name || 'AD'} créée`
   }
 
+  if (job?.action === 'create_container') {
+    return `Conteneur ${payload.name || output.name || 'AD'} créé`
+  }
+
   if (job?.action === 'create_contact') {
     return `Contact ${payload.name || output.name || 'AD'} créé`
   }
@@ -175,6 +180,190 @@ function formatAdHistoryMessage(job) {
   return cleanAdHistoryText(output.message || job?.message || '—')
 }
 
+
+
+function normalizeAdHistoryIdentity(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function getAdHistoryObjectIdentities(job) {
+  const identities = []
+
+  function add(value) {
+    const normalized =
+      normalizeAdHistoryIdentity(value)
+
+    if (
+      normalized
+      && !identities.includes(normalized)
+    ) {
+      identities.push(normalized)
+    }
+  }
+
+  function collect(source) {
+    if (
+      !source
+      || typeof source !== 'object'
+    ) {
+      return
+    }
+
+    [
+      'object_identity',
+      'objectIdentity',
+      'object_dn',
+      'objectDn',
+      'distinguished_name',
+      'distinguishedName',
+      'dn',
+      'new_dn',
+      'newDn',
+      'group_identity',
+      'groupIdentity',
+      'member_identity',
+      'memberIdentity',
+    ].forEach(key => add(source?.[key]))
+  }
+
+  const payload =
+    job?.payload
+    && typeof job.payload === 'object'
+      ? job.payload
+      : {}
+
+  collect(payload)
+  collect(job?.output)
+  collect(job?.result)
+
+  const action = String(
+    job?.action || payload?.action || ''
+  ).trim()
+
+  const objectIdentity = String(
+    payload?.object_identity
+    || payload?.objectIdentity
+    || payload?.object_dn
+    || payload?.objectDn
+    || ''
+  ).trim()
+
+  if (
+    action === 'rename_object'
+    && objectIdentity.includes(',')
+  ) {
+    const commaIndex =
+      objectIdentity.indexOf(',')
+
+    const currentRdn =
+      objectIdentity.slice(0, commaIndex)
+
+    const equalsIndex =
+      currentRdn.indexOf('=')
+
+    const newName = String(
+      payload?.new_name
+      || payload?.newName
+      || ''
+    ).trim()
+
+    if (
+      equalsIndex > 0
+      && newName
+    ) {
+      const prefix =
+        currentRdn.slice(0, equalsIndex)
+
+      const parentDn =
+        objectIdentity.slice(commaIndex + 1)
+
+      add(
+        `${prefix}=${newName},${parentDn}`
+      )
+    }
+  }
+
+  if (
+    action === 'move_object'
+    && objectIdentity.includes(',')
+  ) {
+    const commaIndex =
+      objectIdentity.indexOf(',')
+
+    const currentRdn =
+      objectIdentity.slice(0, commaIndex)
+
+    const targetParentDn = String(
+      payload?.target_parent_dn
+      || payload?.targetParentDn
+      || ''
+    ).trim()
+
+    if (targetParentDn) {
+      add(
+        `${currentRdn},${targetParentDn}`
+      )
+    }
+  }
+
+  const createRdnByAction = {
+    create_ou: 'OU',
+    create_container: 'CN',
+    create_group: 'CN',
+    create_contact: 'CN',
+    create_computer: 'CN',
+    create_user: 'CN',
+  }
+
+  const createRdn =
+    createRdnByAction[action]
+
+  if (createRdn) {
+    const parentDn = String(
+      payload?.parent_dn
+      || payload?.parentDn
+      || payload?.target_parent_dn
+      || payload?.targetParentDn
+      || ''
+    ).trim()
+
+    const name = String(
+      payload?.name
+      || payload?.display_name
+      || payload?.displayName
+      || ''
+    ).trim()
+
+    if (
+      parentDn
+      && name
+    ) {
+      add(
+        `${createRdn}=${name},${parentDn}`
+      )
+    }
+  }
+
+  return identities
+}
+
+function adHistoryJobMatchesObject(
+  job,
+  objectDn
+) {
+  const target =
+    normalizeAdHistoryIdentity(objectDn)
+
+  if (!target) {
+    return false
+  }
+
+  return getAdHistoryObjectIdentities(
+    job
+  ).includes(target)
+}
 
 function formatAdHistorySummary(job) {
   return [
@@ -194,6 +383,7 @@ export {
   AD_ADMIN_STATUS_LABELS,
   AD_ADMIN_TEXT_REPLACEMENTS,
   cleanAdHistoryText,
+  adHistoryJobMatchesObject,
   formatAdHistoryAction,
   formatAdHistoryDate,
   formatAdHistoryStatus,

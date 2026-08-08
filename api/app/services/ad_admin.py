@@ -31,6 +31,7 @@ class ADAdminConflict(ADAdminError):
 
 ALLOWED_ACTIONS = {
     "create_ou",
+    "create_container",
     "create_group",
     "create_contact",
     "create_user",
@@ -1501,6 +1502,59 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "unlock_after_reset": bool(unlock_after_reset),
         })
 
+    elif action == "create_container":
+        name = validate_name(
+            payload.get("name")
+            or payload.get("container_name")
+            or payload.get("containerName"),
+            "name",
+        )
+
+        if len(name) > 64:
+            raise ADAdminBadRequest(
+                "Le nom du conteneur est limite a 64 caracteres"
+            )
+
+        parent_dn = validate_dn(
+            payload.get("parent_dn")
+            or payload.get("parentDn")
+            or payload.get("target_parent_dn")
+            or payload.get("targetParentDn"),
+            "parent_dn",
+        )
+
+        description = clean_string(
+            payload.get("description")
+        )
+
+        if len(description) > 1024:
+            raise ADAdminBadRequest(
+                "La description du conteneur est limitee a 1024 caracteres"
+            )
+
+        protected = normalize_bool(
+            payload.get(
+                "protected_from_accidental_deletion",
+                payload.get(
+                    "protectedFromAccidentalDeletion"
+                ),
+            ),
+            default=True,
+        )
+
+        job_payload = {
+            "action": action,
+            "name": name,
+            "parent_dn": parent_dn,
+            "description": description,
+            "protected_from_accidental_deletion": protected,
+        }
+
+        audit_details.update({
+            "name": name,
+            "parent_dn": parent_dn,
+            "protected_from_accidental_deletion": protected,
+        })
     elif action in {"create_ou", "create_group"}:
         parent_dn = validate_dn(payload.get("parent_dn"), "parent_dn")
         name = validate_name(payload.get("name"), "name")

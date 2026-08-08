@@ -213,6 +213,187 @@ function Invoke-EitasAdAdminCreateOu {
     }
 }
 
+function Invoke-EitasAdAdminCreateContainer {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Name = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "name",
+            "container_name",
+            "containerName"
+        )
+
+    $ParentDn = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "parent_dn",
+            "parentDn",
+            "target_parent_dn",
+            "targetParentDn"
+        )
+
+    $Description = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "description",
+            "comment"
+        )
+
+    $ProtectedRaw = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "protected_from_accidental_deletion",
+            "protectedFromAccidentalDeletion"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$Name
+        )
+    ) {
+        throw "Nom conteneur manquant"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ParentDn
+        )
+    ) {
+        throw "Parent DN manquant pour creation conteneur"
+    }
+
+    $Name = ([string]$Name).Trim()
+    $ParentDn = ([string]$ParentDn).Trim()
+
+    $Protected = $true
+
+    if ($null -ne $ProtectedRaw) {
+        if ($ProtectedRaw -isnot [bool]) {
+            throw "protectedFromAccidentalDeletion doit etre un booleen"
+        }
+
+        $Protected = [bool]$ProtectedRaw
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $ParentDn `
+        -Config $Config |
+        Out-Null
+
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
+    $ParentObject = Get-ADObject `
+        -Identity $ParentDn `
+        -Properties `
+            objectClass, `
+            distinguishedName, `
+            name `
+        -ErrorAction Stop
+
+    Assert-EitasDnSafe `
+        -DistinguishedName (
+            [string]$ParentObject.DistinguishedName
+        ) `
+        -Config $Config |
+        Out-Null
+
+    $ParentClass = (
+        [string]$ParentObject.ObjectClass
+    ).Trim()
+
+    if (
+        $ParentClass -ine "organizationalUnit" `
+        -and $ParentClass -ine "container"
+    ) {
+        throw "Parent invalide : une OU ou un conteneur AD est requis"
+    }
+
+    $SafeName = Escape-EitasLdapFilterValue `
+        -Value $Name
+
+    $ExistingContainer = Get-ADObject `
+        -LDAPFilter (
+            "(&(objectClass=container)(name=$SafeName))"
+        ) `
+        -SearchBase $ParentDn `
+        -SearchScope OneLevel `
+        -Properties distinguishedName `
+        -ResultSetSize 1 `
+        -ErrorAction Stop |
+        Select-Object -First 1
+
+    if ($null -ne $ExistingContainer) {
+        throw "Conteneur deja existant : $Name dans $ParentDn"
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "create_container"
+            simulated = $true
+            name = $Name
+            parent_dn = $ParentDn
+            protected_from_accidental_deletion = $Protected
+            message = "Simulation creation conteneur AD"
+        }
+    }
+
+    $Params = @{
+        Name = $Name
+        Type = "container"
+        Path = $ParentDn
+        ProtectedFromAccidentalDeletion = $Protected
+        ErrorAction = "Stop"
+    }
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Description
+        )
+    ) {
+        $Params.Description = (
+            Repair-EitasTextEncoding `
+                -Value $Description
+        )
+    }
+
+    New-ADObject @Params
+
+    $ContainerDn = "CN=$Name,$ParentDn"
+
+    $Created = Get-ADObject `
+        -Identity $ContainerDn `
+        -Properties `
+            objectClass, `
+            displayName, `
+            description, `
+            ProtectedFromAccidentalDeletion `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "create_container"
+        simulated = $false
+        name = [string]$Created.Name
+        parent_dn = $ParentDn
+        distinguished_name = (
+            [string]$Created.DistinguishedName
+        )
+        protected_from_accidental_deletion = (
+            [bool]$Created.ProtectedFromAccidentalDeletion
+        )
+        created_container = (
+            Convert-EitasAdAdminObjectItem `
+                -Object $Created
+        )
+        message = "Conteneur AD cree"
+    }
+}
+
 function Invoke-EitasAdAdminCreateContact {
     param(
         [object]$Config,
@@ -3635,7 +3816,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         @(
             "organizationalunit",
             "computer",
-            "contact"
+            "contact",
+            "container"
         ) -notcontains $ObjectClassName
     ) {
         throw "La protection contre la suppression accidentelle est réservée aux unités d'organisation, ordinateurs et contacts"
@@ -3984,7 +4166,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
         } elseif (
             $ObjectClassName -in @(
                 "computer",
-                "contact"
+                "contact",
+                "container"
             )
         ) {
             Set-ADObject `
@@ -4066,7 +4249,8 @@ function Invoke-EitasAdAdminUpdateObjectProperties {
     if (
         $ObjectClassName -in @(
             "computer",
-            "contact"
+            "contact",
+            "container"
         )
     ) {
         $UpdatedProtectedFromAccidentalDeletion = `
@@ -4240,9 +4424,12 @@ function Invoke-EitasAdAdminDeleteObject {
 
     $IsOu = ([string]$Object.ObjectClass -ieq "organizationalUnit")
     $IsContact = ([string]$Object.ObjectClass -ieq "contact")
+    $IsContainer = ([string]$Object.ObjectClass -ieq "container")
     $OuEmptyVerified = $false
     $OuWasProtected = $false
     $ContactWasProtected = $false
+    $ContainerEmptyVerified = $false
+    $ContainerWasProtected = $false
 
     if ($IsOu) {
         $Children = @(
@@ -4279,6 +4466,31 @@ function Invoke-EitasAdAdminDeleteObject {
         )
     }
 
+    if ($IsContainer) {
+        $ContainerChildren = @(
+            Get-ADObject `
+                -SearchBase $ObjectDn `
+                -SearchScope OneLevel `
+                -Filter * `
+                -ResultSetSize 1 `
+                -ErrorAction Stop
+        )
+
+        if ($ContainerChildren.Count -gt 0) {
+            throw "Suppression conteneur refusee : objet non vide"
+        }
+
+        $ContainerEmptyVerified = $true
+
+        $ContainerObject = Get-ADObject `
+            -Identity $ObjectDn `
+            -Properties ProtectedFromAccidentalDeletion `
+            -ErrorAction Stop
+
+        $ContainerWasProtected = (
+            [bool]$ContainerObject.ProtectedFromAccidentalDeletion
+        )
+    }
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "delete_object"
@@ -4288,6 +4500,8 @@ function Invoke-EitasAdAdminDeleteObject {
             ou_empty_verified = $OuEmptyVerified
             ou_was_protected = $OuWasProtected
             contact_was_protected = $ContactWasProtected
+            container_empty_verified = $ContainerEmptyVerified
+            container_was_protected = $ContainerWasProtected
             message = "Simulation suppression objet AD"
         }
     }
@@ -4295,6 +4509,7 @@ function Invoke-EitasAdAdminDeleteObject {
     $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
     $OuProtectionDisabled = $false
     $ContactProtectionDisabled = $false
+    $ContainerProtectionDisabled = $false
 
     if ($IsOu -and $OuWasProtected) {
         Set-ADOrganizationalUnit `
@@ -4314,6 +4529,17 @@ function Invoke-EitasAdAdminDeleteObject {
         $ContactProtectionDisabled = $true
     }
 
+    if (
+        $IsContainer -and
+        $ContainerWasProtected
+    ) {
+        Set-ADObject `
+            -Identity $ObjectDn `
+            -ProtectedFromAccidentalDeletion $false `
+            -ErrorAction Stop
+
+        $ContainerProtectionDisabled = $true
+    }
     Remove-ADObject `
         -Identity $ObjectDn `
         -Confirm:$false `
@@ -4330,6 +4556,8 @@ function Invoke-EitasAdAdminDeleteObject {
         ou_empty_verified = $OuEmptyVerified
         ou_protection_disabled = $OuProtectionDisabled
         contact_protection_disabled = $ContactProtectionDisabled
+        container_empty_verified = $ContainerEmptyVerified
+        container_protection_disabled = $ContainerProtectionDisabled
         message = "Objet AD supprimé"
     }
 }
@@ -4379,6 +4607,7 @@ function Invoke-EitasAdAdminRenameObject {
     $IsComputer = $ObjectClass -eq "computer"
     $IsOu = $ObjectClass -eq "organizationalunit"
     $IsContact = $ObjectClass -eq "contact"
+    $IsContainer = $ObjectClass -eq "container"
 
     $OldSamAccountName = $null
     $NewSamAccountName = $null
@@ -4486,6 +4715,41 @@ function Invoke-EitasAdAdminRenameObject {
         }
     }
 
+    if ($IsContainer) {
+        $CommaIndex = $ObjectDn.IndexOf(",")
+
+        if ($CommaIndex -lt 1) {
+            throw "DN objet invalide : $ObjectDn"
+        }
+
+        $ContainerParentDn = (
+            $ObjectDn.Substring(
+                $CommaIndex + 1
+            )
+        )
+
+        $SafeContainerName = (
+            Escape-EitasLdapFilterValue `
+                -Value $NewName
+        )
+
+        $ContainerConflict = Get-ADObject `
+            -LDAPFilter (
+                "(&(objectClass=container)(name=$SafeContainerName))"
+            ) `
+            -SearchBase $ContainerParentDn `
+            -SearchScope OneLevel `
+            -Properties distinguishedName `
+            -ErrorAction Stop |
+            Where-Object {
+                [string]$_.DistinguishedName -ine $ObjectDn
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $ContainerConflict) {
+            throw "Conteneur deja existant : $NewName"
+        }
+    }
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "rename_object"
@@ -5647,6 +5911,12 @@ function Invoke-EitasAdAdminJob {
             return Invoke-EitasAdAdminCreateOu -Config $Config -Payload $Payload -Mode $Mode
         }
 
+        "create_container" {
+            return Invoke-EitasAdAdminCreateContainer `
+                -Config $Config `
+                -Payload $Payload `
+                -Mode $Mode
+        }
         "create_group" {
             return Invoke-EitasAdAdminCreateGroup -Config $Config -Payload $Payload -Mode $Mode
         }

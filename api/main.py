@@ -195,10 +195,14 @@ IDENTITY_UPDATE_STATUS_ACCESS = (
 )
 
 
+APP_VERSION = (BASE_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
+if not APP_VERSION:
+    raise RuntimeError("VERSION EITAS vide.")
+
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
-    version="0.2.0-alpha.12",
+    version=APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -329,7 +333,7 @@ def docs_local():
 def root():
     return {
         "name": "Enterprise IT Automation Suite",
-        "version": "0.2.0-alpha.12",
+        "version": APP_VERSION,
         "status": "running"
     }
 
