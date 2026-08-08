@@ -26,6 +26,7 @@ function useAdAdminCreation({
   runAdAdminJob,
   loadTree,
   loadComputersView,
+  loadContactsView,
   loadNodeContent,
   loadAdAdminHistory,
   selectedNode,
@@ -45,7 +46,17 @@ function useAdAdminCreation({
     description: '',
     sam_account_name: '',
     group_scope: 'Global',
-    group_category: 'Security'
+    group_category: 'Security',
+    display_name: '',
+    first_name: '',
+    last_name: '',
+    mail: '',
+    telephone_number: '',
+    mobile: '',
+    company: '',
+    title: '',
+    department: '',
+    protected_from_accidental_deletion: true
   })
   const [adminError, setAdminError] = useState('')
 
@@ -471,6 +482,73 @@ function useAdAdminCreation({
     )
   }
 
+  function openCreateContact(
+    target = selectedNode
+  ) {
+    if (!isEitasManagedObject(target)) {
+      const message =
+        'Action bloquée : cet objet est hors '
+        + 'du périmètre OU=EITAS et reste '
+        + 'accessible uniquement en lecture.'
+
+      setStatus(message)
+      setMessage?.(message)
+      setContextMenu(null)
+      return
+    }
+
+    loadAdAgentMode()
+
+    const parentDn =
+      getCreateAdminParentDn(target)
+
+    if (
+      !parentDn
+      || !isEitasManagedDn(parentDn)
+    ) {
+      setMessage?.(
+        'Sélectionne une OU EITAS de '
+        + 'destination avant de créer un contact.'
+      )
+      return
+    }
+
+    setContextMenu(null)
+    setAdminError('')
+    setAdminOuOptions([])
+
+    setAdminForm({
+      name: '',
+      description: '',
+      sam_account_name: '',
+      group_scope: 'Global',
+      group_category: 'Security',
+      display_name: '',
+      first_name: '',
+      last_name: '',
+      mail: '',
+      telephone_number: '',
+      mobile: '',
+      company: '',
+      title: '',
+      department: '',
+      protected_from_accidental_deletion: true,
+      parent_dn: parentDn
+    })
+
+    setAdminModal({
+      action: 'create_contact',
+      title: 'Créer un contact',
+      parent_dn: parentDn,
+      search_base_dn: EITAS_DN
+    })
+
+    window.setTimeout(
+      () => loadAdminOuOptions(parentDn),
+      0
+    )
+  }
+
   function openCreateGroup(
     target = selectedNode
   ) {
@@ -560,7 +638,9 @@ function useAdAdminCreation({
     const actionLabel =
       adminModal.action === 'create_ou'
         ? 'La création de l’OU'
-        : 'La création du groupe'
+        : adminModal.action === 'create_contact'
+          ? 'La création du contact'
+          : 'La création du groupe'
 
     const targetSummary =
       `${name} dans `
@@ -584,7 +664,9 @@ function useAdAdminCreation({
     setStatus(
       adminModal.action === 'create_ou'
         ? 'Création de l’OU en cours...'
-        : 'Création du groupe en cours...'
+        : adminModal.action === 'create_contact'
+          ? 'Création du contact en cours...'
+          : 'Création du groupe en cours...'
     )
 
     try {
@@ -609,6 +691,43 @@ function useAdAdminCreation({
           adminForm.group_category
       }
 
+      if (
+        adminModal.action === 'create_contact'
+      ) {
+        payload.display_name = String(
+          adminForm.display_name || ''
+        ).trim()
+        payload.first_name = String(
+          adminForm.first_name || ''
+        ).trim()
+        payload.last_name = String(
+          adminForm.last_name || ''
+        ).trim()
+        payload.mail = String(
+          adminForm.mail || ''
+        ).trim()
+        payload.telephone_number = String(
+          adminForm.telephone_number || ''
+        ).trim()
+        payload.mobile = String(
+          adminForm.mobile || ''
+        ).trim()
+        payload.company = String(
+          adminForm.company || ''
+        ).trim()
+        payload.title = String(
+          adminForm.title || ''
+        ).trim()
+        payload.department = String(
+          adminForm.department || ''
+        ).trim()
+        payload.protected_from_accidental_deletion =
+          Boolean(
+            adminForm
+              .protected_from_accidental_deletion
+          )
+      }
+
       const job = await runAdAdminJob(payload)
 
       const destinationLabel =
@@ -619,7 +738,9 @@ function useAdAdminCreation({
       const message = cleanAdHistoryText(
         adminModal.action === 'create_ou'
           ? `OU ${name} créée dans ${destinationLabel}.`
-          : `Groupe ${name} créé dans ${destinationLabel}.`
+          : adminModal.action === 'create_contact'
+            ? `Contact ${name} créé dans ${destinationLabel}.`
+            : `Groupe ${name} créé dans ${destinationLabel}.`
       )
 
       setAdminModal(null)
@@ -630,6 +751,8 @@ function useAdAdminCreation({
 
       if (viewType === 'computers') {
         await loadComputersView()
+      } else if (viewType === 'contacts') {
+        await loadContactsView()
       } else if (selectedNode) {
         await loadNodeContent(
           selectedNode,
@@ -679,6 +802,7 @@ function useAdAdminCreation({
     getCreateAdminParentDn,
     loadAdminOuOptions,
     openCreateOu,
+    openCreateContact,
     openCreateGroup,
     submitAdAdminJob,
   }

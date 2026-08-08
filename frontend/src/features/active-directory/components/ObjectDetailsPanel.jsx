@@ -95,7 +95,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
       if (filterValue === 'running') return status === 'processing' || status === 'pending'
       if (filterValue === 'failed') return status === 'failed'
       if (filterValue === 'members') return ['add_group_member', 'remove_group_member', 'set_primary_group'].includes(job.action)
-      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
+      if (filterValue === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer', 'create_contact'].includes(job.action)
       if (filterValue === 'delete') return job.action === 'delete_object'
       if (filterValue === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
       if (filterValue === 'move') return job.action === 'move_object'
@@ -112,7 +112,7 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     if (historyFilter === 'running') return status === 'processing' || status === 'pending'
     if (historyFilter === 'failed') return status === 'failed'
     if (historyFilter === 'members') return ['add_group_member', 'remove_group_member', 'set_primary_group'].includes(job.action)
-    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer'].includes(job.action)
+    if (historyFilter === 'create') return ['create_ou', 'create_group', 'create_user', 'create_computer', 'create_contact'].includes(job.action)
     if (historyFilter === 'delete') return job.action === 'delete_object'
     if (historyFilter === 'edit') return ['update_object_properties', 'rename_object'].includes(job.action)
     if (historyFilter === 'move') return job.action === 'move_object'

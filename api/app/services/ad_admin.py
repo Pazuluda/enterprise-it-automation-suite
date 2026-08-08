@@ -32,6 +32,7 @@ class ADAdminConflict(ADAdminError):
 ALLOWED_ACTIONS = {
     "create_ou",
     "create_group",
+    "create_contact",
     "create_user",
     "create_computer",
     "add_group_member",
@@ -1682,6 +1683,142 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
                 force_change_at_logon
             ),
             "profile_fields": profile_fields,
+        })
+
+    elif action == "create_contact":
+        name = validate_name(
+            payload.get("name")
+            or payload.get("contact_name")
+            or payload.get("contactName"),
+            "name",
+        )
+
+        if len(name) > 64:
+            raise ADAdminBadRequest(
+                "Le nom du contact est limité à 64 caractères"
+            )
+
+        target_parent_dn = validate_dn(
+            payload.get("target_parent_dn")
+            or payload.get("targetParentDn")
+            or payload.get("parent_dn")
+            or payload.get("parentDn"),
+            "target_parent_dn",
+        )
+
+        display_name = clean_string(
+            payload.get("display_name")
+            or payload.get("displayName")
+        ) or name
+
+        first_name = clean_string(
+            payload.get("first_name")
+            or payload.get("firstName")
+            or payload.get("given_name")
+            or payload.get("givenName")
+        )
+
+        last_name = clean_string(
+            payload.get("last_name")
+            or payload.get("lastName")
+            or payload.get("surname")
+            or payload.get("sn")
+        )
+
+        mail = clean_string(
+            payload.get("mail")
+            or payload.get("email")
+        )
+
+        telephone_number = clean_string(
+            payload.get("telephone_number")
+            or payload.get("telephoneNumber")
+            or payload.get("phone")
+        )
+
+        mobile = clean_string(
+            payload.get("mobile")
+            or payload.get("mobile_phone")
+        )
+
+        company = clean_string(payload.get("company"))
+        title = clean_string(payload.get("title"))
+        department = clean_string(payload.get("department"))
+        description = clean_string(payload.get("description"))
+
+        protected_from_accidental_deletion = normalize_bool(
+            payload.get(
+                "protected_from_accidental_deletion",
+                payload.get(
+                    "protectedFromAccidentalDeletion"
+                ),
+            ),
+            default=True,
+        )
+
+        limits = {
+            "display_name": (display_name, 256),
+            "first_name": (first_name, 64),
+            "last_name": (last_name, 64),
+            "mail": (mail, 256),
+            "telephone_number": (telephone_number, 64),
+            "mobile": (mobile, 64),
+            "company": (company, 64),
+            "title": (title, 64),
+            "department": (department, 64),
+            "description": (description, 1024),
+        }
+
+        for field_name, (value, maximum) in limits.items():
+            if len(value) > maximum:
+                raise ADAdminBadRequest(
+                    f"{field_name} est limité à "
+                    f"{maximum} caractères"
+                )
+
+        job_payload = {
+            "action": action,
+            "name": name,
+            "target_parent_dn": target_parent_dn,
+            "display_name": display_name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "mail": mail,
+            "telephone_number": telephone_number,
+            "mobile": mobile,
+            "company": company,
+            "title": title,
+            "department": department,
+            "description": description,
+            "protected_from_accidental_deletion": (
+                protected_from_accidental_deletion
+            ),
+        }
+
+        profile_fields = sorted(
+            key
+            for key, value in {
+                "display_name": display_name,
+                "first_name": first_name,
+                "last_name": last_name,
+                "mail": mail,
+                "telephone_number": telephone_number,
+                "mobile": mobile,
+                "company": company,
+                "title": title,
+                "department": department,
+                "description": description,
+            }.items()
+            if value
+        )
+
+        audit_details.update({
+            "target_parent_dn": target_parent_dn,
+            "name": name,
+            "profile_fields": profile_fields,
+            "protected_from_accidental_deletion": (
+                protected_from_accidental_deletion
+            ),
         })
 
     elif action == "create_computer":

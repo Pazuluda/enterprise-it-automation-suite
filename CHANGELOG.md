@@ -2,6 +2,34 @@
 
 Toutes les modifications importantes d'Enterprise IT Automation Suite sont consignées dans ce fichier.
 
+## [0.5.0-alpha.03] — 2026-08-08
+
+### Ajoute
+- Cycle de vie complet des contacts Active Directory.
+- Action backend `create_contact` et execution Windows native avec `New-ADObject -Type contact`.
+- Formulaire React de creation de contact et actions Explorateur associees.
+- Tests backend, worker Simulation et frontend dedies aux contacts.
+- Test de regression du chemin statique `/static/app/`.
+
+### Securise
+- Validation du parent, du perimetre EITAS et des doublons avant la frontiere Simulation.
+- Validation des collisions de renommage/deplacement des contacts.
+- Lecture de la protection contre suppression accidentelle avant Simulation.
+- Runtime Simulation valide sans ecriture Active Directory.
+
+### Interface
+- Ajout de `Creer un contact` dans la barre d actions et le menu contextuel.
+- Historique AD enrichi pour la creation de contacts.
+- Modale contacts compactee : checkbox native 18 px, grille resserree, description reduite et footer sticky.
+
+### Validation
+- 206 tests frontend reussis.
+- 434 tests backend et 337 sous-tests reussis.
+- Lint frontend : 0 erreur.
+- Build Vite et publication runtime valides.
+- Controle SHA-256 des assets publics valide.
+- Controles de securite pre-commit valides.
+
 ## [À venir]
 
 ## [0.5.0-alpha.02] — 2026-08-08

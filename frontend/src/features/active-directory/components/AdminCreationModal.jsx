@@ -75,7 +75,9 @@ function AdminCreationModal({
                       ? (
                         adminModal.action === 'create_ou'
                           ? 'L’OU sera réellement créée dans Active Directory.'
-                          : 'Le groupe sera réellement créé dans Active Directory.'
+                          : adminModal.action === 'create_contact'
+                            ? 'Le contact sera réellement créé dans Active Directory.'
+                            : 'Le groupe sera réellement créé dans Active Directory.'
                       )
                       : 'Simulation active : aucun objet réel ne sera créé.'}
                   </p>
@@ -223,7 +225,9 @@ function AdminCreationModal({
                       <strong>
                         {adminModal.action === 'create_ou'
                           ? 'Nouvelle unité d’organisation'
-                          : 'Nouveau groupe Active Directory'}
+                          : adminModal.action === 'create_contact'
+                            ? 'Nouveau contact Active Directory'
+                            : 'Nouveau groupe Active Directory'}
                       </strong>
                     </div>
                   </div>
@@ -234,7 +238,10 @@ function AdminCreationModal({
                         adminModal.action
                         === 'create_group'
                           ? 'two-columns'
-                          : ''
+                          : adminModal.action
+                            === 'create_contact'
+                            ? 'two-columns'
+                            : ''
                       }`
                     }
                   >
@@ -242,7 +249,9 @@ function AdminCreationModal({
                       <span>
                         {adminModal.action === 'create_ou'
                           ? 'Nom de l’OU'
-                          : 'Nom du groupe'}
+                          : adminModal.action === 'create_contact'
+                            ? 'Nom du contact'
+                            : 'Nom du groupe'}
                       </span>
 
                       <input
@@ -267,7 +276,9 @@ function AdminCreationModal({
                         placeholder={
                           adminModal.action === 'create_ou'
                             ? 'Finance'
-                            : 'GG_Finance_RW'
+                            : adminModal.action === 'create_contact'
+                              ? 'Jean Dupont'
+                              : 'GG_Finance_RW'
                         }
                         autoFocus
                         disabled={adminLoading}
@@ -297,6 +308,168 @@ function AdminCreationModal({
                       </label>
                     )}
                   </div>
+
+
+                  {adminModal.action
+                    === 'create_contact' && (
+                    <>
+                      <div
+                        className={
+                          "aduc-admin-create-options-grid"
+                        }
+                      >
+                        <label className="aduc-admin-field">
+                          <span>Nom d’affichage</span>
+                          <input
+                            value={adminForm.display_name || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'display_name',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Prénom</span>
+                          <input
+                            value={adminForm.first_name || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'first_name',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Nom de famille</span>
+                          <input
+                            value={adminForm.last_name || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'last_name',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Adresse e-mail</span>
+                          <input
+                            type="email"
+                            value={adminForm.mail || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'mail',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Téléphone</span>
+                          <input
+                            value={
+                              adminForm.telephone_number
+                              || ''
+                            }
+                            onChange={event =>
+                              updateAdminFormField(
+                                'telephone_number',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Mobile</span>
+                          <input
+                            value={adminForm.mobile || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'mobile',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Société</span>
+                          <input
+                            value={adminForm.company || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'company',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Fonction</span>
+                          <input
+                            value={adminForm.title || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'title',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+
+                        <label className="aduc-admin-field">
+                          <span>Département</span>
+                          <input
+                            value={adminForm.department || ''}
+                            onChange={event =>
+                              updateAdminFormField(
+                                'department',
+                                event.target.value
+                              )
+                            }
+                            disabled={adminLoading}
+                          />
+                        </label>
+                      </div>
+
+                      <label className="aduc-admin-field">
+                        <span>
+                          Protégé contre la suppression accidentelle
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(
+                            adminForm
+                              .protected_from_accidental_deletion
+                          )}
+                          onChange={event =>
+                            updateAdminFormField(
+                              'protected_from_accidental_deletion',
+                              event.target.checked
+                            )
+                          }
+                          disabled={adminLoading}
+                        />
+                      </label>
+                    </>
+                  )}
 
                   {adminModal.action
                     === 'create_group' && (
@@ -449,7 +622,10 @@ function AdminCreationModal({
                         : adminModal.action
                           === 'create_ou'
                           ? 'Créer l’OU'
-                          : 'Créer le groupe'}
+                          : adminModal.action
+                            === 'create_contact'
+                            ? 'Créer le contact'
+                            : 'Créer le groupe'}
                   </button>
                 </footer>
               </form>

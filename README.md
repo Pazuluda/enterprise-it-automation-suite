@@ -13,7 +13,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 ## Version actuelle
 
-La version officielle actuelle est **v0.5.0-alpha.02**.
+La version officielle actuelle est **v0.5.0-alpha.03**.
 
 Ce checkpoint clôt le sous-lot **C5.2 « OU : consolidation et validation formelle »** après validation backend, frontend, Windows PowerShell 5.1 et runtime Simulation, sans écriture Active Directory.
 
@@ -27,7 +27,7 @@ Ce checkpoint clôt le sous-lot **C5.2 « OU : consolidation et validation forme
 
 > **C4 — Groupes, imbrication et appartenances — terminé à 100 %**
 
-> **C5 — Ordinateurs, OU, conteneurs et contacts — 40 %**
+> **C5 — Ordinateurs, OU, conteneurs et contacts — 60 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 

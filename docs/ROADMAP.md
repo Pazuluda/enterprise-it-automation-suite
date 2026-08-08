@@ -15,9 +15,9 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Indicateur | Avancement |
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
-| C5 — Ordinateurs, OU, conteneurs et contacts |       40 % |
-| Explorateur Active Directory complet       |       62 % |
-| Projet EITAS global | 82 % |
+| C5 — Ordinateurs, OU, conteneurs et contacts |       60 % |
+| Explorateur Active Directory complet       |       66 % |
+| Projet EITAS global | 83 % |
 
 La version `v0.5.0-alpha.02` clôt C5.2 « OU : consolidation et validation formelle » à 100 %. C5.1 et C5.2 sont désormais terminés ; `v0.4.0` reste la version stable de clôture du chantier C4.
 
@@ -31,7 +31,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
-| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 40 % |
+| C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | En cours — 60 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
@@ -39,6 +39,26 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.5.0-alpha.03 — C5.3 Contacts
+
+- Cycle de vie des contacts Active Directory valide de bout en bout.
+- Nouvelle action `create_contact` dans le backend AD Admin.
+- Creation native Windows via `New-ADObject -Type contact`.
+- Prevalidation Simulation du parent, du perimetre EITAS et des doublons.
+- Collisions de renommage et deplacement validees avant toute ecriture.
+- Suppression des contacts proteges validee avec lecture de `ProtectedFromAccidentalDeletion` avant la frontiere Simulation.
+- Formulaire React complet : identite, communication, organisation, description et protection contre la suppression accidentelle.
+- Action disponible dans la barre Explorateur et le menu contextuel.
+- Historique traduit avec `Creer un contact`.
+- Runtime Windows valide en Simulation avec preuve d absence d ecriture AD.
+- Recette navigateur validee avec `C53-UI-SIM-0808`.
+- Polish cible de la modale contacts et footer sticky valide.
+- Publication frontend validee sous `/static/app/` avec controle SHA-256 des fichiers servis.
+- Regression de chemin statique couverte par un test frontend dedie.
+- Validation finale : 206 tests frontend, 434 tests backend, 337 sous-tests backend, lint sans erreur et controles de securite verts.
+
+**Progression apres C5.3 : C5 60 %, Explorateur AD 66 %, EITAS 83 %.**
 
 ### v0.5.0-alpha.02 — Checkpoint C5.2
 
@@ -63,7 +83,7 @@ Ce checkpoint clôt C5.2 « OU : consolidation et validation formelle ».
 - build Vite de production validé ;
 - suite backend complète : 420 tests, 32 warnings connus et 326 sous-tests validés ;
 - C5.2 terminé à 100 % ;
-- C5 global : 40 % ; Explorateur AD : 62 % ; EITAS : 82 %.
+- C5 global : 60 % ; Explorateur AD : 66 % ; EITAS : 83 %.
 
 ### v0.5.0-alpha.01 — Checkpoint C5.1
 
@@ -83,7 +103,7 @@ Ce checkpoint clôt C5.1 « Ordinateurs : consolidation et validation formelle �
 - suite backend complète : 407 tests, 32 warnings connus et 326 sous-tests validés ;
 - `git diff --check` validé ;
 - C5.1 terminé à 100 % ;
-- C5 global : 20 % ; Explorateur AD : 58 % ; EITAS : 82 %.
+- C5 global : 20 % ; Explorateur AD : 58 % ; EITAS : 83 %.
 
 ### v0.4.0-alpha.07 — Checkpoint C4.6
 

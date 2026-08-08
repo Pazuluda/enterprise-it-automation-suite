@@ -213,6 +213,238 @@ function Invoke-EitasAdAdminCreateOu {
     }
 }
 
+function Invoke-EitasAdAdminCreateContact {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    $Name = Get-EitasObjectValue -Object $Payload -Names @(
+        "name",
+        "contact_name",
+        "contactName"
+    )
+
+    $TargetParentDn = Get-EitasObjectValue -Object $Payload -Names @(
+        "target_parent_dn",
+        "targetParentDn",
+        "parent_dn",
+        "parentDn"
+    )
+
+    $DisplayName = Get-EitasObjectValue -Object $Payload -Names @(
+        "display_name",
+        "displayName"
+    )
+
+    $FirstName = Get-EitasObjectValue -Object $Payload -Names @(
+        "first_name",
+        "firstName",
+        "given_name",
+        "givenName"
+    )
+
+    $LastName = Get-EitasObjectValue -Object $Payload -Names @(
+        "last_name",
+        "lastName",
+        "surname",
+        "sn"
+    )
+
+    $Mail = Get-EitasObjectValue -Object $Payload -Names @(
+        "mail",
+        "email"
+    )
+
+    $TelephoneNumber = Get-EitasObjectValue -Object $Payload -Names @(
+        "telephone_number",
+        "telephoneNumber",
+        "phone"
+    )
+
+    $Mobile = Get-EitasObjectValue -Object $Payload -Names @(
+        "mobile",
+        "mobile_phone"
+    )
+
+    $Company = Get-EitasObjectValue -Object $Payload -Names @("company")
+    $Title = Get-EitasObjectValue -Object $Payload -Names @("title")
+    $Department = Get-EitasObjectValue -Object $Payload -Names @("department")
+    $Description = Get-EitasObjectValue -Object $Payload -Names @("description")
+
+    $ProtectedRaw = Get-EitasObjectValue -Object $Payload -Names @(
+        "protected_from_accidental_deletion",
+        "protectedFromAccidentalDeletion"
+    )
+
+    if ([string]::IsNullOrWhiteSpace([string]$Name)) {
+        throw "Nom contact manquant"
+    }
+
+    $Name = ([string]$Name).Trim()
+
+    if ([string]::IsNullOrWhiteSpace([string]$TargetParentDn)) {
+        throw "Parent DN manquant pour création contact"
+    }
+
+    $TargetParentDn = ([string]$TargetParentDn).Trim()
+
+    if ([string]::IsNullOrWhiteSpace([string]$DisplayName)) {
+        $DisplayName = $Name
+    } else {
+        $DisplayName = ([string]$DisplayName).Trim()
+    }
+
+    $ProtectedFromAccidentalDeletion = $true
+
+    if ($null -ne $ProtectedRaw) {
+        if ($ProtectedRaw -isnot [bool]) {
+            throw "protectedFromAccidentalDeletion doit être un booléen"
+        }
+
+        $ProtectedFromAccidentalDeletion = [bool]$ProtectedRaw
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $TargetParentDn `
+        -Config $Config |
+        Out-Null
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $ParentObject = Get-ADObject `
+        -Identity $TargetParentDn `
+        -Properties objectClass, distinguishedName, name `
+        -ErrorAction Stop
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $ParentObject.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    $ParentObjectClass = (
+        [string]$ParentObject.ObjectClass
+    ).Trim()
+
+    if (
+        $ParentObjectClass -ine "organizationalUnit" `
+        -and $ParentObjectClass -ine "container"
+    ) {
+        throw "Parent invalide : un contact nécessite une OU ou un conteneur AD"
+    }
+
+    if (
+        Test-EitasAdObjectExists `
+            -Identity $Name `
+            -SearchBase $TargetParentDn `
+            -ObjectClass "contact"
+    ) {
+        throw "Contact déjà existant : $Name dans $TargetParentDn"
+    }
+
+    if ($Mode -ne "Production") {
+        return [pscustomobject]@{
+            action = "create_contact"
+            simulated = $true
+            name = $Name
+            display_name = $DisplayName
+            target_parent_dn = $TargetParentDn
+            protected_from_accidental_deletion = (
+                $ProtectedFromAccidentalDeletion
+            )
+            message = "Simulation création contact"
+        }
+    }
+
+    $OtherAttributes = @{}
+
+    $AttributeMap = @{
+        givenName = $FirstName
+        sn = $LastName
+        mail = $Mail
+        telephoneNumber = $TelephoneNumber
+        mobile = $Mobile
+        company = $Company
+        title = $Title
+        department = $Department
+    }
+
+    foreach ($Key in $AttributeMap.Keys) {
+        $Value = [string]$AttributeMap[$Key]
+
+        if (-not [string]::IsNullOrWhiteSpace($Value)) {
+            $OtherAttributes[$Key] = (
+                Repair-EitasTextEncoding -Value $Value
+            )
+        }
+    }
+
+    $Params = @{
+        Name = $Name
+        Type = "contact"
+        Path = $TargetParentDn
+        DisplayName = (
+            Repair-EitasTextEncoding -Value $DisplayName
+        )
+        ProtectedFromAccidentalDeletion = (
+            $ProtectedFromAccidentalDeletion
+        )
+        ErrorAction = "Stop"
+    }
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            [string]$Description
+        )
+    ) {
+        $Params.Description = (
+            Repair-EitasTextEncoding -Value $Description
+        )
+    }
+
+    if ($OtherAttributes.Count -gt 0) {
+        $Params.OtherAttributes = $OtherAttributes
+    }
+
+    New-ADObject @Params
+
+    $ContactDn = "CN=$Name,$TargetParentDn"
+
+    $CreatedContact = Get-ADObject `
+        -Identity $ContactDn `
+        -Properties `
+            objectClass, `
+            displayName, `
+            givenName, `
+            sn, `
+            mail, `
+            telephoneNumber, `
+            mobile, `
+            company, `
+            title, `
+            department, `
+            description, `
+            ProtectedFromAccidentalDeletion `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = "create_contact"
+        simulated = $false
+        name = $CreatedContact.Name
+        display_name = [string]$CreatedContact.DisplayName
+        distinguished_name = [string]$CreatedContact.DistinguishedName
+        target_parent_dn = $TargetParentDn
+        protected_from_accidental_deletion = (
+            [bool]$CreatedContact.ProtectedFromAccidentalDeletion
+        )
+        created_contact = Convert-EitasAdAdminObjectItem `
+            -Object $CreatedContact
+        message = "Contact AD créé"
+    }
+}
+
+
 function Invoke-EitasAdAdminCreateGroup {
     param(
         [object]$Config,
@@ -4007,8 +4239,10 @@ function Invoke-EitasAdAdminDeleteObject {
     }
 
     $IsOu = ([string]$Object.ObjectClass -ieq "organizationalUnit")
+    $IsContact = ([string]$Object.ObjectClass -ieq "contact")
     $OuEmptyVerified = $false
     $OuWasProtected = $false
+    $ContactWasProtected = $false
 
     if ($IsOu) {
         $Children = @(
@@ -4034,6 +4268,17 @@ function Invoke-EitasAdAdminDeleteObject {
         $OuWasProtected = [bool]$Ou.ProtectedFromAccidentalDeletion
     }
 
+    if ($IsContact) {
+        $ContactBeforeDelete = Get-ADObject `
+            -Identity $ObjectDn `
+            -Properties ProtectedFromAccidentalDeletion `
+            -ErrorAction Stop
+
+        $ContactWasProtected = (
+            [bool]$ContactBeforeDelete.ProtectedFromAccidentalDeletion
+        )
+    }
+
     if ($Mode -ne "Production") {
         return [pscustomobject]@{
             action = "delete_object"
@@ -4042,12 +4287,14 @@ function Invoke-EitasAdAdminDeleteObject {
             confirm_dn = $ConfirmDn
             ou_empty_verified = $OuEmptyVerified
             ou_was_protected = $OuWasProtected
+            contact_was_protected = $ContactWasProtected
             message = "Simulation suppression objet AD"
         }
     }
 
     $DeletedObject = Convert-EitasAdAdminObjectItem -Object $Object
     $OuProtectionDisabled = $false
+    $ContactProtectionDisabled = $false
 
     if ($IsOu -and $OuWasProtected) {
         Set-ADOrganizationalUnit `
@@ -4056,6 +4303,15 @@ function Invoke-EitasAdAdminDeleteObject {
             -ErrorAction Stop
 
         $OuProtectionDisabled = $true
+    }
+
+    if ($IsContact -and $ContactWasProtected) {
+        Set-ADObject `
+            -Identity $ObjectDn `
+            -ProtectedFromAccidentalDeletion $false `
+            -ErrorAction Stop
+
+        $ContactProtectionDisabled = $true
     }
 
     Remove-ADObject `
@@ -4073,6 +4329,7 @@ function Invoke-EitasAdAdminDeleteObject {
         deleted_object = $DeletedObject
         ou_empty_verified = $OuEmptyVerified
         ou_protection_disabled = $OuProtectionDisabled
+        contact_protection_disabled = $ContactProtectionDisabled
         message = "Objet AD supprimé"
     }
 }
@@ -4121,6 +4378,7 @@ function Invoke-EitasAdAdminRenameObject {
     $ObjectClass = ([string]$Object.ObjectClass).Trim().ToLowerInvariant()
     $IsComputer = $ObjectClass -eq "computer"
     $IsOu = $ObjectClass -eq "organizationalunit"
+    $IsContact = $ObjectClass -eq "contact"
 
     $OldSamAccountName = $null
     $NewSamAccountName = $null
@@ -4192,6 +4450,39 @@ function Invoke-EitasAdAdminRenameObject {
 
         if ($null -ne $OuConflict) {
             throw "OU déjà existante : $NewName dans $OuParentDn"
+        }
+    }
+
+    if ($IsContact) {
+        $ContactCommaIndex = $ObjectDn.IndexOf(",")
+
+        if ($ContactCommaIndex -lt 1) {
+            throw "DN objet invalide : $ObjectDn"
+        }
+
+        $ContactParentDn = $ObjectDn.Substring(
+            $ContactCommaIndex + 1
+        )
+
+        $SafeContactName = $NewName.
+            Replace("\", "\5c").
+            Replace("*", "\2a").
+            Replace("(", "\28").
+            Replace(")", "\29")
+
+        $ContactConflict = Get-ADObject `
+            -LDAPFilter "(&(objectClass=contact)(name=$SafeContactName))" `
+            -SearchBase $ContactParentDn `
+            -SearchScope OneLevel `
+            -Properties distinguishedName `
+            -ErrorAction Stop |
+            Where-Object {
+                [string]$_.DistinguishedName -ine $ObjectDn
+            } |
+            Select-Object -First 1
+
+        if ($null -ne $ContactConflict) {
+            throw "Contact déjà existant : $NewName dans $ContactParentDn"
         }
     }
 
@@ -5361,6 +5652,13 @@ function Invoke-EitasAdAdminJob {
         }
 
         
+        "create_contact" {
+            return Invoke-EitasAdAdminCreateContact `
+                -Config $Config `
+                -Payload $Payload `
+                -Mode $Mode
+        }
+
         "create_computer" {
             return Invoke-EitasAdAdminCreateComputer -Config $Config -Payload $Payload -Mode $Mode
         }

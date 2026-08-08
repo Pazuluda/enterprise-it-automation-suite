@@ -17,6 +17,7 @@ function AdContextMenu({
     openNewObjectMenu,
     openCreateOu,
     openCreateGroup,
+    openCreateContact,
     openCreateUser,
     openUpdateObject,
     openRenameObject,
@@ -60,6 +61,24 @@ function AdContextMenu({
               <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau ›</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
+              <button
+                type="button"
+                data-eitas-action="create-contact-context"
+                disabled={
+                  !isEitasManagedObject(
+                    contextMenu?.target
+                    || selectedNode
+                  )
+                }
+                onClick={() =>
+                  openCreateContact(
+                    contextMenu?.target
+                    || selectedNode
+                  )
+                }
+              >
+                📇 Créer un contact
+              </button>
                 <button
                   type="button"
                   data-eitas-action="create-user-context"

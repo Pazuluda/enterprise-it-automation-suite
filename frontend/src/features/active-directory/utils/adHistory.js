@@ -3,6 +3,7 @@ const AD_ADMIN_ACTION_LABELS = Object.freeze({
   create_group: 'Créer un groupe',
   create_user: 'Créer un utilisateur',
   create_computer: 'Créer un ordinateur',
+  create_contact: 'Créer un contact',
   add_group_member: 'Ajouter un membre au groupe',
   remove_group_member: 'Retirer un membre du groupe',
   move_object: 'Déplacer un objet',
@@ -165,6 +166,10 @@ function formatAdHistoryMessage(job) {
 
   if (job?.action === 'create_ou') {
     return `OU ${payload.name || output.name || 'AD'} créée`
+  }
+
+  if (job?.action === 'create_contact') {
+    return `Contact ${payload.name || output.name || 'AD'} créé`
   }
 
   return cleanAdHistoryText(output.message || job?.message || '—')

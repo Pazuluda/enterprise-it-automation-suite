@@ -205,6 +205,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     runAdAdminJob,
     loadTree,
     loadComputersView,
+    loadContactsView,
     loadNodeContent,
     loadAdAdminHistory,
     selectedNode,
@@ -222,6 +223,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     normalizeAdminCreationOptions,
     getCreateAdminParentDn,
     openCreateOu,
+    openCreateContact,
     openCreateGroup,
   } = adAdminCreation
 
@@ -2636,6 +2638,23 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
               <button type="button" onClick={() => openNewObjectMenu(contextMenu?.target || selectedNode)}>＋ Nouveau</button>
               <button type="button" onClick={() => openCreateOu(selectedNode)}>📁 Créer une OU</button>
               <button type="button" onClick={() => openCreateGroup(selectedNode)}>👥 Créer un groupe</button>
+              <button
+                type="button"
+                data-eitas-action="create-contact-toolbar"
+                disabled={
+                  !isEitasManagedObject(selectedNode)
+                }
+                title={
+                  isEitasManagedObject(selectedNode)
+                    ? 'Créer un contact dans le périmètre EITAS'
+                    : 'Sélectionne un objet du périmètre EITAS'
+                }
+                onClick={() =>
+                  openCreateContact(selectedNode)
+                }
+              >
+                📇 Créer un contact
+              </button>
                 <button
                   type="button"
                   data-eitas-action="create-user-toolbar"
@@ -3304,6 +3323,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
           openNewObjectMenu,
           openCreateOu,
           openCreateGroup,
+          openCreateContact,
           openCreateUser,
           openUpdateObject,
           openRenameObject,
