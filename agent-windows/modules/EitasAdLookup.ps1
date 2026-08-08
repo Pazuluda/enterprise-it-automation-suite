@@ -1827,6 +1827,303 @@ function Invoke-EitasAdExplorerListComputers {
 }
 
 
+function Invoke-EitasAdExplorerSearchObjects {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $Query = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "query",
+            "search",
+            "search_text",
+            "text"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$Query
+        )
+    ) {
+        throw "Texte de recherche AD manquant"
+    }
+
+    $BaseDn = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "base_dn",
+            "baseDn",
+            "search_base",
+            "searchBase",
+            "target_dn",
+            "targetDn",
+            "dn"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$BaseDn
+        )
+    ) {
+        $BaseDn = Get-EitasLookupValue `
+            -Object $Config `
+            -Names @(
+                "DomainDn",
+                "DomainBaseDn",
+                "AdDomainDn"
+            )
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$BaseDn
+        )
+    ) {
+        $AllowedBaseDn = Get-EitasAllowedBaseDn `
+            -Config $Config
+
+        $BaseDn = (
+            [string]$AllowedBaseDn
+        ) -replace "^OU=EITAS,", ""
+    }
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $BaseDn `
+        -Config $Config `
+        -AllowDomainRoot |
+        Out-Null
+
+    $RecursiveValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "recursive",
+            "Recursive",
+            "recurse",
+            "include_children",
+            "includeChildren"
+        )
+
+    $Recursive = $true
+
+    if ($null -ne $RecursiveValue) {
+        if ($RecursiveValue -is [bool]) {
+            $Recursive = $RecursiveValue
+        }
+        else {
+            $Recursive = @(
+                "1",
+                "true",
+                "yes",
+                "oui",
+                "subtree"
+            ) -contains (
+                [string]$RecursiveValue
+            ).Trim().ToLowerInvariant()
+        }
+    }
+
+    $SearchScope = if ($Recursive) {
+        "Subtree"
+    }
+    else {
+        "OneLevel"
+    }
+
+    $LimitValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "limit",
+            "max_results",
+            "maxResults"
+        )
+
+    $Limit = 200
+
+    if ($null -ne $LimitValue) {
+        try {
+            $ParsedLimit = [int]$LimitValue
+
+            if ($ParsedLimit -gt 0) {
+                $Limit = [Math]::Min(
+                    $ParsedLimit,
+                    1000
+                )
+            }
+        }
+        catch {
+            $Limit = 200
+        }
+    }
+
+    $Escaped = Escape-EitasLdapFilterValue `
+        -Value $Query
+
+    $TypeFilter = @(
+        "(|"
+        "(objectClass=organizationalUnit)"
+        "(objectClass=container)"
+        "(objectClass=group)"
+        "(&(objectCategory=person)(objectClass=user))"
+        "(&(objectCategory=computer)(objectClass=computer))"
+        "(objectClass=contact)"
+        ")"
+    ) -join ""
+
+    $QueryFilter = @(
+        "(|"
+        "(name=*$Escaped*)"
+        "(displayName=*$Escaped*)"
+        "(description=*$Escaped*)"
+        "(sAMAccountName=*$Escaped*)"
+        "(userPrincipalName=*$Escaped*)"
+        "(mail=*$Escaped*)"
+        "(dNSHostName=*$Escaped*)"
+        "(operatingSystem=*$Escaped*)"
+        ")"
+    ) -join ""
+
+    $LdapFilter = @(
+        "(&"
+        $TypeFilter
+        $QueryFilter
+        ")"
+    ) -join ""
+
+    $Properties = @(
+        "displayName",
+        "description",
+        "sAMAccountName",
+        "userPrincipalName",
+        "mail",
+        "dNSHostName",
+        "operatingSystem",
+        "userAccountControl",
+        "groupType",
+        "canonicalName",
+        "managedBy",
+        "ProtectedFromAccidentalDeletion",
+        "whenCreated",
+        "whenChanged",
+        "objectGUID"
+    )
+
+    $Objects = @(
+        Get-ADObject `
+            -LDAPFilter $LdapFilter `
+            -SearchBase $BaseDn `
+            -SearchScope $SearchScope `
+            -Properties $Properties `
+            -ResultSetSize $Limit `
+            -ErrorAction Stop |
+            Sort-Object Name
+    )
+
+    $Items = @()
+
+    foreach ($Object in $Objects) {
+        $ObjectClass = (
+            [string]$Object.ObjectClass
+        ).Trim().ToLowerInvariant()
+
+        $SupportedObjectClasses = @(
+            "organizationalunit",
+            "container",
+            "group",
+            "user",
+            "computer",
+            "contact"
+        )
+
+        if (
+            $SupportedObjectClasses -notcontains
+            $ObjectClass
+        ) {
+            continue
+        }
+
+        $Type = $ObjectClass
+
+        if (
+            $ObjectClass -eq
+            "organizationalunit"
+        ) {
+            $Type = "ou"
+        }
+
+        $GroupScope = $null
+        $GroupCategory = $null
+
+        if ($ObjectClass -eq "group") {
+            $GroupScope = Get-EitasAdExplorerGroupScope `
+                -GroupTypeValue $Object.groupType
+
+            $GroupCategory = Get-EitasAdExplorerGroupCategory `
+                -GroupTypeValue $Object.groupType
+        }
+
+        $Enabled = $null
+
+        if (
+            $ObjectClass -eq "user" -or
+            $ObjectClass -eq "computer"
+        ) {
+            try {
+                $Enabled = -not (
+                    (
+                        [int64]$Object.userAccountControl
+                    ) -band 2
+                )
+            }
+            catch {
+                $Enabled = $null
+            }
+        }
+
+        $Items += [pscustomobject]@{
+            type = $Type
+            object_class = $ObjectClass
+            name = [string]$Object.Name
+            display_name = [string]$Object.displayName
+            distinguished_name = [string]$Object.DistinguishedName
+            dn = [string]$Object.DistinguishedName
+            description = [string]$Object.description
+            sam_account_name = [string]$Object.sAMAccountName
+            user_principal_name = [string]$Object.userPrincipalName
+            mail = [string]$Object.mail
+            dns_host_name = [string]$Object.dNSHostName
+            operating_system = [string]$Object.operatingSystem
+            enabled = $Enabled
+            group_scope = $GroupScope
+            group_category = $GroupCategory
+            canonical_name = [string]$Object.canonicalName
+            managed_by = [string]$Object.managedBy
+            protected_from_accidental_deletion = (
+                [bool]$Object.ProtectedFromAccidentalDeletion
+            )
+            created_at = Convert-EitasAdDateValue `
+                -Value $Object.whenCreated
+            updated_at = Convert-EitasAdDateValue `
+                -Value $Object.whenChanged
+            object_guid = [string]$Object.objectGUID
+        }
+    }
+
+    return [pscustomobject]@{
+        action = "search_objects"
+        query = [string]$Query
+        base_dn = [string]$BaseDn
+        recursive = $Recursive
+        search_scope = $SearchScope
+        count = @($Items).Count
+        items = @($Items)
+        message = "Recherche globale Active Directory terminee"
+    }
+}
+
 function Invoke-EitasAdExplorerJob {
     param(
         [object]$Config,
@@ -1877,6 +2174,10 @@ function Invoke-EitasAdExplorerJob {
 
         "search_computers" {
             return Invoke-EitasAdExplorerListComputers -Config $Config -Payload $Payload
+        }
+
+        "search_objects" {
+            return Invoke-EitasAdExplorerSearchObjects -Config $Config -Payload $Payload
         }
 
         default {

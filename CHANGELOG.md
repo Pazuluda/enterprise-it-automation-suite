@@ -4,6 +4,32 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.6.0-alpha.01] — 2026-08-08
+
+### C6.1 — Recherche Active Directory unifiée
+
+- Ajout de l’action AD Explorer `search_objects` exécutée nativement par le worker Windows.
+- Recherche unifiée des utilisateurs, groupes, ordinateurs, OU, conteneurs Active Directory natifs et contacts.
+- Recherche récursive sous une base DN explicite, avec racine de domaine autorisée en lecture seule, échappement LDAP et limite maximale de 1000 résultats.
+- Normalisation stricte des six types supportés et exclusion des sous-classes de conteneur non prises en charge.
+- Déduplication des résultats par DN dans le frontend.
+- Remplacement du fan-out historique de la recherche globale par un seul job `search_objects`.
+- Compatibilité Windows PowerShell 5.1 validée avant et après déploiement.
+- Runtime réel Active Directory validé avec 175 résultats, exactement six types supportés et aucun DN dupliqué.
+- Recette navigateur validée avec recherche globale puis ouverture des propriétés de `Liam Ve`.
+- Build frontend publié et vérifié fichier par fichier par SHA-256 via HTTPS.
+
+### Validation
+
+- 7 tests C6.1 backend/worker dédiés validés.
+- Suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés.
+- Suite frontend complète : 234 tests, 0 échec.
+- Lint frontend : 34 warnings connus, 0 erreur.
+- Build Vite de production validé.
+- Contrôles de sécurité pré-commit validés.
+- Progression : C6.1 100 %, C6 20 %, Explorateur AD 78 %, EITAS 86 %.
+
+
 ## [0.5.0] — 2026-08-08
 
 ### C5-FINAL — Ordinateurs, OU, conteneurs et contacts

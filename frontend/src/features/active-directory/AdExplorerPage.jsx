@@ -1849,116 +1849,41 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     try {
       const baseDn = DOMAIN_DN
 
-      let results = await adDomainCatalog.search({
-        query,
-        baseDn,
-        recursive: true,
-        types: [
-          'user',
-          'group',
-          'computer',
-        ],
-        limit: 2000,
-      })
-
-      const loadedFromCatalog =
-        Array.isArray(results)
-
-      if (!loadedFromCatalog) {
-        const lowered = query.toLowerCase()
-
-        const [
-          usersResult,
-          groupsResult,
-          computersResult
-        ] = await Promise.allSettled([
-          runJob('search_users', {
-            query,
-            baseDn,
-            recursive: true,
-            limit: 100
-          }),
-          runJob('list_groups', {
-            baseDn,
-            recursive: true,
-            limit: 500
-          }),
-          runJob('search_computers', {
-            query,
-            baseDn,
-            recursive: true,
-            limit: 500
-          })
-        ])
-
-        results = []
-
-        if (usersResult.status === 'fulfilled') {
-          results.push(
-            ...extractExplorerItems(
-              usersResult.value
-            )
-          )
+      const results = await runJob(
+        'search_objects',
+        {
+          query,
+          baseDn,
+          recursive: true,
+          limit: 1000
         }
-
-        if (groupsResult.status === 'fulfilled') {
-          const groups = extractExplorerItems(
-            groupsResult.value
-          )
-
-          results.push(
-            ...groups.filter(group => [
-              group?.name,
-              group?.sam_account_name,
-              group?.description,
-              group?.distinguished_name,
-              group?.dn
-            ]
-              .filter(Boolean)
-              .some(value =>
-                String(value)
-                  .toLowerCase()
-                  .includes(lowered)
-              )
-            )
-          )
-        }
-
-        if (computersResult.status === 'fulfilled') {
-          results.push(
-            ...extractExplorerItems(
-              computersResult.value
-            )
-          )
-        }
-      }
-
-      const contacts = await adSnapshot.search({
-        query,
-        baseDn: EITAS_DN,
-        recursive: true,
-        types: ['contact'],
-        limit: 1000,
-      })
-
-      if (Array.isArray(contacts)) {
-        results.push(...contacts)
-      }
+      )
 
       const seen = new Set()
 
-      const uniqueResults = results.filter(item => {
-        const key =
-          getObjectDn(item) ||
-          item?.sam_account_name ||
-          item?.name
+      const uniqueResults =
+        extractExplorerItems(results)
+          .filter(item => {
+            const key = String(
+              getObjectDn(item)
+              || item?.sam_account_name
+              || item?.name
+              || ''
+            )
+              .trim()
+              .toLowerCase()
 
-        if (!key) return true
-        if (seen.has(key)) return false
+            if (!key) {
+              return true
+            }
 
-        seen.add(key)
-        return true
-      })
+            if (seen.has(key)) {
+              return false
+            }
+
+            seen.add(key)
+            return true
+          })
 
       setSelectedNode({
         name: `Recherche globale : ${query}`,
@@ -1974,9 +1899,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       setMembersError('')
 
       setStatus(
-        loadedFromCatalog
-          ? `${uniqueResults.length} résultat(s) pour ${query} depuis les sources AD disponibles`
-          : `${uniqueResults.length} résultat(s) pour ${query}`
+        `${uniqueResults.length} résultat(s) pour ${query}`
       )
     } catch (error) {
       setStatus(
@@ -1987,7 +1910,6 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       setGlobalAdSearchLoading(false)
     }
   }
-
 
 
   function normalizeDeleteConfirmationDn(value) {

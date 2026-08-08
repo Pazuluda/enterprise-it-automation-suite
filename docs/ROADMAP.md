@@ -5,8 +5,8 @@
 | Indicateur | Avancement |
 |---|---:|
 | C1 — Fenêtres Propriétés complètes | 100 % |
-| Explorateur Active Directory complet | 74 % |
-| Projet EITAS global | 85 % |
+| Explorateur Active Directory complet | 78 % |
+| Projet EITAS global | 86 % |
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
@@ -16,13 +16,13 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 |---|---:|
 | C4 — Groupes, imbrication et appartenances |      100 % |
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
-| Explorateur Active Directory complet       |       74 % |
-| Projet EITAS global | 85 % |
+| C6 — Recherche, colonnes, filtres et requêtes |       20 % |
+| Explorateur Active Directory complet       |       78 % |
+| Projet EITAS global | 86 % |
 
-La version stable `v0.5.0` clôt le chantier C5 « Ordinateurs, OU, conteneurs et contacts » à 100 %. C1 à C5 sont désormais terminés. La prochaine phase de l’Explorateur Active Directory est C6.
+Le checkpoint `v0.6.0-alpha.01` clôt C6.1 « moteur de recherche AD unifié » à 100 %. C6 est en cours à 20 %. Progression actuelle : Explorateur Active Directory 78 %, EITAS 86 %. La dernière version stable reste `v0.5.0`.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
-
 ## Roadmap de l'Explorateur Active Directory
 
 | Chantier | Objectif | Version cible | État |
@@ -32,13 +32,38 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
-| C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Planifié |
+| C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | En cours — 20 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Planifié |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.6.0-alpha.01 — C6.1 Recherche Active Directory unifiée
+
+Ce checkpoint clôt C6.1 « moteur de recherche AD unifié + résultats fiables ».
+
+- nouvelle action AD Explorer `search_objects` couvrant utilisateur, groupe, ordinateur, OU, conteneur natif et contact ;
+- recherche LDAP native Windows sous une base AD explicite, récursive ou OneLevel, avec échappement des valeurs et limite bornée à 1000 ;
+- racine de domaine autorisée en lecture seule tout en conservant les contrôles de DN ;
+- normalisation stricte des six types C6 et exclusion des sous-classes de conteneur non supportées ;
+- déduplication frontend insensible à la casse par DN ;
+- remplacement du fan-out historique users/groupes/ordinateurs/contacts par un seul job `search_objects` ;
+- validation PowerShell 5.1 avant et après déploiement Windows ;
+- runtime Active Directory réel validé avec 175 résultats et exactement les six types supportés ;
+- recette navigateur validée avec recherches `e`, `Liam` et `Liam Ve`, puis ouverture des propriétés utilisateur ;
+- publication frontend validée avec égalité exacte build/runtime et SHA-256 des 12 fichiers publics.
+
+### Validation
+
+- tests C6.1 backend/worker dédiés : 7 réussis ;
+- suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés ;
+- suite frontend complète : 234 tests, 0 échec ;
+- lint frontend : 34 warnings connus, 0 erreur ;
+- build Vite de production validé ;
+- contrôles de sécurité pré-commit validés ;
+- progression : C6.1 100 %, C6 20 %, Explorateur AD 78 %, EITAS 86 %.
 
 ### v0.5.0 — C5 stable
 

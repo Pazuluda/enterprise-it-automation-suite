@@ -34,6 +34,7 @@ ALLOWED_ACTIONS = {
     "get_group_members",
     "list_computers",
     "search_computers",
+    "search_objects",
 }
 
 
@@ -41,6 +42,7 @@ QUERY_REQUIRED_ACTIONS = {
     "get_user",
     "get_group_members",
     "search_computers",
+    "search_objects",
 }
 
 
