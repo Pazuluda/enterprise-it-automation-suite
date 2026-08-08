@@ -4,6 +4,32 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.6.0-alpha.02] — 2026-08-08
+
+### C6.2 — Colonnes configurables et tri
+
+- Ajout d’un modèle configurable de colonnes dans l’Explorateur Active Directory.
+- `Nom` reste obligatoire ; les autres colonnes peuvent être activées ou masquées depuis `☷ Colonnes`.
+- Ajout notamment de Compte SAM, UPN, E-mail, DN, Nom d’affichage, Nom DNS, Système, Activé, Étendue, Catégorie et Nom canonique.
+- Tri ascendant / descendant par clic sur les en-têtes, avec valeurs vides placées en dernier.
+- Persistance sécurisée des colonnes visibles et du tri dans `localStorage`.
+- Action `Réinitialiser` pour revenir aux préférences par défaut.
+- Correction de visibilité du menu de colonnes par durcissement du contexte d’empilement CSS.
+- Recherche globale C6.1 conservée sans régression.
+- Recette navigateur validée avec persistance après F5 et réinitialisation fonctionnelle.
+
+### Validation
+
+- 9 tests C6.2 dédiés validés.
+- Suite frontend complète : 243 tests, 0 échec.
+- Lint frontend : 34 warnings connus, 0 erreur.
+- Suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés.
+- Build Vite de production validé.
+- Build/runtime exact et 12 fichiers statiques publics vérifiés par SHA-256 via HTTPS.
+- Contrôles de sécurité pré-commit validés.
+- Progression : C6.2 100 %, C6 40 %, Explorateur AD 82 %, EITAS 87 %.
+
+
 ## [0.6.0-alpha.01] — 2026-08-08
 
 ### C6.1 — Recherche Active Directory unifiée

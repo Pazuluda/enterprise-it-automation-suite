@@ -34,6 +34,19 @@ import {
   getOuLabelFromDn,
   } from './utils/adExplorerCore'
 
+import {
+  AD_EXPLORER_COLUMNS,
+  DEFAULT_AD_EXPLORER_COLUMN_IDS,
+  getAdExplorerColumnDefinition,
+  getAdExplorerColumnValue,
+  loadAdExplorerColumnPreferences,
+  loadAdExplorerSortPreference,
+  normalizeAdExplorerColumnIds,
+  saveAdExplorerColumnPreferences,
+  saveAdExplorerSortPreference,
+  sortAdExplorerItems,
+} from './utils/adExplorerColumns'
+
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
 import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
 import AdActivityModal from './components/AdActivityModal'
@@ -94,6 +107,26 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const [membersMode, setMembersMode] = useState('direct')
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
+  const [visibleColumnIds, setVisibleColumnIds] =
+    useState(() =>
+      loadAdExplorerColumnPreferences(
+        typeof window === 'undefined'
+          ? null
+          : window.localStorage
+      )
+    )
+  const [viewSort, setViewSort] =
+    useState(() =>
+      loadAdExplorerSortPreference(
+        typeof window === 'undefined'
+          ? null
+          : window.localStorage
+      )
+    )
+  const [
+    columnOptionsOpen,
+    setColumnOptionsOpen
+  ] = useState(false)
   const [loading, setLoading] = useState(false)
   const nodeContentCacheRef = useRef(new Map())
   const nodeContentPromisesRef = useRef(new Map())
@@ -372,15 +405,126 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
     )
   }, [treeItems, treeFilter])
 
+  const visibleColumns = useMemo(
+    () =>
+      visibleColumnIds
+        .map(getAdExplorerColumnDefinition)
+        .filter(Boolean),
+    [visibleColumnIds]
+  )
+
   const filteredViewItems = useMemo(() => {
-    const filter = viewFilter.trim().toLowerCase()
+    const filter =
+      viewFilter.trim().toLowerCase()
 
-    if (!filter) return viewItems
+    const filtered = !filter
+      ? [...viewItems]
+      : viewItems.filter(item =>
+          JSON.stringify(item)
+            .toLowerCase()
+            .includes(filter)
+        )
 
-    return viewItems.filter(item =>
-      JSON.stringify(item).toLowerCase().includes(filter)
+    return sortAdExplorerItems(
+      filtered,
+      viewSort,
+      getAdExplorerColumnValue
     )
-  }, [viewItems, viewFilter])
+  }, [
+    viewItems,
+    viewFilter,
+    viewSort
+  ])
+
+  const adExplorerGridTemplate =
+    visibleColumns
+      .map(column => column.width)
+      .join(' ')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    saveAdExplorerColumnPreferences(
+      window.localStorage,
+      visibleColumnIds
+    )
+  }, [visibleColumnIds])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    saveAdExplorerSortPreference(
+      window.localStorage,
+      viewSort
+    )
+  }, [viewSort])
+
+  function toggleAdExplorerColumn(columnId) {
+    const definition =
+      getAdExplorerColumnDefinition(columnId)
+
+    if (!definition || definition.required) {
+      return
+    }
+
+    setVisibleColumnIds(previous => {
+      const active = previous.includes(columnId)
+
+      return normalizeAdExplorerColumnIds(
+        active
+          ? previous.filter(
+              value => value !== columnId
+            )
+          : [...previous, columnId]
+      )
+    })
+  }
+
+  function resetAdExplorerColumns() {
+    setVisibleColumnIds([
+      ...DEFAULT_AD_EXPLORER_COLUMN_IDS
+    ])
+
+    setViewSort({
+      columnId: 'name',
+      direction: 'asc'
+    })
+  }
+
+  function toggleAdExplorerSort(columnId) {
+    setViewSort(previous => {
+      if (previous.columnId !== columnId) {
+        return {
+          columnId,
+          direction: 'asc'
+        }
+      }
+
+      return {
+        columnId,
+        direction:
+          previous.direction === 'asc'
+            ? 'desc'
+            : 'asc'
+      }
+    })
+  }
+
+  function getAdExplorerSortIndicator(
+    columnId
+  ) {
+    if (viewSort.columnId !== columnId) {
+      return ''
+    }
+
+    return viewSort.direction === 'desc'
+      ? ' ▼'
+      : ' ▲'
+  }
 
   function isComputerManagedDn(value) {
     const dn = String(value || '')
@@ -2913,66 +3057,272 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                       ⌕
                     </button>
 
-                    <button
-                      type="button"
-                      title="Options d’affichage"
+                    <div
+                      className="aduc-column-options"
                     >
-                      ≡
-                    </button>
+                      <button
+                        type="button"
+                        className="aduc-column-options-trigger"
+                        title="Options d’affichage"
+                        aria-label="Choisir les colonnes affichées"
+                        aria-expanded={
+                          columnOptionsOpen
+                        }
+                        onClick={() =>
+                          setColumnOptionsOpen(
+                            previous =>
+                              !previous
+                          )
+                        }
+                      >
+                        <span aria-hidden="true">☷</span>
+                        <span>Colonnes</span>
+                      </button>
+
+                      {columnOptionsOpen && (
+                        <div
+                          className={
+                            "aduc-column-options-menu"
+                          }
+                        >
+                          <div
+                            className={
+                              "aduc-column-options-title"
+                            }
+                          >
+                            Colonnes affichées
+                          </div>
+
+                          {AD_EXPLORER_COLUMNS.map(
+                            column => (
+                              <label
+                                key={column.id}
+                                className={
+                                  "aduc-column-option"
+                                }
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    visibleColumnIds
+                                      .includes(
+                                        column.id
+                                      )
+                                  }
+                                  disabled={
+                                    Boolean(
+                                      column.required
+                                    )
+                                  }
+                                  onChange={() =>
+                                    toggleAdExplorerColumn(
+                                      column.id
+                                    )
+                                  }
+                                />
+                                <span>
+                                  {column.label}
+                                </span>
+                              </label>
+                            )
+                          )}
+
+                          <button
+                            type="button"
+                            className={
+                              "aduc-column-reset"
+                            }
+                            onClick={
+                              resetAdExplorerColumns
+                            }
+                          >
+                            Réinitialiser
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 <div className="aduc-table">
-                  <div className="aduc-table-row header">
-                    <span>Nom</span>
-                    <span>Type</span>
-                    <span>Description</span>
+                  <div
+                    className="aduc-table-row header"
+                    style={{
+                      gridTemplateColumns:
+                        adExplorerGridTemplate
+                    }}
+                  >
+                    {visibleColumns.map(column => (
+                      <button
+                        key={column.id}
+                        type="button"
+                        className={
+                          "aduc-table-header-button"
+                        }
+                        onClick={() =>
+                          toggleAdExplorerSort(
+                            column.id
+                          )
+                        }
+                        title={
+                          `Trier par ${column.label}`
+                        }
+                        aria-sort={
+                          viewSort.columnId ===
+                          column.id
+                            ? (
+                                viewSort.direction ===
+                                'desc'
+                                  ? 'descending'
+                                  : 'ascending'
+                              )
+                            : 'none'
+                        }
+                      >
+                        {column.label}
+                        {getAdExplorerSortIndicator(
+                          column.id
+                        )}
+                      </button>
+                    ))}
                   </div>
 
                   {loading ? (
-                    <div className="aduc-empty">Chargement depuis SRV-DC01...</div>
+                    <div className="aduc-empty">
+                      Chargement depuis SRV-DC01...
+                    </div>
                   ) : filteredViewItems.length === 0 ? (
-                    <div className="aduc-empty">Aucun objet dans cette vue.</div>
+                    <div className="aduc-empty">
+                      Aucun objet dans cette vue.
+                    </div>
                   ) : (
-                    filteredViewItems.map((item, index) => (
-                      <div
-                        key={item.distinguished_name || item.sam_account_name || index}
-                        className={`aduc-table-row ${getObjectDn(selectedObject) && getObjectDn(selectedObject) === getObjectDn(item) ? 'selected-object' : ''}`}
-                        onClick={() => selectObject(item)}
-                        onDoubleClick={() => {
-                          if (
-                            isOuObject(item)
-                            || isContainerObject(item)
-                          ) {
-                            loadNodeContent(
-                              item,
-                              getNodeKind(item)
-                            )
-                            return
+                    filteredViewItems.map(
+                      (item, index) => (
+                        <div
+                          key={
+                            item.distinguished_name
+                            || item.sam_account_name
+                            || index
                           }
+                          className={
+                            `aduc-table-row ${
+                              getObjectDn(
+                                selectedObject
+                              )
+                              && getObjectDn(
+                                selectedObject
+                              ) === getObjectDn(item)
+                                ? 'selected-object'
+                                : ''
+                            }`
+                          }
+                          style={{
+                            gridTemplateColumns:
+                              adExplorerGridTemplate
+                          }}
+                          onClick={() =>
+                            selectObject(item)
+                          }
+                          onDoubleClick={() => {
+                            if (
+                              isOuObject(item)
+                              || isContainerObject(item)
+                            ) {
+                              loadNodeContent(
+                                item,
+                                getNodeKind(item)
+                              )
+                              return
+                            }
 
-                          openProperties(item)
-                        }}
-                        onContextMenu={event => openContextMenu(event, item, 'object')}
-                      >
-                        <span>
-                          <i>
-                            {getObjectType(item).includes('Groupe')
-                              ? '👥'
-                              : getObjectType(item).includes('Utilisateur')
-                                ? '👤'
-                                : ['Ordinateur', 'Contrôleur de domaine'].includes(getObjectType(item))
-                                  ? '💻'
-                                  : getObjectType(item) === 'Contact'
-                                    ? '📇'
-                                    : '📁'}
-                          </i>
-                          {getObjectName(item)}
-                        </span>
-                        <span>{getObjectType(item)}</span>
-                        <span>{getGroupDescription(item)}</span>
-                      </div>
-                    ))
+                            openProperties(item)
+                          }}
+                          onContextMenu={event =>
+                            openContextMenu(
+                              event,
+                              item,
+                              'object'
+                            )
+                          }
+                        >
+                          {visibleColumns.map(
+                            column => (
+                              <span
+                                key={column.id}
+                                title={String(
+                                  getAdExplorerColumnValue(
+                                    item,
+                                    column.id,
+                                    {
+                                      getObjectName,
+                                      getObjectType,
+                                      getObjectDescription:
+                                        getGroupDescription,
+                                    }
+                                  ) || ''
+                                )}
+                              >
+                                {column.id ===
+                                'name' ? (
+                                  <>
+                                    <i>
+                                      {getObjectType(
+                                        item
+                                      ).includes(
+                                        'Groupe'
+                                      )
+                                        ? '👥'
+                                        : getObjectType(
+                                              item
+                                            ).includes(
+                                              'Utilisateur'
+                                            )
+                                          ? '👤'
+                                          : [
+                                                'Ordinateur',
+                                                'Contrôleur de domaine'
+                                              ].includes(
+                                                getObjectType(
+                                                  item
+                                                )
+                                              )
+                                            ? '💻'
+                                            : getObjectType(
+                                                  item
+                                                ) ===
+                                                'Contact'
+                                              ? '📇'
+                                              : '📁'}
+                                    </i>
+                                    {getAdExplorerColumnValue(
+                                      item,
+                                      column.id,
+                                      {
+                                        getObjectName,
+                                        getObjectType,
+                                        getObjectDescription:
+                                          getGroupDescription,
+                                      }
+                                    )}
+                                  </>
+                                ) : (
+                                  getAdExplorerColumnValue(
+                                    item,
+                                    column.id,
+                                    {
+                                      getObjectName,
+                                      getObjectType,
+                                      getObjectDescription:
+                                        getGroupDescription,
+                                    }
+                                  ) || '-'
+                                )}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      )
+                    )
                   )}
                 </div>
 
