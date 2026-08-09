@@ -139,6 +139,20 @@ from app.services.ldap_hab_seniority_simulation import (
     service_normalize_ldap_hab_simulation_request,
 )
 
+from app.services.acl_delegation_prewrite_ticket import (
+    AclDelegationPrewriteTicketConflict,
+    AclDelegationPrewriteTicketError,
+    create_acl_delegation_prewrite_ticket,
+)
+
+from app.services.acl_delegation_prewrite_runtime import (
+    AclDelegationPrewriteRuntimeConflict,
+    AclDelegationPrewriteRuntimeError,
+    claim_acl_delegation_prewrite_ticket_for_agent,
+    complete_acl_delegation_prewrite_ticket,
+    list_pending_acl_delegation_prewrite_tickets,
+)
+
 from app.services.acl_delegation_write_identity_envelope import (
     AclDelegationWriteIdentityEnvelopeError,
     build_acl_delegation_write_identity_envelope,
@@ -1333,6 +1347,459 @@ def claim_acl_delegation_write_intent_api(
         },
 
         "authorization": {
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.post(
+    "/api/ad-admin/acl-delegation/prewrite-ticket"
+)
+def create_acl_delegation_prewrite_ticket_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    allowed_fields = {
+        "claim_id",
+    }
+
+    unexpected_fields = sorted(
+        set(payload)
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs ticket ACL interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    claim_id = str(
+        payload.get("claim_id")
+        or ""
+    ).strip()
+
+    if not claim_id:
+        raise HTTPException(
+            status_code=400,
+            detail="claim_id ACL obligatoire",
+        )
+
+    try:
+        ticket = (
+            create_acl_delegation_prewrite_ticket(
+                replay_registry_file=(
+                    ACL_DELEGATION_WRITE_REPLAY_FILE
+                ),
+                claim_id=claim_id,
+            )
+        )
+
+    except AclDelegationPrewriteTicketConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationPrewriteTicketError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteReplayStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Stockage de securite ACL indisponible"
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "acl_delegation_prewrite_ticket_created"
+        ),
+        request_id=ticket.ticket_id,
+        actor=identity.username,
+        message=(
+            "Ticket ACL pre-write dormant cree "
+            "sans autorisation d'ecriture"
+        ),
+        details={
+            "contract_version": (
+                ticket.contract_version
+            ),
+            "state": ticket.state,
+            "ticket_id": ticket.ticket_id,
+            "claim_id": ticket.claim_id,
+            "consumption_id": (
+                ticket.consumption_id
+            ),
+            "payload_digest": (
+                ticket.payload_digest
+            ),
+            "actor_subject": (
+                identity.subject
+            ),
+            "actor_username": (
+                identity.username
+            ),
+            "prewrite_validation_runtime_authorized": (
+                False
+            ),
+            "job_creation_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    )
+
+    return {
+        "contract_version": (
+            ticket.contract_version
+        ),
+        "state": ticket.state,
+        "ticket_id": ticket.ticket_id,
+        "claim_id": ticket.claim_id,
+        "consumption_id": (
+            ticket.consumption_id
+        ),
+        "created_at": ticket.created_at,
+        "expires_at": ticket.expires_at,
+        "payload_digest": (
+            ticket.payload_digest
+        ),
+        "authorization": {
+            "prewrite_validation_runtime_authorized": (
+                False
+            ),
+            "job_creation_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.get(
+    "/api/agent/acl-delegation/prewrite/pending"
+)
+def get_pending_acl_delegation_prewrite_tickets(
+    api_key: None = Depends(require_api_key),
+):
+    try:
+        return (
+            list_pending_acl_delegation_prewrite_tickets(
+                replay_registry_file=(
+                    ACL_DELEGATION_WRITE_REPLAY_FILE
+                ),
+            )
+        )
+
+    except (
+        AclDelegationPrewriteRuntimeError,
+        AclDelegationWriteReplayStorageError,
+    ) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Etat ACL pre-write indisponible"
+            ),
+        ) from exc
+
+
+@app.post(
+    "/api/agent/acl-delegation/prewrite/claim/{ticket_id}"
+)
+def claim_acl_delegation_prewrite_ticket_api(
+    ticket_id: str,
+    payload: dict = Body(...),
+    api_key: None = Depends(require_api_key),
+):
+    allowed_fields = {
+        "agent_name",
+    }
+
+    unexpected_fields = sorted(
+        set(payload)
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs claim ACL agent interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    agent_name = str(
+        payload.get("agent_name")
+        or ""
+    ).strip()
+
+    if not agent_name:
+        raise HTTPException(
+            status_code=400,
+            detail="agent_name ACL obligatoire",
+        )
+
+    try:
+        execution = (
+            claim_acl_delegation_prewrite_ticket_for_agent(
+                replay_registry_file=(
+                    ACL_DELEGATION_WRITE_REPLAY_FILE
+                ),
+                ticket_id=ticket_id,
+                agent_name=agent_name,
+            )
+        )
+
+    except AclDelegationPrewriteRuntimeConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationPrewriteRuntimeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteReplayStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Stockage de securite ACL indisponible"
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "acl_delegation_prewrite_agent_claimed"
+        ),
+        request_id=execution.execution_id,
+        actor=agent_name,
+        message=(
+            "Ticket ACL pre-write pris "
+            "par l'agent de validation"
+        ),
+        details={
+            "contract_version": (
+                execution.contract_version
+            ),
+            "state": execution.state,
+            "ticket_id": execution.ticket_id,
+            "execution_id": (
+                execution.execution_id
+            ),
+            "claim_id": execution.claim_id,
+            "consumption_id": (
+                execution.consumption_id
+            ),
+            "payload_digest": (
+                execution.payload_digest
+            ),
+            "prewrite_validation_runtime_authorized": True,
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    )
+
+    return {
+        "contract_version": (
+            execution.contract_version
+        ),
+        "state": execution.state,
+        "ticket_id": execution.ticket_id,
+        "execution_id": (
+            execution.execution_id
+        ),
+        "claim_id": execution.claim_id,
+        "consumption_id": (
+            execution.consumption_id
+        ),
+        "claimed_at": execution.claimed_at,
+        "claimed_by": execution.claimed_by,
+        "expires_at": execution.expires_at,
+        "payload_digest": (
+            execution.payload_digest
+        ),
+
+        # Payload is returned only to the API-key
+        # authenticated Windows validation worker.
+        "payload": execution.payload,
+
+        "authorization": {
+            "prewrite_validation_runtime_authorized": True,
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.post(
+    "/api/agent/acl-delegation/prewrite/result/{ticket_id}"
+)
+def submit_acl_delegation_prewrite_result_api(
+    ticket_id: str,
+    payload: dict = Body(...),
+    api_key: None = Depends(require_api_key),
+):
+    allowed_fields = {
+        "execution_id",
+        "agent_name",
+        "success",
+        "result",
+        "message",
+    }
+
+    unexpected_fields = sorted(
+        set(payload)
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs resultat ACL agent interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    execution_id = str(
+        payload.get("execution_id")
+        or ""
+    ).strip()
+
+    agent_name = str(
+        payload.get("agent_name")
+        or ""
+    ).strip()
+
+    if not execution_id:
+        raise HTTPException(
+            status_code=400,
+            detail="execution_id ACL obligatoire",
+        )
+
+    if not agent_name:
+        raise HTTPException(
+            status_code=400,
+            detail="agent_name ACL obligatoire",
+        )
+
+    success = payload.get("success")
+
+    if success is not True and success is not False:
+        raise HTTPException(
+            status_code=400,
+            detail="success ACL doit etre booleen",
+        )
+
+    try:
+        completion = (
+            complete_acl_delegation_prewrite_ticket(
+                replay_registry_file=(
+                    ACL_DELEGATION_WRITE_REPLAY_FILE
+                ),
+                ticket_id=ticket_id,
+                execution_id=execution_id,
+                agent_name=agent_name,
+                success=success,
+                result=payload.get("result"),
+                message=str(
+                    payload.get("message")
+                    or ""
+                ),
+            )
+        )
+
+    except AclDelegationPrewriteRuntimeConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationPrewriteRuntimeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteReplayStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Stockage de securite ACL indisponible"
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "acl_delegation_prewrite_agent_completed"
+            if completion.success
+            else
+            "acl_delegation_prewrite_agent_failed"
+        ),
+        request_id=completion.execution_id,
+        actor=agent_name,
+        message=(
+            "Validation ACL pre-write terminee"
+            if completion.success
+            else
+            "Validation ACL pre-write refusee"
+        ),
+        details={
+            "contract_version": (
+                completion.contract_version
+            ),
+            "state": completion.state,
+            "ticket_id": completion.ticket_id,
+            "execution_id": (
+                completion.execution_id
+            ),
+            "success": completion.success,
+            "prewrite_validation_runtime_authorized": False,
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    )
+
+    return {
+        "contract_version": (
+            completion.contract_version
+        ),
+        "state": completion.state,
+        "ticket_id": completion.ticket_id,
+        "execution_id": (
+            completion.execution_id
+        ),
+        "completed_at": (
+            completion.completed_at
+        ),
+        "success": completion.success,
+        "authorization": {
+            "prewrite_validation_runtime_authorized": False,
             "job_creation_authorized": False,
             "runtime_authorized": False,
             "production_authorized": False,

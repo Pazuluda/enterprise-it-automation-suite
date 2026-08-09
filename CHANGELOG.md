@@ -5,6 +5,48 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.08] — 2026-08-10
+
+### C8.4C — moteur Windows contrôlé de pré-écriture ACL
+
+- ajout d’un ticket de pré-écriture éphémère lié au claim B4 ;
+- ajout du runtime serveur dédié de validation pré-écriture ;
+- états contrôlés `prewrite_ticketed`, `prewrite_processing`, `prewrite_validated` et `prewrite_failed` ;
+- routes agent dédiées hors du pipeline AD Admin générique ;
+- liaison stricte à un `execution_id` et à l’agent Windows ayant réclamé le ticket ;
+- traitement Windows dédié uniquement lorsque le mode global est `Production` ;
+- relecture immédiate de la cible Active Directory ;
+- revalidation de l’`objectGUID`, de la DACL native et du SID du principal ;
+- aucune exposition de `apply_acl_delegation` au dispatch générique ;
+- aucune primitive d’écriture ACL ajoutée ;
+- validation OIDC réelle avec `eitas-admin` / `UltraAdmin` ;
+- micro-fenêtre Production contrôlée puis retour automatique en Simulation ;
+- état réel final `prewrite_validated` ;
+- `object_guid_revalidated=true` ;
+- `dacl_revalidated=true` ;
+- `principal_sid_revalidated=true` ;
+- `write_performed=false` ;
+- DACL avant/après identique : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
+- 36 ACE inchangées ;
+- 225 tests ciblés réussis ;
+- 688 tests backend et 339 sous-tests réussis ;
+- 42 avertissements backend connus ;
+- contrôle sécurité pré-commit validé ;
+- `git diff --check` validé.
+
+### Validation
+
+- claim final : `fe133c7f-1ad1-4cac-8729-47f2910951c3` ;
+- ticket final : `ce41f3d3-9da8-442b-a66b-0fef6961729c` ;
+- exécution finale : `1b60cd73-2968-4f23-b7c1-441f4e4726c3` ;
+- agent : `SRV-DC01` ;
+- `CLAIM_STATE_FINAL=prewrite_validated` ;
+- `WRITE_PERFORMED=False` ;
+- `OBJECT_GUID_UNCHANGED=True` ;
+- `DACL_UNCHANGED=True` ;
+- `FINAL_AGENT_MODE=Simulation` ;
+- progression : C8.4C 100 %, C8 85 %, Explorateur AD 98 %, EITAS 93 %.
+
 ## [0.8.0-alpha.07] — 2026-08-09
 
 ### C8.4B — frontière backend pré-écriture ACL contrôlée

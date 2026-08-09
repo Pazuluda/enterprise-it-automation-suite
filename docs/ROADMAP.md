@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.07
+## État courant — v0.8.0-alpha.08
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       75 % |
+| C8 — ACL, sécurité et délégation                 |       85 % |
 | Explorateur Active Directory complet       |       98 % |
 | Projet EITAS global | 93 % |
 
-Le checkpoint `v0.8.0-alpha.07` valide C8.4B « frontière backend pré-écriture ACL contrôlée » à 100 %. C8 : 75 %. Explorateur Active Directory : 98 %. EITAS : 93 %. Les preuves serveur fraîches sont liées à l’identité OIDC réelle, consommées exactement une fois sous verrou interprocess et enregistrées dans un claim dormant atomique. Le fingerprint sémantique ACL v2 reste déterministe et indépendant de l’ordre d’affichage, tandis que le SHA-256 du SDDL DACL natif capture la représentation réellement lue. Aucun job `apply_acl_delegation`, runtime AD Production ou droit d’écriture ACL n’est encore autorisé.
+Le checkpoint `v0.8.0-alpha.08` valide C8.4C « moteur Windows contrôlé de pré-écriture ACL » à 100 %. C8 : 85 %. Explorateur Active Directory : 98 %. EITAS : 93 %. Un ticket de pré-écriture éphémère dérivé du claim dormant autorise uniquement une revalidation dédiée sous contrôle serveur. Le worker Windows relit immédiatement l’`objectGUID`, le SHA-256 de la DACL native et le SID du principal. La validation réelle a atteint `prewrite_validated`, la micro-fenêtre Production a été refermée automatiquement et la DACL avant/après est strictement identique. Aucune primitive d’écriture ACL n’est introduite et `apply_acl_delegation` reste absent du runtime générique.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,50 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 75 %, C8.1, C8.2, C8.3, C8.4A et C8.4B validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 85 %, C8.1, C8.2, C8.3, C8.4A, C8.4B et C8.4C validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.08 — C8.4C moteur Windows contrôlé de pré-écriture ACL
+
+Ce checkpoint valide C8.4C à 100 % sans introduire d’écriture ACL.
+
+- ajout d’un ticket de pré-écriture éphémère dérivé exclusivement d’un claim B4 `claimed_dormant` ;
+- durée de vie courte et fraîcheur stricte des claims et tickets ;
+- ajout d’un runtime serveur dédié avec états `prewrite_ticketed`, `prewrite_processing`, `prewrite_validated` et `prewrite_failed` ;
+- routes agent dédiées pour récupérer, réclamer et terminer les validations pré-écriture ;
+- liaison stricte entre ticket, claim, `execution_id` et `agent_name` ;
+- autorisation runtime temporaire limitée à la validation pré-écriture ;
+- intégration Windows dans un processeur dédié `Process-EitasPendingAclPrewriteTickets` ;
+- barrière stricte exigeant le mode global `Production` avant traitement d’un ticket ;
+- aucune exposition de `apply_acl_delegation` au dispatch AD Admin générique ;
+- relecture Windows immédiate de l’objet Active Directory avant toute future mutation ;
+- revalidation de l’`objectGUID` ;
+- revalidation du SHA-256 du SDDL DACL natif ;
+- nouvelle résolution et revalidation du SID du principal ;
+- validation réelle avec l’utilisateur OIDC `eitas-admin` disposant du rôle `UltraAdmin` ;
+- claim réel `fe133c7f-1ad1-4cac-8729-47f2910951c3` ;
+- ticket réel `ce41f3d3-9da8-442b-a66b-0fef6961729c` ;
+- exécution Windows réelle `1b60cd73-2968-4f23-b7c1-441f4e4726c3` sur `SRV-DC01` ;
+- état final `prewrite_validated` ;
+- `object_guid_revalidated=true` ;
+- `dacl_revalidated=true` ;
+- `principal_sid_revalidated=true` ;
+- `write_performed=false` ;
+- DACL avant et après strictement identique : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
+- 36 ACE avant et après ;
+- retour final du mode agent en `Simulation` ;
+- aucune primitive `Set-Acl`, `ActiveDirectoryAccessRule`, `AddAccessRule`, `SetAccessRule` ou `RemoveAccessRule` introduite ;
+- 225 tests C8 ACL / pre-write ciblés réussis ;
+- 688 tests backend et 339 sous-tests réussis ;
+- 42 avertissements backend connus ;
+- contrôle sécurité pré-commit validé ;
+- `git diff --check` validé ;
+- progression : C8.4C 100 %, C8 85 %, Explorateur AD 98 %, EITAS 93 %.
+
+La prochaine étape est C8.4D : couche Production contrôlée, confirmation finale et intégration UI, sans affaiblir les barrières C8.4A/B/C.
 
 ### v0.8.0-alpha.07 — C8.4B frontière backend pré-écriture ACL
 

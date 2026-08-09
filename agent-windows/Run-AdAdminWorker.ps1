@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$Once,
     [int]$IntervalSeconds = 1,
     [int]$HeartbeatSeconds = 60
@@ -37,6 +37,11 @@ while ($true) {
         }
 
         Process-EitasPendingAdAdminJobs -Config $Config -SilentWhenEmpty:$SilentWhenEmpty | Out-Null
+
+        Process-EitasPendingAclPrewriteTickets `
+            -Config $Config `
+            -SilentWhenEmpty:$SilentWhenEmpty |
+            Out-Null
     }
     catch {
         Write-EitasLog -Name "ad-admin-worker-light.log" -Level "ERROR" -Message "Erreur boucle worker AD Admin : $($_.Exception.Message)" -Console

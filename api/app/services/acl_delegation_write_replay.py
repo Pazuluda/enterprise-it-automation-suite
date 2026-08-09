@@ -265,12 +265,22 @@ def _validate_registry(
         if state not in {
             "consumed",
             "claimed_dormant",
+            "prewrite_ticketed",
+            "prewrite_processing",
+            "prewrite_validated",
+            "prewrite_failed",
         }:
             raise AclDelegationWriteReplayStorageError(
                 "Etat anti-replay ACL invalide"
             )
 
-        if state == "claimed_dormant":
+        if state in {
+            "claimed_dormant",
+            "prewrite_ticketed",
+            "prewrite_processing",
+            "prewrite_validated",
+            "prewrite_failed",
+        }:
             claim_required = {
                 "claim_id",
                 "contract_version_claim",
@@ -367,6 +377,293 @@ def _validate_registry(
                 if record.get(key) is not False:
                     raise AclDelegationWriteReplayStorageError(
                         "Claim ACL dormant autorisant interdit"
+                    )
+
+        if state in {
+            "prewrite_ticketed",
+            "prewrite_processing",
+            "prewrite_validated",
+            "prewrite_failed",
+        }:
+            ticket_required = {
+                "prewrite_ticket_id",
+                "prewrite_ticket_contract_version",
+                "prewrite_ticket_created_at",
+                "prewrite_ticket_expires_at",
+                "prewrite_ticket_payload_digest",
+                "prewrite_ticket_payload",
+                "prewrite_validation_runtime_authorized",
+            }
+
+            if not ticket_required.issubset(record):
+                raise AclDelegationWriteReplayStorageError(
+                    "Ticket ACL pre-write incomplet"
+                )
+
+            for key in (
+                "prewrite_ticket_id",
+                "prewrite_ticket_contract_version",
+                "prewrite_ticket_created_at",
+                "prewrite_ticket_expires_at",
+                "prewrite_ticket_payload_digest",
+            ):
+                if not str(
+                    record.get(key)
+                    or ""
+                ).strip():
+                    raise AclDelegationWriteReplayStorageError(
+                        "Valeur ticket ACL pre-write vide : "
+                        + key
+                    )
+
+            expected_prewrite_runtime = (
+                state == "prewrite_processing"
+            )
+
+            if (
+                record.get(
+                    "prewrite_validation_runtime_authorized"
+                )
+                is not expected_prewrite_runtime
+            ):
+                raise AclDelegationWriteReplayStorageError(
+                    "Etat runtime ticket ACL pre-write incoherent"
+                )
+
+            ticket_payload = record.get(
+                "prewrite_ticket_payload"
+            )
+
+            if not isinstance(ticket_payload, dict):
+                raise AclDelegationWriteReplayStorageError(
+                    "Payload ticket ACL pre-write invalide"
+                )
+
+            if (
+                ticket_payload.get("contract_version")
+                != "c8.4b4"
+                or ticket_payload.get("state")
+                != "claimed_dormant"
+            ):
+                raise AclDelegationWriteReplayStorageError(
+                    "Contrat payload ticket ACL invalide"
+                )
+
+            payload_authorization = (
+                ticket_payload.get("authorization")
+            )
+
+            if not isinstance(
+                payload_authorization,
+                dict,
+            ):
+                raise AclDelegationWriteReplayStorageError(
+                    "Authorization ticket ACL invalide"
+                )
+
+            for key in (
+                "job_creation_authorized",
+                "runtime_authorized",
+                "production_authorized",
+                "ad_write_authorized",
+            ):
+                if payload_authorization.get(key) is not False:
+                    raise AclDelegationWriteReplayStorageError(
+                        "Payload ticket ACL autorisant interdit"
+                    )
+
+            expected_pairs = (
+                (
+                    ticket_payload.get("claim_id"),
+                    record.get("claim_id"),
+                ),
+                (
+                    ticket_payload.get("consumption_id"),
+                    record.get("consumption_id"),
+                ),
+                (
+                    (
+                        ticket_payload.get("target")
+                        or {}
+                    ).get("dn"),
+                    record.get("target_dn"),
+                ),
+                (
+                    (
+                        ticket_payload.get("target")
+                        or {}
+                    ).get("object_guid"),
+                    record.get("target_object_guid"),
+                ),
+                (
+                    (
+                        ticket_payload.get("principal")
+                        or {}
+                    ).get("dn"),
+                    record.get("principal_dn"),
+                ),
+                (
+                    (
+                        ticket_payload.get("principal")
+                        or {}
+                    ).get("sid"),
+                    record.get("principal_sid"),
+                ),
+                (
+                    (
+                        ticket_payload.get("ace")
+                        or {}
+                    ).get("access_control_type"),
+                    record.get("access_control_type"),
+                ),
+                (
+                    (
+                        ticket_payload.get("ace")
+                        or {}
+                    ).get("rights"),
+                    record.get("rights"),
+                ),
+                (
+                    (
+                        ticket_payload.get("ace")
+                        or {}
+                    ).get("inheritance_type"),
+                    record.get("inheritance_type"),
+                ),
+                (
+                    (
+                        ticket_payload.get("ace")
+                        or {}
+                    ).get("object_type_guid"),
+                    record.get("object_type_guid"),
+                ),
+                (
+                    (
+                        ticket_payload.get("ace")
+                        or {}
+                    ).get(
+                        "inherited_object_type_guid"
+                    ),
+                    record.get(
+                        "inherited_object_type_guid"
+                    ),
+                ),
+                (
+                    (
+                        ticket_payload.get("dacl")
+                        or {}
+                    ).get("dacl_sddl_sha256"),
+                    record.get("dacl_sddl_sha256"),
+                ),
+                (
+                    (
+                        ticket_payload.get("dacl")
+                        or {}
+                    ).get("acl_fingerprint"),
+                    record.get("acl_fingerprint"),
+                ),
+            )
+
+            if any(
+                actual != expected
+                for actual, expected
+                in expected_pairs
+            ):
+                raise AclDelegationWriteReplayStorageError(
+                    "Payload ticket ACL incoherent "
+                    "avec le claim serveur"
+                )
+
+        if state in {
+            "prewrite_processing",
+            "prewrite_validated",
+            "prewrite_failed",
+        }:
+            execution_required = {
+                "prewrite_execution_id",
+                "prewrite_claimed_at",
+                "prewrite_claimed_by",
+            }
+
+            if not execution_required.issubset(
+                record
+            ):
+                raise AclDelegationWriteReplayStorageError(
+                    "Execution ACL pre-write incomplete"
+                )
+
+            for key in execution_required:
+                if not str(
+                    record.get(key)
+                    or ""
+                ).strip():
+                    raise AclDelegationWriteReplayStorageError(
+                        "Valeur execution ACL vide : "
+                        + key
+                    )
+
+        if state in {
+            "prewrite_validated",
+            "prewrite_failed",
+        }:
+            final_required = {
+                "prewrite_completed_at",
+                "prewrite_success",
+            }
+
+            if not final_required.issubset(
+                record
+            ):
+                raise AclDelegationWriteReplayStorageError(
+                    "Resultat final ACL pre-write incomplet"
+                )
+
+            if not str(
+                record.get(
+                    "prewrite_completed_at"
+                )
+                or ""
+            ).strip():
+                raise AclDelegationWriteReplayStorageError(
+                    "Horodatage final ACL pre-write vide"
+                )
+
+            if state == "prewrite_validated":
+                if (
+                    record.get("prewrite_success")
+                    is not True
+                ):
+                    raise AclDelegationWriteReplayStorageError(
+                        "Succes pre-write valide incoherent"
+                    )
+
+                if not isinstance(
+                    record.get(
+                        "prewrite_result_summary"
+                    ),
+                    dict,
+                ):
+                    raise AclDelegationWriteReplayStorageError(
+                        "Resume resultat pre-write invalide"
+                    )
+
+            if state == "prewrite_failed":
+                if (
+                    record.get("prewrite_success")
+                    is not False
+                ):
+                    raise AclDelegationWriteReplayStorageError(
+                        "Echec pre-write incoherent"
+                    )
+
+                if not str(
+                    record.get(
+                        "prewrite_error_message"
+                    )
+                    or ""
+                ).strip():
+                    raise AclDelegationWriteReplayStorageError(
+                        "Message echec pre-write manquant"
                     )
 
         values = {

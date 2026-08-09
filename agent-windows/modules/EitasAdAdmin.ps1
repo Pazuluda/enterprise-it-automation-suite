@@ -1,4 +1,4 @@
-﻿function Get-EitasObjectValue {
+function Get-EitasObjectValue {
     param(
         [object]$Object,
         [string[]]$Names
@@ -127,6 +127,173 @@ function Send-EitasAdAdminJobResult {
         } `
         -Config $Config
 }
+
+# C8.4C5C4A - Dedicated ACL pre-write transport.
+# This path is intentionally separate from the generic AD Admin dispatcher.
+
+function Get-EitasPendingAclPrewriteTickets {
+    param(
+        [object]$Config
+    )
+
+    $Response = Invoke-EitasApiRequest `
+        -Method "GET" `
+        -Path (
+            "/api/agent/acl-delegation/" +
+            "prewrite/pending"
+        ) `
+        -Config $Config
+
+    if ($null -eq $Response) {
+        return @()
+    }
+
+    if (
+        $Response.PSObject.Properties.Name `
+            -contains "tickets" -and
+        $null -ne $Response.tickets
+    ) {
+        return @(
+            $Response.tickets
+        )
+    }
+
+    return @()
+}
+
+
+function Claim-EitasAclPrewriteTicket {
+    param(
+        [object]$Config,
+        [string]$TicketId,
+        [string]$AgentName
+    )
+
+    try {
+        return Invoke-EitasApiRequest `
+            -Method "POST" `
+            -Path (
+                "/api/agent/acl-delegation/" +
+                "prewrite/claim/" +
+                $TicketId
+            ) `
+            -Body @{
+                agent_name = $AgentName
+            } `
+            -Config $Config
+    }
+    catch {
+        $Message = $_.Exception.Message
+
+        if (
+            $Message -match (
+                "409|Conflict|" +
+                "non disponible|" +
+                "expire"
+            )
+        ) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "WARN" `
+                -Message (
+                    "Ticket ACL pre-write indisponible : " +
+                    $TicketId
+                )
+
+            return $null
+        }
+
+        throw
+    }
+}
+
+
+function Send-EitasAclPrewriteResult {
+    param(
+        [object]$Config,
+        [string]$TicketId,
+        [string]$ExecutionId,
+        [string]$AgentName,
+        [bool]$Success,
+        [object]$Result,
+        [string]$Message
+    )
+
+    return Invoke-EitasApiRequest `
+        -Method "POST" `
+        -Path (
+            "/api/agent/acl-delegation/" +
+            "prewrite/result/" +
+            $TicketId
+        ) `
+        -Body @{
+            execution_id = $ExecutionId
+            agent_name = $AgentName
+            success = $Success
+            result = $Result
+            message = $Message
+        } `
+        -Config $Config
+}
+
+
+function Assert-EitasAclPrewriteTransportAuthorization {
+    param(
+        [object]$Authorization,
+        [bool]$ExpectedPrewriteRuntime
+    )
+
+    if ($null -eq $Authorization) {
+        throw (
+            "Bloc authorization ACL transport manquant"
+        )
+    }
+
+    $PrewriteRuntime = Get-EitasObjectValue `
+        -Object $Authorization `
+        -Names @(
+            "prewrite_validation_runtime_authorized"
+        )
+
+    if (
+        $PrewriteRuntime -isnot [bool] -or
+        [bool]$PrewriteRuntime -ne
+            $ExpectedPrewriteRuntime
+    ) {
+        throw (
+            "Autorisation runtime ACL pre-write " +
+            "incoherente"
+        )
+    }
+
+    foreach (
+        $FlagName in @(
+            "job_creation_authorized",
+            "runtime_authorized",
+            "production_authorized",
+            "ad_write_authorized"
+        )
+    ) {
+        $FlagValue = Get-EitasObjectValue `
+            -Object $Authorization `
+            -Names @(
+                $FlagName
+            )
+
+        if (
+            $FlagValue -isnot [bool] -or
+            $FlagValue -ne $false
+        ) {
+            throw (
+                "Autorisation ACL transport interdite : " +
+                $FlagName
+            )
+        }
+    }
+
+    return $true
+}
+
 
 function Invoke-EitasAdAdminCreateOu {
     param(
@@ -6120,6 +6287,622 @@ function Resolve-EitasAdAdminAclPrincipal {
 }
 
 
+
+function Get-EitasAdAdminAclCurrentState {
+    param(
+        [object]$Config,
+        [string]$ObjectDn
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ObjectDn
+        )
+    ) {
+        throw "DN cible ACL pre-write manquant"
+    }
+
+    $ObjectDn = (
+        [string]$ObjectDn
+    ).Trim()
+
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
+    $Target = Resolve-EitasAdAdminObject `
+        -Config $Config `
+        -Identity $ObjectDn
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $Target.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    $TargetDn = (
+        [string]$Target.DistinguishedName
+    ).Trim()
+
+    $TargetGuid = (
+        [string]$Target.ObjectGUID
+    ).Trim().ToLowerInvariant()
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $TargetGuid
+        )
+    ) {
+        throw (
+            "objectGUID cible ACL " +
+            "pre-write introuvable"
+        )
+    }
+
+    $AclPath = (
+        "AD:\" +
+        $TargetDn
+    )
+
+    $Acl = Get-Acl `
+        -Path $AclPath `
+        -ErrorAction Stop
+
+    $DaclSddl = (
+        $Acl.GetSecurityDescriptorSddlForm(
+            [System.Security.AccessControl.AccessControlSections]::Access
+        )
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$DaclSddl
+        )
+    ) {
+        throw (
+            "Representation SDDL DACL " +
+            "pre-write indisponible"
+        )
+    }
+
+    $Hasher = (
+        [System.Security.Cryptography.SHA256]::Create()
+    )
+
+    try {
+        $Bytes = (
+            [System.Text.Encoding]::UTF8.GetBytes(
+                [string]$DaclSddl
+            )
+        )
+
+        $HashBytes = (
+            $Hasher.ComputeHash(
+                $Bytes
+            )
+        )
+
+        $DaclSddlSha256 = (
+            [System.BitConverter]::ToString(
+                $HashBytes
+            ).
+                Replace("-", "").
+                ToLowerInvariant()
+        )
+    }
+    finally {
+        $Hasher.Dispose()
+    }
+
+    return [pscustomobject]@{
+        object_dn = $TargetDn
+        object_guid = $TargetGuid
+
+        dacl_fingerprint_version = (
+            "sddl-access-sha256-v1"
+        )
+
+        dacl_sddl_sha256 = (
+            $DaclSddlSha256
+        )
+    }
+}
+
+
+function Invoke-EitasAdAdminAclDelegationPrewriteValidation {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    if ($Mode -ine "Production") {
+        throw (
+            "C8.4C1 pre-write ACL exige " +
+            "le contexte Production"
+        )
+    }
+
+    $ContractVersion = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "contract_version"
+        )
+
+    $State = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "state"
+        )
+
+    $ClaimId = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "claim_id"
+        )
+
+    $ConsumptionId = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "consumption_id"
+        )
+
+    if (
+        [string]$ContractVersion `
+            -cne "c8.4b4"
+    ) {
+        throw (
+            "Contrat claim ACL pre-write invalide"
+        )
+    }
+
+    if (
+        [string]$State `
+            -cne "claimed_dormant"
+    ) {
+        throw (
+            "Etat claim ACL pre-write invalide"
+        )
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ClaimId
+        )
+    ) {
+        throw "claim_id ACL manquant"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ConsumptionId
+        )
+    ) {
+        throw "consumption_id ACL manquant"
+    }
+
+    $TargetPayload = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "target"
+        )
+
+    $PrincipalPayload = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "principal"
+        )
+
+    $AcePayload = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "ace"
+        )
+
+    $DaclPayload = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "dacl"
+        )
+
+    $AuthorizationPayload = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "authorization"
+        )
+
+    if ($null -eq $TargetPayload) {
+        throw "Cible claim ACL manquante"
+    }
+
+    if ($null -eq $PrincipalPayload) {
+        throw "Principal claim ACL manquant"
+    }
+
+    if ($null -eq $AcePayload) {
+        throw "ACE claim ACL manquante"
+    }
+
+    if ($null -eq $DaclPayload) {
+        throw "DACL claim ACL manquante"
+    }
+
+    if ($null -eq $AuthorizationPayload) {
+        throw (
+            "Bloc authorization claim ACL manquant"
+        )
+    }
+
+    foreach (
+        $FlagName in @(
+            "job_creation_authorized",
+            "runtime_authorized",
+            "production_authorized",
+            "ad_write_authorized"
+        )
+    ) {
+        $FlagValue = Get-EitasObjectValue `
+            -Object $AuthorizationPayload `
+            -Names @(
+                $FlagName
+            )
+
+        if (
+            $FlagValue -isnot [bool] -or
+            $FlagValue -ne $false
+        ) {
+            throw (
+                "Claim ACL pre-write autorisant " +
+                "interdit : " +
+                $FlagName
+            )
+        }
+    }
+
+    $ObjectDn = Get-EitasObjectValue `
+        -Object $TargetPayload `
+        -Names @(
+            "dn"
+        )
+
+    $ExpectedObjectGuid = Get-EitasObjectValue `
+        -Object $TargetPayload `
+        -Names @(
+            "object_guid"
+        )
+
+    $PrincipalDn = Get-EitasObjectValue `
+        -Object $PrincipalPayload `
+        -Names @(
+            "dn"
+        )
+
+    $ExpectedPrincipalSid = Get-EitasObjectValue `
+        -Object $PrincipalPayload `
+        -Names @(
+            "sid"
+        )
+
+    $ExpectedDaclSha256 = Get-EitasObjectValue `
+        -Object $DaclPayload `
+        -Names @(
+            "dacl_sddl_sha256"
+        )
+
+    $ExpectedAclFingerprint = Get-EitasObjectValue `
+        -Object $DaclPayload `
+        -Names @(
+            "acl_fingerprint"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ObjectDn
+        )
+    ) {
+        throw "DN cible claim ACL manquant"
+    }
+
+    $ExpectedObjectGuid = (
+        [string]$ExpectedObjectGuid
+    ).Trim().ToLowerInvariant()
+
+    if (
+        $ExpectedObjectGuid -notmatch (
+            "^[0-9a-f]{8}-" +
+            "[0-9a-f]{4}-" +
+            "[0-9a-f]{4}-" +
+            "[0-9a-f]{4}-" +
+            "[0-9a-f]{12}$"
+        )
+    ) {
+        throw (
+            "objectGUID attendu du claim ACL invalide"
+        )
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$PrincipalDn
+        )
+    ) {
+        throw "DN principal claim ACL manquant"
+    }
+
+    $ExpectedPrincipalSid = (
+        [string]$ExpectedPrincipalSid
+    ).Trim()
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $ExpectedPrincipalSid
+        )
+    ) {
+        throw "SID principal claim ACL manquant"
+    }
+
+    $ExpectedDaclSha256 = (
+        [string]$ExpectedDaclSha256
+    ).Trim().ToLowerInvariant()
+
+    if (
+        $ExpectedDaclSha256 `
+            -notmatch "^[0-9a-f]{64}$"
+    ) {
+        throw (
+            "SHA-256 DACL attendu invalide"
+        )
+    }
+
+    $ExpectedAclFingerprint = (
+        [string]$ExpectedAclFingerprint
+    ).Trim().ToLowerInvariant()
+
+    if (
+        $ExpectedAclFingerprint `
+            -notmatch "^[0-9a-f]{64}$"
+    ) {
+        throw (
+            "Fingerprint ACL attendu invalide"
+        )
+    }
+
+    $AccessControlType = Get-EitasObjectValue `
+        -Object $AcePayload `
+        -Names @(
+            "access_control_type"
+        )
+
+    if (
+        [string]$AccessControlType `
+            -cne "Allow"
+    ) {
+        throw (
+            "C8.4C1 autorise uniquement " +
+            "les ACE Allow"
+        )
+    }
+
+    $RawRights = Get-EitasObjectValue `
+        -Object $AcePayload `
+        -Names @(
+            "rights"
+        )
+
+    $AllowedRights = @(
+        "ReadProperty",
+        "WriteProperty",
+        "CreateChild",
+        "DeleteChild",
+        "ListChildren",
+        "ReadControl",
+        "ExtendedRight",
+        "GenericRead"
+    )
+
+    $Rights = @()
+    $SeenRights = @{}
+
+    foreach ($RawRight in @($RawRights)) {
+        $Right = (
+            [string]$RawRight
+        ).Trim()
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $Right
+            )
+        ) {
+            continue
+        }
+
+        if (
+            $AllowedRights `
+                -cnotcontains $Right
+        ) {
+            throw (
+                "Droit ACL pre-write interdit : " +
+                $Right
+            )
+        }
+
+        if (
+            -not $SeenRights.ContainsKey(
+                $Right
+            )
+        ) {
+            $SeenRights[$Right] = $true
+            $Rights += $Right
+        }
+    }
+
+    if ($Rights.Count -eq 0) {
+        throw (
+            "Au moins un droit ACL " +
+            "pre-write est obligatoire"
+        )
+    }
+
+    $InheritanceType = Get-EitasObjectValue `
+        -Object $AcePayload `
+        -Names @(
+            "inheritance_type"
+        )
+
+    $AllowedInheritanceTypes = @(
+        "None",
+        "All",
+        "Descendents",
+        "SelfAndChildren",
+        "Children"
+    )
+
+    if (
+        $AllowedInheritanceTypes `
+            -cnotcontains [string]$InheritanceType
+    ) {
+        throw (
+            "Portee ACL pre-write interdite : " +
+            [string]$InheritanceType
+        )
+    }
+
+    $RawObjectTypeGuid = Get-EitasObjectValue `
+        -Object $AcePayload `
+        -Names @(
+            "object_type_guid"
+        )
+
+    $RawInheritedObjectTypeGuid = (
+        Get-EitasObjectValue `
+            -Object $AcePayload `
+            -Names @(
+                "inherited_object_type_guid"
+            )
+    )
+
+    $ObjectTypeGuid = (
+        Convert-EitasAdAdminAclGuidValue `
+            -Value $RawObjectTypeGuid `
+            -FieldName "object_type_guid"
+    )
+
+    $InheritedObjectTypeGuid = (
+        Convert-EitasAdAdminAclGuidValue `
+            -Value $RawInheritedObjectTypeGuid `
+            -FieldName "inherited_object_type_guid"
+    )
+
+    $CurrentState = (
+        Get-EitasAdAdminAclCurrentState `
+            -Config $Config `
+            -ObjectDn ([string]$ObjectDn)
+    )
+
+    if (
+        [string]$CurrentState.object_guid `
+            -cne $ExpectedObjectGuid
+    ) {
+        throw (
+            "objectGUID ACL modifie depuis le claim"
+        )
+    }
+
+    if (
+        [string]$CurrentState.dacl_sddl_sha256 `
+            -cne $ExpectedDaclSha256
+    ) {
+        throw (
+            "DACL ACL modifiee depuis le claim"
+        )
+    }
+
+    $Principal = Resolve-EitasAdAdminAclPrincipal `
+        -Config $Config `
+        -Identity ([string]$PrincipalDn)
+
+    if (
+        [string]$Principal.sid `
+            -ine $ExpectedPrincipalSid
+    ) {
+        throw (
+            "SID principal ACL modifie " +
+            "depuis le claim"
+        )
+    }
+
+    return [pscustomobject]@{
+        action = (
+            "prevalidate_acl_delegation"
+        )
+
+        contract_version = "c8.4c1"
+        source_claim_contract_version = "c8.4b4"
+
+        mode = "Production"
+        execution_policy = (
+            "prewrite_validation_only"
+        )
+
+        claim_id = [string]$ClaimId
+        consumption_id = [string]$ConsumptionId
+
+        prewrite_validated = $true
+
+        object_guid_revalidated = $true
+        dacl_revalidated = $true
+        principal_sid_revalidated = $true
+
+        target = [pscustomobject]@{
+            dn = [string]$CurrentState.object_dn
+            object_guid = (
+                [string]$CurrentState.object_guid
+            )
+        }
+
+        principal = [pscustomobject]@{
+            dn = [string]$Principal.distinguished_name
+            sid = [string]$Principal.sid
+        }
+
+        ace = [pscustomobject]@{
+            access_control_type = "Allow"
+            rights = @($Rights)
+            inheritance_type = (
+                [string]$InheritanceType
+            )
+            object_type_guid = $ObjectTypeGuid
+            inherited_object_type_guid = (
+                $InheritedObjectTypeGuid
+            )
+        }
+
+        dacl = [pscustomobject]@{
+            dacl_fingerprint_version = (
+                [string]$CurrentState.dacl_fingerprint_version
+            )
+
+            dacl_sddl_sha256 = (
+                [string]$CurrentState.dacl_sddl_sha256
+            )
+
+            acl_fingerprint = (
+                $ExpectedAclFingerprint
+            )
+        }
+
+        write_performed = $false
+        job_creation_authorized = $false
+        runtime_authorized = $false
+        production_authorized = $false
+        ad_write_authorized = $false
+
+        message = (
+            "Validation ACL pre-write reussie " +
+            "sans modification Active Directory"
+        )
+    }
+}
+
+
 function Invoke-EitasAdAdminAclDelegationSimulationPreview {
     param(
         [object]$Config,
@@ -6490,6 +7273,432 @@ function Invoke-EitasAdAdminJob {
         }
     }
 }
+
+function Process-EitasPendingAclPrewriteTickets {
+    param(
+        [object]$Config,
+        [switch]$SilentWhenEmpty
+    )
+
+    $AgentName = Get-EitasAgentName `
+        -Config $Config
+
+    $ModeResponse = Get-EitasAgentMode `
+        -Config $Config
+
+    $Mode = (
+        [string]$ModeResponse.mode
+    ).Trim()
+
+    if ($Mode -ine "Production") {
+        if (-not $SilentWhenEmpty) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "INFO" `
+                -Message (
+                    "ACL pre-write non traite : " +
+                    "agent hors mode Production."
+                )
+        }
+
+        return 0
+    }
+
+    $Tickets = @(
+        Get-EitasPendingAclPrewriteTickets `
+            -Config $Config
+    )
+
+    if ($Tickets.Count -eq 0) {
+        if (-not $SilentWhenEmpty) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "INFO" `
+                -Message (
+                    "Aucun ticket ACL pre-write " +
+                    "en attente."
+                )
+        }
+
+        return 0
+    }
+
+    Write-EitasLog `
+        -Name "ad-admin-worker-light.log" `
+        -Level "INFO" `
+        -Message (
+            "Tickets ACL pre-write en attente : " +
+            $Tickets.Count
+        ) `
+        -Console
+
+    $Processed = 0
+
+    foreach ($Ticket in $Tickets) {
+        $TicketId = Get-EitasObjectValue `
+            -Object $Ticket `
+            -Names @(
+                "ticket_id"
+            )
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                [string]$TicketId
+            )
+        ) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "WARN" `
+                -Message (
+                    "Ticket ACL pre-write sans ID ignore."
+                ) `
+                -Console
+
+            continue
+        }
+
+        $TicketId = (
+            [string]$TicketId
+        ).Trim()
+
+        $ExecutionId = $null
+        $ClaimObtained = $false
+
+        try {
+            $TicketContract = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "contract_version"
+                )
+
+            $TicketState = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "state"
+                )
+
+            $TicketClaimId = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "claim_id"
+                )
+
+            $TicketConsumptionId = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "consumption_id"
+                )
+
+            $TicketPayloadDigest = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "payload_digest"
+                )
+
+            if (
+                [string]$TicketContract `
+                    -cne "c8.4c5a"
+            ) {
+                throw (
+                    "Contrat ticket ACL pre-write invalide"
+                )
+            }
+
+            if (
+                [string]$TicketState `
+                    -cne "prewrite_ticketed"
+            ) {
+                throw (
+                    "Etat ticket ACL pre-write invalide"
+                )
+            }
+
+            foreach (
+                $RequiredValue in @(
+                    $TicketClaimId,
+                    $TicketConsumptionId,
+                    $TicketPayloadDigest
+                )
+            ) {
+                if (
+                    [string]::IsNullOrWhiteSpace(
+                        [string]$RequiredValue
+                    )
+                ) {
+                    throw (
+                        "Metadonnees ticket ACL " +
+                        "pre-write incompletes"
+                    )
+                }
+            }
+
+            $TicketAuthorization = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "authorization"
+                )
+
+            Assert-EitasAclPrewriteTransportAuthorization `
+                -Authorization $TicketAuthorization `
+                -ExpectedPrewriteRuntime $false |
+                Out-Null
+
+            $Claim = Claim-EitasAclPrewriteTicket `
+                -Config $Config `
+                -TicketId $TicketId `
+                -AgentName $AgentName
+
+            if ($null -eq $Claim) {
+                continue
+            }
+
+            $ClaimObtained = $true
+
+            $ExecutionId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "execution_id"
+                )
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    [string]$ExecutionId
+                )
+            ) {
+                throw (
+                    "execution_id ACL pre-write manquant"
+                )
+            }
+
+            $ExecutionId = (
+                [string]$ExecutionId
+            ).Trim()
+
+            $ClaimContract = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "contract_version"
+                )
+
+            $ClaimState = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "state"
+                )
+
+            $ClaimTicketId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "ticket_id"
+                )
+
+            $ClaimClaimId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "claim_id"
+                )
+
+            $ClaimConsumptionId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "consumption_id"
+                )
+
+            $ClaimPayloadDigest = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "payload_digest"
+                )
+
+            if (
+                [string]$ClaimContract `
+                    -cne "c8.4c5c"
+            ) {
+                throw (
+                    "Contrat execution ACL pre-write invalide"
+                )
+            }
+
+            if (
+                [string]$ClaimState `
+                    -cne "prewrite_processing"
+            ) {
+                throw (
+                    "Etat execution ACL pre-write invalide"
+                )
+            }
+
+            if (
+                [string]$ClaimTicketId `
+                    -cne $TicketId
+            ) {
+                throw (
+                    "ticket_id ACL modifie pendant le claim"
+                )
+            }
+
+            if (
+                [string]$ClaimClaimId `
+                    -cne [string]$TicketClaimId
+            ) {
+                throw (
+                    "claim_id ACL modifie pendant le claim"
+                )
+            }
+
+            if (
+                [string]$ClaimConsumptionId `
+                    -cne [string]$TicketConsumptionId
+            ) {
+                throw (
+                    "consumption_id ACL modifie " +
+                    "pendant le claim"
+                )
+            }
+
+            if (
+                [string]$ClaimPayloadDigest `
+                    -cne [string]$TicketPayloadDigest
+            ) {
+                throw (
+                    "Digest payload ACL modifie " +
+                    "pendant le claim"
+                )
+            }
+
+            $ClaimAuthorization = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "authorization"
+                )
+
+            Assert-EitasAclPrewriteTransportAuthorization `
+                -Authorization $ClaimAuthorization `
+                -ExpectedPrewriteRuntime $true |
+                Out-Null
+
+            $Payload = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "payload"
+                )
+
+            if ($null -eq $Payload) {
+                throw (
+                    "Payload ACL pre-write agent manquant"
+                )
+            }
+
+            # "Production" here is only the C8.4C1 validation
+            # context. The payload still carries every ACL
+            # write authorization flag as false.
+            $Result = (
+                Invoke-EitasAdAdminAclDelegationPrewriteValidation `
+                    -Config $Config `
+                    -Payload $Payload `
+                    -Mode $Mode
+            )
+
+            if (
+                $Result.write_performed -ne $false -or
+                $Result.job_creation_authorized -ne $false -or
+                $Result.runtime_authorized -ne $false -or
+                $Result.production_authorized -ne $false -or
+                $Result.ad_write_authorized -ne $false
+            ) {
+                throw (
+                    "Resultat ACL pre-write " +
+                    "autorisant interdit"
+                )
+            }
+
+            $ResultMessage = (
+                [string]$Result.message
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $ResultMessage
+                )
+            ) {
+                $ResultMessage = (
+                    "Validation ACL pre-write terminee " +
+                    "sans ecriture"
+                )
+            }
+
+            Send-EitasAclPrewriteResult `
+                -Config $Config `
+                -TicketId $TicketId `
+                -ExecutionId $ExecutionId `
+                -AgentName $AgentName `
+                -Success $true `
+                -Result $Result `
+                -Message $ResultMessage |
+                Out-Null
+
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "OK" `
+                -Message (
+                    "Validation ACL pre-write terminee : " +
+                    $TicketId
+                ) `
+                -Console
+
+            $Processed++
+        }
+        catch {
+            $ErrorMessage = (
+                [string]$_.Exception.Message
+            ).Trim()
+
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "ERROR" `
+                -Message (
+                    "Validation ACL pre-write echouee : " +
+                    $TicketId +
+                    " / " +
+                    $ErrorMessage
+                ) `
+                -Console
+
+            if (
+                $ClaimObtained -and
+                -not [string]::IsNullOrWhiteSpace(
+                    [string]$ExecutionId
+                )
+            ) {
+                try {
+                    Send-EitasAclPrewriteResult `
+                        -Config $Config `
+                        -TicketId $TicketId `
+                        -ExecutionId $ExecutionId `
+                        -AgentName $AgentName `
+                        -Success $false `
+                        -Result $null `
+                        -Message $ErrorMessage |
+                        Out-Null
+                }
+                catch {
+                    Write-EitasLog `
+                        -Name "ad-admin-worker-light.log" `
+                        -Level "ERROR" `
+                        -Message (
+                            "Impossible d'envoyer le refus " +
+                            "ACL pre-write : " +
+                            $_.Exception.Message
+                        ) `
+                        -Console
+                }
+            }
+        }
+    }
+
+    return $Processed
+}
+
 
 function Process-EitasPendingAdAdminJobs {
     param(
