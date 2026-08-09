@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.06
+## État courant — v0.8.0-alpha.07
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       65 % |
-| Explorateur Active Directory complet       |       97 % |
-| Projet EITAS global | 92 % |
+| C8 — ACL, sécurité et délégation                 |       75 % |
+| Explorateur Active Directory complet       |       98 % |
+| Projet EITAS global | 93 % |
 
-Le checkpoint `v0.8.0-alpha.06` valide C8.4A « garde-fous préparatoires aux écritures ACL contrôlées » à 100 %. C8 : 65 %. Explorateur Active Directory : 97 %. EITAS : 92 %. Une intention d’écriture reste strictement dormante et doit être liée à une simulation réussie ainsi qu’à une lecture DACL fraîche dont le fingerprint canonique correspond exactement. Création de job d’écriture, runtime Production et écriture AD restent explicitement interdits.
+Le checkpoint `v0.8.0-alpha.07` valide C8.4B « frontière backend pré-écriture ACL contrôlée » à 100 %. C8 : 75 %. Explorateur Active Directory : 98 %. EITAS : 93 %. Les preuves serveur fraîches sont liées à l’identité OIDC réelle, consommées exactement une fois sous verrou interprocess et enregistrées dans un claim dormant atomique. Le fingerprint sémantique ACL v2 reste déterministe et indépendant de l’ordre d’affichage, tandis que le SHA-256 du SDDL DACL natif capture la représentation réellement lue. Aucun job `apply_acl_delegation`, runtime AD Production ou droit d’écriture ACL n’est encore autorisé.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,54 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 65 %, C8.1, C8.2, C8.3 et C8.4A validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 75 %, C8.1, C8.2, C8.3, C8.4A et C8.4B validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.07 — C8.4B frontière backend pré-écriture ACL
+
+Ce checkpoint valide C8.4B à 100 % sans ouvrir l’écriture ACL.
+
+- B1 : chargement strict des preuves serveur de confiance ;
+- liaison à une simulation ACL réussie et fraîche ;
+- liaison à un Security Descriptor frais ;
+- binding obligatoire sur le même `objectGUID` ;
+- fingerprint sémantique ACL v2 déterministe ;
+- fingerprint sémantique indépendant de l’ordre d’affichage des ACE ;
+- SHA-256 du SDDL DACL natif conservé séparément afin de capturer la représentation DACL réellement lue ;
+- B2 : registre anti-replay privé et durable ;
+- verrou interprocess `flock` ;
+- écriture atomique avec fichier temporaire exclusif, `fsync`, `replace` et `fsync` du répertoire ;
+- protection contre les liens symboliques ;
+- consommation unique par digest de preuve, Simulation et Security Descriptor ;
+- B3 : enveloppe d’identité liée à l’acteur OIDC réellement authentifié ;
+- rejet des champs d’identité contrôlés par le client, dont `created_by` ;
+- enveloppe strictement non autorisante ;
+- B4 : claim `claimed_dormant` atomique couplé à la consommation anti-replay sous le même verrou ;
+- revalidation des preuves fraîches après acquisition du verrou ;
+- persistance de la cible, du principal, de l’ACE exacte, du fingerprint ACL, du SHA DACL natif et de l’acteur OIDC ;
+- course interprocess validée avec un seul gagnant ;
+- premier claim réel HTTP 200 ;
+- replay immédiat avec les mêmes preuves rejeté en HTTP 409 ;
+- registre runtime `/var/lib/eitas/acl-delegation-write-replay.json` validé en mode `0600` sous `eitas:eitas` ;
+- audit runtime unique `acl_delegation_write_claim_created` validé ;
+- aucun job `apply_acl_delegation` créé ;
+- aucune exposition de `apply_acl_delegation` au worker Windows ou au frontend ;
+- aucune primitive `Set-Acl`, `SetAccessRule`, `AddAccessRule`, `RemoveAccessRule`, `ResetAccessRule`, `SetOwner` ou `ActiveDirectoryAccessRule` introduite ;
+- `job_creation_authorized=false` ;
+- `runtime_authorized=false` ;
+- `production_authorized=false` ;
+- `ad_write_authorized=false` ;
+- 13 tests B4 ciblés réussis ;
+- 12 tests B2 de régression réussis ;
+- 79 tests B1+B2+B3+B4 réussis ;
+- 636 tests backend et 339 sous-tests réussis ;
+- contrôle sécurité pré-commit validé ;
+- progression : C8.4B 100 %, C8 75 %, Explorateur AD 98 %, EITAS 93 %.
+
+La prochaine étape est C8.4C : moteur Windows contrôlé avec relecture et validation de la DACL immédiatement avant toute future mutation.
 
 ### v0.8.0-alpha.06 — C8.4A garde-fous préparatoires aux écritures ACL
 

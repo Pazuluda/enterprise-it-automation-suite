@@ -2434,6 +2434,47 @@ function Invoke-EitasAdExplorerGetSecurityDescriptor {
         -Path $AclPath `
         -ErrorAction Stop
 
+    $DaclSddl = $Acl.GetSecurityDescriptorSddlForm(
+        [System.Security.AccessControl.AccessControlSections]::Access
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$DaclSddl
+        )
+    ) {
+        throw "Representation SDDL de la DACL indisponible"
+    }
+
+    $DaclHasher = (
+        [System.Security.Cryptography.SHA256]::Create()
+    )
+
+    try {
+        $DaclBytes = (
+            [System.Text.Encoding]::UTF8.GetBytes(
+                [string]$DaclSddl
+            )
+        )
+
+        $DaclHashBytes = (
+            $DaclHasher.ComputeHash(
+                $DaclBytes
+            )
+        )
+
+        $DaclSddlSha256 = (
+            [System.BitConverter]::ToString(
+                $DaclHashBytes
+            ).
+                Replace("-", "").
+                ToLowerInvariant()
+        )
+    }
+    finally {
+        $DaclHasher.Dispose()
+    }
+
     $OwnerPrincipal = Convert-EitasAdSecurityPrincipal `
         -IdentityReference $Acl.Owner
 
@@ -2530,7 +2571,15 @@ function Invoke-EitasAdExplorerGetSecurityDescriptor {
             [string]$AdObject.ObjectClass
         )
         object_guid = (
-            [string]$AdObject.ObjectGUID
+            ([string]$AdObject.ObjectGUID).
+                Trim().
+                ToLowerInvariant()
+        )
+        dacl_fingerprint_version = (
+            "sddl-access-sha256-v1"
+        )
+        dacl_sddl_sha256 = (
+            $DaclSddlSha256
         )
         owner = $OwnerPrincipal.name
         owner_sid = $OwnerPrincipal.sid

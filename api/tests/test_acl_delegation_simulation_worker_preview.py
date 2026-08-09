@@ -76,6 +76,20 @@ def test_c8_3b1_reuses_managed_target_guard():
     assert "Assert-EitasDnSafe" in preview
 
 
+def test_c8_4b_simulation_binds_target_object_guid():
+    resolver = function_body(
+        "Resolve-EitasAdAdminObject"
+    )
+
+    preview = function_body(
+        "Invoke-EitasAdAdminAclDelegationSimulationPreview"
+    )
+
+    assert "objectGUID" in resolver
+    assert "$Target.ObjectGUID" in preview
+    assert "object_guid = (" in preview
+
+
 def test_c8_3b1_resolves_security_principal_sid():
     resolver = function_body(
         "Resolve-EitasAdAdminAclPrincipal"

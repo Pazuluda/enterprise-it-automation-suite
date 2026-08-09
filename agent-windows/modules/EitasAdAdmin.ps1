@@ -2232,7 +2232,7 @@ function Resolve-EitasAdAdminObject {
     try {
         $Object = Get-ADObject `
             -Identity $Identity `
-            -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description `
+            -Properties objectClass, objectGUID, sAMAccountName, userPrincipalName, displayName, description `
             -ErrorAction Stop
     }
     catch {
@@ -2248,7 +2248,7 @@ function Resolve-EitasAdAdminObject {
         $Matches = @(Get-ADObject `
             -LDAPFilter "(|(name=$SafeIdentity)(sAMAccountName=$SafeIdentity)(displayName=$SafeIdentity))" `
             -SearchBase $SearchBase `
-            -Properties objectClass, sAMAccountName, userPrincipalName, displayName, description `
+            -Properties objectClass, objectGUID, sAMAccountName, userPrincipalName, displayName, description `
             -ResultSetSize 5 `
             -ErrorAction Stop)
 
@@ -6354,6 +6354,11 @@ function Invoke-EitasAdAdminAclDelegationSimulationPreview {
             name = [string]$Target.Name
             dn = [string]$Target.DistinguishedName
             object_class = [string]$Target.ObjectClass
+            object_guid = (
+                ([string]$Target.ObjectGUID).
+                    Trim().
+                    ToLowerInvariant()
+            )
         }
 
         principal = $Principal

@@ -31,6 +31,14 @@ ZERO_GUID = (
     "00000000-0000-0000-0000-000000000000"
 )
 
+ACL_DELEGATION_DACL_FINGERPRINT_VERSION = (
+    "sddl-access-sha256-v1"
+)
+
+ACL_DELEGATION_ACL_STATE_FINGERPRINT_VERSION = (
+    "eitas-acl-state-v2"
+)
+
 
 class AclDelegationWriteBindingBadRequest(
     ValueError
@@ -44,8 +52,10 @@ class AclDelegationWriteBinding:
     simulation_job_id: str
     security_descriptor_job_id: str
     target_dn: str
+    target_object_guid: str
     principal_dn: str
     principal_sid: str
+    dacl_sddl_sha256: str
     acl_fingerprint: str
     acl_rule_count: int
     contract_version: str
@@ -93,6 +103,27 @@ def _normalize_guid(value) -> str:
         raise AclDelegationWriteBindingBadRequest(
             "GUID ACL invalide dans le descripteur"
         ) from exc
+
+
+def _normalize_sha256(
+    value,
+    field_name: str,
+) -> str:
+    raw = _clean_string(value).lower()
+
+    if len(raw) != 64:
+        raise AclDelegationWriteBindingBadRequest(
+            f"{field_name} doit etre un SHA-256 hexadecimal"
+        )
+
+    try:
+        int(raw, 16)
+    except ValueError as exc:
+        raise AclDelegationWriteBindingBadRequest(
+            f"{field_name} doit etre un SHA-256 hexadecimal"
+        ) from exc
+
+    return raw
 
 
 def _normalize_rights_string(value) -> tuple[str, ...]:
@@ -300,8 +331,46 @@ def calculate_acl_fingerprint(
         descriptor
     )
 
+    object_guid = _normalize_uuid(
+        descriptor.get("object_guid"),
+        "security_descriptor.object_guid",
+    )
+
+    dacl_fingerprint_version = _clean_string(
+        descriptor.get(
+            "dacl_fingerprint_version"
+        )
+    )
+
+    if (
+        dacl_fingerprint_version
+        != ACL_DELEGATION_DACL_FINGERPRINT_VERSION
+    ):
+        raise AclDelegationWriteBindingBadRequest(
+            "Version du fingerprint DACL invalide"
+        )
+
+    dacl_sddl_sha256 = _normalize_sha256(
+        descriptor.get("dacl_sddl_sha256"),
+        "security_descriptor.dacl_sddl_sha256",
+    )
+
+    material = {
+        "fingerprint_version": (
+            ACL_DELEGATION_ACL_STATE_FINGERPRINT_VERSION
+        ),
+        "object_guid": object_guid,
+        "dacl_fingerprint_version": (
+            dacl_fingerprint_version
+        ),
+        "dacl_sddl_sha256": (
+            dacl_sddl_sha256
+        ),
+        "semantic_dacl": canonical,
+    }
+
     encoded = json.dumps(
-        canonical,
+        material,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,
@@ -585,6 +654,11 @@ def validate_acl_delegation_write_binding(
             "La cible resolue ne correspond pas"
         )
 
+    simulation_target_object_guid = _normalize_uuid(
+        target.get("object_guid"),
+        "simulation.target.object_guid",
+    )
+
     principal_dn = _clean_string(
         principal.get("dn")
     )
@@ -718,6 +792,39 @@ def validate_acl_delegation_write_binding(
             "une autre cible"
         )
 
+    target_object_guid = _normalize_uuid(
+        descriptor.get("object_guid"),
+        "security_descriptor.object_guid",
+    )
+
+    if (
+        target_object_guid
+        != simulation_target_object_guid
+    ):
+        raise AclDelegationWriteBindingBadRequest(
+            "L'objectGUID de la cible a change "
+            "entre la Simulation et la lecture DACL"
+        )
+
+    dacl_fingerprint_version = _clean_string(
+        descriptor.get(
+            "dacl_fingerprint_version"
+        )
+    )
+
+    if (
+        dacl_fingerprint_version
+        != ACL_DELEGATION_DACL_FINGERPRINT_VERSION
+    ):
+        raise AclDelegationWriteBindingBadRequest(
+            "Version du fingerprint DACL invalide"
+        )
+
+    dacl_sddl_sha256 = _normalize_sha256(
+        descriptor.get("dacl_sddl_sha256"),
+        "security_descriptor.dacl_sddl_sha256",
+    )
+
     simulation_completed_at = _parse_timestamp(
         simulation_job.get("completed_at"),
         "simulation.completed_at",
@@ -757,8 +864,10 @@ def validate_acl_delegation_write_binding(
             security_job_id
         ),
         target_dn=target_dn,
+        target_object_guid=target_object_guid,
         principal_dn=principal_dn,
         principal_sid=principal_sid,
+        dacl_sddl_sha256=dacl_sddl_sha256,
         acl_fingerprint=fingerprint,
         acl_rule_count=len(rules),
         contract_version=(

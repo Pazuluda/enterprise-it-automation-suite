@@ -139,6 +139,19 @@ from app.services.ldap_hab_seniority_simulation import (
     service_normalize_ldap_hab_simulation_request,
 )
 
+from app.services.acl_delegation_write_identity_envelope import (
+    AclDelegationWriteIdentityEnvelopeError,
+    build_acl_delegation_write_identity_envelope,
+)
+from app.services.acl_delegation_write_claim import (
+    AclDelegationWriteClaimConflict,
+    AclDelegationWriteClaimError,
+    claim_acl_delegation_write_intent,
+)
+from app.services.acl_delegation_write_replay import (
+    AclDelegationWriteReplayStorageError,
+)
+
 from app.services.ldap_hab_seniority_simulation_persistence import (
     LDAPHabSimulationPersistenceError,
     create_ldap_hab_simulation_job_record as
@@ -261,6 +274,9 @@ AD_DOMAIN_CATALOG_STALE_AFTER_SECONDS = max(
 )
 
 AD_ADMIN_JOBS_FILE = DATA_DIR / "ad-admin-jobs.json"
+ACL_DELEGATION_WRITE_REPLAY_FILE = (
+    DATA_DIR / "acl-delegation-write-replay.json"
+)
 
 IDENTITY_UPDATE_STATUS_FILE = Path(
     os.getenv(
@@ -1005,6 +1021,324 @@ def create_ldap_attribute_update_simulation_job_api(
     write_audit_log(**audit_event)
 
     return response
+
+
+@app.post(
+    "/api/ad-admin/acl-delegation/write-intent/identity-envelope"
+)
+def create_acl_delegation_write_identity_envelope_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    try:
+        envelope = (
+            build_acl_delegation_write_identity_envelope(
+                identity=identity,
+                ad_admin_jobs_file=AD_ADMIN_JOBS_FILE,
+                ad_explorer_jobs_file=AD_EXPLORER_JOBS_FILE,
+                intent_payload=payload,
+            )
+        )
+    except AclDelegationWriteIdentityEnvelopeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    audit_event = {
+        "action": (
+            "acl_delegation_write_identity_envelope_built"
+        ),
+        "request_id": envelope.server_nonce,
+        "actor": envelope.actor_username,
+        "message": (
+            "Enveloppe d'identite ACL preparee "
+            "sans autorisation d'ecriture"
+        ),
+        "details": {
+            "contract_version": envelope.contract_version,
+            "actor_subject": envelope.actor_subject,
+            "actor_username": envelope.actor_username,
+            "actor_roles": list(envelope.actor_roles),
+            "simulation_job_id": (
+                envelope.simulation_job_id
+            ),
+            "security_descriptor_job_id": (
+                envelope.security_descriptor_job_id
+            ),
+            "target_dn": envelope.target_dn,
+            "target_object_guid": (
+                envelope.target_object_guid
+            ),
+            "principal_sid": (
+                envelope.principal_sid
+            ),
+            "evidence_digest": (
+                envelope.evidence_digest
+            ),
+            "envelope_digest": (
+                envelope.envelope_digest
+            ),
+            "replay_consumed": False,
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+    write_audit_log(**audit_event)
+
+    return {
+        "contract_version": envelope.contract_version,
+        "execution_policy": envelope.execution_policy,
+        "server_nonce": envelope.server_nonce,
+        "issued_at": envelope.issued_at,
+        "expires_at": envelope.expires_at,
+        "actor": {
+            "auth_type": envelope.actor_auth_type,
+            "subject": envelope.actor_subject,
+            "username": envelope.actor_username,
+            "roles": list(envelope.actor_roles),
+            "issuer": envelope.actor_issuer,
+            "azp": envelope.actor_azp,
+            "audience": list(envelope.actor_audience),
+            "jti": envelope.actor_jti,
+        },
+        "evidence": {
+            "simulation_job_id": (
+                envelope.simulation_job_id
+            ),
+            "security_descriptor_job_id": (
+                envelope.security_descriptor_job_id
+            ),
+            "evidence_digest": (
+                envelope.evidence_digest
+            ),
+        },
+        "target": {
+            "dn": envelope.target_dn,
+            "object_guid": (
+                envelope.target_object_guid
+            ),
+        },
+        "principal": {
+            "dn": envelope.principal_dn,
+            "sid": envelope.principal_sid,
+        },
+        "ace": {
+            "access_control_type": (
+                envelope.access_control_type
+            ),
+            "rights": list(envelope.rights),
+            "inheritance_type": (
+                envelope.inheritance_type
+            ),
+            "object_type_guid": (
+                envelope.object_type_guid
+            ),
+            "inherited_object_type_guid": (
+                envelope.inherited_object_type_guid
+            ),
+        },
+        "dacl": {
+            "dacl_sddl_sha256": (
+                envelope.dacl_sddl_sha256
+            ),
+            "acl_fingerprint": (
+                envelope.acl_fingerprint
+            ),
+        },
+        "anti_replay": {
+            "consumed": False,
+            "consumption_id": None,
+            "consumption_required": True,
+        },
+        "envelope_digest": envelope.envelope_digest,
+        "authorization": {
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.post(
+    "/api/ad-admin/acl-delegation/write-intent/claim"
+)
+def claim_acl_delegation_write_intent_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    try:
+        claim = claim_acl_delegation_write_intent(
+            identity=identity,
+            ad_admin_jobs_file=AD_ADMIN_JOBS_FILE,
+            ad_explorer_jobs_file=AD_EXPLORER_JOBS_FILE,
+            replay_registry_file=(
+                ACL_DELEGATION_WRITE_REPLAY_FILE
+            ),
+            intent_payload=payload,
+        )
+
+    except AclDelegationWriteClaimConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteClaimError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteReplayStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Stockage de securite ACL indisponible"
+            ),
+        ) from exc
+
+    audit_event = {
+        "action": (
+            "acl_delegation_write_claim_created"
+        ),
+        "request_id": claim.claim_id,
+        "actor": claim.actor_username,
+        "message": (
+            "Claim ACL dormant cree sans "
+            "autorisation d'ecriture"
+        ),
+        "details": {
+            "contract_version": (
+                claim.contract_version
+            ),
+            "state": claim.state,
+            "claim_id": claim.claim_id,
+            "consumption_id": (
+                claim.consumption_id
+            ),
+            "actor_subject": (
+                claim.actor_subject
+            ),
+            "actor_username": (
+                claim.actor_username
+            ),
+            "actor_roles": list(
+                claim.actor_roles
+            ),
+            "simulation_job_id": (
+                claim.simulation_job_id
+            ),
+            "security_descriptor_job_id": (
+                claim.security_descriptor_job_id
+            ),
+            "target_dn": claim.target_dn,
+            "target_object_guid": (
+                claim.target_object_guid
+            ),
+            "principal_sid": (
+                claim.principal_sid
+            ),
+            "evidence_digest": (
+                claim.evidence_digest
+            ),
+            "envelope_digest": (
+                claim.envelope_digest
+            ),
+            "replay_consumed": True,
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+    write_audit_log(**audit_event)
+
+    return {
+        "contract_version": (
+            claim.contract_version
+        ),
+        "state": claim.state,
+        "claim_id": claim.claim_id,
+        "consumption_id": (
+            claim.consumption_id
+        ),
+        "replay_consumed": True,
+
+        "actor": {
+            "subject": claim.actor_subject,
+            "username": claim.actor_username,
+            "roles": list(
+                claim.actor_roles
+            ),
+            "issuer": claim.actor_issuer,
+            "azp": claim.actor_azp,
+        },
+
+        "evidence": {
+            "simulation_job_id": (
+                claim.simulation_job_id
+            ),
+            "security_descriptor_job_id": (
+                claim.security_descriptor_job_id
+            ),
+            "evidence_digest": (
+                claim.evidence_digest
+            ),
+            "envelope_digest": (
+                claim.envelope_digest
+            ),
+        },
+
+        "target": {
+            "dn": claim.target_dn,
+            "object_guid": (
+                claim.target_object_guid
+            ),
+        },
+
+        "principal": {
+            "dn": claim.principal_dn,
+            "sid": claim.principal_sid,
+        },
+
+        "ace": {
+            "access_control_type": (
+                claim.access_control_type
+            ),
+            "rights": list(claim.rights),
+            "inheritance_type": (
+                claim.inheritance_type
+            ),
+            "object_type_guid": (
+                claim.object_type_guid
+            ),
+            "inherited_object_type_guid": (
+                claim.inherited_object_type_guid
+            ),
+        },
+
+        "dacl": {
+            "dacl_sddl_sha256": (
+                claim.dacl_sddl_sha256
+            ),
+            "acl_fingerprint": (
+                claim.acl_fingerprint
+            ),
+        },
+
+        "authorization": {
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
 
 
 @app.post("/api/ad-admin/jobs")

@@ -28,6 +28,14 @@ def descriptor():
     return {
         "action": "get_security_descriptor",
         "object_dn": TARGET_DN,
+        "object_guid": (
+            "8838f739-c817-4b45-"
+            "90b2-b597ce79312a"
+        ),
+        "dacl_fingerprint_version": (
+            "sddl-access-sha256-v1"
+        ),
+        "dacl_sddl_sha256": "a" * 64,
         "read_only": True,
         "sacl_included": False,
         "inheritance_enabled": True,
@@ -123,6 +131,10 @@ def simulation_job():
             "execution_policy": "simulation_only",
             "target": {
                 "dn": TARGET_DN,
+                "object_guid": (
+                    "8838f739-c817-4b45-"
+                    "90b2-b597ce79312a"
+                ),
                 "name": "test",
                 "object_class": (
                     "organizationalUnit"
@@ -212,6 +224,15 @@ def test_c8_4a2_validates_complete_binding():
     assert binding.binding_validated is True
     assert binding.target_dn == TARGET_DN
 
+    assert binding.target_object_guid == (
+        "8838f739-c817-4b45-"
+        "90b2-b597ce79312a"
+    )
+
+    assert binding.dacl_sddl_sha256 == (
+        "a" * 64
+    )
+
     assert binding.principal_sid == (
         "S-1-5-21-1101651174-"
         "4260486456-3261528239-1118"
@@ -234,6 +255,68 @@ def test_c8_4a2_fingerprint_is_order_independent():
     assert calculate_acl_fingerprint(
         first
     ) == calculate_acl_fingerprint(second)
+
+
+def test_c8_4b_fingerprint_detects_native_dacl_change():
+    first = descriptor()
+    second = deepcopy(first)
+
+    second["dacl_sddl_sha256"] = "b" * 64
+
+    assert calculate_acl_fingerprint(
+        first
+    ) != calculate_acl_fingerprint(second)
+
+
+def test_c8_4b_fingerprint_detects_object_guid_change():
+    first = descriptor()
+    second = deepcopy(first)
+
+    second["object_guid"] = (
+        "11111111-2222-4333-"
+        "8444-555555555555"
+    )
+
+    assert calculate_acl_fingerprint(
+        first
+    ) != calculate_acl_fingerprint(second)
+
+
+def test_c8_4b_rejects_missing_simulation_object_guid():
+    job = simulation_job()
+
+    job["output"]["target"].pop(
+        "object_guid"
+    )
+
+    with pytest.raises(
+        AclDelegationWriteBindingBadRequest,
+        match="simulation.target.object_guid",
+    ):
+        validate_acl_delegation_write_binding(
+            intent_payload(),
+            job,
+            security_job(),
+        )
+
+
+def test_c8_4b_rejects_target_object_guid_change():
+    job = simulation_job()
+
+    job["output"]["target"]["object_guid"] = (
+        "11111111-2222-4333-"
+        "8444-555555555555"
+    )
+
+    with pytest.raises(
+        AclDelegationWriteBindingBadRequest,
+        match="objectGUID",
+    ):
+        validate_acl_delegation_write_binding(
+            intent_payload(),
+            job,
+            security_job(),
+        )
 
 
 def test_c8_4a2_right_order_is_canonical():

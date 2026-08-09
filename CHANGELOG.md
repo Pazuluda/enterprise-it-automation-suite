@@ -5,6 +5,50 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.07] — 2026-08-09
+
+### C8.4B — frontière backend pré-écriture ACL contrôlée
+
+- ajout d’une frontière de confiance stricte autour de l’intention `apply_acl_delegation` ;
+- chargement serveur des preuves Simulation et Security Descriptor ;
+- contrôle de fraîcheur fail-closed ;
+- binding sur le même `objectGUID` ;
+- fingerprint sémantique ACL v2 déterministe et indépendant de l’ordre d’affichage des ACE ;
+- ajout séparé du SHA-256 du SDDL DACL natif afin de capturer la représentation DACL réellement lue ;
+- ajout d’un registre anti-replay privé ;
+- verrou interprocess `flock` ;
+- écriture atomique durable avec protections contre les liens symboliques ;
+- consommation unique des preuves par digest, Simulation et Security Descriptor ;
+- ajout d’une enveloppe d’identité liée à l’acteur OIDC authentifié ;
+- rejet des champs d’identité injectés par le client ;
+- ajout d’un claim B4 `claimed_dormant` couplé atomiquement à la consommation anti-replay ;
+- revalidation des preuves fraîches sous le verrou interprocess ;
+- persistance de la cible, du principal, de l’ACE exacte, de la DACL et de l’identité OIDC ;
+- route OIDC dédiée `/api/ad-admin/acl-delegation/write-intent/claim` ;
+- premier claim réel validé en HTTP 200 ;
+- replay exact immédiatement rejeté en HTTP 409 avec `Preuve ACL deja consommee` ;
+- registre runtime et verrou validés sous `eitas:eitas` en mode `0600` ;
+- événement d’audit runtime unique validé ;
+- aucun job `apply_acl_delegation` créé ;
+- aucune exposition au runtime générique, au worker Windows ou au frontend ;
+- aucune primitive d’écriture ACL introduite ;
+- `job_creation_authorized=false` ;
+- `runtime_authorized=false` ;
+- `production_authorized=false` ;
+- `ad_write_authorized=false`.
+
+### Validation
+
+- 13 tests B4 ciblés réussis ;
+- 12 tests B2 de régression réussis ;
+- 79 tests B1+B2+B3+B4 réussis ;
+- 636 tests backend et 339 sous-tests réussis ;
+- 42 avertissements backend connus ;
+- course interprocess B4 validée avec un seul gagnant ;
+- contrôle sécurité pré-commit validé ;
+- `git diff --check` validé ;
+- progression : C8.4B 100 %, C8 75 %, Explorateur AD 98 %, EITAS 93 %.
+
 ## [0.8.0-alpha.06] — 2026-08-09
 
 ### C8.4A — garde-fous préparatoires aux écritures ACL contrôlées
