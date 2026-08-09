@@ -33,6 +33,52 @@ def security_function(
     return source[start:end]
 
 
+def acl_guid_catalog_function(
+    source: str,
+) -> str:
+    start = source.index(
+        "function Get-EitasAdAclGuidCatalog"
+    )
+
+    end = source.index(
+        "function Get-EitasAdAclGuidName",
+        start,
+    )
+
+    return source[start:end]
+
+
+def acl_guid_name_function(
+    source: str,
+) -> str:
+    start = source.index(
+        "function Get-EitasAdAclGuidName"
+    )
+
+    end = source.index(
+        "function "
+        "Invoke-EitasAdExplorerGetSecurityDescriptor",
+        start,
+    )
+
+    return source[start:end]
+
+
+def acl_guid_converter_function(
+    source: str,
+) -> str:
+    start = source.index(
+        "function Convert-EitasAdAclGuidValue"
+    )
+
+    end = source.index(
+        "function Get-EitasAdAclGuidCatalog",
+        start,
+    )
+
+    return source[start:end]
+
+
 def test_worker_exposes_security_descriptor_action():
     source = worker_source()
 
@@ -127,3 +173,131 @@ def test_worker_rejects_split_security_identifier_cast():
     )
 
     assert bad not in source
+
+def test_worker_builds_acl_guid_catalog_from_schema():
+    block = acl_guid_catalog_function(
+        worker_source()
+    )
+
+    for token in (
+        "Get-ADRootDSE",
+        "schemaNamingContext",
+        "configurationNamingContext",
+        "objectClass=attributeSchema",
+        "objectClass=classSchema",
+        "lDAPDisplayName",
+        "schemaIDGUID",
+    ):
+        assert token in block
+
+
+def test_worker_reads_extended_right_guid_catalog():
+    block = acl_guid_catalog_function(
+        worker_source()
+    )
+
+    for token in (
+        "CN=Extended-Rights,",
+        "objectClass=controlAccessRight",
+        "rightsGuid",
+        "displayName",
+        "Get-ADObject",
+    ):
+        assert token in block
+
+
+def test_worker_normalizes_acl_guids_and_keeps_safe_fallback():
+    converter = acl_guid_converter_function(
+        worker_source()
+    )
+
+    resolver = acl_guid_name_function(
+        worker_source()
+    )
+
+    assert "[System.Guid]" in converter
+    assert "[byte[]]" in converter
+    assert 'ToString("D")' in converter
+    assert "ToLowerInvariant()" in converter
+
+    assert (
+        "00000000-0000-0000-0000-000000000000"
+        in resolver
+    )
+
+    assert (
+        "$Catalog.ContainsKey($NormalizedGuid)"
+        in resolver
+    )
+
+    assert "return $null" in resolver
+
+
+def test_worker_enriches_acl_rules_with_guid_names():
+    block = security_function(
+        worker_source()
+    )
+
+    for token in (
+        "$ObjectTypeGuid",
+        "$InheritedObjectTypeGuid",
+        "object_type_guid",
+        "object_type_name",
+        "inherited_object_type_guid",
+        "inherited_object_type_name",
+        "Get-EitasAdAclGuidName",
+    ):
+        assert token in block
+
+
+def test_worker_builds_guid_catalog_once_before_rules():
+    block = security_function(
+        worker_source()
+    )
+
+    marker = (
+        "$GuidCatalog = "
+        "Get-EitasAdAclGuidCatalog"
+    )
+
+    assert block.count(marker) == 1
+
+    catalog_index = block.index(marker)
+    rules_index = block.index(
+        "$Rules = @("
+    )
+
+    assert catalog_index < rules_index
+
+
+def test_worker_guid_enrichment_remains_read_only():
+    source = worker_source()
+
+    catalog = acl_guid_catalog_function(
+        source
+    )
+
+    descriptor = security_function(
+        source
+    )
+
+    assert "Get-ADRootDSE" in catalog
+    assert "Get-ADObject" in catalog
+    assert "Get-Acl" in descriptor
+
+    forbidden = (
+        "Set-Acl",
+        "SetAccessRule",
+        "AddAccessRule",
+        "RemoveAccessRule",
+        "SetOwner",
+        "Set-AD",
+        "New-AD",
+        "Remove-AD",
+        "Move-AD",
+        "Rename-AD",
+    )
+
+    for token in forbidden:
+        assert token not in catalog
+        assert token not in descriptor

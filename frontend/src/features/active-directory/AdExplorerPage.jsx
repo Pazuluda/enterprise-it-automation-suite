@@ -148,6 +148,55 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const [securityDescriptorError, setSecurityDescriptorError] = useState("")
   const [securityDescriptorTargetDn, setSecurityDescriptorTargetDn] = useState("")
   const [treeFilter, setTreeFilter] = useState('')
+  const [
+    consolePaneSizes,
+    setConsolePaneSizes
+  ] = useState(() => {
+    const defaults = {
+      tree: 300,
+      details: 420,
+    }
+
+    if (typeof window === 'undefined') {
+      return defaults
+    }
+
+    try {
+      const saved = JSON.parse(
+        window.localStorage.getItem(
+          'eitas_ad_explorer_pane_sizes_v1'
+        ) || 'null'
+      )
+
+      return {
+        tree: Number.isFinite(Number(saved?.tree))
+          ? Math.min(
+              700,
+              Math.max(220, Number(saved.tree))
+            )
+          : defaults.tree,
+        details: Number.isFinite(Number(saved?.details))
+          ? Math.min(
+              1000,
+              Math.max(300, Number(saved.details))
+            )
+          : defaults.details,
+      }
+    } catch {
+      return defaults
+    }
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    window.localStorage.setItem(
+      'eitas_ad_explorer_pane_sizes_v1',
+      JSON.stringify(consolePaneSizes)
+    )
+  }, [consolePaneSizes])
   const [viewFilter, setViewFilter] = useState('')
   const [visibleColumnIds, setVisibleColumnIds] =
     useState(() =>
@@ -768,6 +817,208 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
     setStatus(
       `Recherche ${saved.name} restaurée.`
+    )
+  }
+
+  function resetAdExplorerPaneSizes() {
+    setConsolePaneSizes({
+      tree: 300,
+      details: 420,
+    })
+  }
+
+  function resizeAdExplorerPaneWithKeyboard(
+    event,
+    pane
+  ) {
+    if (
+      event.key !== 'ArrowLeft'
+      && event.key !== 'ArrowRight'
+    ) {
+      return
+    }
+
+    const consoleElement =
+      event.currentTarget.closest('.aduc-console')
+
+    if (!consoleElement) {
+      return
+    }
+
+    event.preventDefault()
+
+    const rect =
+      consoleElement.getBoundingClientRect()
+
+    const availableWidth =
+      Math.max(0, rect.width - 16)
+
+    const direction =
+      event.key === 'ArrowLeft'
+        ? -24
+        : 24
+
+    setConsolePaneSizes(previous => {
+      if (pane === 'tree') {
+        const maxTree = Math.max(
+          220,
+          availableWidth
+            - 420
+            - previous.details
+        )
+
+        return {
+          ...previous,
+          tree: Math.min(
+            maxTree,
+            Math.max(
+              220,
+              previous.tree + direction
+            )
+          ),
+        }
+      }
+
+      const maxDetails = Math.max(
+        300,
+        availableWidth
+          - 420
+          - previous.tree
+      )
+
+      return {
+        ...previous,
+        details: Math.min(
+          maxDetails,
+          Math.max(
+            300,
+            previous.details - direction
+          )
+        ),
+      }
+    })
+  }
+
+  function startAdExplorerPaneResize(
+    event,
+    pane
+  ) {
+    if (
+      typeof window === 'undefined'
+      || window.matchMedia(
+        '(max-width: 1320px)'
+      ).matches
+    ) {
+      return
+    }
+
+    const consoleElement =
+      event.currentTarget.closest('.aduc-console')
+
+    if (!consoleElement) {
+      return
+    }
+
+    event.preventDefault()
+
+    const startX = event.clientX
+    const startSizes = {
+      ...consolePaneSizes,
+    }
+
+    const rect =
+      consoleElement.getBoundingClientRect()
+
+    const availableWidth =
+      Math.max(0, rect.width - 16)
+
+    document.body.classList.add(
+      'aduc-pane-resizing'
+    )
+
+    function handlePointerMove(moveEvent) {
+      const delta =
+        moveEvent.clientX - startX
+
+      if (pane === 'tree') {
+        const maxTree = Math.max(
+          220,
+          availableWidth
+            - 420
+            - startSizes.details
+        )
+
+        const tree = Math.min(
+          maxTree,
+          Math.max(
+            220,
+            startSizes.tree + delta
+          )
+        )
+
+        setConsolePaneSizes(previous => ({
+          ...previous,
+          tree,
+        }))
+
+        return
+      }
+
+      const maxDetails = Math.max(
+        300,
+        availableWidth
+          - 420
+          - startSizes.tree
+      )
+
+      const details = Math.min(
+        maxDetails,
+        Math.max(
+          300,
+          startSizes.details - delta
+        )
+      )
+
+      setConsolePaneSizes(previous => ({
+        ...previous,
+        details,
+      }))
+    }
+
+    function stopResize() {
+      window.removeEventListener(
+        'pointermove',
+        handlePointerMove
+      )
+
+      window.removeEventListener(
+        'pointerup',
+        stopResize
+      )
+
+      window.removeEventListener(
+        'pointercancel',
+        stopResize
+      )
+
+      document.body.classList.remove(
+        'aduc-pane-resizing'
+      )
+    }
+
+    window.addEventListener(
+      'pointermove',
+      handlePointerMove
+    )
+
+    window.addEventListener(
+      'pointerup',
+      stopResize
+    )
+
+    window.addEventListener(
+      'pointercancel',
+      stopResize
     )
   }
 
@@ -3945,7 +4196,15 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
               </div>
             )}
 
-            <section className="aduc-console">
+            <section
+              className="aduc-console aduc-console-resizable"
+              style={{
+                '--aduc-tree-width':
+                  `${consolePaneSizes.tree}px`,
+                '--aduc-details-width':
+                  `${consolePaneSizes.details}px`,
+              }}
+            >
               <div className="aduc-tree-pane">
                 <div className="aduc-pane-head">
                   <h3>Arborescence Active Directory</h3>
@@ -4073,6 +4332,30 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                   })}
                 </div>
               </div>
+
+              <div
+                className="aduc-console-splitter"
+                role="separator"
+                aria-label="Redimensionner l’arborescence Active Directory"
+                aria-orientation="vertical"
+                tabIndex={0}
+                title="Glisser pour redimensionner. Double-clic pour réinitialiser."
+                onPointerDown={event =>
+                  startAdExplorerPaneResize(
+                    event,
+                    'tree'
+                  )
+                }
+                onKeyDown={event =>
+                  resizeAdExplorerPaneWithKeyboard(
+                    event,
+                    'tree'
+                  )
+                }
+                onDoubleClick={
+                  resetAdExplorerPaneSizes
+                }
+              />
 
               <div className="aduc-list-pane">
                 <div className="aduc-list-head">
@@ -5038,6 +5321,30 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                   </span>
                 </footer>
               </div>
+
+              <div
+                className="aduc-console-splitter"
+                role="separator"
+                aria-label="Redimensionner le panneau de détails"
+                aria-orientation="vertical"
+                tabIndex={0}
+                title="Glisser pour redimensionner. Double-clic pour réinitialiser."
+                onPointerDown={event =>
+                  startAdExplorerPaneResize(
+                    event,
+                    'details'
+                  )
+                }
+                onKeyDown={event =>
+                  resizeAdExplorerPaneWithKeyboard(
+                    event,
+                    'details'
+                  )
+                }
+                onDoubleClick={
+                  resetAdExplorerPaneSizes
+                }
+              />
 
               <ObjectDetailsPanel
                 object={selectedObject}

@@ -1364,7 +1364,9 @@ const objectTechnicalRows = [
         rule?.active_directory_rights,
         rule?.inheritance_type,
         rule?.object_type_guid,
+        rule?.object_type_name,
         rule?.inherited_object_type_guid,
+        rule?.inherited_object_type_name,
       ].some(value =>
         String(value || "")
           .toLowerCase()
@@ -1453,6 +1455,24 @@ const objectTechnicalRows = [
       }
 
       return guid
+    }
+
+    function securityGuidSemanticLabel(name, value) {
+      const semanticName = String(name || "").trim()
+      const guidLabel = securityGuidLabel(value)
+
+      if (guidLabel === "Tous / non spécifique") {
+        return guidLabel
+      }
+
+      return semanticName || guidLabel
+    }
+
+    function securityGuidHasSemanticName(name, value) {
+      return (
+        Boolean(String(name || "").trim())
+        && securityGuidLabel(value) !== "Tous / non spécifique"
+      )
     }
 
     return (
@@ -1575,8 +1595,8 @@ const objectTechnicalRows = [
                     )
                   }
                   placeholder={
-                    "Principal, SID, droit AD, "
-                    + "portée ou GUID…"
+                    "Principal, SID, droit AD, portée, "
+                    + "nom cible ou GUID…"
                   }
                 />
               </label>
@@ -1802,21 +1822,50 @@ const objectTechnicalRows = [
                     </span>
 
                     <span className="guid">
-                      <code>
-                        {securityGuidLabel(
+                      <strong>
+                        {securityGuidSemanticLabel(
+                          rule?.object_type_name,
                           rule?.object_type_guid
                         )}
-                      </code>
+                      </strong>
+
+                      {securityGuidHasSemanticName(
+                        rule?.object_type_name,
+                        rule?.object_type_guid
+                      ) && (
+                        <code>
+                          {securityGuidLabel(
+                            rule?.object_type_guid
+                          )}
+                        </code>
+                      )}
 
                       {securityGuidLabel(
                         rule?.inherited_object_type_guid
                       ) !== "Tous / non spécifique" && (
-                        <small>
-                          Héritée pour :{" "}
-                          {securityGuidLabel(
+                        <span className="inherited-target">
+                          <small>
+                            Héritée pour :
+                          </small>
+
+                          <strong>
+                            {securityGuidSemanticLabel(
+                              rule?.inherited_object_type_name,
+                              rule?.inherited_object_type_guid
+                            )}
+                          </strong>
+
+                          {securityGuidHasSemanticName(
+                            rule?.inherited_object_type_name,
                             rule?.inherited_object_type_guid
+                          ) && (
+                            <code>
+                              {securityGuidLabel(
+                                rule?.inherited_object_type_guid
+                              )}
+                            </code>
                           )}
-                        </small>
+                        </span>
                       )}
                     </span>
                   </div>

@@ -5,6 +5,51 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.04] — 2026-08-09
+
+### C8.2C — Résolution et affichage read-only des GUID ACL
+
+- ajout d'un catalogue read-only des GUID Active Directory dans le worker AD Lookup ;
+- résolution des `schemaIDGUID` des `attributeSchema` et `classSchema` ;
+- résolution des `rightsGuid` des `controlAccessRight` sous `CN=Extended-Rights` ;
+- normalisation PowerShell 5.1 des GUID sous forme canonique ;
+- ajout de `object_type_name` et `inherited_object_type_name` sans supprimer les GUID techniques ;
+- fallback non destructif pour les GUID nuls, inconnus ou non résolus ;
+- affichage frontend du nom sémantique au-dessus du GUID brut ;
+- affichage lisible des cibles d'héritage ;
+- recherche locale étendue aux noms sémantiques des GUID ;
+- ajout de séparateurs redimensionnables entre arborescence, liste et panneau de détails ;
+- mémorisation locale des dimensions choisies et réinitialisation par double-clic ;
+- aucune lecture SACL ajoutée ;
+- aucune opération d'écriture ACL ajoutée.
+
+### Validation
+
+- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
+- module Windows déployé avec SHA-256 `C37FB73BDFE276E1A6BE793923923433B9E7ABC293F4091EFA832C0BCAA1A63D` ;
+- backup du module précédent conservé avant déploiement ;
+- catalogue réel Active Directory validé avec 1 852 GUID ;
+- résolution réelle de la classe `user` et du droit étendu `Reset Password` ;
+- job réel `get_security_descriptor` validé après redémarrage ciblé du worker ;
+- 36 ACE remontées en lecture seule ;
+- 25 GUID objet résolus sur 25 GUID objet non nuls ;
+- 19 GUID hérités résolus sur 19 GUID hérités non nuls ;
+- exemple réel `91e647de-d96f-4b70-9557-d63ff4f3ccd8` résolu en `Private Information` ;
+- champs `object_type_name` et `inherited_object_type_name` présents sur les 36 ACE ;
+- recherche sémantique `user` validée dans Microsoft Edge ;
+- affichage `Héritée pour : user` validé ;
+- affichage des noms `printQueue`, `inetOrgPerson`, `computer`, `group` et `user` validé ;
+- panneaux redimensionnables validés dans Microsoft Edge ;
+- 334 tests frontend complets réussis ;
+- 476 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build Vite 8.1.3 validé ;
+- intégrité SHA-256 `frontend/dist` / `api/static/app` validée ;
+- portail HTTPS validé avec HTTP 200 ;
+- contrôle sécurité pré-commit validé ;
+- progression : C8.2C 100 %, C8 36 %, Explorateur AD 95 %, EITAS 90 %.
+
+
 ## [0.8.0-alpha.03] — 2026-08-09
 
 ### C8.2B — Lisibilité sémantique read-only des ACL

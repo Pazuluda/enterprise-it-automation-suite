@@ -2192,6 +2192,197 @@ function Convert-EitasAdSecurityPrincipal {
 }
 
 
+function Convert-EitasAdAclGuidValue {
+    param(
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return ""
+    }
+
+    try {
+        if ($Value -is [System.Guid]) {
+            return (
+                $Value.ToString("D")
+            ).ToLowerInvariant()
+        }
+
+        if ($Value -is [byte[]]) {
+            $GuidObject = New-Object `
+                -TypeName System.Guid `
+                -ArgumentList (,$Value)
+
+            return (
+                $GuidObject.ToString("D")
+            ).ToLowerInvariant()
+        }
+
+        $GuidObject = [System.Guid](
+            [string]$Value
+        )
+
+        return (
+            $GuidObject.ToString("D")
+        ).ToLowerInvariant()
+    }
+    catch {
+        return ""
+    }
+}
+
+
+function Get-EitasAdAclGuidCatalog {
+    $Catalog = @{}
+
+    try {
+        $RootDse = Get-ADRootDSE `
+            -ErrorAction Stop
+    }
+    catch {
+        return $Catalog
+    }
+
+    $SchemaNamingContext = [string](
+        $RootDse.schemaNamingContext
+    )
+
+    $ConfigurationNamingContext = [string](
+        $RootDse.configurationNamingContext
+    )
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            $SchemaNamingContext
+        )
+    ) {
+        try {
+            $SchemaObjects = @(
+                Get-ADObject `
+                    -SearchBase $SchemaNamingContext `
+                    -LDAPFilter '(|(objectClass=attributeSchema)(objectClass=classSchema))' `
+                    -Properties lDAPDisplayName,schemaIDGUID `
+                    -ResultSetSize $null `
+                    -ErrorAction Stop
+            )
+
+            foreach ($SchemaObject in $SchemaObjects) {
+                $Guid = Convert-EitasAdAclGuidValue `
+                    -Value $SchemaObject.schemaIDGUID
+
+                $Name = (
+                    [string]$SchemaObject.lDAPDisplayName
+                ).Trim()
+
+                if (
+                    -not [string]::IsNullOrWhiteSpace(
+                        $Guid
+                    ) -and
+                    -not [string]::IsNullOrWhiteSpace(
+                        $Name
+                    ) -and
+                    -not $Catalog.ContainsKey($Guid)
+                ) {
+                    $Catalog[$Guid] = $Name
+                }
+            }
+        }
+        catch {
+            # Semantic enrichment is best-effort.
+        }
+    }
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            $ConfigurationNamingContext
+        )
+    ) {
+        $ExtendedRightsBase = (
+            "CN=Extended-Rights," +
+            $ConfigurationNamingContext
+        )
+
+        try {
+            $ExtendedRights = @(
+                Get-ADObject `
+                    -SearchBase $ExtendedRightsBase `
+                    -LDAPFilter '(objectClass=controlAccessRight)' `
+                    -Properties rightsGuid,displayName,name `
+                    -ResultSetSize $null `
+                    -ErrorAction Stop
+            )
+
+            foreach ($ExtendedRight in $ExtendedRights) {
+                $Guid = Convert-EitasAdAclGuidValue `
+                    -Value $ExtendedRight.rightsGuid
+
+                $Name = (
+                    [string]$ExtendedRight.displayName
+                ).Trim()
+
+                if (
+                    [string]::IsNullOrWhiteSpace(
+                        $Name
+                    )
+                ) {
+                    $Name = (
+                        [string]$ExtendedRight.Name
+                    ).Trim()
+                }
+
+                if (
+                    -not [string]::IsNullOrWhiteSpace(
+                        $Guid
+                    ) -and
+                    -not [string]::IsNullOrWhiteSpace(
+                        $Name
+                    ) -and
+                    -not $Catalog.ContainsKey($Guid)
+                ) {
+                    $Catalog[$Guid] = $Name
+                }
+            }
+        }
+        catch {
+            # Semantic enrichment is best-effort.
+        }
+    }
+
+    return $Catalog
+}
+
+
+function Get-EitasAdAclGuidName {
+    param(
+        [hashtable]$Catalog,
+        [object]$Guid
+    )
+
+    $NormalizedGuid = Convert-EitasAdAclGuidValue `
+        -Value $Guid
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $NormalizedGuid
+        ) -or
+        $NormalizedGuid -eq (
+            "00000000-0000-0000-0000-000000000000"
+        )
+    ) {
+        return $null
+    }
+
+    if (
+        $null -ne $Catalog -and
+        $Catalog.ContainsKey($NormalizedGuid)
+    ) {
+        return [string]$Catalog[$NormalizedGuid]
+    }
+
+    return $null
+}
+
+
 function Invoke-EitasAdExplorerGetSecurityDescriptor {
     param(
         [object]$Config,
@@ -2246,12 +2437,22 @@ function Invoke-EitasAdExplorerGetSecurityDescriptor {
     $OwnerPrincipal = Convert-EitasAdSecurityPrincipal `
         -IdentityReference $Acl.Owner
 
+    $GuidCatalog = Get-EitasAdAclGuidCatalog
+
     $Rules = @(
         foreach (
             $Rule in @($Acl.Access)
         ) {
             $Principal = Convert-EitasAdSecurityPrincipal `
                 -IdentityReference $Rule.IdentityReference
+
+            $ObjectTypeGuid = (
+                [string]$Rule.ObjectType
+            ).Trim().ToLowerInvariant()
+
+            $InheritedObjectTypeGuid = (
+                [string]$Rule.InheritedObjectType
+            ).Trim().ToLowerInvariant()
 
             [pscustomobject]@{
                 identity = $Principal.name
@@ -2262,11 +2463,19 @@ function Invoke-EitasAdExplorerGetSecurityDescriptor {
                 active_directory_rights = (
                     [string]$Rule.ActiveDirectoryRights
                 )
-                object_type_guid = (
-                    [string]$Rule.ObjectType
+                object_type_guid = $ObjectTypeGuid
+                object_type_name = (
+                    Get-EitasAdAclGuidName `
+                        -Catalog $GuidCatalog `
+                        -Guid $ObjectTypeGuid
                 )
                 inherited_object_type_guid = (
-                    [string]$Rule.InheritedObjectType
+                    $InheritedObjectTypeGuid
+                )
+                inherited_object_type_name = (
+                    Get-EitasAdAclGuidName `
+                        -Catalog $GuidCatalog `
+                        -Guid $InheritedObjectTypeGuid
                 )
                 inheritance_type = (
                     [string]$Rule.InheritanceType
