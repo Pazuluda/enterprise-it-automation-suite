@@ -40,6 +40,9 @@ import {
 
 function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy, securityDescriptor, securityDescriptorLoading, securityDescriptorError, securityDescriptorTargetDn, onLoadSecurityDescriptor }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
+  const [securityRuleQuery, setSecurityRuleQuery] = useState('')
+  const [securityRuleType, setSecurityRuleType] = useState('all')
+  const [securityRuleOrigin, setSecurityRuleOrigin] = useState('all')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
@@ -1251,6 +1254,9 @@ const objectTechnicalRows = [
 
   useEffect(() => {
     setActiveDetailsTab('general')
+    setSecurityRuleQuery('')
+    setSecurityRuleType('all')
+    setSecurityRuleOrigin('all')
   }, [displayedIdentity])
 
   function renderGrid(gridRows, emptyText = 'Aucune propriété disponible.') {
@@ -1320,6 +1326,63 @@ const objectTechnicalRows = [
       && Array.isArray(securityDescriptor?.rules)
         ? securityDescriptor.rules
         : []
+
+    const normalizedSecurityRuleQuery =
+      securityRuleQuery.trim().toLowerCase()
+
+    const filteredSecurityRules = rules.filter(rule => {
+      const ruleType = String(
+        rule?.access_control_type || ""
+      ).toLowerCase()
+
+      const ruleOrigin =
+        rule?.is_inherited
+          ? "inherited"
+          : "explicit"
+
+      if (
+        securityRuleType !== "all"
+        && ruleType !== securityRuleType
+      ) {
+        return false
+      }
+
+      if (
+        securityRuleOrigin !== "all"
+        && ruleOrigin !== securityRuleOrigin
+      ) {
+        return false
+      }
+
+      if (!normalizedSecurityRuleQuery) {
+        return true
+      }
+
+      return [
+        rule?.identity,
+        rule?.sid,
+        rule?.active_directory_rights,
+        rule?.inheritance_type,
+        rule?.object_type_guid,
+        rule?.inherited_object_type_guid,
+      ].some(value =>
+        String(value || "")
+          .toLowerCase()
+          .includes(normalizedSecurityRuleQuery)
+      )
+    })
+
+    const securityAllowCount = rules.filter(
+      rule =>
+        String(rule?.access_control_type || "")
+          .toLowerCase() === "allow"
+    ).length
+
+    const securityDenyCount = rules.filter(
+      rule =>
+        String(rule?.access_control_type || "")
+          .toLowerCase() === "deny"
+    ).length
 
     function securityGuidLabel(value) {
       const guid = String(value || "").trim()
@@ -1439,6 +1502,149 @@ const objectTechnicalRows = [
               et la DACL.
             </div>
 
+            <div className="aduc-security-tools">
+              <label className="aduc-security-search">
+                <span>
+                  Rechercher dans les ACE
+                </span>
+
+                <input
+                  type="search"
+                  value={securityRuleQuery}
+                  onChange={event =>
+                    setSecurityRuleQuery(
+                      event.target.value
+                    )
+                  }
+                  placeholder={
+                    "Principal, SID, droit AD, "
+                    + "portée ou GUID…"
+                  }
+                />
+              </label>
+
+              <div
+                className="aduc-security-filter-group"
+                aria-label="Filtrer par type d'ACE"
+              >
+                <button
+                  type="button"
+                  className={
+                    securityRuleType === "all"
+                      ? "active"
+                      : ""
+                  }
+                  aria-pressed={securityRuleType === "all"}
+                  onClick={() =>
+                    setSecurityRuleType("all")
+                  }
+                >
+                  Toutes
+                  <small>{rules.length}</small>
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    securityRuleType === "allow"
+                      ? "active allow"
+                      : "allow"
+                  }
+                  aria-pressed={securityRuleType === "allow"}
+                  onClick={() =>
+                    setSecurityRuleType("allow")
+                  }
+                >
+                  Autoriser
+                  <small>{securityAllowCount}</small>
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    securityRuleType === "deny"
+                      ? "active deny"
+                      : "deny"
+                  }
+                  aria-pressed={securityRuleType === "deny"}
+                  onClick={() =>
+                    setSecurityRuleType("deny")
+                  }
+                >
+                  Refuser
+                  <small>{securityDenyCount}</small>
+                </button>
+              </div>
+
+              <div
+                className="aduc-security-filter-group"
+                aria-label="Filtrer par origine d'ACE"
+              >
+                <button
+                  type="button"
+                  className={
+                    securityRuleOrigin === "all"
+                      ? "active"
+                      : ""
+                  }
+                  aria-pressed={
+                    securityRuleOrigin === "all"
+                  }
+                  onClick={() =>
+                    setSecurityRuleOrigin("all")
+                  }
+                >
+                  Toutes origines
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    securityRuleOrigin === "explicit"
+                      ? "active"
+                      : ""
+                  }
+                  aria-pressed={
+                    securityRuleOrigin === "explicit"
+                  }
+                  onClick={() =>
+                    setSecurityRuleOrigin("explicit")
+                  }
+                >
+                  Explicites
+                </button>
+
+                <button
+                  type="button"
+                  className={
+                    securityRuleOrigin === "inherited"
+                      ? "active"
+                      : ""
+                  }
+                  aria-pressed={
+                    securityRuleOrigin === "inherited"
+                  }
+                  onClick={() =>
+                    setSecurityRuleOrigin("inherited")
+                  }
+                >
+                  Héritées
+                </button>
+              </div>
+
+              <div className="aduc-security-filter-result">
+                <strong>
+                  {filteredSecurityRules.length}
+                </strong>
+                {" ACE affichée"}
+                {filteredSecurityRules.length !== 1
+                  ? "s"
+                  : ""}
+                {" sur "}
+                {rules.length}
+              </div>
+            </div>
+
             <div className="aduc-security-table-wrap">
               <div className="aduc-security-table">
                 <div className="aduc-security-row header">
@@ -1450,7 +1656,7 @@ const objectTechnicalRows = [
                   <span>GUID cible</span>
                 </div>
 
-                {rules.map((rule, index) => (
+                {filteredSecurityRules.map((rule, index) => (
                   <div
                     className={
                       "aduc-security-row "
@@ -1528,9 +1734,11 @@ const objectTechnicalRows = [
               </div>
             </div>
 
-            {!rules.length && (
+            {!filteredSecurityRules.length && (
               <p className="aduc-details-empty-mini">
-                Aucune ACE retournée par Active Directory.
+                {rules.length
+                  ? "Aucune ACE ne correspond aux filtres actifs."
+                  : "Aucune ACE retournée par Active Directory."}
               </p>
             )}
           </>

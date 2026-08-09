@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.7.0
+## État courant — v0.8.0-alpha.02
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       20 % |
-| Explorateur Active Directory complet       |       94 % |
+| C8 — ACL, sécurité et délégation                 |       25 % |
+| Explorateur Active Directory complet       |       95 % |
 | Projet EITAS global | 90 % |
 
-Le checkpoint `v0.8.0-alpha.01` valide C8.1 « ACL / DACL Active Directory en lecture seule » à 100 %. C8 : 20 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C8.2.
+Le checkpoint `v0.8.0-alpha.02` valide C8.2A « exploration et filtrage read-only des ACL / DACL » à 100 %. C8 : 25 %. Explorateur Active Directory : 95 %. EITAS : 90 %. La prochaine étape est C8.2B.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,31 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 20 %, C8.1 validé |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 25 %, C8.1 et C8.2A validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.02 — C8.2A exploration read-only des ACL
+
+Ce checkpoint valide C8.2A à 100 %.
+
+- recherche locale dans les ACE de la DACL ;
+- recherche par principal, SID, droits AD, portée et GUID ;
+- filtres combinables Autoriser / Refuser ;
+- filtres combinables Explicites / Héritées ;
+- compteurs et nombre d'ACE affichées ;
+- remise à zéro des filtres au changement d'objet ;
+- message explicite lorsqu'aucune ACE ne correspond ;
+- aucune modification backend ou worker Windows ;
+- aucune commande ou API d'écriture ACL ;
+- 16 tests C8 frontend ciblés ;
+- 320 tests frontend complets ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build et intégrité SHA-256 du portail validés ;
+- recette navigateur Microsoft Edge validée ;
+- progression : C8.2A 100 %, C8 25 %, Explorateur AD 95 %, EITAS 90 %.
 
 ### v0.8.0-alpha.01 — C8.1 ACL / DACL en lecture seule
 

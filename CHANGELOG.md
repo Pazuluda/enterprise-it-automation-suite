@@ -5,6 +5,37 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.02] — 2026-08-09
+
+### C8.2A — Exploration et filtrage read-only des ACL
+
+- ajout d'une recherche locale dans les ACE de la DACL ;
+- recherche sur principal, SID, droits AD, portée et GUID ;
+- filtres combinables `Allow / Deny` et explicites / héritées ;
+- compteurs locaux pour les ACE autorisées et refusées ;
+- compteur du nombre d'ACE affichées sur le total ;
+- remise à zéro automatique des filtres au changement d'objet ;
+- message dédié lorsqu'aucune ACE ne correspond aux filtres ;
+- styles dédiés aux outils d'exploration ACL ;
+- aucune modification backend ou worker Windows ;
+- aucune écriture ACL ajoutée.
+
+### Validation
+
+- 16 tests frontend C8.1 + C8.2A ciblés réussis ;
+- 320 tests frontend complets réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build Vite 8.1.3 validé ;
+- 12 fichiers statiques de production déployés ;
+- intégrité SHA-256 `frontend/dist` / `api/static/app` validée ;
+- portail HTTPS validé avec HTTP 200 ;
+- recette Microsoft Edge validée sur 36 ACE ;
+- filtre `Refuser + Explicites` isolant correctement l'ACE `Tout le monde` ;
+- recherche sans résultat et remise à zéro au changement d'objet validées ;
+- aucune primitive d'écriture ACL dans le composant source ;
+- progression : C8.2A 100 %, C8 25 %, Explorateur AD 95 %, EITAS 90 %.
+
+
 ## [0.8.0-alpha.01] — 2026-08-09
 
 ### C8.1 — ACL / DACL Active Directory en lecture seule

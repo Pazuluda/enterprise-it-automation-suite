@@ -8825,3 +8825,128 @@ input.aduc-object-protection-checkbox {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* C8.2A - Read-only ACL exploration tools */
+
+.aduc-security-tools {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.aduc-security-search {
+  display: grid;
+  gap: 6px;
+}
+
+.aduc-security-search > span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.aduc-security-search input {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 11px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aduc-security-search input:focus {
+  outline: 3px solid rgba(79, 70, 229, 0.12);
+  border-color: #6366f1;
+}
+
+.aduc-security-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.aduc-security-filter-group button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.30);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.aduc-security-filter-group button:hover {
+  border-color: rgba(99, 102, 241, 0.42);
+  background: #eef2ff;
+  color: #312e81;
+}
+
+.aduc-security-filter-group button.active {
+  border-color: #6366f1;
+  background: #eef2ff;
+  color: #312e81;
+}
+
+.aduc-security-filter-group button.active.allow {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.10);
+  color: #166534;
+}
+
+.aduc-security-filter-group button.active.deny {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.10);
+  color: #991b1b;
+}
+
+.aduc-security-filter-group small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.07);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.aduc-security-filter-result {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.aduc-security-filter-result strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .aduc-security-filter-group {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .aduc-security-filter-group button {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
