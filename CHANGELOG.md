@@ -4,6 +4,41 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+
+## [0.8.0-alpha.01] — 2026-08-09
+
+### C8.1 — ACL / DACL Active Directory en lecture seule
+
+- ajout de action `get_security_descriptor` au pipeline AD Explorer ;
+- lecture du propriétaire et de la DACL via `Get-Acl` sur le provider Active Directory ;
+- résolution des principaux et SID lorsque disponible ;
+- exposition des droits AD, Allow / Deny, héritage et GUID objet ;
+- comptage séparé des ACE explicites et héritées ;
+- SACL volontairement exclue de C8.1 ;
+- aucune opération `Set-Acl` ni modification des ACL ;
+- ajout de onglet `Sécurité` en lecture seule dans Explorateur AD ;
+- affichage du propriétaire, de héritage, des compteurs DACL et des ACE ;
+- chargement à la demande avec cache et actualisation explicite.
+
+### Validation
+
+- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
+- module Windows actif SHA-256 `B2D0CE163EB385714C5D859225F06FA934ECF0E6CE4CAEC2E614C356AF0AEAB3` ;
+- job réel read-only validé sur `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
+- propriétaire `API\\Admins du domaine` et SID correctement remontés ;
+- 36 ACE DACL remontées : 10 explicites et 26 héritées ;
+- héritage actif et règles non protégées ;
+- ACE Deny `Tout le monde` confirmée ;
+- 10 tests backend C8.1 ciblés réussis ;
+- 10 tests frontend C8.1C ciblés réussis ;
+- 314 tests frontend réussis ;
+- 469 tests backend et 339 sous-tests réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build et intégrité SHA-256 du portail validés ;
+- recette navigateur onglet Sécurité validée ;
+- aucune écriture AD ou ACL ;
+- progression : C8.1 100 %, C8 20 %, Explorateur AD 94 %, EITAS 90 %.
+
 ## [0.7.0] — 2026-08-08
 
 ### C7 — Sélection multiple, copie et glisser-déposer

@@ -38,7 +38,7 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy, securityDescriptor, securityDescriptorLoading, securityDescriptorError, securityDescriptorTargetDn, onLoadSecurityDescriptor }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
@@ -1231,6 +1231,9 @@ const objectTechnicalRows = [
           ['comPlus', 'COM+'],
         ]
       : []),
+    ...(isManagedScope && dn
+      ? [["security", "Sécurité"]]
+      : []),
     ['object', 'Objet'],
     [
       'history',
@@ -1272,6 +1275,270 @@ const objectTechnicalRows = [
       </div>
     )
   }
+
+  function renderSecurityTab() {
+    const currentDn = String(
+      dn || ""
+    ).trim()
+
+    const descriptorDn = String(
+      securityDescriptor?.object_dn
+      || securityDescriptor?.dn
+      || ""
+    ).trim()
+
+    const requestedDn = String(
+      securityDescriptorTargetDn
+      || ""
+    ).trim()
+
+    const descriptorMatches = Boolean(
+      currentDn
+      && descriptorDn
+      && descriptorDn.toUpperCase()
+        === currentDn.toUpperCase()
+    )
+
+    const requestMatches = Boolean(
+      currentDn
+      && requestedDn
+      && requestedDn.toUpperCase()
+        === currentDn.toUpperCase()
+    )
+
+    const loading =
+      securityDescriptorLoading
+      && requestMatches
+
+    const error =
+      requestMatches
+        ? securityDescriptorError
+        : ""
+
+    const rules =
+      descriptorMatches
+      && Array.isArray(securityDescriptor?.rules)
+        ? securityDescriptor.rules
+        : []
+
+    function securityGuidLabel(value) {
+      const guid = String(value || "").trim()
+
+      if (
+        !guid
+        || guid === "00000000-0000-0000-0000-000000000000"
+      ) {
+        return "Tous / non spécifique"
+      }
+
+      return guid
+    }
+
+    return (
+      <div className="aduc-tab-card aduc-security-tab">
+        <div className="aduc-security-head">
+          <div>
+            <h4>Sécurité</h4>
+            <p>
+              Descripteur de sécurité Active Directory en lecture seule.
+            </p>
+          </div>
+
+          <div className="aduc-security-head-actions">
+            <span className="aduc-security-readonly">
+              Lecture seule
+            </span>
+
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                onLoadSecurityDescriptor?.(
+                  displayed,
+                  { force: true }
+                )
+              }
+            >
+              {loading
+                ? "Actualisation…"
+                : "Actualiser"}
+            </button>
+          </div>
+        </div>
+
+        {!descriptorMatches && !loading && !error && (
+          <p className="aduc-details-empty-mini">
+            Chargez les permissions de cet objet pour afficher
+            son propriétaire, son héritage et sa DACL.
+          </p>
+        )}
+
+        {loading && (
+          <p className="aduc-security-loading">
+            Lecture des permissions Active Directory…
+          </p>
+        )}
+
+        {error && (
+          <div className="aduc-security-error">
+            {error}
+          </div>
+        )}
+
+        {descriptorMatches && (
+          <>
+            <div className="aduc-security-summary">
+              <div>
+                <span>Propriétaire</span>
+                <strong>
+                  {securityDescriptor.owner || "—"}
+                </strong>
+                <code>
+                  {securityDescriptor.owner_sid || "SID indisponible"}
+                </code>
+              </div>
+
+              <div>
+                <span>Héritage</span>
+                <strong>
+                  {securityDescriptor.inheritance_enabled === true
+                    ? "Activé"
+                    : "Désactivé"}
+                </strong>
+                <small>
+                  {securityDescriptor.access_rules_protected === true
+                    ? "Règles protégées"
+                    : "Règles héritables"}
+                </small>
+              </div>
+
+              <div>
+                <span>ACE explicites</span>
+                <strong>
+                  {securityDescriptor.explicit_rule_count ?? 0}
+                </strong>
+              </div>
+
+              <div>
+                <span>ACE héritées</span>
+                <strong>
+                  {securityDescriptor.inherited_rule_count ?? 0}
+                </strong>
+              </div>
+
+              <div>
+                <span>Total DACL</span>
+                <strong>
+                  {securityDescriptor.access_rule_count ?? rules.length}
+                </strong>
+              </div>
+            </div>
+
+            <div className="aduc-security-notice">
+              SACL non chargée — C8.1 lit uniquement le propriétaire
+              et la DACL.
+            </div>
+
+            <div className="aduc-security-table-wrap">
+              <div className="aduc-security-table">
+                <div className="aduc-security-row header">
+                  <span>Principal</span>
+                  <span>Type</span>
+                  <span>Droits AD</span>
+                  <span>Portée</span>
+                  <span>Origine</span>
+                  <span>GUID cible</span>
+                </div>
+
+                {rules.map((rule, index) => (
+                  <div
+                    className={
+                      "aduc-security-row "
+                      + (
+                        rule?.is_inherited
+                          ? "inherited"
+                          : "explicit"
+                      )
+                    }
+                    key={
+                      String(rule?.sid || rule?.identity || "ace")
+                      + "-"
+                      + String(index)
+                    }
+                  >
+                    <span className="principal">
+                      <strong>
+                        {rule?.identity || "Principal inconnu"}
+                      </strong>
+                      <code>
+                        {rule?.sid || "SID indisponible"}
+                      </code>
+                    </span>
+
+                    <span>
+                      <b
+                        className={
+                          String(rule?.access_control_type)
+                            .toLowerCase() === "deny"
+                            ? "deny"
+                            : "allow"
+                        }
+                      >
+                        {String(rule?.access_control_type)
+                          .toLowerCase() === "deny"
+                          ? "Refuser"
+                          : "Autoriser"}
+                      </b>
+                    </span>
+
+                    <span>
+                      {rule?.active_directory_rights || "—"}
+                    </span>
+
+                    <span>
+                      {rule?.inheritance_type || "None"}
+                    </span>
+
+                    <span>
+                      {rule?.is_inherited
+                        ? "Héritée"
+                        : "Explicite"}
+                    </span>
+
+                    <span className="guid">
+                      <code>
+                        {securityGuidLabel(
+                          rule?.object_type_guid
+                        )}
+                      </code>
+
+                      {securityGuidLabel(
+                        rule?.inherited_object_type_guid
+                      ) !== "Tous / non spécifique" && (
+                        <small>
+                          Héritée pour :{" "}
+                          {securityGuidLabel(
+                            rule?.inherited_object_type_guid
+                          )}
+                        </small>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {!rules.length && (
+              <p className="aduc-details-empty-mini">
+                Aucune ACE retournée par Active Directory.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
+
 
   function renderAccountTab() {
     return (
@@ -1995,7 +2262,22 @@ const objectTechnicalRows = [
 
           <div className="aduc-aduc-tabs">
             {tabs.map(([value, label]) => (
-              <button type="button" key={value} className={activeDetailsTab === value ? 'active' : ''} onClick={() => setActiveDetailsTab(value)}>
+              <button
+                type="button"
+                key={value}
+                className={
+                  activeDetailsTab === value
+                    ? "active"
+                    : ""
+                }
+                onClick={() => {
+                  setActiveDetailsTab(value)
+
+                  if (value === "security") {
+                    onLoadSecurityDescriptor?.(displayed)
+                  }
+                }}
+              >
                 {label}
               </button>
             ))}
@@ -2198,6 +2480,9 @@ const objectTechnicalRows = [
 
             {activeDetailsTab === 'comPlus' &&
               renderComPlusTab()}
+
+            {activeDetailsTab === "security" &&
+              renderSecurityTab()}
 
             {activeDetailsTab === 'history' &&
               renderHistoryTab()}

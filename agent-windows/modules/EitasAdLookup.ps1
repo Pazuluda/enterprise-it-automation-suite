@@ -2124,6 +2124,226 @@ function Invoke-EitasAdExplorerSearchObjects {
     }
 }
 
+function Convert-EitasAdSecurityPrincipal {
+    param(
+        [object]$IdentityReference
+    )
+
+    $Name = [string]$IdentityReference
+    $Sid = $null
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $Name
+        )
+    ) {
+        return [pscustomobject]@{
+            name = ""
+            sid = $null
+        }
+    }
+
+    try {
+        if (
+            $IdentityReference -is
+            [System.Security.Principal.SecurityIdentifier]
+        ) {
+            $Sid = [string]$IdentityReference.Value
+        }
+        elseif (
+            $IdentityReference -is
+            [System.Security.Principal.NTAccount]
+        ) {
+            $Sid = (
+                $IdentityReference.Translate(
+                    [System.Security.Principal.SecurityIdentifier]
+                )
+            ).Value
+        }
+        elseif (
+            $Name -match "^S-[0-9]+-"
+        ) {
+            $SidObject = New-Object `
+                -TypeName System.Security.Principal.SecurityIdentifier `
+                -ArgumentList $Name
+
+            $Sid = $SidObject.Value
+        }
+        else {
+            $Account = New-Object `
+                -TypeName System.Security.Principal.NTAccount `
+                -ArgumentList $Name
+
+            $Sid = (
+                $Account.Translate(
+                    [System.Security.Principal.SecurityIdentifier]
+                )
+            ).Value
+        }
+    }
+    catch {
+        $Sid = $null
+    }
+
+    return [pscustomobject]@{
+        name = $Name
+        sid = $Sid
+    }
+}
+
+
+function Invoke-EitasAdExplorerGetSecurityDescriptor {
+    param(
+        [object]$Config,
+        [object]$Payload
+    )
+
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
+    $ObjectDn = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "query",
+            "identity",
+            "object_identity",
+            "objectIdentity",
+            "object_dn",
+            "objectDn",
+            "dn",
+            "distinguished_name",
+            "distinguishedName"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ObjectDn
+        )
+    ) {
+        throw "DN objet obligatoire pour lire le descripteur de securite"
+    }
+
+    $ObjectDn = (
+        [string]$ObjectDn
+    ).Trim()
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $ObjectDn `
+        -Config $Config |
+        Out-Null
+
+    $AdObject = Get-ADObject `
+        -Identity $ObjectDn `
+        -Properties objectClass,objectGUID `
+        -ErrorAction Stop
+
+    $AclPath = "AD:\" + $ObjectDn
+
+    $Acl = Get-Acl `
+        -Path $AclPath `
+        -ErrorAction Stop
+
+    $OwnerPrincipal = Convert-EitasAdSecurityPrincipal `
+        -IdentityReference $Acl.Owner
+
+    $Rules = @(
+        foreach (
+            $Rule in @($Acl.Access)
+        ) {
+            $Principal = Convert-EitasAdSecurityPrincipal `
+                -IdentityReference $Rule.IdentityReference
+
+            [pscustomobject]@{
+                identity = $Principal.name
+                sid = $Principal.sid
+                access_control_type = (
+                    [string]$Rule.AccessControlType
+                )
+                active_directory_rights = (
+                    [string]$Rule.ActiveDirectoryRights
+                )
+                object_type_guid = (
+                    [string]$Rule.ObjectType
+                )
+                inherited_object_type_guid = (
+                    [string]$Rule.InheritedObjectType
+                )
+                inheritance_type = (
+                    [string]$Rule.InheritanceType
+                )
+                is_inherited = (
+                    [bool]$Rule.IsInherited
+                )
+                inheritance_flags = (
+                    [string]$Rule.InheritanceFlags
+                )
+                propagation_flags = (
+                    [string]$Rule.PropagationFlags
+                )
+            }
+        }
+    )
+
+    $Rules = @(
+        $Rules |
+            Sort-Object `
+                @{ Expression = {
+                    [int]$_.is_inherited
+                } }, `
+                @{ Expression = {
+                    ([string]$_.identity).
+                        ToLowerInvariant()
+                } }, `
+                access_control_type, `
+                active_directory_rights, `
+                object_type_guid
+    )
+
+    $ExplicitCount = @(
+        $Rules |
+            Where-Object {
+                $_.is_inherited -eq $false
+            }
+    ).Count
+
+    $InheritedCount = @(
+        $Rules |
+            Where-Object {
+                $_.is_inherited -eq $true
+            }
+    ).Count
+
+    return [pscustomobject]@{
+        action = "get_security_descriptor"
+        read_only = $true
+        object_dn = $ObjectDn
+        object_class = (
+            [string]$AdObject.ObjectClass
+        )
+        object_guid = (
+            [string]$AdObject.ObjectGUID
+        )
+        owner = $OwnerPrincipal.name
+        owner_sid = $OwnerPrincipal.sid
+        inheritance_enabled = (
+            -not [bool]$Acl.AreAccessRulesProtected
+        )
+        access_rules_protected = (
+            [bool]$Acl.AreAccessRulesProtected
+        )
+        access_rule_count = @($Rules).Count
+        explicit_rule_count = $ExplicitCount
+        inherited_rule_count = $InheritedCount
+        rules = @($Rules)
+        sacl_included = $false
+        generated_at = (
+            Get-Date
+        ).ToUniversalTime().ToString("o")
+        message = "Descripteur de securite Active Directory charge en lecture seule"
+    }
+}
+
+
 function Invoke-EitasAdExplorerJob {
     param(
         [object]$Config,
@@ -2178,6 +2398,12 @@ function Invoke-EitasAdExplorerJob {
 
         "search_objects" {
             return Invoke-EitasAdExplorerSearchObjects -Config $Config -Payload $Payload
+        }
+
+        "get_security_descriptor" {
+            return Invoke-EitasAdExplorerGetSecurityDescriptor `
+                -Config $Config `
+                -Payload $Payload
         }
 
         default {

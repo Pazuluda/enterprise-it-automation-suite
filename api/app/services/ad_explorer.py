@@ -35,6 +35,7 @@ ALLOWED_ACTIONS = {
     "list_computers",
     "search_computers",
     "search_objects",
+    "get_security_descriptor",
 }
 
 
@@ -43,6 +44,7 @@ QUERY_REQUIRED_ACTIONS = {
     "get_group_members",
     "search_computers",
     "search_objects",
+    "get_security_descriptor",
 }
 
 

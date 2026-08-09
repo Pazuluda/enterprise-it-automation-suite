@@ -8645,3 +8645,183 @@ input.aduc-object-protection-checkbox {
   outline-offset: -2px;
   cursor: not-allowed;
 }
+
+/* C8.1C - read-only AD security descriptor */
+.aduc-security-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.aduc-security-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aduc-security-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.aduc-security-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.aduc-security-readonly {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid rgba(37, 99, 235, 0.20);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.aduc-security-summary {
+  display: grid;
+  grid-template-columns:
+    minmax(200px, 2fr)
+    repeat(4, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.aduc-security-summary > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 8px;
+  background: rgba(248, 250, 252, 0.82);
+}
+
+.aduc-security-summary span,
+.aduc-security-summary small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.68;
+}
+
+.aduc-security-summary strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+}
+
+.aduc-security-summary code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.aduc-security-notice {
+  padding: 8px 10px;
+  border: 1px solid rgba(100, 116, 139, 0.16);
+  border-radius: 8px;
+  background: rgba(241, 245, 249, 0.76);
+  font-size: 11px;
+}
+
+.aduc-security-loading {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.06);
+  font-size: 12px;
+}
+
+.aduc-security-error {
+  padding: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.20);
+  border-radius: 8px;
+  background: rgba(254, 242, 242, 0.92);
+  font-size: 12px;
+}
+
+.aduc-security-table-wrap {
+  overflow: auto;
+  max-width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 8px;
+}
+
+.aduc-security-table {
+  min-width: 980px;
+}
+
+.aduc-security-row {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 1.7fr)
+    minmax(90px, 0.65fr)
+    minmax(180px, 1.35fr)
+    minmax(110px, 0.8fr)
+    minmax(90px, 0.65fr)
+    minmax(220px, 1.5fr);
+  align-items: start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  font-size: 11px;
+}
+
+.aduc-security-row.header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-top: 0;
+  background: rgba(248, 250, 252, 0.98);
+  font-weight: 700;
+}
+
+.aduc-security-row.explicit {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.aduc-security-row.inherited {
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.aduc-security-row .principal strong,
+.aduc-security-row .principal code,
+.aduc-security-row .guid code,
+.aduc-security-row .guid small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.aduc-security-row .principal code,
+.aduc-security-row .guid code,
+.aduc-security-row .guid small {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.aduc-security-row b.allow,
+.aduc-security-row b.deny {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.aduc-security-row b.allow {
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.aduc-security-row b.deny {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+@media (max-width: 1180px) {
+  .aduc-security-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

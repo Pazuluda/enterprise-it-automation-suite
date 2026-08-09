@@ -143,6 +143,10 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   const [membersLoading, setMembersLoading] = useState(false)
   const [membersError, setMembersError] = useState('')
   const [membersMode, setMembersMode] = useState('direct')
+  const [securityDescriptor, setSecurityDescriptor] = useState(null)
+  const [securityDescriptorLoading, setSecurityDescriptorLoading] = useState(false)
+  const [securityDescriptorError, setSecurityDescriptorError] = useState("")
+  const [securityDescriptorTargetDn, setSecurityDescriptorTargetDn] = useState("")
   const [treeFilter, setTreeFilter] = useState('')
   const [viewFilter, setViewFilter] = useState('')
   const [visibleColumnIds, setVisibleColumnIds] =
@@ -918,6 +922,156 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
     throw new Error('Timeout : l’agent Windows n’a pas répondu.')
   }
+
+  async function loadSecurityDescriptor(target, options = {}) {
+    const targetDn = String(
+      getObjectDn(target) || ""
+    ).trim()
+
+    if (!targetDn) {
+      setSecurityDescriptorError(
+        "DN Active Directory absent."
+      )
+      return null
+    }
+
+    if (!isEitasManagedDn(targetDn)) {
+      setSecurityDescriptorError(
+        "La lecture de sécurité est limitée au périmètre EITAS."
+      )
+      return null
+    }
+
+    const cachedDn = String(
+      securityDescriptor?.object_dn
+      || securityDescriptor?.dn
+      || ""
+    ).trim()
+
+    if (
+      !options.force
+      && securityDescriptor?.read_only === true
+      && cachedDn.toUpperCase() === targetDn.toUpperCase()
+    ) {
+      return securityDescriptor
+    }
+
+    setSecurityDescriptorTargetDn(targetDn)
+    setSecurityDescriptorError("")
+    setSecurityDescriptorLoading(true)
+
+    if (
+      cachedDn
+      && cachedDn.toUpperCase() !== targetDn.toUpperCase()
+    ) {
+      setSecurityDescriptor(null)
+    }
+
+    try {
+      const created = await apiFetch(
+        "/api/ad-explorer/jobs",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "get_security_descriptor",
+            query: targetDn,
+            created_by: "react-admin",
+          }),
+        }
+      )
+
+      const jobId = created?.job?.id
+
+      if (!jobId) {
+        throw new Error(
+          "Job de sécurité Active Directory invalide."
+        )
+      }
+
+      for (
+        let attempt = 0;
+        attempt < 45;
+        attempt += 1
+      ) {
+        const job = await apiFetch(
+          "/api/ad-explorer/jobs/" + jobId
+        )
+
+        if (
+          job.status === "completed"
+          || job.status === "failed"
+        ) {
+          if (!job.success) {
+            throw new Error(
+              job.message
+              || "Lecture des permissions Active Directory impossible."
+            )
+          }
+
+          const result =
+            job.result
+            || job.output
+
+          if (
+            !result
+            || typeof result !== "object"
+            || Array.isArray(result)
+          ) {
+            throw new Error(
+              "Descripteur de sécurité Active Directory invalide."
+            )
+          }
+
+          if (
+            result.action !== "get_security_descriptor"
+            || result.read_only !== true
+          ) {
+            throw new Error(
+              "Réponse de sécurité Active Directory non conforme."
+            )
+          }
+
+          const resultDn = String(
+            result.object_dn
+            || result.dn
+            || ""
+          ).trim()
+
+          if (
+            resultDn.toUpperCase()
+            !== targetDn.toUpperCase()
+          ) {
+            throw new Error(
+              "Le descripteur de sécurité ne correspond pas à l’objet."
+            )
+          }
+
+          setSecurityDescriptor(result)
+          return result
+        }
+
+        await new Promise(resolve =>
+          setTimeout(resolve, 450)
+        )
+      }
+
+      throw new Error(
+        "Timeout : l’agent Windows n’a pas répondu."
+      )
+    }
+    catch (error) {
+      setSecurityDescriptorError(
+        error?.message
+        || "Lecture des permissions Active Directory impossible."
+      )
+
+      return null
+    }
+    finally {
+      setSecurityDescriptorLoading(false)
+    }
+  }
+
 
   async function runAdUserDetailsJobUncached(target) {
     const payload =
@@ -4892,6 +5046,11 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                 membersLoading={membersLoading}
                 membersError={membersError}
                 historyItems={adAdminHistory}
+                securityDescriptor={securityDescriptor}
+                securityDescriptorLoading={securityDescriptorLoading}
+                securityDescriptorError={securityDescriptorError}
+                securityDescriptorTargetDn={securityDescriptorTargetDn}
+                onLoadSecurityDescriptor={loadSecurityDescriptor}
                 historyLoading={adAdminHistoryLoading}
                 historyError={adAdminHistoryError}
                 historyFilter={adAdminHistoryFilter}

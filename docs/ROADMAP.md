@@ -18,10 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
+| C8 — ACL, sécurité et délégation                 |       20 % |
 | Explorateur Active Directory complet       |       94 % |
 | Projet EITAS global | 90 % |
 
-La version stable `v0.7.0` clôt C7 « sélection multiple, copie et glisser-déposer » à 100 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C8.
+Le checkpoint `v0.8.0-alpha.01` valide C8.1 « ACL / DACL Active Directory en lecture seule » à 100 %. C8 : 20 %. Explorateur Active Directory : 94 %. EITAS : 90 %. La prochaine étape est C8.2.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -35,11 +36,33 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | Planifié |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 20 %, C8.1 validé |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.01 — C8.1 ACL / DACL en lecture seule
+
+Ce checkpoint valide C8.1 à 100 %.
+
+- lecture read-only du propriétaire et de la DACL Active Directory ;
+- récupération des principaux, SID, Allow / Deny et droits AD ;
+- exposition de héritage et des GUID objet ;
+- 36 ACE validées sur OU de test : 10 explicites et 26 héritées ;
+- SACL volontairement exclue ;
+- aucune API ou commande de modification ACL ;
+- onglet Sécurité intégré à Explorateur AD ;
+- affichage du propriétaire, de héritage et des ACE ;
+- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
+- job réel read-only et recette navigateur validés ;
+- 10 tests backend C8.1 ciblés ;
+- 10 tests frontend C8.1C ciblés ;
+- 314 tests frontend ;
+- 469 tests backend et 339 sous-tests ;
+- lint : 34 avertissements connus, 0 erreur ;
+- contrôles de sécurité validés ;
+- progression : C8.1 100 %, C8 20 %, Explorateur AD 94 %, EITAS 90 %.
 
 ### v0.7.0 — C7-FINAL
 
