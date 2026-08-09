@@ -5,6 +5,37 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.03] — 2026-08-09
+
+### C8.2B — Lisibilité sémantique read-only des ACL
+
+- ajout de libellés lisibles pour les droits Active Directory ;
+- prise en charge des droits composés séparés par virgule ;
+- conservation systématique de la valeur technique AD originale ;
+- ajout de libellés lisibles pour les portées d'héritage ;
+- traduction de `None`, `All`, `Descendents`, `SelfAndChildren` et `Children` ;
+- conservation de la portée technique originale ;
+- valeurs inconnues conservées sans transformation destructive ;
+- styles dédiés aux droits et portées ACL ;
+- aucune modification backend ou worker Windows ;
+- aucune écriture ACL ajoutée.
+
+### Validation
+
+- 22 tests frontend C8 ciblés réussis ;
+- 326 tests frontend complets réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build Vite 8.1.3 validé ;
+- 12 fichiers statiques de production déployés ;
+- intégrité SHA-256 `frontend/dist` / `api/static/app` validée ;
+- portail HTTPS validé avec HTTP 200 ;
+- recette Microsoft Edge validée sur l'ACE explicite Deny `Tout le monde` ;
+- droits `DeleteChild, DeleteTree, Delete` affichés avec libellés lisibles ;
+- portée `None` affichée comme `Cet objet uniquement` avec valeur native conservée ;
+- aucune primitive d'écriture ACL dans le composant source ;
+- progression : C8.2B 100 %, C8 30 %, Explorateur AD 95 %, EITAS 90 %.
+
+
 ## [0.8.0-alpha.02] — 2026-08-09
 
 ### C8.2A — Exploration et filtrage read-only des ACL

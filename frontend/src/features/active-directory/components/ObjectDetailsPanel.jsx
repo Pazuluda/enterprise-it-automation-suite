@@ -1384,6 +1384,64 @@ const objectTechnicalRows = [
           .toLowerCase() === "deny"
     ).length
 
+    function securityRightLabel(value) {
+      const raw = String(value || "").trim()
+
+      const labels = {
+        accesssystemsecurity: "Accéder à la sécurité système",
+        createchild: "Créer des objets enfants",
+        delete: "Supprimer",
+        deletechild: "Supprimer des objets enfants",
+        deletetree: "Supprimer la sous-arborescence",
+        extendedright: "Droits étendus",
+        genericall: "Contrôle total",
+        genericexecute: "Exécution générique",
+        genericread: "Lecture générique",
+        genericwrite: "Écriture générique",
+        listchildren: "Lister les objets enfants",
+        listobject: "Lister l'objet",
+        readcontrol: "Lire les autorisations",
+        readproperty: "Lire les propriétés",
+        self: "Écriture validée",
+        synchronize: "Synchroniser",
+        writedacl: "Modifier les autorisations",
+        writeowner: "Modifier le propriétaire",
+        writeproperty: "Modifier les propriétés",
+      }
+
+      return labels[raw.toLowerCase()] || raw
+    }
+
+    function securityRightsLabel(value) {
+      const raw = String(value || "").trim()
+
+      if (!raw) {
+        return "—"
+      }
+
+      return raw
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(securityRightLabel)
+        .join(" · ")
+    }
+
+    function securityInheritanceLabel(value) {
+      const raw = String(value || "None").trim()
+      const normalized = raw.toLowerCase()
+
+      const labels = {
+        none: "Cet objet uniquement",
+        all: "Cet objet et tous ses descendants",
+        descendents: "Tous les descendants uniquement",
+        selfandchildren: "Cet objet et ses enfants directs",
+        children: "Enfants directs uniquement",
+      }
+
+      return labels[normalized] || raw
+    }
+
     function securityGuidLabel(value) {
       const guid = String(value || "").trim()
 
@@ -1697,12 +1755,44 @@ const objectTechnicalRows = [
                       </b>
                     </span>
 
-                    <span>
-                      {rule?.active_directory_rights || "—"}
+                    <span className="rights">
+                      <strong>
+                        {securityRightsLabel(
+                          rule?.active_directory_rights
+                        )}
+                      </strong>
+
+                      {securityRightsLabel(
+                        rule?.active_directory_rights
+                      ) !== String(
+                        rule?.active_directory_rights || "—"
+                      ) && (
+                        <small>
+                          {String(
+                            rule?.active_directory_rights || "—"
+                          )}
+                        </small>
+                      )}
                     </span>
 
-                    <span>
-                      {rule?.inheritance_type || "None"}
+                    <span className="scope">
+                      <strong>
+                        {securityInheritanceLabel(
+                          rule?.inheritance_type
+                        )}
+                      </strong>
+
+                      {securityInheritanceLabel(
+                        rule?.inheritance_type
+                      ) !== String(
+                        rule?.inheritance_type || "None"
+                      ) && (
+                        <small>
+                          {String(
+                            rule?.inheritance_type || "None"
+                          )}
+                        </small>
+                      )}
                     </span>
 
                     <span>

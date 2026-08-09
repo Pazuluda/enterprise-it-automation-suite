@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.02
+## État courant — v0.8.0-alpha.03
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       25 % |
+| C8 — ACL, sécurité et délégation                 |       30 % |
 | Explorateur Active Directory complet       |       95 % |
 | Projet EITAS global | 90 % |
 
-Le checkpoint `v0.8.0-alpha.02` valide C8.2A « exploration et filtrage read-only des ACL / DACL » à 100 %. C8 : 25 %. Explorateur Active Directory : 95 %. EITAS : 90 %. La prochaine étape est C8.2B.
+Le checkpoint `v0.8.0-alpha.03` valide C8.2B « lisibilité sémantique read-only des ACL / DACL » à 100 %. C8 : 30 %. Explorateur Active Directory : 95 %. EITAS : 90 %. La suite de C8 reste en lecture seule.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,30 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 25 %, C8.1 et C8.2A validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 30 %, C8.1, C8.2A et C8.2B validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.03 — C8.2B lisibilité sémantique des ACL
+
+Ce checkpoint valide C8.2B à 100 %.
+
+- traduction lisible des principaux droits Active Directory ;
+- gestion des droits AD composés ;
+- conservation des valeurs techniques originales ;
+- traduction lisible des portées d'héritage ;
+- conservation des valeurs natives `None`, `All`, `Descendents`, `SelfAndChildren` et `Children` ;
+- fallback non destructif pour les valeurs inconnues ;
+- aucune modification backend ou worker Windows ;
+- aucune commande ou API d'écriture ACL ;
+- 22 tests C8 frontend ciblés ;
+- 326 tests frontend complets ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build et intégrité SHA-256 du portail validés ;
+- recette navigateur Microsoft Edge validée ;
+- progression : C8.2B 100 %, C8 30 %, Explorateur AD 95 %, EITAS 90 %.
 
 ### v0.8.0-alpha.02 — C8.2A exploration read-only des ACL
 
