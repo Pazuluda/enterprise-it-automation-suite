@@ -190,7 +190,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 5. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
 6. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
 7. C7 — Sélection multiple, copie et glisser-déposer — terminé dans `v0.7.0` ;
-8. C8 — ACL, sécurité et délégation — en cours à 36 %, C8.1, C8.2A, C8.2B et C8.2C read-only validés ;
+8. C8 — ACL, sécurité et délégation — en cours à 55 % ;
 9. C9 — Corbeille Active Directory et restauration ;
 10. C10 — Performance, audit, tests et finition.
 
