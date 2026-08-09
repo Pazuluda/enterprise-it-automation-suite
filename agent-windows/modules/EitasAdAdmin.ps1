@@ -5892,6 +5892,494 @@ param(
 }
 
 
+
+# C8.3B1 - ACL delegation simulation preview.
+# Dormant by design: no dispatcher entry in this checkpoint.
+
+function Convert-EitasAdAdminAclGuidValue {
+    param(
+        [object]$Value,
+        [string]$FieldName
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $Text = ([string]$Value).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return $null
+    }
+
+    if (
+        $Text -eq
+        "00000000-0000-0000-0000-000000000000"
+    ) {
+        return $null
+    }
+
+    try {
+        $GuidValue = [guid]$Text
+    }
+    catch {
+        throw (
+            $FieldName +
+            " doit etre un GUID valide"
+        )
+    }
+
+    return (
+        $GuidValue.
+            ToString("D").
+            ToLowerInvariant()
+    )
+}
+
+
+function Resolve-EitasAdAdminAclPrincipal {
+    param(
+        [object]$Config,
+        [string]$Identity
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Identity)) {
+        throw "Identite principal ACL manquante"
+    }
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $DomainDn = (
+        Get-EitasAdDomainDn -Config $Config
+    ).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($DomainDn)) {
+        throw "DN du domaine Active Directory introuvable"
+    }
+
+    $LookupIdentity = $Identity.Trim()
+    $Object = $null
+
+    try {
+        $Object = Get-ADObject `
+            -Identity $LookupIdentity `
+            -Properties `
+                objectClass, `
+                sAMAccountName, `
+                userPrincipalName, `
+                displayName `
+            -ErrorAction Stop
+    }
+    catch {
+        $Object = $null
+    }
+
+    if ($null -eq $Object) {
+        $SearchIdentity = $LookupIdentity
+
+        $SlashIndex = $SearchIdentity.LastIndexOf("\")
+
+        if (
+            $SlashIndex -ge 0 -and
+            $SlashIndex -lt ($SearchIdentity.Length - 1)
+        ) {
+            $SearchIdentity = (
+                $SearchIdentity.Substring(
+                    $SlashIndex + 1
+                )
+            )
+        }
+
+        $Escaped = Escape-EitasLdapFilterValue `
+            -Value $SearchIdentity
+
+        $Matches = @(
+            Get-ADObject `
+                -LDAPFilter (
+                    "(&" +
+                    "(objectSid=*)" +
+                    "(|" +
+                    "(sAMAccountName=$Escaped)" +
+                    "(userPrincipalName=$Escaped)" +
+                    "(cn=$Escaped)" +
+                    "(name=$Escaped)" +
+                    ")" +
+                    ")"
+                ) `
+                -SearchBase $DomainDn `
+                -SearchScope Subtree `
+                -Properties `
+                    objectClass, `
+                    sAMAccountName, `
+                    userPrincipalName, `
+                    displayName `
+                -ResultSetSize 5 `
+                -ErrorAction Stop
+        )
+
+        if ($Matches.Count -eq 0) {
+            throw (
+                "Principal ACL introuvable : " +
+                $Identity
+            )
+        }
+
+        if ($Matches.Count -gt 1) {
+            throw (
+                "Plusieurs principaux ACL correspondent a : " +
+                $Identity
+            )
+        }
+
+        $Object = $Matches[0]
+    }
+
+    $PrincipalDn = (
+        [string]$Object.DistinguishedName
+    ).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($PrincipalDn)) {
+        throw "DN du principal ACL introuvable"
+    }
+
+    $DomainDnLower = $DomainDn.ToLowerInvariant()
+    $PrincipalDnLower = (
+        $PrincipalDn.ToLowerInvariant()
+    )
+
+    if (
+        $PrincipalDnLower -ine $DomainDnLower -and
+        -not $PrincipalDnLower.EndsWith(
+            "," + $DomainDnLower
+        )
+    ) {
+        throw (
+            "Principal ACL hors domaine autorise : " +
+            $PrincipalDn
+        )
+    }
+
+    $PrincipalClass = (
+        [string]$Object.ObjectClass
+    ).Trim()
+
+    $SecurityPrincipal = $null
+
+    switch ($PrincipalClass.ToLowerInvariant()) {
+        "group" {
+            $SecurityPrincipal = Get-ADGroup `
+                -Identity $PrincipalDn `
+                -Properties SID `
+                -ErrorAction Stop
+        }
+
+        "user" {
+            $SecurityPrincipal = Get-ADUser `
+                -Identity $PrincipalDn `
+                -Properties SID `
+                -ErrorAction Stop
+        }
+
+        "computer" {
+            $SecurityPrincipal = Get-ADComputer `
+                -Identity $PrincipalDn `
+                -Properties SID `
+                -ErrorAction Stop
+        }
+
+        default {
+            throw (
+                "Type de principal ACL non pris en charge : " +
+                $PrincipalClass
+            )
+        }
+    }
+
+    if ($null -eq $SecurityPrincipal.SID) {
+        throw "SID du principal ACL introuvable"
+    }
+
+    $Sid = (
+        [string]$SecurityPrincipal.SID.Value
+    ).Trim()
+
+    if ([string]::IsNullOrWhiteSpace($Sid)) {
+        throw "SID du principal ACL invalide"
+    }
+
+    return [pscustomobject]@{
+        name = [string]$SecurityPrincipal.Name
+        distinguished_name = $PrincipalDn
+        dn = $PrincipalDn
+        object_class = $PrincipalClass
+        sam_account_name = (
+            [string]$SecurityPrincipal.SamAccountName
+        )
+        sid = $Sid
+    }
+}
+
+
+function Invoke-EitasAdAdminAclDelegationSimulationPreview {
+    param(
+        [object]$Config,
+        [object]$Payload,
+        [string]$Mode
+    )
+
+    if ($Mode -ine "Simulation") {
+        throw (
+            "simulate_acl_delegation est disponible " +
+            "uniquement en mode Simulation"
+        )
+    }
+
+    $ObjectDn = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "object_dn",
+            "objectDn",
+            "dn"
+        )
+
+    $PrincipalIdentity = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "principal_identity",
+            "principalIdentity",
+            "principal"
+        )
+
+    $AccessControlType = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "access_control_type",
+            "accessControlType"
+        )
+
+    $RawRights = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "rights"
+        )
+
+    $InheritanceType = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "inheritance_type",
+            "inheritanceType"
+        )
+
+    $RawObjectTypeGuid = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "object_type_guid",
+            "objectTypeGuid"
+        )
+
+    $RawInheritedObjectTypeGuid = (
+        Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                "inherited_object_type_guid",
+                "inheritedObjectTypeGuid"
+            )
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ObjectDn)) {
+        throw "DN cible ACL manquant"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $PrincipalIdentity
+        )
+    ) {
+        throw "Principal ACL manquant"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $AccessControlType
+        )
+    ) {
+        $AccessControlType = "Allow"
+    }
+
+    if ($AccessControlType -cne "Allow") {
+        throw (
+            "C8.3B1 autorise uniquement " +
+            "les ACE Allow"
+        )
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $InheritanceType
+        )
+    ) {
+        $InheritanceType = "None"
+    }
+
+    $AllowedInheritanceTypes = @(
+        "None",
+        "All",
+        "Descendents",
+        "SelfAndChildren",
+        "Children"
+    )
+
+    if (
+        $AllowedInheritanceTypes `
+            -cnotcontains $InheritanceType
+    ) {
+        throw (
+            "Portee d'heritage ACL non autorisee : " +
+            $InheritanceType
+        )
+    }
+
+    $AllowedRights = @(
+        "ReadProperty",
+        "WriteProperty",
+        "CreateChild",
+        "DeleteChild",
+        "ListChildren",
+        "ReadControl",
+        "ExtendedRight",
+        "GenericRead"
+    )
+
+    $NormalizedRights = @()
+    $SeenRights = @{}
+
+    foreach ($RawRight in @($RawRights)) {
+        $Right = ([string]$RawRight).Trim()
+
+        if ([string]::IsNullOrWhiteSpace($Right)) {
+            continue
+        }
+
+        if ($AllowedRights -cnotcontains $Right) {
+            throw (
+                "Droit ACL non autorise en C8.3B1 : " +
+                $Right
+            )
+        }
+
+        if (-not $SeenRights.ContainsKey($Right)) {
+            $SeenRights[$Right] = $true
+            $NormalizedRights += $Right
+        }
+    }
+
+    if ($NormalizedRights.Count -eq 0) {
+        throw "Au moins un droit ACL est obligatoire"
+    }
+
+    Import-EitasActiveDirectoryModule | Out-Null
+
+    $RightsMask = [int64]0
+
+    foreach ($Right in $NormalizedRights) {
+        try {
+            $RightValue = [System.Enum]::Parse(
+                [System.DirectoryServices.ActiveDirectoryRights],
+                $Right,
+                $false
+            )
+        }
+        catch {
+            throw (
+                "Droit Active Directory invalide : " +
+                $Right
+            )
+        }
+
+        $RightsMask = (
+            $RightsMask -bor
+            [int64]$RightValue
+        )
+    }
+
+    try {
+        $InheritanceValue = [System.Enum]::Parse(
+            [System.DirectoryServices.ActiveDirectorySecurityInheritance],
+            $InheritanceType,
+            $false
+        )
+    }
+    catch {
+        throw (
+            "Portee Active Directory invalide : " +
+            $InheritanceType
+        )
+    }
+
+    $ObjectTypeGuid = (
+        Convert-EitasAdAdminAclGuidValue `
+            -Value $RawObjectTypeGuid `
+            -FieldName "object_type_guid"
+    )
+
+    $InheritedObjectTypeGuid = (
+        Convert-EitasAdAdminAclGuidValue `
+            -Value $RawInheritedObjectTypeGuid `
+            -FieldName "inherited_object_type_guid"
+    )
+
+    $Target = Resolve-EitasAdAdminObject `
+        -Config $Config `
+        -Identity $ObjectDn
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $Target.DistinguishedName `
+        -Config $Config |
+        Out-Null
+
+    $Principal = Resolve-EitasAdAdminAclPrincipal `
+        -Config $Config `
+        -Identity $PrincipalIdentity
+
+    return [pscustomobject]@{
+        action = "simulate_acl_delegation"
+        mode = "Simulation"
+        simulated = $true
+        write_performed = $false
+        production_authorized = $false
+        ad_write_authorized = $false
+        execution_policy = "simulation_only"
+
+        target = [pscustomobject]@{
+            name = [string]$Target.Name
+            dn = [string]$Target.DistinguishedName
+            object_class = [string]$Target.ObjectClass
+        }
+
+        principal = $Principal
+
+        ace = [pscustomobject]@{
+            access_control_type = "Allow"
+            rights = @($NormalizedRights)
+            rights_mask = $RightsMask
+            inheritance_type = $InheritanceType
+            inheritance_value = (
+                [int]$InheritanceValue
+            )
+            object_type_guid = $ObjectTypeGuid
+            inherited_object_type_guid = (
+                $InheritedObjectTypeGuid
+            )
+        }
+
+        message = (
+            "Simulation de delegation ACL calculee " +
+            "sans modification Active Directory"
+        )
+    }
+}
+
+
 function Invoke-EitasAdAdminJob {
     param(
         [object]$Config,
@@ -5947,6 +6435,13 @@ function Invoke-EitasAdAdminJob {
 
         "set_primary_group" {
             return Invoke-EitasAdAdminSetPrimaryGroup -Config $Config -Payload $Payload -Mode $Mode
+        }
+
+        "simulate_acl_delegation" {
+            return Invoke-EitasAdAdminAclDelegationSimulationPreview `
+                -Config $Config `
+                -Payload $Payload `
+                -Mode $Mode
         }
 
         "move_object" {

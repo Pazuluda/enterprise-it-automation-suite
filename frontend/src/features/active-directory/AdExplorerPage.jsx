@@ -3795,6 +3795,82 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
   }
 
 
+  async function simulateAclDelegation(
+    target,
+    request
+  ) {
+    const targetDn = String(
+      getObjectDn(target) || ""
+    ).trim()
+
+    if (!targetDn) {
+      throw new Error(
+        "DN Active Directory absent."
+      )
+    }
+
+    if (!isEitasManagedDn(targetDn)) {
+      throw new Error(
+        "La simulation ACL est limitée au périmètre EITAS."
+      )
+    }
+
+    try {
+      const job = await runAdAdminJob({
+        action: "simulate_acl_delegation",
+        mode: "Simulation",
+        object_dn: targetDn,
+        principal_identity:
+          request?.principal_identity,
+        access_control_type: "Allow",
+        rights: request?.rights,
+        inheritance_type:
+          request?.inheritance_type,
+        object_type_guid: null,
+        inherited_object_type_guid: null,
+      })
+
+      const output = job?.output || {}
+
+      if (
+        output.action !== "simulate_acl_delegation"
+        || output.mode !== "Simulation"
+        || output.simulated !== true
+        || output.write_performed !== false
+        || output.production_authorized !== false
+        || output.ad_write_authorized !== false
+        || output.execution_policy !== "simulation_only"
+      ) {
+        throw new Error(
+          "Résultat ACL invalide : les garanties "
+          + "de Simulation ne sont pas confirmées."
+        )
+      }
+
+      const message = cleanAdAdminMessage(
+        output.message
+        || job?.message
+        || "Simulation de délégation ACL terminée."
+      )
+
+      setStatus(message)
+      setMessage?.(message)
+
+      return output
+    } catch (err) {
+      const message = cleanAdAdminMessage(
+        err?.message
+        || "Simulation de délégation ACL en erreur."
+      )
+
+      setStatus(`Erreur : ${message}`)
+      setMessage?.(`Erreur : ${message}`)
+
+      throw err
+    }
+  }
+
+
   async function runAdAdminJob(payload) {
     setAdminSuccess('')
 
@@ -5396,6 +5472,11 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                 onSetPrimaryGroup={
                   canManageActiveDirectory
                     ? setPrimaryGroupSimulation
+                    : undefined
+                }
+                onSimulateAclDelegation={
+                  canManageActiveDirectory
+                    ? simulateAclDelegation
                     : undefined
                 }
               />

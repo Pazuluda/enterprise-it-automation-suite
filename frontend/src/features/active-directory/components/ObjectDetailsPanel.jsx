@@ -38,16 +38,49 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy, securityDescriptor, securityDescriptorLoading, securityDescriptorError, securityDescriptorTargetDn, onLoadSecurityDescriptor }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy, securityDescriptor, securityDescriptorLoading, securityDescriptorError, securityDescriptorTargetDn, onLoadSecurityDescriptor, onSimulateAclDelegation }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const [securityRuleQuery, setSecurityRuleQuery] = useState('')
   const [securityRuleType, setSecurityRuleType] = useState('all')
   const [securityRuleOrigin, setSecurityRuleOrigin] = useState('all')
+  const [
+    aclDelegationPrincipal,
+    setAclDelegationPrincipal
+  ] = useState('')
+  const [
+    aclDelegationRights,
+    setAclDelegationRights
+  ] = useState(['ReadProperty'])
+  const [
+    aclDelegationInheritance,
+    setAclDelegationInheritance
+  ] = useState('Descendents')
+  const [
+    aclDelegationLoading,
+    setAclDelegationLoading
+  ] = useState(false)
+  const [
+    aclDelegationError,
+    setAclDelegationError
+  ] = useState('')
+  const [
+    aclDelegationResult,
+    setAclDelegationResult
+  ] = useState(null)
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
   const dn = getObjectDn(displayed)
   const isManagedScope = isEitasManagedDn(dn)
+
+  useEffect(() => {
+    setAclDelegationPrincipal('')
+    setAclDelegationRights(['ReadProperty'])
+    setAclDelegationInheritance('Descendents')
+    setAclDelegationLoading(false)
+    setAclDelegationError('')
+    setAclDelegationResult(null)
+  }, [dn])
   const type = getObjectType(displayed)
   const objectName = hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'
   const objectClass = String(
@@ -1475,6 +1508,93 @@ const objectTechnicalRows = [
       )
     }
 
+    const aclDelegationRightOptions = [
+      ["ReadProperty", "Lire les propriétés"],
+      ["WriteProperty", "Modifier les propriétés"],
+      ["CreateChild", "Créer des objets enfants"],
+      ["DeleteChild", "Supprimer des objets enfants"],
+      ["ListChildren", "Lister les objets enfants"],
+      ["ReadControl", "Lire les autorisations"],
+      ["ExtendedRight", "Droits étendus"],
+      ["GenericRead", "Lecture générique"],
+    ]
+
+    const aclDelegationInheritanceOptions = [
+      ["None", "Cet objet uniquement"],
+      ["All", "Cet objet et tous ses descendants"],
+      ["Descendents", "Tous les descendants uniquement"],
+      ["SelfAndChildren", "Cet objet et ses enfants directs"],
+      ["Children", "Enfants directs uniquement"],
+    ]
+
+    function toggleAclDelegationRight(right) {
+      setAclDelegationRights(current => {
+        if (current.includes(right)) {
+          return current.filter(
+            value => value !== right
+          )
+        }
+
+        return [...current, right]
+      })
+    }
+
+    async function submitAclDelegationSimulation(event) {
+      event.preventDefault()
+
+      const principal =
+        aclDelegationPrincipal.trim()
+
+      if (!principal) {
+        setAclDelegationError(
+          "Le principal Active Directory est obligatoire."
+        )
+        return
+      }
+
+      if (!aclDelegationRights.length) {
+        setAclDelegationError(
+          "Sélectionnez au moins un droit Active Directory."
+        )
+        return
+      }
+
+      if (!onSimulateAclDelegation) {
+        setAclDelegationError(
+          "La simulation de délégation n’est pas disponible."
+        )
+        return
+      }
+
+      setAclDelegationLoading(true)
+      setAclDelegationError("")
+      setAclDelegationResult(null)
+
+      try {
+        const result = await onSimulateAclDelegation(
+          displayed,
+          {
+            principal_identity: principal,
+            rights: aclDelegationRights,
+            inheritance_type: aclDelegationInheritance,
+          }
+        )
+
+        if (result) {
+          setAclDelegationResult(result)
+        }
+      } catch (err) {
+        setAclDelegationError(
+          String(
+            err?.message
+            || "Simulation de délégation en erreur."
+          )
+        )
+      } finally {
+        setAclDelegationLoading(false)
+      }
+    }
+
     return (
       <div className="aduc-tab-card aduc-security-tab">
         <div className="aduc-security-head">
@@ -1881,6 +2001,237 @@ const objectTechnicalRows = [
               </p>
             )}
           </>
+        )}
+
+        {isManagedScope && onSimulateAclDelegation && (
+          <section className="aduc-acl-delegation-simulation">
+            <div className="aduc-acl-delegation-head">
+              <div>
+                <h5>Délégation — Simulation</h5>
+                <p>
+                  Prépare une ACE théorique sans modifier
+                  les autorisations Active Directory.
+                </p>
+              </div>
+
+              <span className="aduc-acl-simulation-badge">
+                Simulation uniquement
+              </span>
+            </div>
+
+            <form
+              className="aduc-acl-delegation-form"
+              onSubmit={submitAclDelegationSimulation}
+            >
+              <label className="aduc-acl-delegation-field">
+                <span>Principal</span>
+
+                <input
+                  type="text"
+                  value={aclDelegationPrincipal}
+                  onChange={event =>
+                    setAclDelegationPrincipal(
+                      event.target.value
+                    )
+                  }
+                  placeholder={
+                    "Groupe, utilisateur, ordinateur, "
+                    + "sAMAccountName ou DN"
+                  }
+                  disabled={aclDelegationLoading}
+                />
+              </label>
+
+              <fieldset
+                className="aduc-acl-delegation-rights"
+                disabled={aclDelegationLoading}
+              >
+                <legend>Droits</legend>
+
+                <div className="aduc-acl-delegation-right-grid">
+                  {aclDelegationRightOptions.map(
+                    ([value, label]) => (
+                      <label
+                        key={value}
+                        className={
+                          aclDelegationRights.includes(value)
+                            ? "selected"
+                            : ""
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            aclDelegationRights.includes(
+                              value
+                            )
+                          }
+                          onChange={() =>
+                            toggleAclDelegationRight(
+                              value
+                            )
+                          }
+                        />
+
+                        <span className="aduc-acl-right-check">
+                          {aclDelegationRights.includes(value)
+                            ? "✓"
+                            : ""}
+                        </span>
+
+                        <span className="aduc-acl-right-label">
+                          {label}
+                        </span>
+
+                        <code>{value}</code>
+                      </label>
+                    )
+                  )}
+                </div>
+              </fieldset>
+
+              <label className="aduc-acl-delegation-field">
+                <span>Portée</span>
+
+                <select
+                  value={aclDelegationInheritance}
+                  onChange={event =>
+                    setAclDelegationInheritance(
+                      event.target.value
+                    )
+                  }
+                  disabled={aclDelegationLoading}
+                >
+                  {aclDelegationInheritanceOptions.map(
+                    ([value, label]) => (
+                      <option
+                        key={value}
+                        value={value}
+                      >
+                        {label}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <div className="aduc-acl-delegation-policy">
+                <strong>Autoriser uniquement</strong>
+                <span>
+                  Les ACE Refuser ne sont pas proposées dans C8.3.
+                </span>
+              </div>
+
+              {aclDelegationError && (
+                <div className="aduc-security-error">
+                  {aclDelegationError}
+                </div>
+              )}
+
+              <div className="aduc-acl-delegation-actions">
+                <button
+                  type="submit"
+                  disabled={
+                    aclDelegationLoading
+                    || !aclDelegationPrincipal.trim()
+                    || !aclDelegationRights.length
+                  }
+                >
+                  {aclDelegationLoading
+                    ? "Simulation en cours…"
+                    : "Simuler la délégation"}
+                </button>
+              </div>
+            </form>
+
+            {aclDelegationResult && (
+              <div className="aduc-acl-delegation-result">
+                <div className="aduc-acl-delegation-result-head">
+                  <strong>Simulation terminée</strong>
+
+                  <span>
+                    Aucune ACL Active Directory modifiée
+                  </span>
+                </div>
+
+                <div className="aduc-acl-delegation-result-grid">
+                  <div>
+                    <span>Cible</span>
+                    <strong>
+                      {aclDelegationResult?.target?.name || "—"}
+                    </strong>
+                    <code>
+                      {aclDelegationResult?.target?.dn || dn}
+                    </code>
+                  </div>
+
+                  <div>
+                    <span>Principal</span>
+                    <strong>
+                      {aclDelegationResult?.principal?.name || "—"}
+                    </strong>
+                    <code>
+                      {aclDelegationResult?.principal?.sid
+                        || "SID indisponible"}
+                    </code>
+                  </div>
+
+                  <div>
+                    <span>Droits</span>
+                    <strong>
+                      {Array.isArray(
+                        aclDelegationResult?.ace?.rights
+                      )
+                        ? aclDelegationResult.ace.rights
+                            .map(securityRightLabel)
+                            .join(" · ")
+                        : "—"}
+                    </strong>
+                    <small>
+                      {Array.isArray(
+                        aclDelegationResult?.ace?.rights
+                      )
+                        ? aclDelegationResult.ace.rights
+                            .join(", ")
+                        : "—"}
+                    </small>
+                  </div>
+
+                  <div>
+                    <span>Portée</span>
+                    <strong>
+                      {securityInheritanceLabel(
+                        aclDelegationResult
+                          ?.ace
+                          ?.inheritance_type
+                      )}
+                    </strong>
+                    <small>
+                      {aclDelegationResult
+                        ?.ace
+                        ?.inheritance_type
+                        || "None"}
+                    </small>
+                  </div>
+                </div>
+
+                <div className="aduc-acl-delegation-invariants">
+                  <span>
+                    simulated = true
+                  </span>
+                  <span>
+                    write_performed = false
+                  </span>
+                  <span>
+                    production_authorized = false
+                  </span>
+                  <span>
+                    ad_write_authorized = false
+                  </span>
+                </div>
+              </div>
+            )}
+          </section>
         )}
       </div>
     )

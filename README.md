@@ -1,6 +1,6 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.8.0--alpha.03-2563eb)
+![Version](https://img.shields.io/badge/version-v0.8.0--alpha.05-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
@@ -9,7 +9,7 @@
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-termine_100_%25-2ea44f)
-![C8](https://img.shields.io/badge/C8-en_cours_36_%25-f59e0b)
+![C8](https://img.shields.io/badge/C8-en_cours_55_%25-f59e0b)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version de développement **v0.8.0-alpha.04** valide **C8.2C « résolution et affichage lisible des GUID ACL en lecture seule »** à 100 %. C8 progresse à 36 %.
+La version de développement **v0.8.0-alpha.05** valide **C8.3 « préparation et simulation de délégation ACL »** à 100 %. C8 progresse à 55 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -36,11 +36,12 @@ La version de développement **v0.8.0-alpha.04** valide **C8.2C « résolution e
 > **C6 — Recherche, colonnes, filtres et requêtes — terminé à 100 %**
 
 > **C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %**
-> **C8 — ACL, sécurité et délégation — en cours à 36 %**
+
+> **C8 — ACL, sécurité et délégation — en cours à 55 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.8.0-alpha.04` valide C8.2C en lecture seule : résolution des GUID ACL depuis le schéma Active Directory et les droits étendus, conservation des GUID techniques, affichage des noms sémantiques et recherche par nom. L’Explorateur AD dispose aussi de panneaux redimensionnables persistants pour faciliter l’analyse. Progression actuelle : C8.2C 100 %, C8 36 %, Explorateur Active Directory 95 %, EITAS global 90 %. La prochaine étape poursuit C8.
+EITAS reste en développement actif. `v0.8.0-alpha.05` valide C8.3 : préparation et simulation de délégations ACL via le pipeline AD Admin existant, résolution réelle de la cible et du principal, droits et portée contrôlés, aperçu lisible dans l’onglet Sécurité et invariants stricts garantissant l’absence d’écriture Active Directory. Progression actuelle : C8.3 100 %, C8 55 %, Explorateur Active Directory 96 %, EITAS global 91 %. La prochaine étape poursuit C8 avec les mécanismes contrôlés précédant toute future écriture ACL.
 
 ## Fonctionnalités disponibles
 
@@ -169,6 +170,7 @@ Composants principaux :
 | Deuxième checkpoint C8                | `v0.8.0-alpha.02` |
 | Troisième checkpoint C8                | `v0.8.0-alpha.03` |
 | Quatrième checkpoint C8                | `v0.8.0-alpha.04` |
+| Cinquième checkpoint C8               | `v0.8.0-alpha.05` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -181,15 +183,16 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 
 ## Feuille de route
 
-1. C2 — Éditeur d'attributs LDAP — terminé dans `v0.2.0` ;
-2. C3 — Gestion avancée des utilisateurs — terminé dans `v0.3.0` ;
-3. C4 — Groupes, imbrication et appartenances — terminé dans `v0.4.0` ;
-4. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
-5. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
-6. C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %, C7.1 multi-sélection, C7.2 actions de sélection/copie, C7.3 glisser-déposer et C7-FINAL consolidés ;
-7. C8 — ACL, sécurité et délégation — en cours à 36 %, C8.1, C8.2A, C8.2B et C8.2C read-only validés ;
-8. C9 — Corbeille Active Directory et restauration ;
-9. C10 — Performance, audit, tests et finition.
+1. C1 — Fenêtres Propriétés complètes — terminé dans `v0.1.0` ;
+2. C2 — Éditeur d'attributs LDAP — terminé dans `v0.2.0` ;
+3. C3 — Gestion avancée des utilisateurs — terminé dans `v0.3.0` ;
+4. C4 — Groupes, imbrication et appartenances — terminé dans `v0.4.0` ;
+5. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
+6. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
+7. C7 — Sélection multiple, copie et glisser-déposer — terminé dans `v0.7.0` ;
+8. C8 — ACL, sécurité et délégation — en cours à 36 %, C8.1, C8.2A, C8.2B et C8.2C read-only validés ;
+9. C9 — Corbeille Active Directory et restauration ;
+10. C10 — Performance, audit, tests et finition.
 
 Documents :
 

@@ -11,6 +11,11 @@ from app.core.storage import load_json, save_json
 from app.services.ldap_attribute_update import (
     prepare_ldap_attribute_update_simulation_payload,
 )
+from app.services.acl_delegation_simulation_job import (
+    AclDelegationSimulationJobBadRequest,
+    get_acl_delegation_simulation_audit_metadata,
+    prepare_acl_delegation_simulation_job_envelope,
+)
 
 
 class ADAdminError(Exception):
@@ -39,6 +44,7 @@ ALLOWED_ACTIONS = {
     "add_group_member",
     "remove_group_member",
     "set_primary_group",
+    "simulate_acl_delegation",
     "move_object",
     "rename_object",
     "delete_object",
@@ -2119,6 +2125,55 @@ def create_ad_admin_job(jobs_file: Path, payload: dict) -> tuple[dict, dict]:
             "object_identity": object_identity,
             "group_identity": group_identity,
         })
+
+    elif action == "simulate_acl_delegation":
+        simulation_payload = dict(payload)
+
+        simulation_payload["action"] = action
+
+        if not clean_string(
+            simulation_payload.get("mode")
+        ):
+            simulation_payload["mode"] = "Simulation"
+
+        try:
+            envelope = (
+                prepare_acl_delegation_simulation_job_envelope(
+                    simulation_payload
+                )
+            )
+        except AclDelegationSimulationJobBadRequest as exc:
+            raise ADAdminBadRequest(str(exc)) from exc
+
+        if not envelope.job_persistence_authorized:
+            raise ADAdminBadRequest(
+                "La persistance ACL Simulation "
+                "n'est pas autorisee"
+            )
+
+        if not envelope.runtime_authorized:
+            raise ADAdminBadRequest(
+                "Le runtime ACL Simulation "
+                "n'est pas autorise"
+            )
+
+        if envelope.production_authorized:
+            raise ADAdminBadRequest(
+                "La Production ACL doit rester interdite"
+            )
+
+        if envelope.ad_write_authorized:
+            raise ADAdminBadRequest(
+                "Les ecritures ACL doivent rester interdites"
+            )
+
+        job_payload = dict(envelope.payload)
+
+        audit_details.update(
+            get_acl_delegation_simulation_audit_metadata(
+                envelope
+            )
+        )
 
     job_id = str(uuid4())
 

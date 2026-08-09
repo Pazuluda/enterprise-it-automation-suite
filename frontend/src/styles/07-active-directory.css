@@ -9121,3 +9121,355 @@ body.aduc-pane-resizing * {
   font-size: 9px;
   font-weight: 700;
 }
+
+
+/* C8.3D2 - ACL delegation simulation visual polish */
+
+.aduc-acl-delegation-simulation {
+  position: relative;
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid
+    var(--border-subtle, rgba(128, 128, 128, 0.22));
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, currentColor 2%, transparent),
+      transparent 48%
+    );
+}
+
+.aduc-acl-delegation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.aduc-acl-delegation-head h5 {
+  margin: 0 0 5px;
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.aduc-acl-delegation-head p {
+  max-width: 650px;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  opacity: 0.68;
+}
+
+.aduc-acl-simulation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid
+    color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, currentColor 4%, transparent);
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.aduc-acl-simulation-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.aduc-acl-delegation-form {
+  display: grid;
+  gap: 20px;
+}
+
+.aduc-acl-delegation-field {
+  display: grid;
+  gap: 7px;
+}
+
+.aduc-acl-delegation-field > span,
+.aduc-acl-delegation-rights legend {
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  opacity: 0.66;
+}
+
+.aduc-acl-delegation-field input,
+.aduc-acl-delegation-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid
+    var(--border-subtle, rgba(128, 128, 128, 0.28));
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.aduc-acl-delegation-field input:focus,
+.aduc-acl-delegation-field select:focus {
+  outline: none;
+  border-color:
+    color-mix(in srgb, currentColor 45%, transparent);
+  box-shadow:
+    0 0 0 3px
+    color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.aduc-acl-delegation-rights {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.aduc-acl-delegation-right-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 9px;
+}
+
+.aduc-acl-delegation-right-grid label {
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    24px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 9px;
+  row-gap: 2px;
+  align-items: center;
+  min-height: 52px;
+  padding: 9px 11px;
+  border: 1px solid
+    var(--border-subtle, rgba(128, 128, 128, 0.20));
+  border-radius: 10px;
+  background:
+    color-mix(in srgb, currentColor 2.5%, transparent);
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.aduc-acl-delegation-right-grid label:hover {
+  border-color:
+    color-mix(in srgb, currentColor 30%, transparent);
+  background:
+    color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.aduc-acl-delegation-right-grid label.selected {
+  border-color:
+    color-mix(in srgb, currentColor 42%, transparent);
+  background:
+    color-mix(in srgb, currentColor 7%, transparent);
+  box-shadow:
+    inset 3px 0 0
+    color-mix(in srgb, currentColor 70%, transparent);
+}
+
+.aduc-acl-delegation-right-grid input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.aduc-acl-right-check {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid
+    color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.aduc-acl-delegation-right-grid label.selected
+.aduc-acl-right-check {
+  border-color:
+    color-mix(in srgb, currentColor 55%, transparent);
+  background:
+    color-mix(in srgb, currentColor 9%, transparent);
+}
+
+.aduc-acl-right-label {
+  min-width: 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.aduc-acl-delegation-right-grid code {
+  min-width: 0;
+  font-size: 0.64rem;
+  line-height: 1.1;
+  opacity: 0.42;
+  overflow-wrap: anywhere;
+}
+
+.aduc-acl-delegation-policy {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid
+    var(--border-subtle, rgba(128, 128, 128, 0.18));
+  border-radius: 9px;
+  background:
+    color-mix(in srgb, currentColor 2.5%, transparent);
+  font-size: 0.76rem;
+}
+
+.aduc-acl-delegation-policy::before {
+  content: "◇";
+  font-size: 0.92rem;
+  opacity: 0.6;
+}
+
+.aduc-acl-delegation-policy strong {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+}
+
+.aduc-acl-delegation-policy span {
+  opacity: 0.64;
+}
+
+.aduc-acl-delegation-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.aduc-acl-delegation-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-weight: 720;
+}
+
+.aduc-acl-delegation-result {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid
+    color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 11px;
+  background:
+    color-mix(in srgb, currentColor 3%, transparent);
+}
+
+.aduc-acl-delegation-result-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid
+    var(--border-subtle, rgba(128, 128, 128, 0.15));
+}
+
+.aduc-acl-delegation-result-head strong {
+  font-size: 0.88rem;
+}
+
+.aduc-acl-delegation-result-head span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.62;
+}
+
+.aduc-acl-delegation-result-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.aduc-acl-delegation-result-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.aduc-acl-delegation-result-grid span {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  opacity: 0.48;
+}
+
+.aduc-acl-delegation-result-grid strong {
+  font-size: 0.82rem;
+}
+
+.aduc-acl-delegation-result-grid code,
+.aduc-acl-delegation-result-grid small {
+  font-size: 0.66rem;
+  opacity: 0.52;
+  overflow-wrap: anywhere;
+}
+
+.aduc-acl-delegation-invariants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.aduc-acl-delegation-invariants span {
+  padding: 4px 7px;
+  border: 1px solid
+    var(--border-subtle, rgba(128, 128, 128, 0.15));
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, currentColor 2%, transparent);
+  font-family: monospace;
+  font-size: 0.61rem;
+  opacity: 0.56;
+}
+
+@media (max-width: 780px) {
+  .aduc-acl-delegation-simulation {
+    padding: 17px;
+  }
+
+  .aduc-acl-delegation-head,
+  .aduc-acl-delegation-result-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .aduc-acl-delegation-right-grid,
+  .aduc-acl-delegation-result-grid {
+    grid-template-columns: 1fr;
+  }
+}

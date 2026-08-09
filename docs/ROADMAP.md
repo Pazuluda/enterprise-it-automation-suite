@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.04
+## État courant — v0.8.0-alpha.05
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       36 % |
-| Explorateur Active Directory complet       |       95 % |
-| Projet EITAS global | 90 % |
+| C8 — ACL, sécurité et délégation                 |       55 % |
+| Explorateur Active Directory complet       |       96 % |
+| Projet EITAS global | 91 % |
 
-Le checkpoint `v0.8.0-alpha.04` valide C8.2C « résolution et affichage read-only des GUID ACL » à 100 %. C8 : 36 %. Explorateur Active Directory : 95 %. EITAS : 90 %. Les GUID techniques restent conservés et aucune écriture ACL n'est introduite.
+Le checkpoint `v0.8.0-alpha.05` valide C8.3 « préparation et simulation de délégation ACL » à 100 %. C8 : 55 %. Explorateur Active Directory : 96 %. EITAS : 91 %. La simulation résout la cible, le principal, les droits et la portée sans introduire aucune écriture ACL ; Production et l’autorisation d’écriture AD restent explicitement interdites.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,45 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 36 %, C8.1, C8.2A, C8.2B et C8.2C validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 55 %, C8.1, C8.2 et C8.3 validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.05 — C8.3 simulation de délégation ACL
+
+Ce checkpoint valide C8.3 à 100 %.
+
+- ajout du contrat backend `simulate_acl_delegation`, exclusivement en mode Simulation ;
+- persistance et exécution via le pipeline générique AD Admin existant ;
+- aucune nouvelle route HTTP dédiée ;
+- accès conservé aux rôles AD Admin / UltraAdmin déjà autorisés sur AD Admin ;
+- résolution de la cible strictement limitée au périmètre EITAS ;
+- résolution du principal de sécurité dans le domaine Active Directory ;
+- prise en charge contrôlée de `ReadProperty`, `WriteProperty`, `CreateChild`, `DeleteChild`, `ListChildren`, `ReadControl`, `ExtendedRight` et `GenericRead` ;
+- prise en charge des portées `None`, `All`, `Descendents`, `SelfAndChildren` et `Children` ;
+- ACE `Allow` uniquement dans C8.3 ;
+- `Deny`, Production et toute autorisation d’écriture ACL exclus ;
+- aperçu Windows PowerShell 5.1 sans création d’ACE ni modification du descripteur ;
+- intégration dans l’onglet Sécurité de l’Explorateur AD ;
+- formulaire de simulation, affichage du principal résolu, du SID, des droits et de la portée ;
+- affichage explicite des invariants `simulated`, `write_performed`, `production_authorized` et `ad_write_authorized` ;
+- polish visuel local du formulaire, la refonte graphique globale restant réservée à C10 ;
+- job réel E2E validé sur `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` avec `GG_IT_Admin` ;
+- empreinte DACL identique avant et après la simulation ;
+- aucune primitive `Set-Acl`, `SetAccessRule`, `AddAccessRule`, `RemoveAccessRule` ou `SetOwner` introduite ;
+- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
+- module Windows C8.3 actif SHA-256 `B7EB943682956DCDB4FB7F2C2B6B0BDEBDF24238D395503B26AEB82623DF56FD` ;
+- 33 tests backend C8.3 ciblés réussis ;
+- 509 tests backend et 339 sous-tests réussis ;
+- 343 tests frontend complets réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build Vite 8.1.3 validé ;
+- intégrité SHA-256 du chunk Active Directory déployé validée ;
+- recette Microsoft Edge validée ;
+- contrôle sécurité pré-commit validé ;
+- progression : C8.3 100 %, C8 55 %, Explorateur AD 96 %, EITAS 91 %.
 
 ### v0.8.0-alpha.04 — C8.2C résolution et affichage des GUID ACL
 

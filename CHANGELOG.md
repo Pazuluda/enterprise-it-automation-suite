@@ -5,6 +5,47 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.05] — 2026-08-09
+
+### C8.3 — Simulation de délégation ACL
+
+- ajout d’un contrat de simulation ACL strictement non autorisant ;
+- intégration de `simulate_acl_delegation` au pipeline AD Admin générique ;
+- persistance et polling via les routes AD Admin existantes ;
+- résolution Windows de la cible EITAS et du principal de sécurité ;
+- droits et portées Active Directory validés par liste blanche ;
+- ACE `Allow` uniquement ;
+- Production explicitement refusée ;
+- `write_performed`, `production_authorized` et `ad_write_authorized` restent faux ;
+- aucun chemin d’écriture ACL ajouté ;
+- ajout du formulaire de simulation dans l’onglet Sécurité ;
+- rendu du principal, SID, droits, portée et garanties de non-écriture ;
+- polish visuel local du formulaire de délégation.
+
+### Validation
+
+- PowerShell 5.1 : 0 erreur de parsing ;
+- module Windows actif SHA-256 `B7EB943682956DCDB4FB7F2C2B6B0BDEBDF24238D395503B26AEB82623DF56FD` ;
+- job E2E réel `0359e373-70b2-47a0-b785-f7cb80967ac4` terminé avec succès ;
+- `GG_IT_Admin` résolu avec son SID réel ;
+- `ReadProperty` + `WriteProperty`, masque 48, portée `Descendents` validés ;
+- `simulated=true` ;
+- `write_performed=false` ;
+- `production_authorized=false` ;
+- `ad_write_authorized=false` ;
+- empreinte DACL avant/après identique ;
+- propriétaire, protection d’héritage et nombre de règles inchangés ;
+- 33 tests backend C8.3 ciblés réussis ;
+- 509 tests backend et 339 sous-tests réussis ;
+- 343 tests frontend réussis ;
+- lint : 34 avertissements connus, 0 erreur ;
+- build Vite 8.1.3 validé ;
+- chunk Active Directory production SHA-256 aligné ;
+- recette Microsoft Edge validée ;
+- contrôle sécurité pré-commit validé ;
+- progression : C8.3 100 %, C8 55 %, Explorateur AD 96 %, EITAS 91 %.
+
+
 ## [0.8.0-alpha.04] — 2026-08-09
 
 ### C8.2C — Résolution et affichage read-only des GUID ACL
