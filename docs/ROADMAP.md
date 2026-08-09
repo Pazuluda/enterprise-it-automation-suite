@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.05
+## État courant — v0.8.0-alpha.06
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       55 % |
-| Explorateur Active Directory complet       |       96 % |
-| Projet EITAS global | 91 % |
+| C8 — ACL, sécurité et délégation                 |       65 % |
+| Explorateur Active Directory complet       |       97 % |
+| Projet EITAS global | 92 % |
 
-Le checkpoint `v0.8.0-alpha.05` valide C8.3 « préparation et simulation de délégation ACL » à 100 %. C8 : 55 %. Explorateur Active Directory : 96 %. EITAS : 91 %. La simulation résout la cible, le principal, les droits et la portée sans introduire aucune écriture ACL ; Production et l’autorisation d’écriture AD restent explicitement interdites.
+Le checkpoint `v0.8.0-alpha.06` valide C8.4A « garde-fous préparatoires aux écritures ACL contrôlées » à 100 %. C8 : 65 %. Explorateur Active Directory : 97 %. EITAS : 92 %. Une intention d’écriture reste strictement dormante et doit être liée à une simulation réussie ainsi qu’à une lecture DACL fraîche dont le fingerprint canonique correspond exactement. Création de job d’écriture, runtime Production et écriture AD restent explicitement interdits.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,47 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 55 %, C8.1, C8.2 et C8.3 validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 65 %, C8.1, C8.2, C8.3 et C8.4A validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.06 — C8.4A garde-fous préparatoires aux écritures ACL
+
+Ce checkpoint valide C8.4A à 100 %.
+
+- ajout du contrat dormant `apply_acl_delegation` sans exposition runtime ;
+- validation stricte d’une intention explicite `Production` sans autoriser son exécution ;
+- ACE `Allow` uniquement et droits limités à la liste déjà validée en C8.3 ;
+- refus explicite de `GenericAll`, `WriteDacl`, `WriteOwner` et `AccessSystemSecurity` ;
+- confirmation obligatoire du DN cible et phrase de confirmation dédiée ;
+- liaison obligatoire à un job `simulate_acl_delegation` terminé avec succès ;
+- vérification des invariants C8.3 : simulation vraie, aucune écriture, Production interdite ;
+- liaison obligatoire à un job `get_security_descriptor` read-only postérieur à la simulation ;
+- fingerprint SHA-256 canonique de la DACL à partir des SID, droits, types ACE, héritage, flags et GUID ;
+- fingerprint indépendant de l’ordre des ACE et des métadonnées d’affichage ;
+- détection d’une modification structurelle réelle de la DACL ;
+- validation réelle sur `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
+- 36 ACE réelles utilisées pour le gate ;
+- fingerprint réel `5ed37bc4d045346535f0e81668bb281e41568029d97a40ca90472e3e117e27b3` ;
+- job Simulation réel `7bf650bd-7799-499f-8e42-9973af0b6b0c` ;
+- lecture DACL fraîche `d519800a-0ccb-4a61-aab9-6c45c57fd190` ;
+- `C8_4A_REAL_GATE=PASS` ;
+- `job_creation_authorized = false` ;
+- `runtime_authorized = false` ;
+- `production_authorized = false` ;
+- `ad_write_authorized = false` ;
+- aucune primitive `Set-Acl`, `SetAccessRule`, `AddAccessRule`, `RemoveAccessRule`, `ResetAccessRule`, `SetOwner` ou `ActiveDirectoryAccessRule` introduite dans les sources d’exécution ;
+- 14 tests C8.4A1 réussis ;
+- 25 tests C8.4A2 réussis ;
+- 39 tests C8.4A combinés réussis ;
+- 33 tests de régression C8.3 réussis ;
+- 548 tests backend et 339 sous-tests réussis ;
+- contrôle sécurité pré-commit validé ;
+- progression : C8.4A 100 %, C8 65 %, Explorateur AD 97 %, EITAS 92 %.
+
+Progression C8 retenue pour les prochains checkpoints contrôlés : C8.4B 75 %, C8.4C 85 %, C8.4D 95 %, puis C8-FINAL 100 %.
 
 ### v0.8.0-alpha.05 — C8.3 simulation de délégation ACL
 

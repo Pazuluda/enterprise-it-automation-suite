@@ -5,6 +5,31 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 ## [À venir]
 
 
+## [0.8.0-alpha.06] — 2026-08-09
+
+### C8.4A — garde-fous préparatoires aux écritures ACL contrôlées
+
+- contrat dormant `apply_acl_delegation` ;
+- aucune exposition via AD Admin, route HTTP, worker Windows ou frontend ;
+- liaison obligatoire à une simulation ACL réussie ;
+- liaison obligatoire à une lecture Security Descriptor fraîche ;
+- fingerprint SHA-256 canonique de la DACL ;
+- stabilité validée face à l’ordre des ACE et aux métadonnées d’affichage ;
+- détection des modifications structurelles de la DACL ;
+- validation réelle sur 36 ACE ;
+- fingerprint réel `5ed37bc4d045346535f0e81668bb281e41568029d97a40ca90472e3e117e27b3` ;
+- `C8_4A_REAL_GATE=PASS` ;
+- création de job d’écriture interdite ;
+- runtime Production interdit ;
+- écriture AD interdite ;
+- aucune primitive ACL d’écriture introduite ;
+- 14 tests C8.4A1 réussis ;
+- 25 tests C8.4A2 réussis ;
+- 39 tests C8.4A combinés réussis ;
+- 33 tests C8.3 de régression réussis ;
+- 548 tests backend et 339 sous-tests réussis ;
+- progression : C8.4A 100 %, C8 65 %, Explorateur AD 97 %, EITAS 92 %.
+
 ## [0.8.0-alpha.05] — 2026-08-09
 
 ### C8.3 — Simulation de délégation ACL

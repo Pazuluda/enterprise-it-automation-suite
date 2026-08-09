@@ -1,6 +1,6 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.8.0--alpha.05-2563eb)
+![Version](https://img.shields.io/badge/version-v0.8.0--alpha.06-2563eb)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_à_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_à_100_%25-16a34a)
@@ -9,7 +9,7 @@
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-termine_100_%25-2ea44f)
-![C8](https://img.shields.io/badge/C8-en_cours_55_%25-f59e0b)
+![C8](https://img.shields.io/badge/C8-en_cours_65_%25-f59e0b)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version de développement **v0.8.0-alpha.05** valide **C8.3 « préparation et simulation de délégation ACL »** à 100 %. C8 progresse à 55 %.
+La version de développement **v0.8.0-alpha.06** valide **C8.4A « garde-fous préparatoires aux écritures ACL contrôlées »** à 100 %. C8 progresse à 65 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -37,11 +37,11 @@ La version de développement **v0.8.0-alpha.05** valide **C8.3 « préparation e
 
 > **C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %**
 
-> **C8 — ACL, sécurité et délégation — en cours à 55 %**
+> **C8 — ACL, sécurité et délégation — en cours à 65 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.8.0-alpha.05` valide C8.3 : préparation et simulation de délégations ACL via le pipeline AD Admin existant, résolution réelle de la cible et du principal, droits et portée contrôlés, aperçu lisible dans l’onglet Sécurité et invariants stricts garantissant l’absence d’écriture Active Directory. Progression actuelle : C8.3 100 %, C8 55 %, Explorateur Active Directory 96 %, EITAS global 91 %. La prochaine étape poursuit C8 avec les mécanismes contrôlés précédant toute future écriture ACL.
+EITAS reste en développement actif. `v0.8.0-alpha.06` valide C8.4A : contrat d’intention d’écriture ACL dormant, liaison obligatoire à une simulation réussie et à une lecture DACL fraîche, fingerprint SHA-256 canonique et détection d’état ACL obsolète. Aucune création de job d’écriture, aucun runtime Production et aucune écriture Active Directory ne sont encore autorisés. Progression actuelle : C8.4A 100 %, C8 65 %, Explorateur Active Directory 97 %, EITAS global 92 %. La prochaine étape poursuit C8.4 avec l’exécution ACL contrôlée.
 
 ## Fonctionnalités disponibles
 
@@ -171,6 +171,7 @@ Composants principaux :
 | Troisième checkpoint C8                | `v0.8.0-alpha.03` |
 | Quatrième checkpoint C8                | `v0.8.0-alpha.04` |
 | Cinquième checkpoint C8               | `v0.8.0-alpha.05` |
+| Sixième checkpoint C8                 | `v0.8.0-alpha.06` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -190,7 +191,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 5. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
 6. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
 7. C7 — Sélection multiple, copie et glisser-déposer — terminé dans `v0.7.0` ;
-8. C8 — ACL, sécurité et délégation — en cours à 55 % ;
+8. C8 — ACL, sécurité et délégation — en cours à 65 % ;
 9. C9 — Corbeille Active Directory et restauration ;
 10. C10 — Performance, audit, tests et finition.
 
