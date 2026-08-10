@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version **v0.9.0-alpha.03** valide **C9.2B — préparation contrôlée et preview Windows dormant de la restauration en Simulation**. C9.1 et C9.2A restent terminés à 100 %, C9.2B atteint 100 %, C9.2 atteint 92 % et l’Explorateur Active Directory reste à 100 %.
+La version **v0.9.0-alpha.04** clôt **C9.2 — conception, préflight et Simulation contrôlée de la restauration Active Directory** à 100 %. C9.1, C9.2A et C9.2B restent terminés à 100 %, l’Explorateur Active Directory reste à 100 % et C9 global reste provisoirement à 47 % jusqu’au découpage explicite des phases restantes.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -41,7 +41,7 @@ La version **v0.9.0-alpha.03** valide **C9.2B — préparation contrôlée et pr
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.9.0-alpha.03` valide C9.2B : préparation authentifiée d’une Simulation de restauration, binding de l’acteur OIDC, persistance dormante en statut `prepared`, exclusion stricte des files `pending` et des claims Windows, puis preview PowerShell read-only non dispatché. Le candidat Windows a été validé sous PowerShell 5.1 avec `PARSE_ERRORS=0` et le SHA-256 `03936FC503E0446B06A0A6749D7A79D453233563B9AE92D0A0A378DC00E03139`. Un harness isolé a confirmé le refus de Production, le refus des flags dangereux et le fail-closed sur la Corbeille AD actuellement désactivée. Le module Windows actif est resté inchangé, aucun job n’est réclamable, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est activée, aucune restauration n’a été effectuée et le mode final reste `Simulation`. Progression actuelle : C9.1 100 %, C9.2A 100 %, C9.2B 100 %, C9.2 92 %, C9 47 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est la poursuite de C9.2 après cette Simulation contrôlée, sans activation automatique de la Corbeille Active Directory.
+EITAS reste en développement actif. `v0.9.0-alpha.04` clôt formellement C9.2 comme phase complète de conception, préflight, revalidation live et Simulation contrôlée de la restauration. L’inventaire read-only C9.1, le moteur de préflight C9.2A et la préparation Simulation dormante C9.2B sont validés. La décision d’architecture confirme que l’activation de la Corbeille Active Directory et toute restauration réelle doivent appartenir à une phase C9 séparée avec de nouveaux gates explicites. Aucun runtime de restauration n’est ouvert, aucun record `prepared` n’est claimable, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est introduite et le mode final reste `Simulation`. Progression : C9.1 100 %, C9.2A 100 %, C9.2B 100 %, C9.2 100 %, C9 global 47 %, Explorateur Active Directory 100 %, EITAS global 95 %.
 
 ## Fonctionnalités disponibles
 
@@ -179,6 +179,7 @@ Composants principaux :
 | Premier checkpoint C9                 | `v0.9.0-alpha.01` |
 | Checkpoint C9.2A                      | `v0.9.0-alpha.02` |
 | Checkpoint C9.2B                      | `v0.9.0-alpha.03` |
+| Clôture C9.2                           | `v0.9.0-alpha.04` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |

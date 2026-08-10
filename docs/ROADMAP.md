@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.9.0-alpha.03
+## État courant — v0.9.0-alpha.04
 
 | Indicateur | Avancement |
 |---|---:|
@@ -22,7 +22,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |      100 % |
 | Projet EITAS global | 95 % |
 
-`v0.9.0-alpha.03` valide C9.2B : préparation contrôlée de la Simulation de restauration et preview Windows dormant. Le backend produit uniquement un record `prepared`, lie l’identité à l’acteur OIDC, conserve les autorisations worker/runtime/write à `false` et maintient l’action hors du pipeline AD Admin générique. Le preview Windows revalide GUID, classe, état deleted/recycled, Corbeille AD, parent, RDN de schéma et collision sans primitive d’écriture. Le candidat a passé PowerShell 5.1 avec `PARSE_ERRORS=0`, puis un harness isolé a confirmé les refus Production et flags dangereux ainsi que le fail-closed sur la Corbeille AD désactivée. Aucun module Windows actif n’a été remplacé, aucun worker n’a été redémarré, aucune restauration et aucune activation de la Corbeille n’ont eu lieu. Mode final : `Simulation`. C9.2B : 100 %, C9.2 : 92 %, C9 : 47 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
+`v0.9.0-alpha.04` clôt C9.2 à 100 % comme phase de conception, préflight, revalidation live et Simulation contrôlée de la restauration. C9.1 fournit l’inventaire read-only des objets supprimés, C9.2A fournit le moteur fail-closed et la revalidation live, et C9.2B fournit la préparation authentifiée et le preview Windows dormant. La décision C9.2C confirme que l’activation de la Corbeille Active Directory et toute restauration réelle restent hors de C9.2 et nécessitent une phase C9 séparée. Aucun runtime de restauration n’est ouvert, aucune queue/claim n’est activée pour les records `prepared`, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est introduite et le mode reste `Simulation`. C9.2 : 100 %, C9 : 47 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -41,6 +41,42 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.9.0-alpha.04 — clôture formelle de C9.2
+
+Ce checkpoint clôt C9.2 à 100 % sans ouvrir la restauration réelle.
+
+Décision d’architecture :
+
+- C9.2 est défini comme la phase complète de conception, préflight, revalidation live et Simulation contrôlée ;
+- C9.1 reste validé à 100 % pour l’inventaire read-only des objets supprimés ;
+- C9.2A reste validé à 100 % pour le préflight sécurisé et la revalidation live ;
+- C9.2B reste validé à 100 % pour la préparation Simulation contrôlée et le preview Windows dormant ;
+- aucun sous-lot C9.2C fonctionnel supplémentaire n’est requis ;
+- l’activation de la Corbeille Active Directory est explicitement séparée de C9.2 ;
+- toute restauration réelle est explicitement séparée de C9.2 ;
+- les records de restauration Simulation restent au statut `prepared` ;
+- les records `prepared` restent exclus de la file `pending` ;
+- le worker Windows ne peut toujours pas claim ces records ;
+- `simulate_deleted_object_restore` reste absent du runtime AD Admin générique ;
+- le preview Windows reste absent du dispatcher générique ;
+- `Restore-ADObject` reste absent ;
+- `Enable-ADOptionalFeature` reste absent ;
+- aucun `Restore-ADObject -WhatIf` n’est exécuté ;
+- aucune ouverture Production ;
+- mode final : `Simulation`.
+
+Progression après clôture :
+
+- C9.1 : 100 % ;
+- C9.2A : 100 % ;
+- C9.2B : 100 % ;
+- C9.2 : 100 % ;
+- C9 global : 47 % provisoire, jusqu’au découpage explicite des phases restantes ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 %.
+
+La prochaine étape est de définir explicitement les phases restantes de C9 avant toute activation de la Corbeille Active Directory ou toute restauration réelle.
 
 ### v0.9.0-alpha.03 — C9.2B Simulation contrôlée et preview Windows dormant
 

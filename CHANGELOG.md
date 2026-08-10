@@ -4,6 +4,41 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.9.0-alpha.04] — 2026-08-10
+
+### C9.2 — clôture conception, préflight et Simulation contrôlée
+
+- clôture formelle de C9.2 à 100 % ;
+- C9.1 inventaire read-only conservé à 100 % ;
+- C9.2A préflight et revalidation live conservés à 100 % ;
+- C9.2B préparation Simulation et preview Windows dormant conservés à 100 % ;
+- décision d’architecture : aucune couche non-writing supplémentaire artificielle n’est ajoutée à C9.2 ;
+- activation de la Corbeille Active Directory reportée à une phase C9 séparée ;
+- restauration réelle reportée à une phase C9 séparée ;
+- records Simulation toujours persistés en `prepared` ;
+- aucun passage vers `pending` ;
+- aucun claim Windows ;
+- aucun runtime générique de restauration ;
+- aucune primitive `Restore-ADObject` ;
+- aucune primitive `Enable-ADOptionalFeature` ;
+- aucun `Restore-ADObject -WhatIf` ;
+- aucun changement de Corbeille Active Directory ;
+- aucune ouverture Production ;
+- mode final `Simulation`.
+
+Progression :
+
+- C9.1 : 100 % ;
+- C9.2A : 100 % ;
+- C9.2B : 100 % ;
+- C9.2 : 100 % ;
+- C9 global : 47 % provisoire ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 %.
+
+Prochaine étape : définir explicitement les phases restantes de C9 avant toute activation de la Corbeille AD ou restauration réelle.
+
+
 ## [0.9.0-alpha.03] — 2026-08-10
 
 ### C9.2B — Simulation contrôlée de restauration et preview Windows dormant
