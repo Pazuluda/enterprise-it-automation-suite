@@ -1,6 +1,46 @@
 # Journal des modifications
 
-<!-- v0.9.0-alpha.05 -->
+<!-- v0.9.0-alpha.06 -->
+## 0.9.0-alpha.06 — C9.4 checkpoint pré-activation Corbeille
+
+### Ajouté
+
+- ticket d’activation dormant, court et lié aux preuves de préparation C9.3 ;
+- persistance dédiée durcie du ticket avec protection symlink, `O_NOFOLLOW`, `flock`, mode `0600`, `fsync` et remplacement atomique ;
+- consommation one-shot anti-replay du ticket ;
+- contrat d’autorisation humaine OIDC dédié à l’activation forest-wide ;
+- persistance dormante de l’autorisation humaine ;
+- revalidation AD fraîche immédiatement avant la future exécution ;
+- consommation atomique one-shot de l’autorisation après pré-exécution.
+
+### Sécurité
+
+- même acteur OIDC, même forêt et mêmes digests imposés entre les différentes barrières ;
+- TTL courts et vérification d’expiration à chaque étape ;
+- Recycle Bin obligatoirement encore désactivée pendant la revalidation ;
+- santé de réplication obligatoirement valide ;
+- aucun branchement dans le dispatcher AD Admin générique ;
+- aucun runtime Windows d’activation ouvert ;
+- aucun `Enable-ADOptionalFeature` exécuté ;
+- aucun `Restore-ADObject` autorisé dans C9.4 ;
+- agent toujours en `Simulation` et Production fermée.
+
+### Validation
+
+- 225 tests C9 passés ;
+- 995 tests backend passés ;
+- 339 sous-tests passés ;
+- contrôle de sécurité pré-commit validé ;
+- surface d’exécution d’activation encore fermée.
+
+### État
+
+- C9.4 : environ 97 % ;
+- C9 global : 47 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 % ;
+- activation réelle de la Corbeille : **non exécutée**.
+
 ## 0.9.0-alpha.05 — C9.3 préparation Corbeille et garde-fou irréversible
 
 ### Ajouté

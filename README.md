@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version **v0.9.0-alpha.04** clôt **C9.2 — conception, préflight et Simulation contrôlée de la restauration Active Directory** à 100 %. C9.1, C9.2A et C9.2B restent terminés à 100 %, l’Explorateur Active Directory reste à 100 % et C9 global reste provisoirement à 47 % jusqu’au découpage explicite des phases restantes.
+La version **v0.9.0-alpha.06** constitue le checkpoint **pré-activation de C9.4 — activation contrôlée de la Corbeille Active Directory**. Les barrières de sécurité sont préparées : ticket dormant, persistance durcie, consommation one-shot, autorisation humaine dédiée, revalidation fraîche pré-exécution et anti-replay. La Corbeille Active Directory reste toutefois **désactivée** : aucun runtime d’activation n’est ouvert et `Enable-ADOptionalFeature` n’a pas été exécuté. C9 global reste provisoirement à 47 %, l’Explorateur Active Directory à 100 % et EITAS global à 95 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -41,7 +41,7 @@ La version **v0.9.0-alpha.04** clôt **C9.2 — conception, préflight et Simula
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.9.0-alpha.04` clôt formellement C9.2 comme phase complète de conception, préflight, revalidation live et Simulation contrôlée de la restauration. L’inventaire read-only C9.1, le moteur de préflight C9.2A et la préparation Simulation dormante C9.2B sont validés. La décision d’architecture confirme que l’activation de la Corbeille Active Directory et toute restauration réelle doivent appartenir à une phase C9 séparée avec de nouveaux gates explicites. Aucun runtime de restauration n’est ouvert, aucun record `prepared` n’est claimable, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est introduite et le mode final reste `Simulation`. Progression : C9.1 100 %, C9.2A 100 %, C9.2B 100 %, C9.2 100 %, C9 global 47 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est C9.3 : préparation de la Corbeille Active Directory, audit des préconditions et garde-fous du changement irréversible, sans activation à ce stade.
+EITAS reste en développement actif. `v0.9.0-alpha.06` prépare la barrière finale de C9.4 avant toute activation réelle de la Corbeille Active Directory. Le flux de sécurité lie désormais l’intention C9.3, un ticket court et one-shot, sa consommation, une autorisation humaine OIDC dédiée, sa persistance dormante, une nouvelle preuve AD fraîche et une consommation anti-replay de l’autorisation. Les contrôles C9 atteignent 225 tests et le backend complet 995 tests avec 339 sous-tests. Aucun `activate_recycle_bin` générique ou Windows n’est exposé, aucun `Enable-ADOptionalFeature` ou `Restore-ADObject` n’est présent dans le runtime d’activation, le mode reste `Simulation` et Production reste fermée. Progression : C9.1 100 %, C9.2 100 %, C9.3 100 %, C9.4 environ 97 %, C9 global 47 %, Explorateur Active Directory 100 %, EITAS global 95 %.
 
 ## Fonctionnalités disponibles
 
@@ -180,6 +180,8 @@ Composants principaux :
 | Checkpoint C9.2A                      | `v0.9.0-alpha.02` |
 | Checkpoint C9.2B                      | `v0.9.0-alpha.03` |
 | Clôture C9.2                           | `v0.9.0-alpha.04` |
+| Checkpoint C9.3                       | `v0.9.0-alpha.05` |
+| Pré-activation C9.4                  | `v0.9.0-alpha.06` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -226,4 +228,6 @@ C9.3 est terminé à **100 %** en préparation et sécurité.
 - aucun runtime d'activation ouvert ;
 - mode agent maintenu en `Simulation`.
 
-La prochaine phase est **C9.4 — activation contrôlée de la Corbeille Active Directory**. Elle reste derrière une autorisation humaine dédiée et séparée de toute restauration.
+### C9.4 — activation contrôlée de la Corbeille Active Directory
+
+C9.4 est préparé à **environ 97 %**. Le checkpoint `v0.9.0-alpha.06` fige la chaîne de sécurité pré-activation : ticket dormant, persistance dédiée, consommation one-shot, autorisation humaine OIDC, persistance de cette autorisation, revalidation AD fraîche avant exécution et consommation anti-replay finale. **La Corbeille reste désactivée.** Aucun job ou runtime Windows d’activation n’est ouvert, `Enable-ADOptionalFeature` n’a pas été exécuté, aucune restauration n’est autorisée et Production reste fermée.
