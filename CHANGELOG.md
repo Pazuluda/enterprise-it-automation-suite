@@ -4,6 +4,49 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.9.0-alpha.02] — 2026-08-10
+
+### C9.2A — préflight sécurisé et revalidation live read-only
+
+- moteur de préflight de restauration fail-closed ;
+- route backend read-only protégée ADAdmin / UltraAdmin ;
+- revalidation Windows fraîche par GUID des objets supprimés ;
+- contrôle live de `isDeleted`, `isRecycled` et de l’état du parent ;
+- lecture de l’attribut RDN depuis le schéma Active Directory ;
+- détection de collision OneLevel avec filtre LDAP échappé ;
+- binding strict du job live au GUID, au nom et au chemin cible ;
+- TTL court des résultats live et refus des revalidations expirées ;
+- refus de tout résultat live autorisant une écriture ;
+- preuve de collision obligatoire pour toute candidature potentielle ;
+- runtime live validé avec `policy.decision=blocked_recycled` ;
+- `preflight_passed=false` ;
+- `simulation_candidate=false` ;
+- authentification HTTP anonyme refusée en 401 ;
+- module Windows `EitasAdLookup.ps1` SHA-256 `27CF9A245253A03C3DF19872959FAEE0303EC13D843339664A0296EE56EB969E` ;
+- PowerShell 5.1 : 0 erreur de parsing ;
+- 38 tests C9.2 réussis ;
+- 45 tests AD Explorer réussis ;
+- 808 tests backend et 339 sous-tests réussis ;
+- 44 avertissements backend connus ;
+- aucune primitive `Restore-ADObject` ;
+- aucune primitive `Enable-ADOptionalFeature` ;
+- aucun job de restauration créé ;
+- aucune restauration effectuée ;
+- Corbeille AD inchangée et toujours désactivée ;
+- aucun passage en Production ;
+- mode final `Simulation`.
+
+### Progression
+
+- C9.1 : 100 % ;
+- C9.2A : 100 % ;
+- C9.2 : 70 % ;
+- C9 : 34 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 % ;
+- prochaine étape : C9.2B — poursuite de la conception sécurisée de la Simulation de restauration.
+
+
 ## [0.9.0-alpha.01] — 2026-08-10
 
 ### C9.1 — inventaire read-only des objets supprimés Active Directory

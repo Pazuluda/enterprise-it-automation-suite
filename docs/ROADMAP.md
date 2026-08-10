@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.9.0-alpha.01
+## État courant — v0.9.0-alpha.02
 
 | Indicateur | Avancement |
 |---|---:|
@@ -22,7 +22,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |      100 % |
 | Projet EITAS global | 95 % |
 
-`v0.9.0-alpha.01` valide C9.1 à 100 % : inventaire read-only réel des objets supprimés Active Directory via le pipeline AD Explorer. Le runtime Windows retourne 100 objets après exclusion du conteneur système `CN=Deleted Objects`, avec 100 GUID, 100 `lastKnownParent`, 100 objets `isRecycled=true` et aucun `msDS-LastKnownRDN`. La Corbeille AD reste désactivée, `tombstoneLifetime=180`, `msDS-DeletedObjectLifetime` reste non défini et les 100 objets sont classés `recycle_bin_disabled`. Aucun restore, aucune activation de la Corbeille et aucune ouverture Production n’ont eu lieu. Le mode final reste `Simulation`. C9 : 20 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
+`v0.9.0-alpha.02` valide C9.2A : préflight de restauration strictement fail-closed et revalidation live read-only des objets supprimés. Le backend lie l’inventaire historique à une relecture Windows fraîche par GUID, vérifie `isDeleted`, `isRecycled`, l’état du parent, l’attribut RDN réel du schéma et les collisions OneLevel. Le binding live impose correspondance GUID/nom/cible, résultat non autorisant, TTL court et preuve de collision lorsqu’elle est nécessaire. Le runtime réel aboutit à `blocked_recycled`, `preflight_passed=false` et `simulation_candidate=false`. La Corbeille AD reste désactivée ; aucune restauration, aucune activation de la Corbeille et aucune ouverture Production n’ont eu lieu. Le mode final reste `Simulation`. C9.2 : 70 %, C9 : 34 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -37,10 +37,59 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Terminé — 100 % |
-| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 20 % |
+| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 34 % |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.9.0-alpha.02 — C9.2A préflight sécurisé et revalidation live read-only
+
+Ce checkpoint valide C9.2A à 100 % et porte C9.2 à 70 %, sans autoriser aucune restauration.
+
+Principaux garde-fous validés :
+
+- moteur backend pur de décision de restauration avec politique fail-closed ;
+- états explicites `blocked_recycled`, `blocked_recycle_bin_disabled`, `needs_new_name`, `needs_target_path`, `blocked_name_collision` et `needs_live_revalidation` ;
+- aucun objet actuel classé comme candidat à la restauration ;
+- route de préflight read-only protégée par les rôles ADAdmin / UltraAdmin ;
+- revalidation Windows live par `objectGUID` avec `Get-ADObject -IncludeDeletedObjects` ;
+- validation fraîche de `isDeleted` et `isRecycled` ;
+- validation de l’existence et de l’état supprimé/recyclé du parent ;
+- lecture de `rDNAttID` dans le schéma Active Directory ;
+- mapping validé : `cn` pour user/group/computer/contact/container, `ou` pour organizationalUnit et `dc` pour dnsNode/dnsZone ;
+- détection de collision read-only en portée OneLevel avec échappement du filtre LDAP ;
+- binding du job live au GUID, au `new_name` et au `target_path` demandés ;
+- TTL de revalidation live avec refus des résultats expirés ;
+- refus de tout résultat live qui annoncerait une autorisation d’écriture ;
+- preuve de collision obligatoire lorsqu’un objet pourrait atteindre `candidate_preflight` ;
+- runtime réel validé avec la décision finale `blocked_recycled` ;
+- `preflight_passed=false` ;
+- `simulation_candidate=false` ;
+- barrière HTTP anonyme validée en 401 ;
+- module Windows `EitasAdLookup.ps1` déployé SHA-256 `27CF9A245253A03C3DF19872959FAEE0303EC13D843339664A0296EE56EB969E` ;
+- PowerShell 5.1 : 0 erreur de parsing ;
+- 38 tests C9.2 ciblés réussis ;
+- 45 tests AD Explorer réussis ;
+- 808 tests backend et 339 sous-tests réussis ;
+- aucune primitive `Restore-ADObject` ;
+- aucune primitive `Enable-ADOptionalFeature` ;
+- aucun job de restauration créé ;
+- aucune restauration effectuée ;
+- aucune activation de la Corbeille AD ;
+- aucun passage en Production ;
+- mode final `Simulation`.
+
+Progression :
+
+- C9.1 : 100 % ;
+- C9.2A : 100 % ;
+- C9.2 : 70 % ;
+- C9 : 34 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 %.
+
+La prochaine étape est C9.2B : poursuivre la conception de la Simulation de restauration sous garde-fous stricts, sans activation automatique de la Corbeille Active Directory.
+
 
 ### v0.9.0-alpha.01 — C9.1 inventaire read-only des objets supprimés
 

@@ -1,4 +1,4 @@
-﻿function Get-EitasLookupValue {
+function Get-EitasLookupValue {
     param(
         [object]$Object,
         [string[]]$Names
@@ -2920,6 +2920,548 @@ function Invoke-EitasAdExplorerGetDeletedObjects {
     }
 }
 
+
+function ConvertTo-EitasLdapFilterValue {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    $Builder = New-Object `
+        System.Text.StringBuilder
+
+    foreach (
+        $Character
+        in $Value.ToCharArray()
+    ) {
+        $Code = [int][char](
+            $Character
+        )
+
+        switch ($Code) {
+            0 {
+                [void]$Builder.Append(
+                    '\00'
+                )
+            }
+
+            40 {
+                [void]$Builder.Append(
+                    '\28'
+                )
+            }
+
+            41 {
+                [void]$Builder.Append(
+                    '\29'
+                )
+            }
+
+            42 {
+                [void]$Builder.Append(
+                    '\2a'
+                )
+            }
+
+            92 {
+                [void]$Builder.Append(
+                    '\5c'
+                )
+            }
+
+            default {
+                [void]$Builder.Append(
+                    $Character
+                )
+            }
+        }
+    }
+
+    return $Builder.ToString()
+}
+
+
+function Invoke-EitasAdExplorerRevalidateDeletedObjectPreflight {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        $Payload
+    )
+
+    $GuidValue = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "query",
+            "object_guid",
+            "objectGuid",
+            "guid"
+        )
+
+    $Filters = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "filters"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$GuidValue
+        ) -and
+        $null -ne $Filters
+    ) {
+        $GuidValue = Get-EitasLookupValue `
+            -Object $Filters `
+            -Names @(
+                "object_guid",
+                "objectGuid",
+                "guid"
+            )
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$GuidValue
+        )
+    ) {
+        throw "object_guid is required"
+    }
+
+    $Guid = [Guid]::Empty
+
+    $GuidValid = [Guid]::TryParse(
+        [string]$GuidValue,
+        [ref]$Guid
+    )
+
+    if (-not $GuidValid) {
+        throw "object_guid is invalid"
+    }
+
+    $RequestedNewName = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "new_name",
+            "newName"
+        )
+
+    $RequestedTargetPath = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @(
+            "target_path",
+            "targetPath"
+        )
+
+    if ($null -ne $Filters) {
+        if (
+            [string]::IsNullOrWhiteSpace(
+                [string]$RequestedNewName
+            )
+        ) {
+            $RequestedNewName = Get-EitasLookupValue `
+                -Object $Filters `
+                -Names @(
+                    "new_name",
+                    "newName"
+                )
+        }
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                [string]$RequestedTargetPath
+            )
+        ) {
+            $RequestedTargetPath = Get-EitasLookupValue `
+                -Object $Filters `
+                -Names @(
+                    "target_path",
+                    "targetPath"
+                )
+        }
+    }
+
+    $RequestedNewName = (
+        [string]$RequestedNewName
+    ).Trim()
+
+    $RequestedTargetPath = (
+        [string]$RequestedTargetPath
+    ).Trim()
+
+    $RootDse = Get-ADRootDSE `
+        -ErrorAction Stop
+
+    $DomainDn = [string](
+        $RootDse.defaultNamingContext
+    )
+
+    $SchemaDn = [string](
+        $RootDse.schemaNamingContext
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $DomainDn
+        ) -or
+        [string]::IsNullOrWhiteSpace(
+            $SchemaDn
+        )
+    ) {
+        throw "Active Directory naming contexts unavailable"
+    }
+
+    $RecycleFeature = Get-ADOptionalFeature `
+        -Filter 'Name -eq "Recycle Bin Feature"' `
+        -Properties EnabledScopes `
+        -ErrorAction Stop
+
+    $EnabledScopes = @(
+        $RecycleFeature.EnabledScopes |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace(
+                [string]$_
+            )
+        }
+    )
+
+    $RecycleBinEnabled = (
+        $EnabledScopes.Count -gt 0
+    )
+
+    $Fresh = Get-ADObject `
+        -Identity $Guid `
+        -IncludeDeletedObjects `
+        -Properties `
+            objectGUID,
+            objectClass,
+            isDeleted,
+            isRecycled,
+            lastKnownParent,
+            msDS-LastKnownRDN,
+            whenChanged `
+        -ErrorAction Stop
+
+    $FreshGuid = [Guid](
+        $Fresh.ObjectGUID
+    )
+
+    if ($FreshGuid -ne $Guid) {
+        throw "Fresh object GUID mismatch"
+    }
+
+    $ObjectClasses = @(
+        $Fresh.ObjectClass
+    )
+
+    $ObjectClass = ""
+
+    if ($ObjectClasses.Count -gt 0) {
+        $ObjectClass = [string](
+            $ObjectClasses[
+                $ObjectClasses.Count - 1
+            ]
+        )
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $ObjectClass
+        )
+    ) {
+        throw "Object class unavailable"
+    }
+
+    $SchemaClass = @(
+        Get-ADObject `
+            -SearchBase $SchemaDn `
+            -LDAPFilter (
+                "(&(objectClass=classSchema)" +
+                "(lDAPDisplayName=" +
+                $ObjectClass +
+                "))"
+            ) `
+            -Properties `
+                lDAPDisplayName,
+                rDNAttID `
+            -ErrorAction Stop
+    )
+
+    if ($SchemaClass.Count -ne 1) {
+        throw "Object class schema lookup failed"
+    }
+
+    $RdnAttribute = [string](
+        $SchemaClass[0].rDNAttID
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $RdnAttribute
+        )
+    ) {
+        throw "RDN attribute unavailable"
+    }
+
+    $LastKnownParent = (
+        [string]$Fresh.lastKnownParent
+    ).Trim()
+
+    $LastKnownRdn = (
+        [string](
+            $Fresh.'msDS-LastKnownRDN'
+        )
+    ).Trim()
+
+    $EffectiveNewName = (
+        $RequestedNewName
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $EffectiveNewName
+        )
+    ) {
+        $EffectiveNewName = (
+            $LastKnownRdn
+        )
+    }
+
+    $EffectiveTargetPath = (
+        $RequestedTargetPath
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $EffectiveTargetPath
+        )
+    ) {
+        $EffectiveTargetPath = (
+            $LastKnownParent
+        )
+    }
+
+    $UsedExplicitNewName = (
+        -not [string]::IsNullOrWhiteSpace(
+            $RequestedNewName
+        )
+    )
+
+    $UsedExplicitTargetPath = (
+        -not [string]::IsNullOrWhiteSpace(
+            $RequestedTargetPath
+        )
+    )
+
+    $ParentExists = $null
+    $ParentDeleted = $null
+    $ParentRecycled = $null
+
+    if (
+        -not [string]::IsNullOrWhiteSpace(
+            $EffectiveTargetPath
+        )
+    ) {
+        $ParentExists = $false
+        $ParentDeleted = $false
+        $ParentRecycled = $false
+
+        try {
+            $ActiveParent = Get-ADObject `
+                -Identity $EffectiveTargetPath `
+                -Properties `
+                    objectGUID,
+                    isDeleted,
+                    isRecycled `
+                -ErrorAction Stop
+
+            $ParentExists = $true
+
+            $ParentDeleted = (
+                $ActiveParent.isDeleted -eq
+                $true
+            )
+
+            $ParentRecycled = (
+                $ActiveParent.isRecycled -eq
+                $true
+            )
+        }
+        catch {
+            try {
+                $DeletedParent = Get-ADObject `
+                    -Identity $EffectiveTargetPath `
+                    -IncludeDeletedObjects `
+                    -Properties `
+                        objectGUID,
+                        isDeleted,
+                        isRecycled `
+                    -ErrorAction Stop
+
+                $ParentExists = $false
+
+                $ParentDeleted = (
+                    $DeletedParent.isDeleted -eq
+                    $true
+                )
+
+                $ParentRecycled = (
+                    $DeletedParent.isRecycled -eq
+                    $true
+                )
+            }
+            catch {
+                $ParentExists = $false
+                $ParentDeleted = $false
+                $ParentRecycled = $false
+            }
+        }
+    }
+
+    $CollisionProbePerformed = $false
+    $TargetCollision = $null
+
+    if (
+        $ParentExists -eq $true -and
+        -not [string]::IsNullOrWhiteSpace(
+            $EffectiveNewName
+        )
+    ) {
+        $EscapedName = ConvertTo-EitasLdapFilterValue `
+            -Value $EffectiveNewName
+
+        $CollisionFilter = (
+            "(" +
+            $RdnAttribute +
+            "=" +
+            $EscapedName +
+            ")"
+        )
+
+        $CollisionMatches = @(
+            Get-ADObject `
+                -SearchBase $EffectiveTargetPath `
+                -SearchScope OneLevel `
+                -LDAPFilter $CollisionFilter `
+                -ErrorAction Stop
+        )
+
+        $CollisionProbePerformed = $true
+
+        $TargetCollision = (
+            $CollisionMatches.Count -gt 0
+        )
+    }
+
+    return @{
+        message = (
+            "Deleted object live preflight " +
+            "revalidation completed read-only"
+        )
+
+        action = (
+            "revalidate_deleted_object_preflight"
+        )
+
+        read_only = $true
+
+        live_revalidation_performed = $true
+
+        domain_dn = (
+            $DomainDn
+        )
+
+        object_found = $true
+
+        object_guid = (
+            [string]$FreshGuid
+        )
+
+        object_class = (
+            $ObjectClass
+        )
+
+        rdn_attribute = (
+            $RdnAttribute
+        )
+
+        is_deleted = (
+            $Fresh.isDeleted -eq
+            $true
+        )
+
+        is_recycled = (
+            $Fresh.isRecycled -eq
+            $true
+        )
+
+        recycle_bin_enabled = (
+            $RecycleBinEnabled
+        )
+
+        last_known_parent = (
+            $LastKnownParent
+        )
+
+        last_known_rdn = (
+            $LastKnownRdn
+        )
+
+        requested_new_name = (
+            $RequestedNewName
+        )
+
+        requested_target_path = (
+            $RequestedTargetPath
+        )
+
+        effective_new_name = (
+            $EffectiveNewName
+        )
+
+        effective_target_path = (
+            $EffectiveTargetPath
+        )
+
+        used_explicit_new_name = (
+            $UsedExplicitNewName
+        )
+
+        used_explicit_target_path = (
+            $UsedExplicitTargetPath
+        )
+
+        parent_exists = (
+            $ParentExists
+        )
+
+        parent_deleted = (
+            $ParentDeleted
+        )
+
+        parent_recycled = (
+            $ParentRecycled
+        )
+
+        collision_probe_performed = (
+            $CollisionProbePerformed
+        )
+
+        target_collision = (
+            $TargetCollision
+        )
+
+        restore_job_created = $false
+
+        restore_implemented = $false
+
+        execution_authorized = $false
+
+        write_authorized = $false
+    }
+}
+
+
 function Invoke-EitasAdExplorerJob {
     param(
         [object]$Config,
@@ -2974,6 +3516,13 @@ function Invoke-EitasAdExplorerJob {
 
         "search_objects" {
             return Invoke-EitasAdExplorerSearchObjects -Config $Config -Payload $Payload
+        }
+
+
+        "revalidate_deleted_object_preflight" {
+            return Invoke-EitasAdExplorerRevalidateDeletedObjectPreflight `
+                -Config $Config `
+                -Payload $Payload
         }
 
 

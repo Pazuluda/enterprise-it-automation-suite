@@ -37,6 +37,7 @@ ALLOWED_ACTIONS = {
     "search_objects",
     "get_security_descriptor",
     "get_deleted_objects",
+    "revalidate_deleted_object_preflight",
 }
 
 
@@ -46,6 +47,7 @@ QUERY_REQUIRED_ACTIONS = {
     "search_computers",
     "search_objects",
     "get_security_descriptor",
+    "revalidate_deleted_object_preflight",
 }
 
 

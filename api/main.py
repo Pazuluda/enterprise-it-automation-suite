@@ -64,6 +64,7 @@ from app.services.ad_jobs import (
     submit_ad_check_job_result as service_submit_ad_check_job_result,
     submit_ad_lookup_job_result as service_submit_ad_lookup_job_result,
 )
+from app.services.ad_deleted_object_restore_preflight import preflight_deleted_object_restore
 from app.services.ad_explorer import (
     ADExplorerBadRequest,
     ADExplorerConflict,
@@ -876,6 +877,52 @@ def get_ad_domain_catalog(
             status_code=404,
             detail=str(exc),
         )
+
+
+@app.post(
+    "/api/ad-explorer/deleted-objects/preflight"
+)
+def preflight_ad_deleted_object_restore(
+    payload: dict = Body(...),
+    api_key: None = Depends(AD_ACCESS),
+):
+    object_guid = str(
+        payload.get("object_guid")
+        or ""
+    ).strip()
+
+    requested_new_name = (
+        payload.get("new_name")
+    )
+
+    requested_target_path = (
+        payload.get("target_path")
+    )
+
+    live_job_id = (
+        payload.get("live_job_id")
+    )
+
+    try:
+        return preflight_deleted_object_restore(
+            DATA_DIR
+            / "ad-explorer-jobs.json",
+            object_guid=object_guid,
+            requested_new_name=(
+                requested_new_name
+            ),
+            requested_target_path=(
+                requested_target_path
+            ),
+            live_job_id=(
+                live_job_id
+            ),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
 
 
 @app.post("/api/ad-explorer/jobs")

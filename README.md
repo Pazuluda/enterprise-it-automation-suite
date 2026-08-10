@@ -9,7 +9,7 @@
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-termine_100_%25-2ea44f)
-![C9](https://img.shields.io/badge/C9-en_cours_20_%25-3b82f6)
+![C9](https://img.shields.io/badge/C9-en_cours_34_%25-3b82f6)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version **v0.9.0-alpha.01** ouvre **C9 — Corbeille Active Directory et restauration** avec **C9.1 — inventaire read-only des objets supprimés** terminé à 100 %. L’Explorateur Active Directory reste à 100 %.
+La version **v0.9.0-alpha.02** valide **C9.2A — moteur de préflight et revalidation live read-only de la restauration**. C9.1 reste terminé à 100 %, C9.2 atteint 70 % et l’Explorateur Active Directory reste à 100 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -37,11 +37,11 @@ La version **v0.9.0-alpha.01** ouvre **C9 — Corbeille Active Directory et rest
 
 > **C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %**
 
-> **C9 — Corbeille Active Directory et restauration — en cours à 20 %**
+> **C9 — Corbeille Active Directory et restauration — en cours à 34 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.9.0-alpha.01` valide C9.1 à 100 % avec un inventaire réel et strictement read-only des objets supprimés Active Directory via le pipeline AD Explorer et le worker Windows. La validation runtime retourne 100 objets supprimés avec GUID, `lastKnownParent`, état `isRecycled` et capacité de restauration conservatrice. La Corbeille AD reste désactivée, aucune restauration n’est implémentée, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est présente et le mode final reste `Simulation`. Le module Windows `EitasAdLookup.ps1` déployé est aligné sur Git avec le SHA-256 `4AD6A5F3E2F6CB5FC6DB35ACE3E935B0B93E37BFE74155DC2D8794BA6D914D74`. La clé API worker exposée lors d’un échec de diagnostic a été révoquée, remplacée et expurgée des traces persistées. Progression actuelle : C9.1 100 %, C9 20 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est C9.2 — conception sécurisée de la capacité de restauration.
+EITAS reste en développement actif. `v0.9.0-alpha.02` valide C9.2A : moteur backend de préflight fail-closed, route read-only protégée ADAdmin/UltraAdmin, revalidation Windows live par GUID, lecture fraîche de `isDeleted` / `isRecycled`, validation du parent, détection de collision OneLevel selon l’attribut RDN du schéma et binding strict du job live avec TTL. Le runtime réel confirme `blocked_recycled` sur l’objet de validation et refuse toute candidature à la restauration. La Corbeille AD reste désactivée, aucune restauration n’est implémentée ou effectuée, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est présente et le mode final reste `Simulation`. Le module Windows `EitasAdLookup.ps1` déployé est aligné sur Git avec le SHA-256 `27CF9A245253A03C3DF19872959FAEE0303EC13D843339664A0296EE56EB969E`. Progression actuelle : C9.1 100 %, C9.2 70 %, C9 34 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est C9.2B — poursuivre la conception de la Simulation de restauration sous garde-fous stricts, sans activation automatique de la Corbeille AD.
 
 ## Fonctionnalités disponibles
 
@@ -177,6 +177,7 @@ Composants principaux :
 | Neuvième checkpoint C8                 | `v0.8.0-alpha.09` |
 | Version finale C8                      | `v0.8.0` |
 | Premier checkpoint C9                 | `v0.9.0-alpha.01` |
+| Checkpoint C9.2A                      | `v0.9.0-alpha.02` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
