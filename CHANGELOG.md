@@ -1,5 +1,52 @@
 # Journal des modifications
 
+<!-- v0.9.0-alpha.08 -->
+## 0.9.0-alpha.08 — C9.5 barrière de restauration contrôlée
+
+### Ajouté
+
+- ticket de restauration dormant lié au GUID, à la classe, au nom, à la cible et aux preuves live ;
+- persistance atomique sécurisée des tickets et autorisations ;
+- consommation one-shot anti-replay des tickets et autorisations ;
+- autorisation humaine OIDC courte et liée à l’acteur authentifié ;
+- préexécution avec nouvelle revalidation read-only et TTL court ;
+- runtime gate `c9.5a4e-v1` entièrement dormant et non persistant ;
+- régression finale dédiée de la barrière de sécurité C9.5.
+
+### Sécurité
+
+- aucune route de restauration réelle ;
+- aucun endpoint agent de restauration ;
+- aucun job ou claim d’exécution créé par la nouvelle chaîne ;
+- `runtime_authorized=false` ;
+- `production_authorized=false` ;
+- `restore_authorized=false` ;
+- `restore_whatif_authorized=false` ;
+- `execution_authorized=false` ;
+- `write_performed=false` ;
+- aucun `Restore-ADObject` dans le runtime API ou Windows ;
+- aucune restauration réelle exécutée.
+
+### Validation
+
+- 10 tests dédiés A4E3 réussis ;
+- 140 tests C9.5 réussis ;
+- 1084 tests backend réussis ;
+- 339 sous-tests réussis ;
+- 45 warnings de dépréciation `datetime.utcnow()` connus ;
+- `git diff --check` propre.
+
+### Progression
+
+- C9.5-A4 : **100 %** ;
+- C9.5 : **95 %** ;
+- A5 restauration contrôlée réelle : **0 %** ;
+- C9 global : **47 %** provisoire ;
+- Explorateur Active Directory : **100 %** ;
+- EITAS global : **95 %**.
+
+La restauration réelle reste un lot A5 séparé et nécessite une autorisation explicite distincte.
+
 <!-- v0.9.0-alpha.07 -->
 ## 0.9.0-alpha.07 — C9.4 activation contrôlée de la Corbeille
 
