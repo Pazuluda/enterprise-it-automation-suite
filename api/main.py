@@ -254,6 +254,11 @@ APP_VERSION = (BASE_DIR.parent / "VERSION").read_text(encoding="utf-8").strip()
 if not APP_VERSION:
     raise RuntimeError("VERSION EITAS vide.")
 
+from app.services.ad_recycle_bin_activation_prepare import (
+    AdRecycleBinActivationPrepareError,
+    prepare_ad_recycle_bin_activation_intent as service_prepare_ad_recycle_bin_activation_intent,
+)
+
 app = FastAPI(
     title="Enterprise IT Automation Suite",
     description="API MVP pour gérer les arrivées utilisateurs et les demandes Active Directory.",
@@ -1008,6 +1013,52 @@ def prepare_ad_deleted_object_restore_simulation(
         )
 
     except DeletedObjectRestoreSimulationPersistenceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    write_audit_log(
+        **audit_event
+    )
+
+    return response
+
+
+
+@app.post(
+    "/api/ad-explorer/recycle-bin/"
+    "activation-intent/prepare"
+)
+def prepare_ad_recycle_bin_activation_intent_route(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    config = (
+        _eitas_agent_mode_load_config()
+    )
+
+    mode = (
+        _eitas_agent_mode_normalize(
+            config.get("mode")
+            or config.get("Mode")
+            or "Simulation"
+        )
+    )
+
+    try:
+        response, audit_event = (
+            service_prepare_ad_recycle_bin_activation_intent(
+                AD_EXPLORER_JOBS_FILE,
+                DATA_DIR
+                / "ad-recycle-bin-activation-intents.json",
+                payload,
+                identity=identity,
+                current_mode=mode,
+            )
+        )
+
+    except AdRecycleBinActivationPrepareError as exc:
         raise HTTPException(
             status_code=400,
             detail=str(exc),

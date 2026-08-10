@@ -1,5 +1,35 @@
 # Journal des modifications
 
+<!-- v0.9.0-alpha.05 -->
+## 0.9.0-alpha.05 — C9.3 préparation Corbeille et garde-fou irréversible
+
+### Ajouté
+
+- collecteur AD Lookup `get_recycle_bin_activation_evidence` strictement en lecture seule ;
+- collecte du nom de forêt, domaine racine, niveau fonctionnel, état de la Corbeille et santé de réplication ;
+- contrat backend d'intention d'activation dormant ;
+- persistance dédiée non claimable et hors file AD Admin générique ;
+- binding authoritative de l'identité OIDC ;
+- route humaine `/api/ad-explorer/recycle-bin/activation-intent/prepare`.
+
+### Sécurité
+
+- aucune exécution de `Enable-ADOptionalFeature` ;
+- aucune exécution de `Restore-ADObject` ;
+- aucune autorisation d'activation, de restauration ou Production ;
+- preuve serveur relue depuis un job AD Lookup réussi et frais ;
+- acteur client non fiable et ignoré comme source d'identité ;
+- C9.4 et C9.5 restent des barrières séparées.
+
+### Validation
+
+- collecteur Windows validé avec PowerShell 5.1 ;
+- runtime read-only validé sur `API.LOCAL` ;
+- Corbeille toujours désactivée ;
+- réplication prête et sans erreur ;
+- route API active et test négatif non authentifié en HTTP 401 ;
+- stockage dormant inchangé lors du test négatif.
+
 Toutes les modifications importantes d'Enterprise IT Automation Suite sont consignées dans ce fichier.
 
 ## [À venir]

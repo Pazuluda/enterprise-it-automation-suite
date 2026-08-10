@@ -3462,6 +3462,249 @@ function Invoke-EitasAdExplorerRevalidateDeletedObjectPreflight {
 }
 
 
+
+function Invoke-EitasAdExplorerGetRecycleBinActivationEvidence {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        $Payload
+    )
+
+    $Forest = Get-ADForest `
+        -ErrorAction Stop
+
+    $ForestName = (
+        [string]$Forest.Name
+    ).Trim()
+
+    $RootDomain = (
+        [string]$Forest.RootDomain
+    ).Trim()
+
+    $ForestMode = (
+        [string]$Forest.ForestMode
+    ).Trim()
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $ForestName
+        ) -or
+        [string]::IsNullOrWhiteSpace(
+            $RootDomain
+        ) -or
+        [string]::IsNullOrWhiteSpace(
+            $ForestMode
+        )
+    ) {
+        throw (
+            "Active Directory forest evidence " +
+            "is incomplete"
+        )
+    }
+
+    $RecycleFeatures = @(
+        Get-ADOptionalFeature `
+            -Filter 'Name -eq "Recycle Bin Feature"' `
+            -Properties EnabledScopes `
+            -ErrorAction Stop
+    )
+
+    if (
+        $RecycleFeatures.Count -ne 1
+    ) {
+        throw (
+            "Active Directory Recycle Bin " +
+            "feature lookup failed"
+        )
+    }
+
+    $RecycleFeature = (
+        $RecycleFeatures[0]
+    )
+
+    $EnabledScopes = @(
+        $RecycleFeature.EnabledScopes |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace(
+                [string]$_
+            )
+        }
+    )
+
+    $RecycleBinEnabled = (
+        $EnabledScopes.Count -gt 0
+    )
+
+    $DomainControllers = @(
+        Get-ADDomainController `
+            -Filter * `
+            -ErrorAction Stop
+    )
+
+    if (
+        $DomainControllers.Count -lt 1
+    ) {
+        throw (
+            "No Active Directory domain " +
+            "controller available"
+        )
+    }
+
+    $ReplicationQuerySucceeded = $true
+    $PartnerQuerySucceeded = $true
+
+    $ReplicationFailures = @()
+    $ReplicationPartners = @()
+
+    foreach (
+        $Dc
+        in $DomainControllers
+    ) {
+        $DcHostName = (
+            [string]$Dc.HostName
+        ).Trim()
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $DcHostName
+            )
+        ) {
+            throw (
+                "Domain controller hostname " +
+                "is unavailable"
+            )
+        }
+
+        try {
+            $CurrentFailures = @(
+                Get-ADReplicationFailure `
+                    -Target $DcHostName `
+                    -Scope Server `
+                    -ErrorAction Stop
+            )
+
+            $ReplicationFailures += (
+                $CurrentFailures
+            )
+        }
+        catch {
+            $ReplicationQuerySucceeded = (
+                $false
+            )
+
+            throw (
+                "Replication failure query failed " +
+                "for " +
+                $DcHostName +
+                ": " +
+                $_.Exception.Message
+            )
+        }
+
+        try {
+            $CurrentPartners = @(
+                Get-ADReplicationPartnerMetadata `
+                    -Target $DcHostName `
+                    -Scope Server `
+                    -ErrorAction Stop
+            )
+
+            $ReplicationPartners += (
+                $CurrentPartners
+            )
+        }
+        catch {
+            $PartnerQuerySucceeded = (
+                $false
+            )
+
+            throw (
+                "Replication partner query failed " +
+                "for " +
+                $DcHostName +
+                ": " +
+                $_.Exception.Message
+            )
+        }
+    }
+
+    $ReplicationReady = (
+        $ReplicationQuerySucceeded -and
+        $PartnerQuerySucceeded -and
+        ($ReplicationFailures.Count -eq 0)
+    )
+
+    return [ordered]@{
+        action = (
+            "get_recycle_bin_activation_evidence"
+        )
+
+        read_only = $true
+
+        forest_name = (
+            $ForestName
+        )
+
+        root_domain = (
+            $RootDomain
+        )
+
+        forest_mode = (
+            $ForestMode
+        )
+
+        recycle_bin_enabled = (
+            $RecycleBinEnabled
+        )
+
+        recycle_bin_enabled_scope_count = (
+            $EnabledScopes.Count
+        )
+
+        domain_controller_count = (
+            $DomainControllers.Count
+        )
+
+        replication_query_succeeded = (
+            $ReplicationQuerySucceeded
+        )
+
+        replication_partner_query_succeeded = (
+            $PartnerQuerySucceeded
+        )
+
+        replication_failure_count = (
+            $ReplicationFailures.Count
+        )
+
+        replication_partner_count = (
+            $ReplicationPartners.Count
+        )
+
+        replication_ready = (
+            $ReplicationReady
+        )
+
+        evidence_created_at = (
+            Get-Date
+        ).ToUniversalTime().ToString("o")
+
+        activation_authorized = $false
+        runtime_authorized = $false
+        production_authorized = $false
+        restore_authorized = $false
+        write_performed = $false
+
+        message = (
+            "Active Directory Recycle Bin " +
+            "activation evidence collected read-only"
+        )
+    }
+}
+
+
 function Invoke-EitasAdExplorerJob {
     param(
         [object]$Config,
@@ -3521,6 +3764,14 @@ function Invoke-EitasAdExplorerJob {
 
         "revalidate_deleted_object_preflight" {
             return Invoke-EitasAdExplorerRevalidateDeletedObjectPreflight `
+                -Config $Config `
+                -Payload $Payload
+        }
+
+
+
+        "get_recycle_bin_activation_evidence" {
+            return Invoke-EitasAdExplorerGetRecycleBinActivationEvidence `
                 -Config $Config `
                 -Payload $Payload
         }

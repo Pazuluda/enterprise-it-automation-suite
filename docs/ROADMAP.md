@@ -76,7 +76,81 @@ Progression après clôture :
 - Explorateur Active Directory : 100 % ;
 - EITAS global : 95 %.
 
-La prochaine étape est de définir explicitement les phases restantes de C9 avant toute activation de la Corbeille Active Directory ou toute restauration réelle.
+La prochaine étape est C9.3 — préparation de la Corbeille Active Directory et garde-fous du changement irréversible, sans activation de la fonctionnalité à ce stade.
+
+## Découpage restant de C9
+
+Le découpage suivant est figé après l’audit C9.3-A1.
+
+### C9.3 — préparation Corbeille et garde-fou irréversible
+
+Objectif : établir toutes les conditions nécessaires avant l’activation de la Corbeille Active Directory.
+
+Périmètre :
+
+- audit read-only des capacités forêt/domaine ;
+- état actuel de la fonctionnalité Recycle Bin ;
+- niveaux fonctionnels forêt/domaine ;
+- impacts opérateur et conséquences du changement ;
+- confirmation explicite du caractère forest-wide ;
+- confirmation explicite du caractère non réversible attendu ;
+- préparation d’un gate d’autorisation séparé ;
+- aucune exécution de `Enable-ADOptionalFeature` ;
+- aucune restauration d’objet ;
+- aucun passage Production.
+
+### C9.4 — activation contrôlée de la Corbeille Active Directory
+
+Objectif : réaliser uniquement l’activation de la fonctionnalité après autorisation explicite et gates complets.
+
+Périmètre :
+
+- autorisation dédiée distincte de la restauration ;
+- revalidation immédiate des préconditions ;
+- activation forest-wide contrôlée ;
+- vérification post-activation ;
+- audit complet de l’opération ;
+- aucune restauration d’objet incluse dans ce lot.
+
+### C9.5 — runtime de restauration contrôlée
+
+Objectif : valider la restauration réelle sur un objet de test jetable créé après activation de la Corbeille.
+
+Périmètre :
+
+- objet de test explicitement jetable ;
+- création puis suppression contrôlée ;
+- inventaire read-only ;
+- préflight sécurisé ;
+- Simulation ;
+- autorisation Production séparée ;
+- runtime `Restore-ADObject` isolé du dispatcher AD Admin générique ;
+- anti-replay et binding strict ;
+- vérification post-restauration par GUID, DN et classe ;
+- audit complet.
+
+### C9-FINAL — interface, régressions et publication stable
+
+Objectif : fermer C9 sans affaiblir les barrières de sécurité.
+
+Périmètre :
+
+- UX des objets supprimés ;
+- éligibilité et motifs de blocage ;
+- confirmations explicites ;
+- régressions backend, frontend et Windows ;
+- validation navigateur ;
+- revue de sécurité finale ;
+- documentation ;
+- publication stable `v0.9.0`.
+
+Séparation obligatoire :
+
+- C9.3 ne doit pas activer la Corbeille ;
+- C9.4 ne doit pas restaurer d’objet ;
+- C9.5 ne doit jamais réutiliser implicitement une autorisation d’activation ;
+- l’activation de la Corbeille et la restauration réelle restent deux opérations indépendantes ;
+- `Production` nécessite toujours un gate explicite propre à l’opération concernée.
 
 ### v0.9.0-alpha.03 — C9.2B Simulation contrôlée et preview Windows dormant
 
@@ -939,3 +1013,32 @@ Objectif : développer la gestion avancée des groupes, de l’imbrication et de
 ## Version v1.0.0
 
 Elle nécessitera notamment une documentation d'exploitation complète, une stratégie de migration et de sauvegarde, des tests de non-régression, une revue de sécurité et une stabilisation globale.
+
+<!-- C9.3-ALPHA05-CLOSURE -->
+#### C9.3 — préparation Corbeille et garde-fou irréversible — 100 %
+
+Statut : **terminé**.
+
+Le lot C9.3 ferme la préparation de sécurité avant toute activation de la Corbeille AD :
+
+- forêt `API.LOCAL` et niveau `Windows2025Forest` audités ;
+- Corbeille actuellement désactivée ;
+- contrôle de réplication réussi ;
+- collecte de preuve serveur dédiée et strictement read-only ;
+- résultat runtime validé avec `replication_ready=true` et zéro erreur de réplication ;
+- contrat backend d'intention d'activation dormant ;
+- persistance dédiée avec `status=dormant`, jamais `pending` ;
+- identité humaine liée à l'identité OIDC authoritative côté API ;
+- preuve AD relue depuis le stockage serveur, jamais fournie comme preuve authoritative par le client ;
+- route de préparation humaine active et protégée par `AD_ACCESS` ;
+- aucune activation, aucune restauration et aucune ouverture Production.
+
+Barrières maintenues :
+
+- C9.3 ne peut pas exécuter `Enable-ADOptionalFeature` ;
+- C9.3 ne peut pas exécuter `Restore-ADObject` ;
+- l'autorisation d'activation ne vaut jamais autorisation de restauration ;
+- C9.4 devra revalider l'état réel de la forêt et obtenir une autorisation humaine dédiée ;
+- C9.5 conservera une autorisation de restauration séparée.
+
+Prochaine phase : **C9.4 — activation contrôlée de la Corbeille Active Directory**.

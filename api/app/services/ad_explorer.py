@@ -37,6 +37,7 @@ ALLOWED_ACTIONS = {
     "search_objects",
     "get_security_descriptor",
     "get_deleted_objects",
+    "get_recycle_bin_activation_evidence",
     "revalidate_deleted_object_preflight",
 }
 

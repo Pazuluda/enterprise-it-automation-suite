@@ -41,7 +41,7 @@ La version **v0.9.0-alpha.04** clôt **C9.2 — conception, préflight et Simula
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.9.0-alpha.04` clôt formellement C9.2 comme phase complète de conception, préflight, revalidation live et Simulation contrôlée de la restauration. L’inventaire read-only C9.1, le moteur de préflight C9.2A et la préparation Simulation dormante C9.2B sont validés. La décision d’architecture confirme que l’activation de la Corbeille Active Directory et toute restauration réelle doivent appartenir à une phase C9 séparée avec de nouveaux gates explicites. Aucun runtime de restauration n’est ouvert, aucun record `prepared` n’est claimable, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est introduite et le mode final reste `Simulation`. Progression : C9.1 100 %, C9.2A 100 %, C9.2B 100 %, C9.2 100 %, C9 global 47 %, Explorateur Active Directory 100 %, EITAS global 95 %.
+EITAS reste en développement actif. `v0.9.0-alpha.04` clôt formellement C9.2 comme phase complète de conception, préflight, revalidation live et Simulation contrôlée de la restauration. L’inventaire read-only C9.1, le moteur de préflight C9.2A et la préparation Simulation dormante C9.2B sont validés. La décision d’architecture confirme que l’activation de la Corbeille Active Directory et toute restauration réelle doivent appartenir à une phase C9 séparée avec de nouveaux gates explicites. Aucun runtime de restauration n’est ouvert, aucun record `prepared` n’est claimable, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est introduite et le mode final reste `Simulation`. Progression : C9.1 100 %, C9.2A 100 %, C9.2B 100 %, C9.2 100 %, C9 global 47 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est C9.3 : préparation de la Corbeille Active Directory, audit des préconditions et garde-fous du changement irréversible, sans activation à ce stade.
 
 ## Fonctionnalités disponibles
 
@@ -207,3 +207,23 @@ Documents :
 
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`docs/GITHUB_TRACKING.md`](docs/GITHUB_TRACKING.md)
+
+<!-- C9.3-ALPHA05-STATUS -->
+### C9.3 — préparation Corbeille et garde-fou irréversible
+
+C9.3 est terminé à **100 %** en préparation et sécurité.
+
+- audit forêt/domaine et niveaux fonctionnels validé ;
+- état de la Corbeille Active Directory relu en lecture seule ;
+- contrôle de réplication validé ;
+- contrat d'intention d'activation dormant et non autorisant ;
+- persistance dédiée `dormant`, hors file `pending` ;
+- preuve serveur fraîche collectée via le worker AD Lookup en lecture seule ;
+- identité de l'opérateur liée à l'identité OIDC côté serveur ;
+- route humaine de préparation protégée par `AD_ACCESS` ;
+- aucune exécution de `Enable-ADOptionalFeature` ;
+- aucune exécution de `Restore-ADObject` ;
+- aucun runtime d'activation ouvert ;
+- mode agent maintenu en `Simulation`.
+
+La prochaine phase est **C9.4 — activation contrôlée de la Corbeille Active Directory**. Elle reste derrière une autorisation humaine dédiée et séparée de toute restauration.
