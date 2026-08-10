@@ -558,32 +558,72 @@ def test_c8_4b1_digest_is_deterministic(
     )
 
 
-def test_c8_4b1_runtime_exposure_stays_closed():
-    sources = [
-        Path(
-            "api/app/services/ad_admin.py"
-        ).read_text(encoding="utf-8"),
-        Path(
-            "api/main.py"
-        ).read_text(encoding="utf-8"),
-        Path(
-            "agent-windows/modules/"
-            "EitasAdAdmin.ps1"
-        ).read_text(encoding="utf-8"),
-        "\n".join(
-            path.read_text(
-                encoding="utf-8",
-                errors="ignore",
-            )
-            for path in Path(
-                "frontend/src"
-            ).rglob("*")
-            if path.is_file()
-        ),
-    ]
 
-    for source in sources:
-        assert "apply_acl_delegation" not in source
+def test_c8_4b1_runtime_exposure_stays_closed():
+    admin_source = Path(
+        "api/app/services/ad_admin.py"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    main_source = Path(
+        "api/main.py"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    worker_source = Path(
+        "agent-windows/modules/"
+        "EitasAdAdmin.ps1"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    frontend_source = Path(
+        "frontend/src/features/"
+        "active-directory/"
+        "AdExplorerPage.jsx"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    # The C8.4D React intent is structural only.
+    # Generic backend and Windows runtime exposure
+    # must still remain completely closed.
+    assert "apply_acl_delegation" not in admin_source
+    assert "apply_acl_delegation" not in main_source
+    assert "apply_acl_delegation" not in worker_source
+
+    assert (
+        'action: "apply_acl_delegation"'
+        in frontend_source
+    )
+
+    assert (
+        '"write-intent/identity-envelope"'
+        in frontend_source
+    )
+
+    assert (
+        '"write-intent/claim"'
+        in frontend_source
+    )
+
+    assert (
+        '"prewrite-ticket"'
+        in frontend_source
+    )
+
+    assert (
+        '"prewrite-status/"'
+        in frontend_source
+    )
+
+    assert (
+        "/api/agent/acl-delegation/prewrite/"
+        not in frontend_source
+    )
+
 
 
 def test_c8_4b1_contains_no_acl_write_primitive():

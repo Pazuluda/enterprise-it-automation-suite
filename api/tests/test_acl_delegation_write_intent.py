@@ -205,6 +205,7 @@ def test_c8_4a1_requires_simulation_binding(
         )
 
 
+
 def test_c8_4a1_remains_completely_dormant():
     admin_source = Path(
         "api/app/services/ad_admin.py"
@@ -224,21 +225,36 @@ def test_c8_4a1_remains_completely_dormant():
         encoding="utf-8"
     )
 
-    frontend_source = "\n".join(
-        path.read_text(
-            encoding="utf-8",
-            errors="ignore",
-        )
-        for path in Path(
-            "frontend/src"
-        ).rglob("*")
-        if path.is_file()
+    frontend_source = Path(
+        "frontend/src/features/"
+        "active-directory/"
+        "AdExplorerPage.jsx"
+    ).read_text(
+        encoding="utf-8"
     )
 
+    # C8.4D introduces one structural dormant intent
+    # in React. It is evidence only and must remain
+    # absent from generic backend/worker execution.
     assert "apply_acl_delegation" not in admin_source
     assert "apply_acl_delegation" not in main_source
     assert "apply_acl_delegation" not in worker_source
-    assert "apply_acl_delegation" not in frontend_source
+
+    assert (
+        'action: "apply_acl_delegation"'
+        in frontend_source
+    )
+
+    assert (
+        'mode: "Production"'
+        in frontend_source
+    )
+
+    assert (
+        "production_preparation_dormant"
+        in frontend_source
+    )
+
 
 
 def test_c8_4a1_contains_no_acl_write_primitive():

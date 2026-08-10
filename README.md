@@ -9,7 +9,7 @@
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-termine_100_%25-2ea44f)
-![C8](https://img.shields.io/badge/C8-en_cours_85_%25-f59e0b)
+![C8](https://img.shields.io/badge/C8-en_cours_95_%25-f59e0b)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version de développement **v0.8.0-alpha.08** valide **C8.4C « moteur Windows contrôlé de pré-écriture ACL »** à 100 %. C8 progresse à 85 %.
+La version de développement **v0.8.0-alpha.09** valide **C8.4D « couche Production contrôlée, confirmation humaine et intégration UI ACL »** à 100 %. C8 progresse à 95 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -37,11 +37,11 @@ La version de développement **v0.8.0-alpha.08** valide **C8.4C « moteur Window
 
 > **C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %**
 
-> **C8 — ACL, sécurité et délégation — en cours à 85 %**
+> **C8 — ACL, sécurité et délégation — en cours à 95 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.8.0-alpha.08` valide C8.4C : moteur Windows contrôlé de pré-écriture ACL avec ticket éphémère, runtime dédié et revalidation immédiate de l’`objectGUID`, de la DACL et du SID du principal avant toute future mutation. La validation réelle a atteint `prewrite_validated` sous une micro-fenêtre Production contrôlée, puis le mode Simulation a été restauré. La DACL avant et après est strictement identique et `write_performed=false`. Aucune primitive d’écriture ACL n’est introduite et `apply_acl_delegation` reste absent du dispatch AD Admin générique. Progression actuelle : C8.4C 100 %, C8 85 %, Explorateur Active Directory 98 %, EITAS global 93 %. La prochaine étape est C8.4D.
+EITAS reste en développement actif. `v0.8.0-alpha.09` valide C8.4D : préparation Production fondée uniquement sur les preuves serveur, intention `apply_acl_delegation` structurelle et dormante dans React, claim anti-replay, ticket de pré-écriture, revalidation Windows contrôlée et confirmation humaine finale liée à l’identité OIDC. Le retour explicite en Simulation est obligatoire avant la confirmation finale. Cette confirmation reste strictement non autorisante : `production_authorized=false`, `ad_write_authorized=false` et `write_performed=false`. Une lecture Security Descriptor post-confirmation sur `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` confirme 36 ACE et une DACL strictement identique, SHA-256 `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb`. Aucune primitive d’écriture ACL n’est introduite et `apply_acl_delegation` reste absent du dispatch AD Admin générique et du worker générique. Progression actuelle : C8.4D 100 %, C8 95 %, Explorateur Active Directory 99 %, EITAS global 94 %. La prochaine étape est C8-FINAL.
 
 ## Fonctionnalités disponibles
 
@@ -174,6 +174,7 @@ Composants principaux :
 | Sixième checkpoint C8                 | `v0.8.0-alpha.06` |
 | Septième checkpoint C8                | `v0.8.0-alpha.07` |
 | Huitième checkpoint C8                 | `v0.8.0-alpha.08` |
+| Neuvième checkpoint C8                 | `v0.8.0-alpha.09` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -193,7 +194,7 @@ La politique complète est décrite dans [`docs/VERSIONING.md`](docs/VERSIONING.
 5. C5 — Ordinateurs, OU, conteneurs et contacts — terminé dans `v0.5.0` ;
 6. C6 — Recherche, colonnes, filtres et requêtes — terminé dans `v0.6.0` ;
 7. C7 — Sélection multiple, copie et glisser-déposer — terminé dans `v0.7.0` ;
-8. C8 — ACL, sécurité et délégation — en cours à 85 % ;
+8. C8 — ACL, sécurité et délégation — en cours à 95 % ;
 9. C9 — Corbeille Active Directory et restauration ;
 10. C10 — Performance, audit, tests et finition.
 

@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.08
+## État courant — v0.8.0-alpha.09
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       85 % |
-| Explorateur Active Directory complet       |       98 % |
-| Projet EITAS global | 93 % |
+| C8 — ACL, sécurité et délégation                 |       95 % |
+| Explorateur Active Directory complet       |       99 % |
+| Projet EITAS global | 94 % |
 
-Le checkpoint `v0.8.0-alpha.08` valide C8.4C « moteur Windows contrôlé de pré-écriture ACL » à 100 %. C8 : 85 %. Explorateur Active Directory : 98 %. EITAS : 93 %. Un ticket de pré-écriture éphémère dérivé du claim dormant autorise uniquement une revalidation dédiée sous contrôle serveur. Le worker Windows relit immédiatement l’`objectGUID`, le SHA-256 de la DACL native et le SID du principal. La validation réelle a atteint `prewrite_validated`, la micro-fenêtre Production a été refermée automatiquement et la DACL avant/après est strictement identique. Aucune primitive d’écriture ACL n’est introduite et `apply_acl_delegation` reste absent du runtime générique.
+Le checkpoint `v0.8.0-alpha.09` valide C8.4D « couche Production contrôlée, confirmation humaine et intégration UI ACL » à 100 %. C8 : 95 %. Explorateur Active Directory : 99 %. EITAS : 94 %. La préparation Production recharge les preuves Simulation et Security Descriptor côté serveur. L’intention `apply_acl_delegation` reste structurelle et dormante dans React. Le claim anti-replay ouvre uniquement un ticket de pré-écriture dédié, et le passage Production est limité à cette revalidation. Le retour en Simulation est obligatoire avant la confirmation humaine finale. Cette confirmation est liée à l’identité OIDC réelle, consommée une seule fois et reste strictement non autorisante. La lecture Security Descriptor post-confirmation confirme 36 ACE et une DACL inchangée. Aucune primitive d’écriture ACL n’est introduite et `apply_acl_delegation` reste absent du runtime générique.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,65 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 85 %, C8.1, C8.2, C8.3, C8.4A, C8.4B et C8.4C validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 95 %, C8.1, C8.2, C8.3, C8.4A, C8.4B, C8.4C et C8.4D validés |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0-alpha.09 — C8.4D couche Production contrôlée et confirmation humaine ACL
+
+Ce checkpoint valide C8.4D à 100 % sans ouvrir l’écriture ACL.
+
+- préparation Production construite exclusivement depuis les preuves serveur Simulation et Security Descriptor ;
+- aucun fingerprint client utilisé comme source de confiance ;
+- intention `apply_acl_delegation` présente uniquement comme structure dormante côté React ;
+- `apply_acl_delegation` absent du dispatch AD Admin générique et du worker générique ;
+- claim anti-replay et ticket pré-write à durée de vie courte ;
+- statut humain read-only du ticket de pré-écriture ;
+- relecture du mode agent avant consommation des preuves ;
+- micro-fenêtre `Production` limitée à la revalidation pré-write ;
+- retour obligatoire en `Simulation` avant la confirmation finale ;
+- confirmation humaine exigeant le DN exact et la phrase `APPLY ACL DELEGATION` ;
+- persistance atomique de la confirmation sans changer l’état `prewrite_validated` ;
+- aucune phrase brute de confirmation persistée ;
+- confirmation liée à l’`AuthenticatedIdentity` OIDC réelle et aux claims `sub`, `iss` et `azp` ;
+- correction de l’intégration OIDC afin d’utiliser `identity.claims` ;
+- `job_creation_authorized=false` ;
+- `runtime_authorized=false` ;
+- `production_authorized=false` ;
+- `ad_write_authorized=false` ;
+- `write_performed=false` ;
+- aucune primitive `Set-Acl`, `ActiveDirectoryAccessRule`, `AddAccessRule`, `SetAccessRule` ou `RemoveAccessRule` introduite ;
+- 753 tests backend réussis ;
+- 339 sous-tests backend réussis ;
+- 364 tests frontend réussis ;
+- 42 avertissements backend connus ;
+- build Vite 8.1.3 validé ;
+- contrôle sécurité pré-commit validé ;
+- `git diff --check` validé.
+
+### Validation réelle C8.4D
+
+- cible : `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
+- `objectGUID` : `8838f739-c817-4b45-90b2-b597ce79312a` ;
+- claim : `d835320c-0564-4b50-a628-c0af7ffed87f` ;
+- ticket : `ac5aea75-85b1-48a1-9157-27fc9de5f6b6` ;
+- exécution : `d0e93be5-1181-4749-8383-2a4d3c99a542` ;
+- confirmation : `dfce52e6-69ab-4ec5-bdd8-4c2af87a8d0f` ;
+- confirmation validée et consommée ;
+- état final persistant : `prewrite_validated` ;
+- mode final : `Simulation` ;
+- lecture Security Descriptor post-confirmation : `e9f5b851-7dbf-4522-97d3-3a5c47e13f3c` ;
+- lecture post-confirmation read-only ;
+- 36 ACE inchangées ;
+- SHA-256 DACL avant/après : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
+- `DACL_UNCHANGED=True` ;
+- aucune nouvelle ouverture Production pour le contrôle final ;
+- aucune écriture ACL effectuée ;
+- progression : C8.4D 100 %, C8 95 %, Explorateur AD 99 %, EITAS 94 %.
+
+La prochaine étape est C8-FINAL : clôture de C8, revue finale de sécurité, régressions et publication `v0.8.0`.
 
 ### v0.8.0-alpha.08 — C8.4C moteur Windows contrôlé de pré-écriture ACL
 

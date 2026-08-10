@@ -1297,8 +1297,16 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
             )
           }
 
-          setSecurityDescriptor(result)
-          return result
+          const resultWithEvidence = {
+            ...result,
+            security_descriptor_job_id: jobId,
+          }
+
+          setSecurityDescriptor(
+            resultWithEvidence
+          )
+
+          return resultWithEvidence
         }
 
         await new Promise(resolve =>
@@ -3847,6 +3855,21 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
         )
       }
 
+      const simulationJobId = String(
+        job?.id || ""
+      ).trim()
+
+      if (!simulationJobId) {
+        throw new Error(
+          "Identifiant du job de Simulation ACL absent."
+        )
+      }
+
+      const resultWithEvidence = {
+        ...output,
+        simulation_job_id: simulationJobId,
+      }
+
       const message = cleanAdAdminMessage(
         output.message
         || job?.message
@@ -3856,7 +3879,7 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
       setStatus(message)
       setMessage?.(message)
 
-      return output
+      return resultWithEvidence
     } catch (err) {
       const message = cleanAdAdminMessage(
         err?.message
@@ -3865,6 +3888,980 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
 
       setStatus(`Erreur : ${message}`)
       setMessage?.(`Erreur : ${message}`)
+
+      throw err
+    }
+  }
+
+
+  async function prepareAclDelegationProduction(
+    simulationResult,
+    descriptor
+  ) {
+    const simulationJobId = String(
+      simulationResult?.simulation_job_id
+      || ""
+    ).trim()
+
+    const securityDescriptorJobId = String(
+      descriptor?.security_descriptor_job_id
+      || ""
+    ).trim()
+
+    if (!simulationJobId) {
+      throw new Error(
+        "La preuve du job de Simulation ACL est absente."
+      )
+    }
+
+    if (!securityDescriptorJobId) {
+      throw new Error(
+        "Actualisez le descripteur de sécurité après "
+        + "la Simulation avant de préparer Production."
+      )
+    }
+
+    const simulationTargetDn = String(
+      simulationResult?.target?.dn
+      || ""
+    ).trim()
+
+    const descriptorTargetDn = String(
+      descriptor?.object_dn
+      || ""
+    ).trim()
+
+    if (
+      simulationTargetDn
+      && descriptorTargetDn
+      && simulationTargetDn.toUpperCase()
+        !== descriptorTargetDn.toUpperCase()
+    ) {
+      throw new Error(
+        "Les preuves ACL concernent des objets différents."
+      )
+    }
+
+    const currentMode =
+      await loadAdAgentMode()
+
+    if (
+      String(currentMode || "")
+        .trim()
+        .toLowerCase()
+      !== "simulation"
+    ) {
+      throw new Error(
+        "Préparation Production bloquée : "
+        + "l’agent doit rester en mode Simulation "
+        + "pendant cette étape."
+      )
+    }
+
+    setStatus(
+      "Validation serveur des preuves ACL en cours..."
+    )
+
+    try {
+      const preparation = await apiFetch(
+        "/api/ad-admin/acl-delegation/production-preparation",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            simulation_job_id:
+              simulationJobId,
+            security_descriptor_job_id:
+              securityDescriptorJobId,
+          }),
+        }
+      )
+
+      if (
+        preparation?.state
+        !== "production_preparation_dormant"
+      ) {
+        throw new Error(
+          "État de préparation Production ACL invalide."
+        )
+      }
+
+      if (
+        preparation?.evidence
+          ?.simulation_job_id
+        !== simulationJobId
+        || preparation?.evidence
+          ?.security_descriptor_job_id
+        !== securityDescriptorJobId
+      ) {
+        throw new Error(
+          "Le serveur a retourné une provenance ACL incohérente."
+        )
+      }
+
+      if (
+        preparation?.evidence
+          ?.trusted_evidence_loaded
+        !== true
+        || preparation?.evidence
+          ?.binding_validated
+        !== true
+      ) {
+        throw new Error(
+          "Le binding serveur des preuves ACL "
+          + "n’est pas validé."
+        )
+      }
+
+      const aclFingerprint = String(
+        preparation?.dacl
+          ?.acl_fingerprint
+        || ""
+      ).trim()
+
+      const daclSha = String(
+        preparation?.dacl
+          ?.dacl_sddl_sha256
+        || ""
+      ).trim()
+
+      if (
+        !/^[0-9a-f]{64}$/i.test(
+          aclFingerprint
+        )
+        || !/^[0-9a-f]{64}$/i.test(
+          daclSha
+        )
+      ) {
+        throw new Error(
+          "Empreinte ACL serveur invalide."
+        )
+      }
+
+      if (
+        preparation
+          ?.confirmation_requirements
+          ?.human_confirmation_validated
+        !== false
+        || preparation
+          ?.anti_replay
+          ?.replay_consumed
+        !== false
+        || preparation
+          ?.anti_replay
+          ?.claim_created
+        !== false
+        || preparation
+          ?.authorization
+          ?.job_creation_authorized
+        !== false
+        || preparation
+          ?.authorization
+          ?.runtime_authorized
+        !== false
+        || preparation
+          ?.authorization
+          ?.production_authorized
+        !== false
+        || preparation
+          ?.authorization
+          ?.ad_write_authorized
+        !== false
+      ) {
+        throw new Error(
+          "La préparation ACL a retourné "
+          + "un état autorisant interdit."
+        )
+      }
+
+      const message =
+        "Préparation Production ACL validée côté serveur. "
+        + "Aucune autorisation d’écriture n’a été accordée."
+
+      setStatus(message)
+      setMessage?.(message)
+
+      return preparation
+    } catch (err) {
+      const message = cleanAdAdminMessage(
+        err?.message
+        || "Préparation Production ACL en erreur."
+      )
+
+      setStatus(
+        `Erreur : ${message}`
+      )
+
+      setMessage?.(
+        `Erreur : ${message}`
+      )
+
+      throw err
+    }
+  }
+
+
+  function buildAclDelegationProductionIntent(
+    preparation
+  ) {
+    if (
+      preparation?.state
+      !== "production_preparation_dormant"
+    ) {
+      throw new Error(
+        "Préparation Production ACL absente ou invalide."
+      )
+    }
+
+    const simulationJobId = String(
+      preparation?.evidence
+        ?.simulation_job_id
+      || ""
+    ).trim()
+
+    const securityDescriptorJobId = String(
+      preparation?.evidence
+        ?.security_descriptor_job_id
+      || ""
+    ).trim()
+
+    const objectDn = String(
+      preparation?.target?.dn
+      || ""
+    ).trim()
+
+    const principalIdentity = String(
+      preparation?.principal?.identity
+      || ""
+    ).trim()
+
+    const accessControlType = String(
+      preparation?.ace
+        ?.access_control_type
+      || ""
+    ).trim()
+
+    const rights = Array.isArray(
+      preparation?.ace?.rights
+    )
+      ? preparation.ace.rights
+          .map(value => String(value || "").trim())
+          .filter(Boolean)
+      : []
+
+    const inheritanceType = String(
+      preparation?.ace
+        ?.inheritance_type
+      || ""
+    ).trim()
+
+    const aclFingerprint = String(
+      preparation?.dacl
+        ?.acl_fingerprint
+      || ""
+    ).trim()
+
+    const confirmObjectDn = String(
+      preparation
+        ?.confirmation_requirements
+        ?.confirm_object_dn
+      || ""
+    ).trim()
+
+    const confirmationPhrase = String(
+      preparation
+        ?.confirmation_requirements
+        ?.confirmation_phrase
+      || ""
+    ).trim()
+
+    if (
+      !simulationJobId
+      || !securityDescriptorJobId
+      || !objectDn
+      || !principalIdentity
+      || !accessControlType
+      || rights.length === 0
+      || !inheritanceType
+      || !/^[0-9a-f]{64}$/i.test(
+        aclFingerprint
+      )
+      || !confirmObjectDn
+      || !confirmationPhrase
+    ) {
+      throw new Error(
+        "Préparation Production ACL incomplète."
+      )
+    }
+
+    if (
+      objectDn.toUpperCase()
+      !== confirmObjectDn.toUpperCase()
+    ) {
+      throw new Error(
+        "DN de confirmation ACL incohérent."
+      )
+    }
+
+    return {
+      action: "apply_acl_delegation",
+      mode: "Production",
+
+      object_dn: objectDn,
+      principal_identity: principalIdentity,
+
+      access_control_type: accessControlType,
+      rights,
+      inheritance_type: inheritanceType,
+
+      object_type_guid:
+        preparation?.ace
+          ?.object_type_guid
+        ?? null,
+
+      inherited_object_type_guid:
+        preparation?.ace
+          ?.inherited_object_type_guid
+        ?? null,
+
+      simulation_job_id: simulationJobId,
+      security_descriptor_job_id:
+        securityDescriptorJobId,
+
+      expected_acl_fingerprint:
+        aclFingerprint,
+
+      // Structural dormant intent binding only.
+      // Final human confirmation is a separate
+      // C8.4D route and is NOT performed here.
+      confirm_object_dn: confirmObjectDn,
+      confirmation_phrase: confirmationPhrase,
+    }
+  }
+
+
+  function assertAclNonAuthorizingResponse(
+    authorization,
+    label
+  ) {
+    if (
+      !authorization
+      || authorization.job_creation_authorized
+        !== false
+      || authorization.runtime_authorized
+        !== false
+      || authorization.production_authorized
+        !== false
+      || authorization.ad_write_authorized
+        !== false
+    ) {
+      throw new Error(
+        `${label} a retourné une autorisation ACL interdite.`
+      )
+    }
+  }
+
+
+  async function waitForAclDelegationPrewriteStatus(
+    ticketId,
+    claimId
+  ) {
+    const normalizedTicketId = String(
+      ticketId || ""
+    ).trim()
+
+    const normalizedClaimId = String(
+      claimId || ""
+    ).trim()
+
+    if (
+      !normalizedTicketId
+      || !normalizedClaimId
+    ) {
+      throw new Error(
+        "Identifiants ACL pre-write absents."
+      )
+    }
+
+    for (
+      let attempt = 0;
+      attempt < 45;
+      attempt += 1
+    ) {
+      const result = await apiFetch(
+        "/api/ad-admin/acl-delegation/"
+        + "prewrite-status/"
+        + encodeURIComponent(
+          normalizedTicketId
+        )
+      )
+
+      if (
+        String(
+          result?.ticket_id || ""
+        ).trim()
+        !== normalizedTicketId
+        || String(
+          result?.claim_id || ""
+        ).trim()
+        !== normalizedClaimId
+      ) {
+        throw new Error(
+          "Statut ACL pre-write incohérent."
+        )
+      }
+
+      assertAclNonAuthorizingResponse(
+        result?.authorization,
+        "Le statut pre-write"
+      )
+
+      const state = String(
+        result?.state || ""
+      ).trim()
+
+      if (
+        ![
+          "prewrite_ticketed",
+          "prewrite_processing",
+          "prewrite_validated",
+          "prewrite_failed",
+        ].includes(state)
+      ) {
+        throw new Error(
+          "État ACL pre-write inattendu."
+        )
+      }
+
+      if (
+        state === "prewrite_validated"
+      ) {
+        const executionId = String(
+          result?.execution_id || ""
+        ).trim()
+
+        if (
+          !executionId
+          || result?.success !== true
+          || result?.validation?.completed
+            !== true
+          || result?.validation
+            ?.confirmation_ready
+            !== true
+        ) {
+          throw new Error(
+            "Validation ACL pre-write incomplète."
+          )
+        }
+
+        return result
+      }
+
+      if (
+        state === "prewrite_failed"
+      ) {
+        throw new Error(
+          "La validation ACL pre-write a échoué."
+        )
+      }
+
+      await new Promise(
+        resolve => setTimeout(
+          resolve,
+          1000
+        )
+      )
+    }
+
+    throw new Error(
+      "La validation ACL pre-write dépasse "
+      + "le délai contrôlé."
+    )
+  }
+
+
+  async function startAclDelegationPrewrite(
+    preparation
+  ) {
+    // Critical safety boundary:
+    // no evidence is consumed until the live mode
+    // has been re-read and is exactly Production.
+    const currentMode =
+      await loadAdAgentMode()
+
+    if (
+      String(currentMode || "")
+        .trim()
+        .toLowerCase()
+      !== "production"
+    ) {
+      throw new Error(
+        "Validation pre-write bloquée : "
+        + "passez d’abord manuellement l’agent "
+        + "en mode Production."
+      )
+    }
+
+    const intent =
+      buildAclDelegationProductionIntent(
+        preparation
+      )
+
+    setStatus(
+      "Validation OIDC de l’intention ACL..."
+    )
+
+    try {
+      // Non-persistent validation before consuming
+      // the trusted evidence.
+      const envelope = await apiFetch(
+        "/api/ad-admin/acl-delegation/"
+        + "write-intent/identity-envelope",
+        {
+          method: "POST",
+          body: JSON.stringify(
+            intent
+          ),
+        }
+      )
+
+      if (
+        envelope?.execution_policy
+        !== "identity_bound_dormant"
+        || envelope?.anti_replay?.consumed
+          !== false
+        || envelope?.anti_replay
+          ?.consumption_required
+          !== true
+      ) {
+        throw new Error(
+          "Enveloppe OIDC ACL invalide."
+        )
+      }
+
+      assertAclNonAuthorizingResponse(
+        envelope?.authorization,
+        "L’enveloppe OIDC"
+      )
+
+      const preparedFingerprint = String(
+        preparation?.dacl
+          ?.acl_fingerprint
+        || ""
+      ).trim()
+
+      if (
+        String(
+          envelope?.dacl
+            ?.acl_fingerprint
+          || ""
+        ).trim().toLowerCase()
+        !== preparedFingerprint.toLowerCase()
+      ) {
+        throw new Error(
+          "Fingerprint ACL modifié entre "
+          + "préparation et enveloppe."
+        )
+      }
+
+      setStatus(
+        "Consommation anti-replay de la preuve ACL..."
+      )
+
+      const claim = await apiFetch(
+        "/api/ad-admin/acl-delegation/"
+        + "write-intent/claim",
+        {
+          method: "POST",
+          body: JSON.stringify(
+            intent
+          ),
+        }
+      )
+
+      const claimId = String(
+        claim?.claim_id || ""
+      ).trim()
+
+      if (
+        claim?.state
+        !== "claimed_dormant"
+        || !claimId
+        || claim?.replay_consumed
+          !== true
+      ) {
+        throw new Error(
+          "Claim ACL dormant invalide."
+        )
+      }
+
+      assertAclNonAuthorizingResponse(
+        claim?.authorization,
+        "Le claim ACL"
+      )
+
+      if (
+        String(
+          claim?.evidence
+            ?.evidence_digest
+          || ""
+        ).trim()
+        !== String(
+          envelope?.evidence
+            ?.evidence_digest
+          || ""
+        ).trim()
+      ) {
+        throw new Error(
+          "Digest ACL incohérent après consommation."
+        )
+      }
+
+      if (
+        String(
+          claim?.dacl
+            ?.acl_fingerprint
+          || ""
+        ).trim().toLowerCase()
+        !== preparedFingerprint.toLowerCase()
+      ) {
+        throw new Error(
+          "Fingerprint ACL incohérent après claim."
+        )
+      }
+
+      setStatus(
+        "Création du ticket de validation pre-write..."
+      )
+
+      const ticket = await apiFetch(
+        "/api/ad-admin/acl-delegation/"
+        + "prewrite-ticket",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            claim_id: claimId,
+          }),
+        }
+      )
+
+      const ticketId = String(
+        ticket?.ticket_id || ""
+      ).trim()
+
+      if (
+        ticket?.state
+        !== "prewrite_ticketed"
+        || !ticketId
+        || String(
+          ticket?.claim_id || ""
+        ).trim()
+        !== claimId
+      ) {
+        throw new Error(
+          "Ticket ACL pre-write invalide."
+        )
+      }
+
+      const ticketAuthorization =
+        ticket?.authorization
+
+      if (
+        !ticketAuthorization
+        || ticketAuthorization
+          .prewrite_validation_runtime_authorized
+          !== false
+        || ticketAuthorization
+          .job_creation_authorized
+          !== false
+        || ticketAuthorization
+          .production_authorized
+          !== false
+        || ticketAuthorization
+          .ad_write_authorized
+          !== false
+      ) {
+        throw new Error(
+          "Ticket ACL pre-write autorisant interdit."
+        )
+      }
+
+      setStatus(
+        "Validation pre-write Windows en cours..."
+      )
+
+      const prewriteStatus =
+        await waitForAclDelegationPrewriteStatus(
+          ticketId,
+          claimId
+        )
+
+      const finalMode =
+        await loadAdAgentMode()
+
+      const message = (
+        String(finalMode || "")
+          .trim()
+          .toLowerCase()
+        === "simulation"
+      )
+        ? (
+            "Validation ACL pre-write réussie. "
+            + "Mode Simulation confirmé."
+          )
+        : (
+            "Validation ACL pre-write réussie. "
+            + "Repassez maintenant l’agent "
+            + "en Simulation avant la "
+            + "confirmation finale."
+          )
+
+      setStatus(message)
+      setMessage?.(message)
+
+      return {
+        envelope,
+        claim,
+        ticket,
+        status: prewriteStatus,
+        final_agent_mode: finalMode,
+      }
+    } catch (err) {
+      const message = cleanAdAdminMessage(
+        err?.message
+        || "Validation ACL pre-write en erreur."
+      )
+
+      setStatus(
+        `Erreur : ${message}`
+      )
+
+      setMessage?.(
+        `Erreur : ${message}`
+      )
+
+      throw err
+    }
+  }
+
+
+  async function confirmAclDelegationProduction(
+    prewriteResult,
+    preparation,
+    confirmObjectDn,
+    confirmationPhrase
+  ) {
+    const claimId = String(
+      prewriteResult?.claim?.claim_id
+      || ""
+    ).trim()
+
+    const ticketId = String(
+      prewriteResult?.ticket?.ticket_id
+      || ""
+    ).trim()
+
+    const executionId = String(
+      prewriteResult?.status?.execution_id
+      || ""
+    ).trim()
+
+    const prewriteState = String(
+      prewriteResult?.status?.state
+      || ""
+    ).trim()
+
+    const confirmationReady = (
+      prewriteResult?.status
+        ?.validation
+        ?.confirmation_ready
+      === true
+    )
+
+    if (
+      !claimId
+      || !ticketId
+      || !executionId
+      || prewriteState !== "prewrite_validated"
+      || !confirmationReady
+    ) {
+      throw new Error(
+        "Validation ACL pre-write incomplète."
+      )
+    }
+
+    const expectedDn = String(
+      preparation?.confirmation_requirements
+        ?.confirm_object_dn
+      || preparation?.target?.dn
+      || ""
+    ).trim()
+
+    const expectedPhrase = String(
+      preparation?.confirmation_requirements
+        ?.confirmation_phrase
+      || ""
+    ).trim()
+
+    const typedDn = String(
+      confirmObjectDn || ""
+    ).trim()
+
+    const typedPhrase = String(
+      confirmationPhrase || ""
+    ).trim()
+
+    if (
+      !expectedDn
+      || !expectedPhrase
+    ) {
+      throw new Error(
+        "Exigences de confirmation ACL absentes."
+      )
+    }
+
+    if (typedDn !== expectedDn) {
+      throw new Error(
+        "Le DN de confirmation doit correspondre "
+        + "exactement au DN attendu."
+      )
+    }
+
+    if (typedPhrase !== expectedPhrase) {
+      throw new Error(
+        "La phrase de confirmation ACL est incorrecte."
+      )
+    }
+
+    // Final safety boundary:
+    // the validation-only Production micro-window
+    // must already be closed before persisting the
+    // human confirmation proof.
+    const currentMode =
+      await loadAdAgentMode()
+
+    if (
+      String(currentMode || "")
+        .trim()
+        .toLowerCase()
+      !== "simulation"
+    ) {
+      throw new Error(
+        "Confirmation finale bloquée : "
+        + "repassez d’abord manuellement "
+        + "l’agent en mode Simulation."
+      )
+    }
+
+    setStatus(
+      "Validation de la confirmation humaine ACL..."
+    )
+
+    try {
+      const confirmation = await apiFetch(
+        "/api/ad-admin/acl-delegation/production-confirmation",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            claim_id: claimId,
+            ticket_id: ticketId,
+            execution_id: executionId,
+            confirm_object_dn: typedDn,
+            confirmation_phrase: typedPhrase,
+          }),
+        }
+      )
+
+      if (
+        confirmation?.state
+        !== "production_confirmation_dormant"
+        || confirmation?.source_state
+        !== "prewrite_validated"
+      ) {
+        throw new Error(
+          "État de confirmation Production ACL invalide."
+        )
+      }
+
+      if (
+        String(
+          confirmation?.claim_id
+          || ""
+        ).trim()
+        !== claimId
+        || String(
+          confirmation?.ticket_id
+          || ""
+        ).trim()
+        !== ticketId
+        || String(
+          confirmation?.execution_id
+          || ""
+        ).trim()
+        !== executionId
+      ) {
+        throw new Error(
+          "Provenance de confirmation ACL incohérente."
+        )
+      }
+
+      if (
+        confirmation?.confirmation
+          ?.validated
+        !== true
+        || confirmation?.confirmation
+          ?.consumed
+        !== true
+      ) {
+        throw new Error(
+          "Confirmation humaine ACL non validée."
+        )
+      }
+
+      assertAclNonAuthorizingResponse(
+        confirmation?.authorization,
+        "La confirmation Production ACL"
+      )
+
+      const finalMode =
+        await loadAdAgentMode()
+
+      if (
+        String(finalMode || "")
+          .trim()
+          .toLowerCase()
+        !== "simulation"
+      ) {
+        throw new Error(
+          "Le mode Simulation n’est plus actif "
+          + "après la confirmation."
+        )
+      }
+
+      const message = (
+        "Confirmation Production ACL enregistrée "
+        + "sans autorisation d’écriture."
+      )
+
+      setStatus(message)
+      setMessage?.(message)
+
+      return {
+        confirmation,
+        final_agent_mode: finalMode,
+      }
+    } catch (err) {
+      const message = cleanAdAdminMessage(
+        err?.message
+        || "Confirmation Production ACL en erreur."
+      )
+
+      setStatus(
+        `Erreur : ${message}`
+      )
+
+      setMessage?.(
+        `Erreur : ${message}`
+      )
 
       throw err
     }
@@ -5479,6 +6476,22 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                     ? simulateAclDelegation
                     : undefined
                 }
+                onPrepareAclDelegationProduction={
+                  canManageActiveDirectory
+                    ? prepareAclDelegationProduction
+                    : undefined
+                }
+                onStartAclDelegationPrewrite={
+                  canManageActiveDirectory
+                    ? startAclDelegationPrewrite
+                    : undefined
+                }
+                onConfirmAclDelegationProduction={
+                  canManageActiveDirectory
+                    ? confirmAclDelegationProduction
+                    : undefined
+                }
+                adAgentMode={adAgentMode}
               />
             </section>
           </main>

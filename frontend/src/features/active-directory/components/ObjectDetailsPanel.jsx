@@ -38,7 +38,7 @@ import {
   formatAdHistoryMessage,
 } from '../utils/adExplorerCore'
 
-function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy, securityDescriptor, securityDescriptorLoading, securityDescriptorError, securityDescriptorTargetDn, onLoadSecurityDescriptor, onSimulateAclDelegation }) {
+function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading, membersError, membersMode = 'direct', onMembersModeChange, historyItems, historyLoading, historyError, historyFilter, onHistoryFilterChange, onOpenHistoryJob, onLoadHistory, onCopyDn, onExplore, onCreateOu, onCreateContainer, onCreateGroup, onOpenMoveObject, onOpenUpdateObject, onOpenRenameObject, onOpenDeleteObject, onCopyUser, onPrepareAccountAction, onLoadMembers, onOpenAddMember, onRemoveMember, onSetPrimaryGroup, onReloadObject, onOpenLinkedObject, onResolveLinkedObject, onClearManagedBy, securityDescriptor, securityDescriptorLoading, securityDescriptorError, securityDescriptorTargetDn, onLoadSecurityDescriptor, onSimulateAclDelegation, onPrepareAclDelegationProduction, onStartAclDelegationPrewrite, onConfirmAclDelegationProduction, adAgentMode }) {
   const [activeDetailsTab, setActiveDetailsTab] = useState('general')
   const [securityRuleQuery, setSecurityRuleQuery] = useState('')
   const [securityRuleType, setSecurityRuleType] = useState('all')
@@ -67,6 +67,50 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     aclDelegationResult,
     setAclDelegationResult
   ] = useState(null)
+  const [
+    aclDelegationPreparationLoading,
+    setAclDelegationPreparationLoading
+  ] = useState(false)
+  const [
+    aclDelegationPreparationError,
+    setAclDelegationPreparationError
+  ] = useState('')
+  const [
+    aclDelegationPreparationResult,
+    setAclDelegationPreparationResult
+  ] = useState(null)
+  const [
+    aclDelegationPrewriteLoading,
+    setAclDelegationPrewriteLoading
+  ] = useState(false)
+  const [
+    aclDelegationPrewriteError,
+    setAclDelegationPrewriteError
+  ] = useState('')
+  const [
+    aclDelegationPrewriteResult,
+    setAclDelegationPrewriteResult
+  ] = useState(null)
+  const [
+    aclDelegationConfirmationDn,
+    setAclDelegationConfirmationDn
+  ] = useState('')
+  const [
+    aclDelegationConfirmationPhrase,
+    setAclDelegationConfirmationPhrase
+  ] = useState('')
+  const [
+    aclDelegationConfirmationLoading,
+    setAclDelegationConfirmationLoading
+  ] = useState(false)
+  const [
+    aclDelegationConfirmationError,
+    setAclDelegationConfirmationError
+  ] = useState('')
+  const [
+    aclDelegationConfirmationResult,
+    setAclDelegationConfirmationResult
+  ] = useState(null)
   const displayed = object || selectedNode
   const hasObject = Boolean(displayed)
   const rows = getObjectMetaRows(displayed)
@@ -80,7 +124,31 @@ function ObjectDetailsPanel({ object, selectedNode, memberItems, membersLoading,
     setAclDelegationLoading(false)
     setAclDelegationError('')
     setAclDelegationResult(null)
+    setAclDelegationPreparationLoading(false)
+    setAclDelegationPreparationError('')
+    setAclDelegationPreparationResult(null)
+    setAclDelegationPrewriteLoading(false)
+    setAclDelegationPrewriteError('')
+    setAclDelegationPrewriteResult(null)
+    setAclDelegationConfirmationDn('')
+    setAclDelegationConfirmationPhrase('')
+    setAclDelegationConfirmationLoading(false)
+    setAclDelegationConfirmationError('')
+    setAclDelegationConfirmationResult(null)
   }, [dn])
+
+  useEffect(() => {
+    setAclDelegationPreparationError('')
+    setAclDelegationPreparationResult(null)
+    setAclDelegationPrewriteError('')
+    setAclDelegationPrewriteResult(null)
+    setAclDelegationConfirmationDn('')
+    setAclDelegationConfirmationPhrase('')
+    setAclDelegationConfirmationError('')
+    setAclDelegationConfirmationResult(null)
+  }, [
+    securityDescriptor?.security_descriptor_job_id
+  ])
   const type = getObjectType(displayed)
   const objectName = hasObject ? getObjectName(displayed) : 'Aucun objet sélectionné'
   const objectClass = String(
@@ -1569,6 +1637,14 @@ const objectTechnicalRows = [
       setAclDelegationLoading(true)
       setAclDelegationError("")
       setAclDelegationResult(null)
+      setAclDelegationPreparationError("")
+      setAclDelegationPreparationResult(null)
+      setAclDelegationPrewriteError("")
+      setAclDelegationPrewriteResult(null)
+      setAclDelegationConfirmationDn("")
+      setAclDelegationConfirmationPhrase("")
+      setAclDelegationConfirmationError("")
+      setAclDelegationConfirmationResult(null)
 
       try {
         const result = await onSimulateAclDelegation(
@@ -1594,6 +1670,276 @@ const objectTechnicalRows = [
         setAclDelegationLoading(false)
       }
     }
+
+    async function submitAclDelegationProductionPreparation() {
+      if (!aclDelegationResult) {
+        setAclDelegationPreparationError(
+          "Exécutez d’abord une Simulation ACL."
+        )
+        return
+      }
+
+      const simulationJobId = String(
+        aclDelegationResult
+          ?.simulation_job_id
+        || ""
+      ).trim()
+
+      const securityJobId = String(
+        securityDescriptor
+          ?.security_descriptor_job_id
+        || ""
+      ).trim()
+
+      if (!simulationJobId) {
+        setAclDelegationPreparationError(
+          "Identifiant de Simulation ACL absent."
+        )
+        return
+      }
+
+      if (!securityJobId) {
+        setAclDelegationPreparationError(
+          "Actualisez le descripteur de sécurité "
+          + "après la Simulation."
+        )
+        return
+      }
+
+      const simulationDn = String(
+        aclDelegationResult
+          ?.target
+          ?.dn
+        || dn
+        || ""
+      ).trim()
+
+      const descriptorDn = String(
+        securityDescriptor?.object_dn
+        || securityDescriptorTargetDn
+        || ""
+      ).trim()
+
+      if (
+        simulationDn
+        && descriptorDn
+        && simulationDn.toUpperCase()
+          !== descriptorDn.toUpperCase()
+      ) {
+        setAclDelegationPreparationError(
+          "La Simulation et le descripteur de sécurité "
+          + "ne concernent pas le même objet."
+        )
+        return
+      }
+
+      if (!onPrepareAclDelegationProduction) {
+        setAclDelegationPreparationError(
+          "La préparation Production ACL "
+          + "n’est pas disponible."
+        )
+        return
+      }
+
+      setAclDelegationPreparationLoading(true)
+      setAclDelegationPreparationError("")
+      setAclDelegationPreparationResult(null)
+      setAclDelegationPrewriteError("")
+      setAclDelegationPrewriteResult(null)
+      setAclDelegationConfirmationDn("")
+      setAclDelegationConfirmationPhrase("")
+      setAclDelegationConfirmationError("")
+      setAclDelegationConfirmationResult(null)
+
+      try {
+        const result =
+          await onPrepareAclDelegationProduction(
+            aclDelegationResult,
+            securityDescriptor
+          )
+
+        if (result) {
+          setAclDelegationPreparationResult(
+            result
+          )
+        }
+      } catch (err) {
+        setAclDelegationPreparationError(
+          String(
+            err?.message
+            || "Préparation Production ACL en erreur."
+          )
+        )
+      } finally {
+        setAclDelegationPreparationLoading(false)
+      }
+    }
+
+    async function submitAclDelegationPrewrite() {
+      if (!aclDelegationPreparationResult) {
+        setAclDelegationPrewriteError(
+          "Préparez d’abord Production côté serveur."
+        )
+        return
+      }
+
+      if (!onStartAclDelegationPrewrite) {
+        setAclDelegationPrewriteError(
+          "Validation ACL pre-write indisponible."
+        )
+        return
+      }
+
+      const confirmed = window.confirm(
+        "Cette étape consomme les preuves ACL "
+        + "anti-replay et crée un ticket de validation "
+        + "pre-write.\n\n"
+        + "Elle n’écrit pas dans Active Directory.\n\n"
+        + "L’agent doit déjà être en mode Production. "
+        + "Le portail ne changera pas le mode "
+        + "automatiquement.\n\n"
+        + "Continuer ?"
+      )
+
+      if (!confirmed) {
+        return
+      }
+
+      setAclDelegationPrewriteLoading(true)
+      setAclDelegationPrewriteError("")
+      setAclDelegationPrewriteResult(null)
+      setAclDelegationConfirmationDn("")
+      setAclDelegationConfirmationPhrase("")
+      setAclDelegationConfirmationError("")
+      setAclDelegationConfirmationResult(null)
+
+      try {
+        const result =
+          await onStartAclDelegationPrewrite(
+            aclDelegationPreparationResult
+          )
+
+        if (result) {
+          setAclDelegationPrewriteResult(
+            result
+          )
+        }
+      } catch (err) {
+        setAclDelegationPrewriteError(
+          String(
+            err?.message
+            || "Validation ACL pre-write en erreur."
+          )
+        )
+      } finally {
+        setAclDelegationPrewriteLoading(false)
+      }
+    }
+
+    async function submitAclDelegationFinalConfirmation(
+      event
+    ) {
+      event.preventDefault()
+
+      if (!aclDelegationPrewriteResult) {
+        setAclDelegationConfirmationError(
+          "Validation pre-write requise."
+        )
+        return
+      }
+
+      if (!aclDelegationPreparationResult) {
+        setAclDelegationConfirmationError(
+          "Préparation Production ACL absente."
+        )
+        return
+      }
+
+      if (!onConfirmAclDelegationProduction) {
+        setAclDelegationConfirmationError(
+          "Confirmation Production ACL indisponible."
+        )
+        return
+      }
+
+      const expectedDn = String(
+        aclDelegationPreparationResult
+          ?.confirmation_requirements
+          ?.confirm_object_dn
+        || ""
+      ).trim()
+
+      const expectedPhrase = String(
+        aclDelegationPreparationResult
+          ?.confirmation_requirements
+          ?.confirmation_phrase
+        || ""
+      ).trim()
+
+      const typedDn = String(
+        aclDelegationConfirmationDn
+        || ""
+      ).trim()
+
+      const typedPhrase = String(
+        aclDelegationConfirmationPhrase
+        || ""
+      ).trim()
+
+      if (
+        !expectedDn
+        || !expectedPhrase
+      ) {
+        setAclDelegationConfirmationError(
+          "Exigences de confirmation serveur absentes."
+        )
+        return
+      }
+
+      if (typedDn !== expectedDn) {
+        setAclDelegationConfirmationError(
+          "Recopiez exactement le DN attendu."
+        )
+        return
+      }
+
+      if (typedPhrase !== expectedPhrase) {
+        setAclDelegationConfirmationError(
+          "Recopiez exactement la phrase attendue."
+        )
+        return
+      }
+
+      setAclDelegationConfirmationLoading(true)
+      setAclDelegationConfirmationError("")
+      setAclDelegationConfirmationResult(null)
+
+      try {
+        const result =
+          await onConfirmAclDelegationProduction(
+            aclDelegationPrewriteResult,
+            aclDelegationPreparationResult,
+            typedDn,
+            typedPhrase
+          )
+
+        if (result) {
+          setAclDelegationConfirmationResult(
+            result
+          )
+        }
+      } catch (err) {
+        setAclDelegationConfirmationError(
+          String(
+            err?.message
+            || "Confirmation Production ACL en erreur."
+          )
+        )
+      } finally {
+        setAclDelegationConfirmationLoading(false)
+      }
+    }
+
 
     return (
       <div className="aduc-tab-card aduc-security-tab">
@@ -2229,6 +2575,484 @@ const objectTechnicalRows = [
                     ad_write_authorized = false
                   </span>
                 </div>
+
+                <div className="aduc-acl-delegation-policy">
+                  <strong>
+                    Préparation Production contrôlée
+                  </strong>
+
+                  <span>
+                    Le serveur revalide les deux jobs,
+                    calcule le fingerprint ACL et garde
+                    toutes les autorisations d’écriture
+                    fermées. Le mode agent doit rester
+                    Simulation pendant cette étape.
+                  </span>
+                </div>
+
+                <div className="aduc-acl-delegation-actions">
+                  <button
+                    type="button"
+                    disabled={
+                      aclDelegationLoading
+                      || aclDelegationPreparationLoading
+                      || securityDescriptorLoading
+                      || !aclDelegationResult
+                        ?.simulation_job_id
+                      || !securityDescriptor
+                        ?.security_descriptor_job_id
+                    }
+                    onClick={
+                      submitAclDelegationProductionPreparation
+                    }
+                  >
+                    {aclDelegationPreparationLoading
+                      ? "Validation serveur…"
+                      : "Préparer Production"}
+                  </button>
+                </div>
+
+                <p className="aduc-details-empty-mini">
+                  Mode agent actuel : {adAgentMode || "Inconnu"}.
+                  {" "}
+                  Si le descripteur a été chargé avant
+                  la Simulation, cliquez d’abord sur
+                  « Actualiser ».
+                </p>
+
+                {aclDelegationPreparationError && (
+                  <div className="aduc-security-error">
+                    {aclDelegationPreparationError}
+                  </div>
+                )}
+
+                {aclDelegationPreparationResult && (
+                  <>
+                    <div className="aduc-acl-delegation-result-head">
+                      <strong>
+                        Preuve Production préparée
+                      </strong>
+
+                      <span>
+                        Aucune autorisation Production accordée
+                      </span>
+                    </div>
+
+                    <div className="aduc-acl-delegation-result-grid">
+                      <div>
+                        <span>Binding</span>
+                        <strong>
+                          {aclDelegationPreparationResult
+                            ?.evidence
+                            ?.binding_validated
+                            ? "Validé côté serveur"
+                            : "Non validé"}
+                        </strong>
+
+                        <small>
+                          {
+                            aclDelegationPreparationResult
+                              ?.evidence
+                              ?.trusted_source
+                            || "—"
+                          }
+                        </small>
+                      </div>
+
+                      <div>
+                        <span>Fingerprint ACL</span>
+                        <code>
+                          {
+                            aclDelegationPreparationResult
+                              ?.dacl
+                              ?.acl_fingerprint
+                            || "—"
+                          }
+                        </code>
+                      </div>
+
+                      <div>
+                        <span>DACL SHA-256</span>
+                        <code>
+                          {
+                            aclDelegationPreparationResult
+                              ?.dacl
+                              ?.dacl_sddl_sha256
+                            || "—"
+                          }
+                        </code>
+                      </div>
+
+                      <div>
+                        <span>Confirmation humaine</span>
+                        <strong>
+                          Non validée
+                        </strong>
+
+                        <small>
+                          Aucun claim créé
+                        </small>
+                      </div>
+                    </div>
+
+                    <div className="aduc-acl-delegation-invariants">
+                      <span>
+                        binding_validated = true
+                      </span>
+                      <span>
+                        claim_created = false
+                      </span>
+                      <span>
+                        replay_consumed = false
+                      </span>
+                      <span>
+                        production_authorized = false
+                      </span>
+                      <span>
+                        ad_write_authorized = false
+                      </span>
+                    </div>
+
+                    <div className="aduc-acl-delegation-policy">
+                      <strong>
+                        Étape suivante — validation pre-write
+                      </strong>
+
+                      <span>
+                        Passez manuellement l’agent en
+                        Production avant de continuer.
+                        Cette étape consomme les preuves
+                        anti-replay et lance uniquement la
+                        revalidation Windows. Le portail ne
+                        change jamais le mode automatiquement.
+                      </span>
+                    </div>
+
+                    <div className="aduc-acl-delegation-actions">
+                      <button
+                        type="button"
+                        disabled={
+                          aclDelegationPrewriteLoading
+                        }
+                        onClick={
+                          submitAclDelegationPrewrite
+                        }
+                      >
+                        {aclDelegationPrewriteLoading
+                          ? "Validation pre-write…"
+                          : "Lancer validation pre-write"}
+                      </button>
+                    </div>
+
+                    {aclDelegationPrewriteError && (
+                      <div className="aduc-security-error">
+                        {aclDelegationPrewriteError}
+                      </div>
+                    )}
+
+                    {aclDelegationPrewriteResult && (
+                      <>
+                        <div className="aduc-acl-delegation-result-head">
+                          <strong>
+                            Validation pre-write terminée
+                          </strong>
+
+                          <span>
+                            Aucune écriture ACL effectuée
+                          </span>
+                        </div>
+
+                        <div className="aduc-acl-delegation-result-grid">
+                          <div>
+                            <span>Claim</span>
+                            <code>
+                              {
+                                aclDelegationPrewriteResult
+                                  ?.claim
+                                  ?.claim_id
+                                || "—"
+                              }
+                            </code>
+
+                            <small>
+                              Preuve anti-replay consommée
+                            </small>
+                          </div>
+
+                          <div>
+                            <span>Ticket pre-write</span>
+                            <code>
+                              {
+                                aclDelegationPrewriteResult
+                                  ?.ticket
+                                  ?.ticket_id
+                                || "—"
+                              }
+                            </code>
+
+                            <small>
+                              {
+                                aclDelegationPrewriteResult
+                                  ?.status
+                                  ?.state
+                                || "—"
+                              }
+                            </small>
+                          </div>
+
+                          <div>
+                            <span>Execution ID</span>
+                            <code>
+                              {
+                                aclDelegationPrewriteResult
+                                  ?.status
+                                  ?.execution_id
+                                || "—"
+                              }
+                            </code>
+
+                            <small>
+                              Revalidation Windows
+                            </small>
+                          </div>
+
+                          <div>
+                            <span>Mode après validation</span>
+                            <strong>
+                              {
+                                aclDelegationPrewriteResult
+                                  ?.final_agent_mode
+                                || "Inconnu"
+                              }
+                            </strong>
+
+                            <small>
+                              Repassez Simulation avant
+                              la confirmation finale.
+                            </small>
+                          </div>
+                        </div>
+
+                        <div className="aduc-acl-delegation-invariants">
+                          <span>
+                            replay_consumed = true
+                          </span>
+                          <span>
+                            prewrite_validated = true
+                          </span>
+                          <span>
+                            confirmation_ready = true
+                          </span>
+                          <span>
+                            production_authorized = false
+                          </span>
+                          <span>
+                            ad_write_authorized = false
+                          </span>
+                        </div>
+
+                        <div className="aduc-acl-delegation-policy">
+                          <strong>
+                            Confirmation humaine finale
+                          </strong>
+
+                          <span>
+                            Repassez d’abord manuellement
+                            l’agent en Simulation. Recopiez
+                            ensuite exactement le DN et la
+                            phrase attendus. Cette étape
+                            enregistre uniquement une preuve
+                            dormante et n’écrit rien dans
+                            Active Directory.
+                          </span>
+                        </div>
+
+                        <form
+                          className="aduc-acl-delegation-form"
+                          onSubmit={
+                            submitAclDelegationFinalConfirmation
+                          }
+                        >
+                          <label className="aduc-acl-delegation-field">
+                            <span>
+                              DN exact attendu
+                            </span>
+
+                            <code>
+                              {
+                                aclDelegationPreparationResult
+                                  ?.confirmation_requirements
+                                  ?.confirm_object_dn
+                                || "—"
+                              }
+                            </code>
+
+                            <input
+                              type="text"
+                              value={
+                                aclDelegationConfirmationDn
+                              }
+                              onChange={event =>
+                                setAclDelegationConfirmationDn(
+                                  event.target.value
+                                )
+                              }
+                              autoComplete="off"
+                              spellCheck={false}
+                              placeholder="Recopiez exactement le DN"
+                            />
+                          </label>
+
+                          <label className="aduc-acl-delegation-field">
+                            <span>
+                              Phrase exacte attendue
+                            </span>
+
+                            <code>
+                              {
+                                aclDelegationPreparationResult
+                                  ?.confirmation_requirements
+                                  ?.confirmation_phrase
+                                || "—"
+                              }
+                            </code>
+
+                            <input
+                              type="text"
+                              value={
+                                aclDelegationConfirmationPhrase
+                              }
+                              onChange={event =>
+                                setAclDelegationConfirmationPhrase(
+                                  event.target.value
+                                )
+                              }
+                              autoComplete="off"
+                              spellCheck={false}
+                              placeholder="Recopiez exactement la phrase"
+                            />
+                          </label>
+
+                          <div className="aduc-acl-delegation-actions">
+                            <button
+                              type="submit"
+                              disabled={
+                                aclDelegationConfirmationLoading
+                                || !aclDelegationConfirmationDn
+                                || !aclDelegationConfirmationPhrase
+                              }
+                            >
+                              {
+                                aclDelegationConfirmationLoading
+                                  ? "Validation finale…"
+                                  : "Valider la confirmation finale"
+                              }
+                            </button>
+                          </div>
+                        </form>
+
+                        <p className="aduc-details-empty-mini">
+                          Mode attendu pour cette étape :
+                          {" "}
+                          Simulation.
+                          {" "}
+                          Le portail ne change jamais le mode
+                          automatiquement.
+                        </p>
+
+                        {aclDelegationConfirmationError && (
+                          <div className="aduc-security-error">
+                            {aclDelegationConfirmationError}
+                          </div>
+                        )}
+
+                        {aclDelegationConfirmationResult && (
+                          <>
+                            <div className="aduc-acl-delegation-result-head">
+                              <strong>
+                                Confirmation Production enregistrée
+                              </strong>
+
+                              <span>
+                                Preuve dormante uniquement
+                              </span>
+                            </div>
+
+                            <div className="aduc-acl-delegation-result-grid">
+                              <div>
+                                <span>Confirmation ID</span>
+
+                                <code>
+                                  {
+                                    aclDelegationConfirmationResult
+                                      ?.confirmation
+                                      ?.confirmation_id
+                                    || "Enregistrée"
+                                  }
+                                </code>
+
+                                <small>
+                                  Confirmation humaine consommée
+                                </small>
+                              </div>
+
+                              <div>
+                                <span>État</span>
+
+                                <strong>
+                                  {
+                                    aclDelegationConfirmationResult
+                                      ?.confirmation
+                                      ?.state
+                                    || "production_confirmation_dormant"
+                                  }
+                                </strong>
+
+                                <small>
+                                  Aucun runtime ACL ouvert
+                                </small>
+                              </div>
+
+                              <div>
+                                <span>Mode final</span>
+
+                                <strong>
+                                  {
+                                    aclDelegationConfirmationResult
+                                      ?.final_agent_mode
+                                    || "Inconnu"
+                                  }
+                                </strong>
+
+                                <small>
+                                  Simulation requise
+                                </small>
+                              </div>
+                            </div>
+
+                            <div className="aduc-acl-delegation-invariants">
+                              <span>
+                                confirmation_validated = true
+                              </span>
+                              <span>
+                                confirmation_consumed = true
+                              </span>
+                              <span>
+                                production_authorized = false
+                              </span>
+                              <span>
+                                ad_write_authorized = false
+                              </span>
+                              <span>
+                                write_performed = false
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </section>

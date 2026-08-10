@@ -4,6 +4,60 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.8.0-alpha.09] — 2026-08-10
+
+### C8.4D — couche Production contrôlée, confirmation humaine et intégration UI ACL
+
+- préparation Production contrôlée depuis les preuves serveur Simulation et Security Descriptor ;
+- provenance stricte des `simulation_job_id` et `security_descriptor_job_id` ;
+- intention `apply_acl_delegation` uniquement structurelle et dormante dans React ;
+- absence de `apply_acl_delegation` dans le dispatch AD Admin générique et le worker générique ;
+- parcours humain claim anti-replay → ticket pré-write → statut pré-write ;
+- micro-fenêtre Production limitée à la revalidation pré-write ;
+- retour obligatoire en Simulation avant confirmation finale ;
+- confirmation stricte par DN exact et phrase attendue ;
+- persistance atomique de la confirmation dans le registre anti-replay ;
+- aucune phrase de confirmation brute persistée ;
+- confirmation liée à l’identité OIDC réelle ;
+- correction de la liaison OIDC via `AuthenticatedIdentity.claims` et validation de `sub`, `iss` et `azp` ;
+- statut humain read-only `/api/ad-admin/acl-delegation/prewrite-status/{ticket_id}` ;
+- aucun appel React direct aux routes worker de pré-écriture ;
+- `job_creation_authorized=false` ;
+- `runtime_authorized=false` ;
+- `production_authorized=false` ;
+- `ad_write_authorized=false` ;
+- `write_performed=false` ;
+- aucune primitive d’écriture ACL ajoutée ;
+- tests historiques C8.4A/B réalignés sur l’intention frontend dormante sans ouvrir le runtime ;
+- 753 tests backend réussis ;
+- 339 sous-tests backend réussis ;
+- 364 tests frontend réussis ;
+- 42 avertissements backend connus ;
+- build Vite 8.1.3 validé ;
+- contrôle sécurité pré-commit validé ;
+- `git diff --check` validé.
+
+### Validation réelle
+
+- cible : `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
+- `objectGUID` : `8838f739-c817-4b45-90b2-b597ce79312a` ;
+- claim : `d835320c-0564-4b50-a628-c0af7ffed87f` ;
+- ticket : `ac5aea75-85b1-48a1-9157-27fc9de5f6b6` ;
+- exécution : `d0e93be5-1181-4749-8383-2a4d3c99a542` ;
+- confirmation : `dfce52e6-69ab-4ec5-bdd8-4c2af87a8d0f` ;
+- état final du claim : `prewrite_validated` ;
+- `FINAL_AGENT_MODE=Simulation` ;
+- lecture post-confirmation : `e9f5b851-7dbf-4522-97d3-3a5c47e13f3c` ;
+- DACL post-confirmation read-only ;
+- 36 ACE inchangées ;
+- SHA-256 DACL inchangé : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
+- `DACL_UNCHANGED=True` ;
+- `PRODUCTION_AUTHORIZED=False` ;
+- `AD_WRITE_AUTHORIZED=False` ;
+- `ACL_WRITE_PERFORMED=False` ;
+- progression : C8.4D 100 %, C8 95 %, Explorateur AD 99 %, EITAS 94 %.
+
+
 
 ## [0.8.0-alpha.08] — 2026-08-10
 

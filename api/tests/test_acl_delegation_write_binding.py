@@ -579,37 +579,59 @@ def test_c8_4a2_rejects_non_read_only_descriptor():
         )
 
 
+
 def test_c8_4a2_remains_dormant():
     admin_source = Path(
         "api/app/services/ad_admin.py"
-    ).read_text(encoding="utf-8")
+    ).read_text(
+        encoding="utf-8"
+    )
 
     main_source = Path(
         "api/main.py"
-    ).read_text(encoding="utf-8")
+    ).read_text(
+        encoding="utf-8"
+    )
 
     worker_source = Path(
         "agent-windows/modules/EitasAdAdmin.ps1"
-    ).read_text(encoding="utf-8")
-
-    frontend_source = "\n".join(
-        path.read_text(
-            encoding="utf-8",
-            errors="ignore",
-        )
-        for path in Path(
-            "frontend/src"
-        ).rglob("*")
-        if path.is_file()
+    ).read_text(
+        encoding="utf-8"
     )
 
+    frontend_source = Path(
+        "frontend/src/features/"
+        "active-directory/"
+        "AdExplorerPage.jsx"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    # C8.4D may materialize the dormant intent
+    # client-side, but it must never expose a
+    # generic ACL execution path.
     for source in (
         admin_source,
         main_source,
         worker_source,
-        frontend_source,
     ):
         assert "apply_acl_delegation" not in source
+
+    assert (
+        'action: "apply_acl_delegation"'
+        in frontend_source
+    )
+
+    assert (
+        "production_preparation_dormant"
+        in frontend_source
+    )
+
+    assert (
+        "expected_acl_fingerprint"
+        in frontend_source
+    )
+
 
 
 def test_c8_4a2_contains_no_acl_write_primitive():

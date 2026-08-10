@@ -153,6 +153,12 @@ from app.services.acl_delegation_prewrite_runtime import (
     list_pending_acl_delegation_prewrite_tickets,
 )
 
+from app.services.acl_delegation_prewrite_status import (
+    AclDelegationPrewriteStatusError,
+    AclDelegationPrewriteStatusNotFound,
+    get_acl_delegation_prewrite_status,
+)
+
 from app.services.acl_delegation_write_identity_envelope import (
     AclDelegationWriteIdentityEnvelopeError,
     build_acl_delegation_write_identity_envelope,
@@ -164,6 +170,22 @@ from app.services.acl_delegation_write_claim import (
 )
 from app.services.acl_delegation_write_replay import (
     AclDelegationWriteReplayStorageError,
+)
+
+from app.services.acl_delegation_production_confirmation import (
+    AclDelegationProductionConfirmationConflict,
+    AclDelegationProductionConfirmationError,
+)
+
+from app.services.acl_delegation_production_confirmation_persistence import (
+    AclDelegationProductionConfirmationPersistenceConflict,
+    AclDelegationProductionConfirmationPersistenceError,
+    persist_acl_delegation_production_confirmation,
+)
+
+from app.services.acl_delegation_production_preparation import (
+    AclDelegationProductionPreparationError,
+    prepare_acl_delegation_production_evidence,
 )
 
 from app.services.ldap_hab_seniority_simulation_persistence import (
@@ -1038,6 +1060,202 @@ def create_ldap_attribute_update_simulation_job_api(
 
 
 @app.post(
+    "/api/ad-admin/acl-delegation/production-preparation"
+)
+def prepare_acl_delegation_production_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    try:
+        preparation = (
+            prepare_acl_delegation_production_evidence(
+                ad_admin_jobs_file=(
+                    AD_ADMIN_JOBS_FILE
+                ),
+                ad_explorer_jobs_file=(
+                    AD_EXPLORER_JOBS_FILE
+                ),
+                payload=payload,
+            )
+        )
+
+    except AclDelegationProductionPreparationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    actor_username = str(
+        identity.username
+        or identity.subject
+        or ""
+    ).strip()
+
+    write_audit_log(
+        action=(
+            "acl_delegation_production_preparation_built"
+        ),
+        request_id=(
+            preparation.evidence_digest
+        ),
+        actor=actor_username,
+        message=(
+            "Preparation Production ACL construite "
+            "depuis les preuves serveur sans "
+            "autorisation d'ecriture"
+        ),
+        details={
+            "contract_version": (
+                preparation.contract_version
+            ),
+            "state": preparation.state,
+
+            "simulation_job_id": (
+                preparation.simulation_job_id
+            ),
+            "security_descriptor_job_id": (
+                preparation.security_descriptor_job_id
+            ),
+
+            "target_dn": (
+                preparation.target_dn
+            ),
+            "target_object_guid": (
+                preparation.target_object_guid
+            ),
+
+            "principal_sid": (
+                preparation.principal_sid
+            ),
+
+            "dacl_sddl_sha256": (
+                preparation.dacl_sddl_sha256
+            ),
+            "acl_fingerprint": (
+                preparation.acl_fingerprint
+            ),
+            "evidence_digest": (
+                preparation.evidence_digest
+            ),
+
+            "trusted_evidence_loaded": True,
+            "binding_validated": True,
+            "human_confirmation_validated": False,
+            "replay_consumed": False,
+            "claim_created": False,
+
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    )
+
+    return {
+        "contract_version": (
+            preparation.contract_version
+        ),
+        "state": preparation.state,
+
+        "evidence": {
+            "simulation_job_id": (
+                preparation.simulation_job_id
+            ),
+            "security_descriptor_job_id": (
+                preparation.security_descriptor_job_id
+            ),
+            "evidence_digest": (
+                preparation.evidence_digest
+            ),
+            "trusted_source": (
+                preparation.trusted_source
+            ),
+            "trusted_evidence_loaded": True,
+            "binding_validated": True,
+        },
+
+        "target": {
+            "dn": preparation.target_dn,
+            "object_guid": (
+                preparation.target_object_guid
+            ),
+        },
+
+        "principal": {
+            "identity": (
+                preparation.principal_identity
+            ),
+            "dn": preparation.principal_dn,
+            "sid": preparation.principal_sid,
+        },
+
+        "ace": {
+            "access_control_type": (
+                preparation.access_control_type
+            ),
+            "rights": list(
+                preparation.rights
+            ),
+            "inheritance_type": (
+                preparation.inheritance_type
+            ),
+            "object_type_guid": (
+                preparation.object_type_guid
+            ),
+            "inherited_object_type_guid": (
+                preparation.inherited_object_type_guid
+            ),
+        },
+
+        "dacl": {
+            "dacl_sddl_sha256": (
+                preparation.dacl_sddl_sha256
+            ),
+            "acl_fingerprint": (
+                preparation.acl_fingerprint
+            ),
+        },
+
+        "freshness": {
+            "simulation_completed_at": (
+                preparation.simulation_completed_at
+            ),
+            "security_descriptor_completed_at": (
+                preparation.security_descriptor_completed_at
+            ),
+            "simulation_age_seconds": (
+                preparation.simulation_age_seconds
+            ),
+            "security_descriptor_age_seconds": (
+                preparation.security_descriptor_age_seconds
+            ),
+        },
+
+        "confirmation_requirements": {
+            "confirm_object_dn": (
+                preparation.required_confirm_object_dn
+            ),
+            "confirmation_phrase": (
+                preparation.required_confirmation_phrase
+            ),
+            "human_confirmation_validated": False,
+        },
+
+        "anti_replay": {
+            "replay_consumed": False,
+            "claim_created": False,
+        },
+
+        "authorization": {
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.post(
     "/api/ad-admin/acl-delegation/write-intent/identity-envelope"
 )
 def create_acl_delegation_write_identity_envelope_api(
@@ -1481,6 +1699,341 @@ def create_acl_delegation_prewrite_ticket_api(
                 False
             ),
             "job_creation_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.post(
+    "/api/ad-admin/acl-delegation/production-confirmation"
+)
+def confirm_acl_delegation_production_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    allowed_fields = {
+        "claim_id",
+        "ticket_id",
+        "execution_id",
+        "confirm_object_dn",
+        "confirmation_phrase",
+    }
+
+    unexpected_fields = sorted(
+        set(payload)
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs confirmation ACL interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    required = {
+        key: str(
+            payload.get(key)
+            or ""
+        ).strip()
+        for key in allowed_fields
+    }
+
+    missing = sorted(
+        key
+        for key, value in required.items()
+        if not value
+    )
+
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs confirmation ACL obligatoires : "
+                + ", ".join(
+                    missing
+                )
+            ),
+        )
+
+    try:
+        confirmation = (
+            persist_acl_delegation_production_confirmation(
+                identity=identity,
+                replay_registry_file=(
+                    ACL_DELEGATION_WRITE_REPLAY_FILE
+                ),
+                claim_id=required[
+                    "claim_id"
+                ],
+                ticket_id=required[
+                    "ticket_id"
+                ],
+                execution_id=required[
+                    "execution_id"
+                ],
+                confirm_object_dn=required[
+                    "confirm_object_dn"
+                ],
+                confirmation_phrase=required[
+                    "confirmation_phrase"
+                ],
+            )
+        )
+
+    except (
+        AclDelegationProductionConfirmationConflict,
+        AclDelegationProductionConfirmationPersistenceConflict,
+    ) as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(exc),
+        ) from exc
+
+    except (
+        AclDelegationProductionConfirmationError,
+        AclDelegationProductionConfirmationPersistenceError,
+    ) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteReplayStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Stockage de securite ACL indisponible"
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "acl_delegation_production_confirmation_consumed"
+        ),
+        request_id=(
+            confirmation.confirmation_id
+        ),
+        actor=confirmation.actor_username,
+        message=(
+            "Confirmation Production ACL validee "
+            "et consommee sans autorisation d'ecriture"
+        ),
+        details={
+            "contract_version": (
+                confirmation.contract_version
+            ),
+            "state": confirmation.state,
+            "source_state": (
+                confirmation.source_state
+            ),
+
+            "confirmation_id": (
+                confirmation.confirmation_id
+            ),
+            "confirmation_digest": (
+                confirmation.confirmation_digest
+            ),
+            "confirmation_created_at": (
+                confirmation.confirmation_created_at
+            ),
+
+            "claim_id": confirmation.claim_id,
+            "ticket_id": confirmation.ticket_id,
+            "execution_id": (
+                confirmation.execution_id
+            ),
+
+            "actor_subject": (
+                confirmation.actor_subject
+            ),
+            "actor_username": (
+                confirmation.actor_username
+            ),
+
+            "target_dn": (
+                confirmation.target_dn
+            ),
+            "target_object_guid": (
+                confirmation.target_object_guid
+            ),
+            "principal_sid": (
+                confirmation.principal_sid
+            ),
+
+            "dacl_sddl_sha256": (
+                confirmation.dacl_sddl_sha256
+            ),
+            "acl_fingerprint": (
+                confirmation.acl_fingerprint
+            ),
+
+            "confirmation_validated": True,
+            "confirmation_consumed": True,
+
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    )
+
+    return {
+        "contract_version": (
+            confirmation.contract_version
+        ),
+        "state": confirmation.state,
+        "source_state": (
+            confirmation.source_state
+        ),
+
+        "confirmation_id": (
+            confirmation.confirmation_id
+        ),
+        "confirmation_digest": (
+            confirmation.confirmation_digest
+        ),
+        "confirmation_created_at": (
+            confirmation.confirmation_created_at
+        ),
+
+        "claim_id": confirmation.claim_id,
+        "ticket_id": confirmation.ticket_id,
+        "execution_id": (
+            confirmation.execution_id
+        ),
+
+        "actor": {
+            "subject": (
+                confirmation.actor_subject
+            ),
+            "username": (
+                confirmation.actor_username
+            ),
+        },
+
+        "target": {
+            "dn": confirmation.target_dn,
+            "object_guid": (
+                confirmation.target_object_guid
+            ),
+        },
+
+        "principal": {
+            "sid": confirmation.principal_sid,
+        },
+
+        "dacl": {
+            "dacl_sddl_sha256": (
+                confirmation.dacl_sddl_sha256
+            ),
+            "acl_fingerprint": (
+                confirmation.acl_fingerprint
+            ),
+        },
+
+        "confirmation": {
+            "validated": True,
+            "consumed": True,
+        },
+
+        "authorization": {
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
+            "production_authorized": False,
+            "ad_write_authorized": False,
+        },
+    }
+
+
+@app.get(
+    "/api/ad-admin/acl-delegation/prewrite-status/{ticket_id}"
+)
+def get_acl_delegation_prewrite_status_api(
+    ticket_id: str,
+    identity=Depends(AD_ACCESS),
+):
+    actor_subject = str(
+        identity.subject
+        or ""
+    ).strip()
+
+    if not actor_subject:
+        raise HTTPException(
+            status_code=403,
+            detail="Identite OIDC ACL invalide",
+        )
+
+    try:
+        status = (
+            get_acl_delegation_prewrite_status(
+                replay_registry_file=(
+                    ACL_DELEGATION_WRITE_REPLAY_FILE
+                ),
+                ticket_id=ticket_id,
+                actor_subject=actor_subject,
+            )
+        )
+
+    except AclDelegationPrewriteStatusNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail="Statut ACL pre-write introuvable",
+        ) from exc
+
+    except AclDelegationPrewriteStatusError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    except AclDelegationWriteReplayStorageError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Stockage de securite ACL indisponible"
+            ),
+        ) from exc
+
+    return {
+        "contract_version": (
+            status.contract_version
+        ),
+        "state": status.state,
+
+        "ticket_id": status.ticket_id,
+        "claim_id": status.claim_id,
+        "execution_id": (
+            status.execution_id
+        ),
+
+        "created_at": status.created_at,
+        "expires_at": status.expires_at,
+        "claimed_at": status.claimed_at,
+        "completed_at": status.completed_at,
+
+        "success": status.success,
+
+        "validation": {
+            "worker_validation_in_progress": (
+                status.worker_validation_in_progress
+            ),
+            "completed": (
+                status.validation_completed
+            ),
+            "confirmation_ready": (
+                status.confirmation_ready
+            ),
+        },
+
+        "authorization": {
+            "job_creation_authorized": False,
+            "runtime_authorized": False,
             "production_authorized": False,
             "ad_write_authorized": False,
         },
