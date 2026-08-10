@@ -36,6 +36,7 @@ ALLOWED_ACTIONS = {
     "search_computers",
     "search_objects",
     "get_security_descriptor",
+    "get_deleted_objects",
 }
 
 

@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0
+## État courant — v0.9.0-alpha.01
 
 | Indicateur | Avancement |
 |---|---:|
@@ -22,7 +22,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |      100 % |
 | Projet EITAS global | 95 % |
 
-La version stable `v0.8.0` clôt C8 « ACL, sécurité et délégation » à 100 %. Explorateur Active Directory : 100 %. EITAS : 95 %. Les lots C8.1 à C8.4D ainsi que C8-FINAL ont été validés sur Debian, dans l’interface et sur le worker Windows. Les preuves finales confirment la DACL inchangée, le mode `Simulation`, l’absence de primitive d’écriture ACL et la non-autorisation persistante de toute mutation après confirmation. Les fichiers Windows déployés sont strictement identiques aux sources Git et PowerShell 5.1 les parse sans erreur.
+`v0.9.0-alpha.01` valide C9.1 à 100 % : inventaire read-only réel des objets supprimés Active Directory via le pipeline AD Explorer. Le runtime Windows retourne 100 objets après exclusion du conteneur système `CN=Deleted Objects`, avec 100 GUID, 100 `lastKnownParent`, 100 objets `isRecycled=true` et aucun `msDS-LastKnownRDN`. La Corbeille AD reste désactivée, `tombstoneLifetime=180`, `msDS-DeletedObjectLifetime` reste non défini et les 100 objets sont classés `recycle_bin_disabled`. Aucun restore, aucune activation de la Corbeille et aucune ouverture Production n’ont eu lieu. Le mode final reste `Simulation`. C9 : 20 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -37,10 +37,56 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Terminé — 100 % |
-| C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
+| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 20 % |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.9.0-alpha.01 — C9.1 inventaire read-only des objets supprimés
+
+Ce checkpoint valide C9.1 à 100 % et ouvre C9 sans autoriser aucune restauration.
+
+- ajout de l’action AD Explorer `get_deleted_objects` ;
+- action read-only disponible sans requête de recherche obligatoire ;
+- intégration dans le pipeline AD Explorer existant ;
+- traitement Windows par `EitasAdLookup.ps1` ;
+- lecture native avec `Get-ADObject`, `-IncludeDeletedObjects` et filtre `(isDeleted=TRUE)` ;
+- lecture du statut de la fonctionnalité Active Directory Recycle Bin ;
+- lecture de `tombstoneLifetime` et `msDS-DeletedObjectLifetime` ;
+- exclusion du conteneur système `CN=Deleted Objects` de l’inventaire utilisateur ;
+- métadonnées retournées : GUID, classe, DN supprimé, `isDeleted`, `isRecycled`, `lastKnownParent`, `msDS-LastKnownRDN`, dates et capacité de restauration ;
+- capacité de restauration volontairement conservatrice ;
+- aucune primitive `Restore-ADObject` introduite ;
+- aucune primitive `Enable-ADOptionalFeature` introduite ;
+- aucune action `restore_object` ou `restore_deleted_object` exposée ;
+- Corbeille Active Directory toujours désactivée ;
+- aucune restauration effectuée ;
+- aucun passage du projet en mode Production ;
+- module Windows actif SHA-256 `4AD6A5F3E2F6CB5FC6DB35ACE3E935B0B93E37BFE74155DC2D8794BA6D914D74` ;
+- PowerShell 5.1 : 0 erreur de parsing ;
+- worker AD Lookup actif avec un seul processus ;
+- validation runtime finale : 100 objets supprimés retournés ;
+- classes runtime : 6 computers, 6 contacts, 18 containers, 29 dnsNodes, 2 dnsZones, 16 groups, 17 organizationalUnits et 6 users ;
+- 100/100 objets avec GUID ;
+- 100/100 avec `lastKnownParent` ;
+- 0/100 avec `msDS-LastKnownRDN` ;
+- 100/100 avec `isRecycled=true` ;
+- 100/100 classés `recycle_bin_disabled` ;
+- `tombstoneLifetime=180` jours ;
+- `msDS-DeletedObjectLifetime` non défini ;
+- 17 tests C9 ciblés réussis ;
+- 45 tests AD Explorer réussis ;
+- 770 tests backend et 339 sous-tests réussis ;
+- 43 avertissements backend connus ;
+- rotation réussie de la clé API worker après exposition diagnostique ;
+- ancienne clé refusée en HTTP 401 et nouvelle clé acceptée en HTTP 200 ;
+- suppression des 8 occurrences Debian et des 11 occurrences Windows de l’ancienne clé ;
+- conservation d’un manifeste d’incident sans secret ;
+- contrôle sécurité pré-commit validé ;
+- `git diff --check` validé ;
+- progression : C9.1 100 %, C9 20 %, Explorateur AD 100 %, EITAS 95 %.
+
+La prochaine étape est C9.2 : conception et garde-fous de la capacité de restauration, sans activation automatique de la Corbeille Active Directory.
 
 ### v0.8.0 — C8 ACL, sécurité et délégation
 

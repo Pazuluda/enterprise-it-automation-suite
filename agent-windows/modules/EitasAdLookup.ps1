@@ -1,4 +1,4 @@
-function Get-EitasLookupValue {
+﻿function Get-EitasLookupValue {
     param(
         [object]$Object,
         [string[]]$Names
@@ -2602,6 +2602,324 @@ function Invoke-EitasAdExplorerGetSecurityDescriptor {
 }
 
 
+
+function Invoke-EitasAdExplorerGetDeletedObjects {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        $Payload
+    )
+
+    $Limit = 200
+
+    $RawLimit = Get-EitasLookupValue `
+        -Object $Payload `
+        -Names @("limit")
+
+    if ($null -ne $RawLimit) {
+        $ParsedLimit = 0
+
+        $LimitParsed = [int]::TryParse(
+            [string]$RawLimit,
+            [ref]$ParsedLimit
+        )
+
+        if ($LimitParsed) {
+            $Limit = $ParsedLimit
+        }
+    }
+
+    if ($Limit -lt 1) {
+        $Limit = 1
+    }
+
+    if ($Limit -gt 1000) {
+        $Limit = 1000
+    }
+
+    $RootDse = Get-ADRootDSE `
+        -ErrorAction Stop
+
+    $DomainDn = [string]$RootDse.defaultNamingContext
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $DomainDn
+        )
+    ) {
+        throw "Default naming context unavailable"
+    }
+
+    $ConfigurationDn = [string](
+        $RootDse.configurationNamingContext
+    )
+
+    $RecycleFeature = Get-ADOptionalFeature `
+        -Filter 'Name -eq "Recycle Bin Feature"' `
+        -Properties EnabledScopes `
+        -ErrorAction Stop
+
+    $EnabledScopes = @(
+        $RecycleFeature.EnabledScopes |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace(
+                [string]$_
+            )
+        }
+    )
+
+    $RecycleBinEnabled = (
+        $EnabledScopes.Count -gt 0
+    )
+
+    $DirectoryServiceDn = (
+        "CN=Directory Service," +
+        "CN=Windows NT," +
+        "CN=Services," +
+        $ConfigurationDn
+    )
+
+    $DirectoryService = Get-ADObject `
+        -Identity $DirectoryServiceDn `
+        -Properties `
+            tombstoneLifetime, `
+            msDS-DeletedObjectLifetime `
+        -ErrorAction Stop
+
+    $TombstoneLifetime = (
+        $DirectoryService.tombstoneLifetime
+    )
+
+    $DeletedObjectLifetime = (
+        $DirectoryService.'msDS-DeletedObjectLifetime'
+    )
+
+    $DeletedObjectsDn = (
+        "CN=Deleted Objects," +
+        $DomainDn
+    )
+
+    $AllDeletedObjects = @(
+        Get-ADObject `
+            -LDAPFilter '(isDeleted=TRUE)' `
+            -IncludeDeletedObjects `
+            -SearchBase $DomainDn `
+            -Properties `
+                objectGUID, `
+                objectClass, `
+                isDeleted, `
+                isRecycled, `
+                lastKnownParent, `
+                msDS-LastKnownRDN, `
+                whenCreated, `
+                whenChanged `
+            -ErrorAction Stop |
+        Where-Object {
+            [string]$_.DistinguishedName `
+                -ne $DeletedObjectsDn
+        }
+    )
+
+    $SelectedObjects = @(
+        $AllDeletedObjects |
+        Sort-Object `
+            -Property whenChanged `
+            -Descending |
+        Select-Object `
+            -First $Limit
+    )
+
+    $Items = @()
+
+    foreach ($Item in $SelectedObjects) {
+        $Classes = @(
+            $Item.objectClass
+        )
+
+        $ObjectClass = $null
+
+        if ($Classes.Count -gt 0) {
+            $ObjectClass = [string](
+                $Classes[
+                    $Classes.Count - 1
+                ]
+            )
+        }
+
+        $ObjectGuid = $null
+
+        if ($null -ne $Item.ObjectGUID) {
+            $ObjectGuid = [string](
+                $Item.ObjectGUID
+            )
+        }
+
+        $WhenCreated = $null
+
+        if ($null -ne $Item.whenCreated) {
+            $CreatedDate = [datetime](
+                $Item.whenCreated
+            )
+
+            $WhenCreated = (
+                $CreatedDate.
+                    ToUniversalTime().
+                    ToString("o")
+            )
+        }
+
+        $WhenChanged = $null
+
+        if ($null -ne $Item.whenChanged) {
+            $ChangedDate = [datetime](
+                $Item.whenChanged
+            )
+
+            $WhenChanged = (
+                $ChangedDate.
+                    ToUniversalTime().
+                    ToString("o")
+            )
+        }
+
+        $RestoreCapability = (
+            "candidate"
+        )
+
+        if (-not $RecycleBinEnabled) {
+            $RestoreCapability = (
+                "recycle_bin_disabled"
+            )
+        }
+
+        if (
+            $RecycleBinEnabled -and
+            $Item.isRecycled -eq $true
+        ) {
+            $RestoreCapability = (
+                "recycled_not_restorable"
+            )
+        }
+
+        $ItemResult = [pscustomobject]@{
+            name = [string](
+                $Item.Name
+            )
+
+            deleted_dn = [string](
+                $Item.DistinguishedName
+            )
+
+            object_guid = (
+                $ObjectGuid
+            )
+
+            object_class = (
+                $ObjectClass
+            )
+
+            is_deleted = (
+                $Item.isDeleted -eq $true
+            )
+
+            is_recycled = (
+                $Item.isRecycled -eq $true
+            )
+
+            last_known_parent = [string](
+                $Item.lastKnownParent
+            )
+
+            last_known_rdn = [string](
+                $Item.'msDS-LastKnownRDN'
+            )
+
+            when_created = (
+                $WhenCreated
+            )
+
+            when_changed = (
+                $WhenChanged
+            )
+
+            restore_capability = (
+                $RestoreCapability
+            )
+
+            restore_implemented = $false
+        }
+
+        $Items += $ItemResult
+    }
+
+    $RecycleBinResult = [ordered]@{
+        feature_found = (
+            $null -ne $RecycleFeature
+        )
+
+        enabled = (
+            $RecycleBinEnabled
+        )
+
+        enabled_scope_count = (
+            $EnabledScopes.Count
+        )
+
+        enabled_scopes = @(
+            $EnabledScopes |
+            ForEach-Object {
+                [string]$_
+            }
+        )
+
+        tombstone_lifetime_days = (
+            $TombstoneLifetime
+        )
+
+        deleted_object_lifetime_days = (
+            $DeletedObjectLifetime
+        )
+    }
+
+    return [ordered]@{
+        action = "get_deleted_objects"
+
+        read_only = $true
+
+        restore_implemented = $false
+
+        domain_dn = (
+            $DomainDn
+        )
+
+        deleted_objects_container_dn = (
+            $DeletedObjectsDn
+        )
+
+        recycle_bin = (
+            $RecycleBinResult
+        )
+
+        total_count = (
+            $AllDeletedObjects.Count
+        )
+
+        returned_count = (
+            $Items.Count
+        )
+
+        limit = (
+            $Limit
+        )
+
+        items = (
+            $Items
+        )
+    }
+}
+
 function Invoke-EitasAdExplorerJob {
     param(
         [object]$Config,
@@ -2656,6 +2974,13 @@ function Invoke-EitasAdExplorerJob {
 
         "search_objects" {
             return Invoke-EitasAdExplorerSearchObjects -Config $Config -Payload $Payload
+        }
+
+
+        "get_deleted_objects" {
+            return Invoke-EitasAdExplorerGetDeletedObjects `
+                -Config $Config `
+                -Payload $Payload
         }
 
         "get_security_descriptor" {

@@ -9,7 +9,7 @@
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-termine_100_%25-2ea44f)
-![C8](https://img.shields.io/badge/C8-termine_100_%25-22c55e)
+![C9](https://img.shields.io/badge/C9-en_cours_20_%25-3b82f6)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.7.0**.
 
-La version stable **v0.8.0** clôt **C8 — ACL, sécurité et délégation** à 100 %. L’Explorateur Active Directory atteint 100 %.
+La version **v0.9.0-alpha.01** ouvre **C9 — Corbeille Active Directory et restauration** avec **C9.1 — inventaire read-only des objets supprimés** terminé à 100 %. L’Explorateur Active Directory reste à 100 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -37,11 +37,11 @@ La version stable **v0.8.0** clôt **C8 — ACL, sécurité et délégation** à
 
 > **C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %**
 
-> **C8 — ACL, sécurité et délégation — terminé à 100 %**
+> **C9 — Corbeille Active Directory et restauration — en cours à 20 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.8.0` clôt C8 à 100 % après validation complète de la lecture des ACL, de leur affichage sémantique, de la Simulation de délégation, des garde-fous pré-écriture, du claim anti-replay, de la revalidation Windows et de la confirmation humaine dormante. Le chemin final reste strictement non autorisant : `production_authorized=false`, `ad_write_authorized=false` et `write_performed=false`. La DACL finale de validation contient toujours 36 ACE et conserve le SHA-256 `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb`. Les modules Windows déployés sont identiques aux sources Git, PowerShell 5.1 les parse sans erreur, et aucune primitive d’écriture ACL n’est présente. Progression actuelle : C8 100 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est C9 — Corbeille Active Directory et restauration.
+EITAS reste en développement actif. `v0.9.0-alpha.01` valide C9.1 à 100 % avec un inventaire réel et strictement read-only des objets supprimés Active Directory via le pipeline AD Explorer et le worker Windows. La validation runtime retourne 100 objets supprimés avec GUID, `lastKnownParent`, état `isRecycled` et capacité de restauration conservatrice. La Corbeille AD reste désactivée, aucune restauration n’est implémentée, aucune primitive `Restore-ADObject` ou `Enable-ADOptionalFeature` n’est présente et le mode final reste `Simulation`. Le module Windows `EitasAdLookup.ps1` déployé est aligné sur Git avec le SHA-256 `4AD6A5F3E2F6CB5FC6DB35ACE3E935B0B93E37BFE74155DC2D8794BA6D914D74`. La clé API worker exposée lors d’un échec de diagnostic a été révoquée, remplacée et expurgée des traces persistées. Progression actuelle : C9.1 100 %, C9 20 %, Explorateur Active Directory 100 %, EITAS global 95 %. La prochaine étape est C9.2 — conception sécurisée de la capacité de restauration.
 
 ## Fonctionnalités disponibles
 
@@ -176,6 +176,7 @@ Composants principaux :
 | Huitième checkpoint C8                 | `v0.8.0-alpha.08` |
 | Neuvième checkpoint C8                 | `v0.8.0-alpha.09` |
 | Version finale C8                      | `v0.8.0` |
+| Premier checkpoint C9                 | `v0.9.0-alpha.01` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |

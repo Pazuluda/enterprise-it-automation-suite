@@ -4,6 +4,56 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.9.0-alpha.01] — 2026-08-10
+
+### C9.1 — inventaire read-only des objets supprimés Active Directory
+
+- ouverture de C9 — Corbeille Active Directory et restauration ;
+- C9.1 terminé à 100 % ;
+- ajout de l’action `get_deleted_objects` au pipeline AD Explorer ;
+- inventaire Windows strictement read-only avec `Get-ADObject -IncludeDeletedObjects` ;
+- lecture de `isDeleted`, `isRecycled`, `lastKnownParent`, `msDS-LastKnownRDN`, GUID, classe et dates ;
+- lecture du statut Active Directory Recycle Bin et des durées de rétention ;
+- conteneur `CN=Deleted Objects` exclu des résultats utilisateurs ;
+- runtime réel validé sur `DC=API,DC=LOCAL` ;
+- 100 objets supprimés retournés ;
+- 100 GUID présents ;
+- 100 `lastKnownParent` présents ;
+- 0 `msDS-LastKnownRDN` présent ;
+- 100 objets `isRecycled=true` ;
+- 100 objets avec `restore_capability=recycle_bin_disabled` ;
+- classes : 6 computers, 6 contacts, 18 containers, 29 dnsNodes, 2 dnsZones, 16 groups, 17 organizationalUnits et 6 users ;
+- Corbeille AD toujours désactivée ;
+- `tombstoneLifetime=180` jours ;
+- `msDS-DeletedObjectLifetime` non défini ;
+- aucune primitive `Restore-ADObject` ;
+- aucune primitive `Enable-ADOptionalFeature` ;
+- aucune restauration implémentée ou effectuée ;
+- aucun passage en Production ;
+- module `EitasAdLookup.ps1` déployé SHA-256 `4AD6A5F3E2F6CB5FC6DB35ACE3E935B0B93E37BFE74155DC2D8794BA6D914D74` ;
+- PowerShell 5.1 : 0 erreur de parsing ;
+- 17 tests C9 ciblés réussis ;
+- 45 tests AD Explorer réussis ;
+- 770 tests backend et 339 sous-tests réussis ;
+- 43 avertissements backend connus ;
+- rotation de la clé API worker après exposition dans un diagnostic d’échec ;
+- ancienne clé révoquée et refusée en HTTP 401 ;
+- nouvelle clé validée en HTTP 200 ;
+- 8 occurrences anciennes supprimées côté Debian ;
+- 11 occurrences anciennes supprimées côté Windows ;
+- manifestes d’incident conservés sans secret ;
+- sécurité pré-commit et `git diff --check` validés.
+
+### Progression
+
+- C9.1 : 100 % ;
+- C9 : 20 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 % ;
+- prochaine étape : C9.2 — conception sécurisée de la restauration.
+
+
+
 ## [0.8.0] — 2026-08-10
 
 ### C8-FINAL — clôture ACL, sécurité et délégation
