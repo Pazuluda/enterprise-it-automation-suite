@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.8.0-alpha.09
+## État courant — v0.8.0
 
 | Indicateur | Avancement |
 |---|---:|
@@ -18,11 +18,11 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
 | C6 — Recherche, colonnes, filtres et requêtes |      100 % |
 | C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |       95 % |
-| Explorateur Active Directory complet       |       99 % |
-| Projet EITAS global | 94 % |
+| C8 — ACL, sécurité et délégation                 |      100 % |
+| Explorateur Active Directory complet       |      100 % |
+| Projet EITAS global | 95 % |
 
-Le checkpoint `v0.8.0-alpha.09` valide C8.4D « couche Production contrôlée, confirmation humaine et intégration UI ACL » à 100 %. C8 : 95 %. Explorateur Active Directory : 99 %. EITAS : 94 %. La préparation Production recharge les preuves Simulation et Security Descriptor côté serveur. L’intention `apply_acl_delegation` reste structurelle et dormante dans React. Le claim anti-replay ouvre uniquement un ticket de pré-écriture dédié, et le passage Production est limité à cette revalidation. Le retour en Simulation est obligatoire avant la confirmation humaine finale. Cette confirmation est liée à l’identité OIDC réelle, consommée une seule fois et reste strictement non autorisante. La lecture Security Descriptor post-confirmation confirme 36 ACE et une DACL inchangée. Aucune primitive d’écriture ACL n’est introduite et `apply_acl_delegation` reste absent du runtime générique.
+La version stable `v0.8.0` clôt C8 « ACL, sécurité et délégation » à 100 %. Explorateur Active Directory : 100 %. EITAS : 95 %. Les lots C8.1 à C8.4D ainsi que C8-FINAL ont été validés sur Debian, dans l’interface et sur le worker Windows. Les preuves finales confirment la DACL inchangée, le mode `Simulation`, l’absence de primitive d’écriture ACL et la non-autorisation persistante de toute mutation après confirmation. Les fichiers Windows déployés sont strictement identiques aux sources Git et PowerShell 5.1 les parse sans erreur.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -36,11 +36,45 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
-| C8 | ACL, sécurité et délégation | `v0.8.0` | En cours — 95 %, C8.1, C8.2, C8.3, C8.4A, C8.4B, C8.4C et C8.4D validés |
+| C8 | ACL, sécurité et délégation | `v0.8.0` | Terminé — 100 % |
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | Planifié |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.8.0 — C8 ACL, sécurité et délégation
+
+C8 est terminé et validé à 100 %.
+
+- C8.1 : Security Descriptor Active Directory en lecture seule ;
+- C8.2 : filtres, droits lisibles et résolution sémantique des GUID ACL ;
+- C8.3 : Simulation de délégation ACL strictement sans écriture ;
+- C8.4A : intention d’écriture dormante et binding de preuves ;
+- C8.4B : frontière de confiance, identité OIDC et anti-replay ;
+- C8.4C : moteur Windows contrôlé de revalidation pré-écriture ;
+- C8.4D : préparation Production, statut humain et confirmation finale dormante ;
+- C8-FINAL : régressions complètes, contrôle Windows et gate de release stable ;
+- 290 tests backend C8 ciblés réussis lors de la régression finale ;
+- 753 tests backend et 339 sous-tests réussis ;
+- 364 tests frontend réussis ;
+- build Vite 8.1.3 validé ;
+- 9 routes C8 finales présentes dans OpenAPI ;
+- PowerShell 5.1 : 0 erreur de parsing sur les quatre fichiers Windows finaux ;
+- parité SHA-256 Debian / Windows validée sur les modules et lanceurs AD Admin / AD Lookup ;
+- un seul worker AD Admin et un seul worker AD Lookup actifs ;
+- DACL finale read-only : 36 ACE ;
+- SHA-256 DACL final : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
+- `FINAL_AGENT_MODE=Simulation` ;
+- `production_authorized=false` ;
+- `ad_write_authorized=false` ;
+- `write_performed=false` ;
+- aucune primitive d’écriture ACL présente ;
+- `apply_acl_delegation` absent du runtime générique ;
+- C8 : 100 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS : 95 %.
+
+La prochaine étape est C9 : Corbeille Active Directory et restauration.
 
 ### v0.8.0-alpha.09 — C8.4D couche Production contrôlée et confirmation humaine ACL
 

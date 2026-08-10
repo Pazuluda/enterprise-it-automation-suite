@@ -4,6 +4,48 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.8.0] — 2026-08-10
+
+### C8-FINAL — clôture ACL, sécurité et délégation
+
+- clôture de C8 à 100 % ;
+- Explorateur Active Directory à 100 % ;
+- projet EITAS global à 95 % ;
+- validation finale des lots C8.1, C8.2, C8.3 et C8.4A/B/C/D ;
+- 290 tests backend C8 ciblés réussis ;
+- 753 tests backend et 339 sous-tests réussis ;
+- 364 tests frontend réussis ;
+- build Vite 8.1.3 validé ;
+- compilation Python validée ;
+- 9 routes C8 finales présentes dans OpenAPI ;
+- service API actif et portail / OpenAPI en HTTP 200 ;
+- parité exacte entre le build frontend et le statique déployé ;
+- PowerShell 5.1 : 0 erreur de parsing sur `EitasAdAdmin.ps1`, `EitasAdLookup.ps1`, `Run-AdAdminWorker.ps1` et `Run-AdLookupWorker.ps1` ;
+- parité SHA-256 Debian / Windows validée pour les quatre fichiers ;
+- `EitasAdAdmin.ps1` : `36845A03CB53203EF4B35C647039996BC313E09F31152F508B8DF4237DC0F758` ;
+- `EitasAdLookup.ps1` : `02248971A2B1A7F622AC7DEC125AA7163E9CD708FCB880C70D52B7D491845A19` ;
+- `Run-AdAdminWorker.ps1` : `9E6BFB3A455D636117F9658C39DBC02548B3716E3127258C8BAE236D65C428B0` ;
+- `Run-AdLookupWorker.ps1` : `5A741AD84C730423A3E674EBD8B00EB4E9846B6D40130FE7EA56245E5D248A87` ;
+- un worker AD Admin et un worker AD Lookup actifs ;
+- confirmation finale C8.4D validée et consommée sans autorisation d’écriture ;
+- lecture Security Descriptor finale read-only ;
+- 36 ACE finales inchangées ;
+- SHA-256 DACL final : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
+- `FINAL_AGENT_MODE=Simulation` ;
+- `PRODUCTION_AUTHORIZED=False` ;
+- `AD_WRITE_AUTHORIZED=False` ;
+- `ACL_WRITE_PERFORMED=False` ;
+- aucune primitive d’écriture ACL introduite ;
+- `apply_acl_delegation` reste absent du runtime générique.
+
+### Progression
+
+- C8 : 100 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 % ;
+- prochaine étape : C9 — Corbeille Active Directory et restauration.
+
+
 ## [0.8.0-alpha.09] — 2026-08-10
 
 ### C8.4D — couche Production contrôlée, confirmation humaine et intégration UI ACL
