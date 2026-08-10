@@ -10,7 +10,7 @@
 
 Les pourcentages sont recalculés uniquement après une validation formelle.
 
-## État courant — v0.9.0-alpha.02
+## État courant — v0.9.0-alpha.03
 
 | Indicateur | Avancement |
 |---|---:|
@@ -22,7 +22,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |      100 % |
 | Projet EITAS global | 95 % |
 
-`v0.9.0-alpha.02` valide C9.2A : préflight de restauration strictement fail-closed et revalidation live read-only des objets supprimés. Le backend lie l’inventaire historique à une relecture Windows fraîche par GUID, vérifie `isDeleted`, `isRecycled`, l’état du parent, l’attribut RDN réel du schéma et les collisions OneLevel. Le binding live impose correspondance GUID/nom/cible, résultat non autorisant, TTL court et preuve de collision lorsqu’elle est nécessaire. Le runtime réel aboutit à `blocked_recycled`, `preflight_passed=false` et `simulation_candidate=false`. La Corbeille AD reste désactivée ; aucune restauration, aucune activation de la Corbeille et aucune ouverture Production n’ont eu lieu. Le mode final reste `Simulation`. C9.2 : 70 %, C9 : 34 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
+`v0.9.0-alpha.03` valide C9.2B : préparation contrôlée de la Simulation de restauration et preview Windows dormant. Le backend produit uniquement un record `prepared`, lie l’identité à l’acteur OIDC, conserve les autorisations worker/runtime/write à `false` et maintient l’action hors du pipeline AD Admin générique. Le preview Windows revalide GUID, classe, état deleted/recycled, Corbeille AD, parent, RDN de schéma et collision sans primitive d’écriture. Le candidat a passé PowerShell 5.1 avec `PARSE_ERRORS=0`, puis un harness isolé a confirmé les refus Production et flags dangereux ainsi que le fail-closed sur la Corbeille AD désactivée. Aucun module Windows actif n’a été remplacé, aucun worker n’a été redémarré, aucune restauration et aucune activation de la Corbeille n’ont eu lieu. Mode final : `Simulation`. C9.2B : 100 %, C9.2 : 92 %, C9 : 47 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -37,10 +37,49 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Terminé — 100 % |
-| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 34 % |
+| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 47 % |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
+
+### v0.9.0-alpha.03 — C9.2B Simulation contrôlée et preview Windows dormant
+
+Ce checkpoint valide C9.2B à 100 % sans rendre la restauration exécutable.
+
+Principaux éléments validés :
+
+- enveloppe backend dédiée `c9.2b-v1` en mode Simulation uniquement ;
+- route humaine protégée `ADAdmin` / `UltraAdmin` pour préparer la Simulation ;
+- acteur `created_by` dérivé de l’identité authentifiée et non du payload client ;
+- persistance volontairement dormante en statut `prepared` ;
+- records exclus de la file générique `pending` et impossibles à claim par le worker ;
+- action `simulate_deleted_object_restore` absente du backend AD Admin générique ;
+- preview PowerShell Windows présent mais absent de `Invoke-EitasAdAdminJob` ;
+- revalidation read-only du GUID, de `isDeleted`, `isRecycled`, de la Corbeille AD, du parent, de la classe, du RDN de schéma et des collisions OneLevel ;
+- aucune primitive `Restore-ADObject`, `Enable-ADOptionalFeature` ou autre écriture AD dans le preview ;
+- candidat Windows SHA-256 `03936FC503E0446B06A0A6749D7A79D453233563B9AE92D0A0A378DC00E03139` validé par PowerShell 5.1 avec `PARSE_ERRORS=0` ;
+- module Windows actif conservé inchangé au SHA-256 `36845A03CB53203EF4B35C647039996BC313E09F31152F508B8DF4237DC0F758` pendant les gates ;
+- harness PowerShell isolé validant le refus Production, le refus d’un flag dangereux et le fail-closed lorsque la Corbeille AD est désactivée ;
+- aucun GUID d’objet supprimé réel utilisé par le harness ;
+- 69 tests C9 réussis ;
+- 39 tests Windows preview/régression réussis avec 16 sous-tests ;
+- suite backend complète : 839 tests réussis, 339 sous-tests réussis ;
+- Corbeille Active Directory toujours désactivée ;
+- aucune restauration effectuée ;
+- aucun worker redémarré pour activer cette capacité ;
+- mode final conservé en `Simulation`.
+
+Progression après ce checkpoint :
+
+- C9.1 : 100 % ;
+- C9.2A : 100 % ;
+- C9.2B : 100 % ;
+- C9.2 : 92 % ;
+- C9 : 47 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 %.
+
+La suite de C9.2 reste soumise à des barrières séparées ; l’activation de la Corbeille Active Directory et toute restauration réelle restent explicitement hors de ce checkpoint.
 
 ### v0.9.0-alpha.02 — C9.2A préflight sécurisé et revalidation live read-only
 

@@ -65,6 +65,11 @@ from app.services.ad_jobs import (
     submit_ad_lookup_job_result as service_submit_ad_lookup_job_result,
 )
 from app.services.ad_deleted_object_restore_preflight import preflight_deleted_object_restore
+from app.services.ad_deleted_object_restore_simulation_persistence import (
+    DeletedObjectRestoreSimulationPersistenceError,
+    create_deleted_object_restore_simulation_record as
+    service_create_deleted_object_restore_simulation_record,
+)
 from app.services.ad_explorer import (
     ADExplorerBadRequest,
     ADExplorerConflict,
@@ -879,6 +884,43 @@ def get_ad_domain_catalog(
         )
 
 
+def _c9_authenticated_actor(identity) -> str:
+    if isinstance(identity, dict):
+        for key in (
+            "preferred_username",
+            "username",
+            "email",
+            "sub",
+        ):
+            value = str(
+                identity.get(key)
+                or ""
+            ).strip()
+
+            if value:
+                return value[:128]
+
+    for attribute in (
+        "preferred_username",
+        "username",
+        "email",
+        "sub",
+    ):
+        value = str(
+            getattr(
+                identity,
+                attribute,
+                "",
+            )
+            or ""
+        ).strip()
+
+        if value:
+            return value[:128]
+
+    return "authenticated-ad-user"
+
+
 @app.post(
     "/api/ad-explorer/deleted-objects/preflight"
 )
@@ -923,6 +965,59 @@ def preflight_ad_deleted_object_restore(
             status_code=400,
             detail=str(exc),
         ) from exc
+
+
+@app.post(
+    "/api/ad-explorer/deleted-objects/"
+    "restore-simulation/prepare"
+)
+def prepare_ad_deleted_object_restore_simulation(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    config = (
+        _eitas_agent_mode_load_config()
+    )
+
+    mode = (
+        _eitas_agent_mode_normalize(
+            config.get("mode")
+            or config.get("Mode")
+            or "Simulation"
+        )
+    )
+
+    simulation_payload = dict(
+        payload or {}
+    )
+
+    simulation_payload[
+        "created_by"
+    ] = _c9_authenticated_actor(
+        identity
+    )
+
+    try:
+        response, audit_event = (
+            service_create_deleted_object_restore_simulation_record(
+                AD_ADMIN_JOBS_FILE,
+                AD_EXPLORER_JOBS_FILE,
+                simulation_payload,
+                agent_mode=mode,
+            )
+        )
+
+    except DeletedObjectRestoreSimulationPersistenceError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        ) from exc
+
+    write_audit_log(
+        **audit_event
+    )
+
+    return response
 
 
 @app.post("/api/ad-explorer/jobs")

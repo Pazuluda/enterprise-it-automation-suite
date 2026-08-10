@@ -6903,6 +6903,678 @@ function Invoke-EitasAdAdminAclDelegationPrewriteValidation {
 }
 
 
+function ConvertTo-EitasAdAdminLdapFilterValue {
+    param(
+        [AllowNull()]
+        [object]$Value
+    )
+
+    $Text = [string]$Value
+
+    $Builder = New-Object `
+        System.Text.StringBuilder
+
+    foreach ($Character in $Text.ToCharArray()) {
+        switch ([int][char]$Character) {
+            0 {
+                [void]$Builder.Append('\00')
+            }
+
+            40 {
+                [void]$Builder.Append('\28')
+            }
+
+            41 {
+                [void]$Builder.Append('\29')
+            }
+
+            42 {
+                [void]$Builder.Append('\2a')
+            }
+
+            92 {
+                [void]$Builder.Append('\5c')
+            }
+
+            default {
+                [void]$Builder.Append(
+                    $Character
+                )
+            }
+        }
+    }
+
+    return $Builder.ToString()
+}
+
+
+function Invoke-EitasAdAdminDeletedObjectRestoreSimulationPreview {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Payload,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Mode
+    )
+
+    $ExpectedAction = (
+        "simulate_deleted_object_restore"
+    )
+
+    if ($Mode -ine "Simulation") {
+        throw (
+            "Deleted object restore preview is " +
+            "available only in Simulation mode"
+        )
+    }
+
+    $PayloadMode = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "mode"
+        )
+
+    if (
+        [string]$PayloadMode `
+            -cne "Simulation"
+    ) {
+        throw (
+            "Locked payload mode must be Simulation"
+        )
+    }
+
+    $Action = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "action"
+        )
+
+    if (
+        [string]$Action `
+            -cne $ExpectedAction
+    ) {
+        throw (
+            "Invalid deleted object restore " +
+            "Simulation action"
+        )
+    }
+
+    $ContractVersion = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "contract_version"
+        )
+
+    $PersistenceContractVersion = (
+        Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                "persistence_contract_version"
+            )
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ContractVersion
+        ) -or
+        [string]::IsNullOrWhiteSpace(
+            [string]$PersistenceContractVersion
+        )
+    ) {
+        throw (
+            "Restore Simulation contract binding " +
+            "is incomplete"
+        )
+    }
+
+    $ObjectGuidValue = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "object_guid",
+            "objectGuid"
+        )
+
+    $LiveJobId = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "live_job_id"
+        )
+
+    $EffectiveNewName = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "effective_new_name"
+        )
+
+    $EffectiveTargetPath = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "effective_target_path"
+        )
+
+    $ExpectedObjectClass = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "object_class"
+        )
+
+    $ClassPolicy = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "class_policy"
+        )
+
+    $PolicyDecision = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "policy_decision"
+        )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ObjectGuidValue
+        )
+    ) {
+        throw "object_guid is required"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$LiveJobId
+        )
+    ) {
+        throw "live_job_id is required"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$EffectiveNewName
+        )
+    ) {
+        throw "effective_new_name is required"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$EffectiveTargetPath
+        )
+    ) {
+        throw "effective_target_path is required"
+    }
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            [string]$ExpectedObjectClass
+        )
+    ) {
+        throw "object_class is required"
+    }
+
+    if (
+        [string]$ClassPolicy `
+            -cne "standard_controlled"
+    ) {
+        throw (
+            "Object class policy is not enabled " +
+            "for Windows restore preview"
+        )
+    }
+
+    if (
+        [string]$PolicyDecision `
+            -cne "candidate_preflight"
+    ) {
+        throw (
+            "Restore Simulation policy is not " +
+            "candidate_preflight"
+        )
+    }
+
+    $PreflightPassed = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "preflight_passed"
+        )
+
+    $SimulationCandidate = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "simulation_candidate"
+        )
+
+    $SimulationJobAuthorized = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "simulation_job_authorized"
+        )
+
+    $SimulationPersistenceAuthorized = (
+        Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                "simulation_job_persistence_authorized"
+            )
+    )
+
+    $ManualReviewRequired = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            "manual_review_required"
+        )
+
+    if ($PreflightPassed -ne $true) {
+        throw (
+            "Restore Simulation preflight is not " +
+            "validated"
+        )
+    }
+
+    if ($SimulationCandidate -ne $true) {
+        throw (
+            "Restore Simulation candidate flag " +
+            "is not validated"
+        )
+    }
+
+    if ($SimulationJobAuthorized -ne $true) {
+        throw (
+            "Restore Simulation preparation " +
+            "is not authorized"
+        )
+    }
+
+    if (
+        $SimulationPersistenceAuthorized `
+            -ne $true
+    ) {
+        throw (
+            "Restore Simulation persistence " +
+            "is not authorized"
+        )
+    }
+
+    if ($ManualReviewRequired -eq $true) {
+        throw (
+            "Manual review class is not enabled " +
+            "for Windows restore preview"
+        )
+    }
+
+    $ForbiddenBooleanFields = @(
+        "worker_claim_authorized",
+        "worker_runtime_authorized",
+        "restore_cmdlet_authorized",
+        "restore_whatif_authorized",
+        "execution_authorized",
+        "write_authorized",
+        "restore_implemented",
+        "restore_performed"
+    )
+
+    foreach (
+        $FieldName in $ForbiddenBooleanFields
+    ) {
+        $FieldValue = Get-EitasObjectValue `
+            -Object $Payload `
+            -Names @(
+                $FieldName
+            )
+
+        if ($FieldValue -ne $false) {
+            throw (
+                "Unsafe or incomplete restore " +
+                "Simulation flag: " +
+                $FieldName
+            )
+        }
+    }
+
+    $Guid = [Guid]::Empty
+
+    $GuidValid = [Guid]::TryParse(
+        [string]$ObjectGuidValue,
+        [ref]$Guid
+    )
+
+    if (-not $GuidValid) {
+        throw "object_guid is invalid"
+    }
+
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
+    Assert-EitasDnSafe `
+        -DistinguishedName (
+            [string]$EffectiveTargetPath
+        ) `
+        -Config $Config |
+        Out-Null
+
+    $RootDse = Get-ADRootDSE `
+        -ErrorAction Stop
+
+    $SchemaDn = [string](
+        $RootDse.schemaNamingContext
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $SchemaDn
+        )
+    ) {
+        throw (
+            "Active Directory schema naming " +
+            "context unavailable"
+        )
+    }
+
+    $RecycleFeature = Get-ADOptionalFeature `
+        -Filter (
+            'Name -eq "Recycle Bin Feature"'
+        ) `
+        -Properties EnabledScopes `
+        -ErrorAction Stop
+
+    $EnabledScopes = @(
+        $RecycleFeature.EnabledScopes |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace(
+                [string]$_
+            )
+        }
+    )
+
+    $RecycleBinEnabled = (
+        $EnabledScopes.Count -gt 0
+    )
+
+    if (-not $RecycleBinEnabled) {
+        throw (
+            "Active Directory Recycle Bin " +
+            "is not enabled"
+        )
+    }
+
+    $Fresh = Get-ADObject `
+        -Identity $Guid `
+        -IncludeDeletedObjects `
+        -Properties `
+            objectGUID,
+            objectClass,
+            isDeleted,
+            isRecycled,
+            lastKnownParent,
+            msDS-LastKnownRDN `
+        -ErrorAction Stop
+
+    $FreshGuid = [Guid](
+        $Fresh.ObjectGUID
+    )
+
+    if ($FreshGuid -ne $Guid) {
+        throw (
+            "Fresh deleted object GUID mismatch"
+        )
+    }
+
+    if ($Fresh.isDeleted -ne $true) {
+        throw (
+            "Fresh object is not deleted"
+        )
+    }
+
+    if ($Fresh.isRecycled -eq $true) {
+        throw (
+            "Fresh object is already recycled"
+        )
+    }
+
+    $ObjectClasses = @(
+        $Fresh.ObjectClass
+    )
+
+    $FreshObjectClass = ""
+
+    if ($ObjectClasses.Count -gt 0) {
+        $FreshObjectClass = [string](
+            $ObjectClasses[
+                $ObjectClasses.Count - 1
+            ]
+        )
+    }
+
+    if (
+        $FreshObjectClass `
+            -ine [string]$ExpectedObjectClass
+    ) {
+        throw (
+            "Fresh object class mismatch"
+        )
+    }
+
+    $AllowedObjectClasses = @(
+        "user",
+        "group",
+        "computer",
+        "contact"
+    )
+
+    if (
+        $AllowedObjectClasses `
+            -inotcontains $FreshObjectClass
+    ) {
+        throw (
+            "Object class is outside restore " +
+            "Simulation first wave"
+        )
+    }
+
+    $SchemaClass = @(
+        Get-ADObject `
+            -SearchBase $SchemaDn `
+            -LDAPFilter (
+                "(&(objectClass=classSchema)" +
+                "(lDAPDisplayName=" +
+                $FreshObjectClass +
+                "))"
+            ) `
+            -Properties `
+                lDAPDisplayName,
+                rDNAttID `
+            -ErrorAction Stop
+    )
+
+    if ($SchemaClass.Count -ne 1) {
+        throw (
+            "Object class schema lookup failed"
+        )
+    }
+
+    $RdnAttribute = [string](
+        $SchemaClass[0].rDNAttID
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $RdnAttribute
+        )
+    ) {
+        throw (
+            "RDN attribute unavailable"
+        )
+    }
+
+    try {
+        $Parent = Get-ADObject `
+            -Identity (
+                [string]$EffectiveTargetPath
+            ) `
+            -Properties `
+                objectGUID,
+                isDeleted,
+                isRecycled `
+            -ErrorAction Stop
+    }
+    catch {
+        throw (
+            "Target parent is not available " +
+            "as an active object"
+        )
+    }
+
+    if ($Parent.isDeleted -eq $true) {
+        throw (
+            "Target parent is deleted"
+        )
+    }
+
+    if ($Parent.isRecycled -eq $true) {
+        throw (
+            "Target parent is recycled"
+        )
+    }
+
+    $EscapedName = (
+        ConvertTo-EitasAdAdminLdapFilterValue `
+            -Value (
+                [string]$EffectiveNewName
+            )
+    )
+
+    $CollisionFilter = (
+        "(" +
+        $RdnAttribute +
+        "=" +
+        $EscapedName +
+        ")"
+    )
+
+    $CollisionMatches = @(
+        Get-ADObject `
+            -SearchBase (
+                [string]$EffectiveTargetPath
+            ) `
+            -SearchScope OneLevel `
+            -LDAPFilter $CollisionFilter `
+            -ErrorAction Stop
+    )
+
+    $TargetCollision = (
+        $CollisionMatches.Count -gt 0
+    )
+
+    if ($TargetCollision) {
+        throw (
+            "Target name collision detected"
+        )
+    }
+
+    $LastKnownParent = (
+        [string]$Fresh.lastKnownParent
+    ).Trim()
+
+    $LastKnownRdn = (
+        [string](
+            $Fresh.'msDS-LastKnownRDN'
+        )
+    ).Trim()
+
+    return [pscustomobject]@{
+        action = $ExpectedAction
+        mode = "Simulation"
+
+        simulated = $true
+        preview_only = $true
+        read_only = $true
+
+        contract_version = (
+            [string]$ContractVersion
+        )
+
+        persistence_contract_version = (
+            [string]$PersistenceContractVersion
+        )
+
+        live_job_id = (
+            [string]$LiveJobId
+        )
+
+        object_guid = (
+            ([string]$FreshGuid).
+                Trim().
+                ToLowerInvariant()
+        )
+
+        object_class = (
+            $FreshObjectClass
+        )
+
+        class_policy = (
+            [string]$ClassPolicy
+        )
+
+        policy_decision = (
+            "candidate_preflight"
+        )
+
+        rdn_attribute = (
+            $RdnAttribute
+        )
+
+        last_known_parent = (
+            $LastKnownParent
+        )
+
+        last_known_rdn = (
+            $LastKnownRdn
+        )
+
+        effective_new_name = (
+            [string]$EffectiveNewName
+        )
+
+        effective_target_path = (
+            [string]$EffectiveTargetPath
+        )
+
+        recycle_bin_enabled = $true
+
+        is_deleted = $true
+        is_recycled = $false
+
+        parent_exists = $true
+        parent_deleted = $false
+        parent_recycled = $false
+
+        collision_probe_performed = $true
+        target_collision = $false
+
+        worker_claim_authorized = $false
+        worker_runtime_authorized = $false
+
+        restore_cmdlet_authorized = $false
+        restore_whatif_authorized = $false
+
+        execution_authorized = $false
+        write_authorized = $false
+
+        restore_implemented = $false
+        restore_performed = $false
+        write_performed = $false
+
+        production_authorized = $false
+
+        message = (
+            "Deleted object restore Simulation " +
+            "preview validated read-only"
+        )
+    }
+}
+
+
 function Invoke-EitasAdAdminAclDelegationSimulationPreview {
     param(
         [object]$Config,

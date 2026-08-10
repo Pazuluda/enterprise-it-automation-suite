@@ -4,6 +4,48 @@ Toutes les modifications importantes d'Enterprise IT Automation Suite sont consi
 
 ## [À venir]
 
+## [0.9.0-alpha.03] — 2026-08-10
+
+### C9.2B — Simulation contrôlée de restauration et preview Windows dormant
+
+- préparation backend dédiée de la Simulation de restauration ;
+- contrat `c9.2b-v1` strictement limité au mode Simulation ;
+- route humaine protégée ADAdmin/UltraAdmin ;
+- `created_by` lié à l’identité authentifiée et non au client ;
+- persistance dormante avec statut `prepared` ;
+- record invisible à la file générique `pending` et non claimable ;
+- action absente du backend AD Admin générique ;
+- preview Windows read-only ajouté hors dispatcher ;
+- contrôles frais par GUID, classe, `isDeleted`, `isRecycled`, Corbeille AD, parent, RDN et collision ;
+- aucune primitive `Restore-ADObject`, `Enable-ADOptionalFeature` ou écriture AD dans le preview ;
+- candidat `EitasAdAdmin.ps1` SHA-256 `03936FC503E0446B06A0A6749D7A79D453233563B9AE92D0A0A378DC00E03139` ;
+- validation PowerShell 5.1 : `PARSE_ERRORS=0` ;
+- harness isolé : refus Production validé ;
+- harness isolé : refus de `write_authorized=true` validé ;
+- harness isolé : fail-closed validé avec `Active Directory Recycle Bin is not enabled` ;
+- module Windows actif non remplacé et worker non redémarré ;
+- 69 tests C9 réussis ;
+- 39 tests Windows preview/régression réussis, avec 16 sous-tests ;
+- backend complet : 839 tests réussis, 339 sous-tests réussis ;
+- contrôle de sécurité pré-commit réussi ;
+- Corbeille AD toujours désactivée ;
+- aucune restauration effectuée ;
+- aucun `Restore-ADObject -WhatIf` exécuté ;
+- aucune ouverture Production.
+
+Progression :
+
+- C9.1 : 100 % ;
+- C9.2A : 100 % ;
+- C9.2B : 100 % ;
+- C9.2 : 92 % ;
+- C9 : 47 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 %.
+
+Prochaine étape : poursuivre C9.2 sous barrières séparées, sans activation automatique de la Corbeille AD et sans restauration réelle implicite.
+
+
 ## [0.9.0-alpha.02] — 2026-08-10
 
 ### C9.2A — préflight sécurisé et revalidation live read-only
