@@ -1,5 +1,43 @@
 # Journal des modifications
 
+<!-- v0.9.0-alpha.07 -->
+## 0.9.0-alpha.07 — C9.4 activation contrôlée de la Corbeille
+
+### Activé
+
+- Corbeille Active Directory activée sur la forêt `API.LOCAL` après autorisation humaine explicite ;
+- activation forest-wide effectuée uniquement après une ultime preuve AD read-only fraîche ;
+- confirmation native Windows de l’opération irréversible obtenue avant exécution ;
+- vérification post-activation réussie avec `recycle_bin_enabled=true` et `recycle_bin_enabled_scope_count=2`.
+
+### Sécurité
+
+- réplication validée avant activation avec zéro échec ;
+- réplication post-activation validée avec `replication_ready=true` ;
+- aucun dispatcher générique `activate_recycle_bin` exposé ;
+- aucun runtime Windows permanent d’activation introduit ;
+- agent EITAS maintenu en `Simulation` ;
+- aucune ouverture globale de Production ;
+- aucune exécution de `Restore-ADObject` ;
+- l’autorisation C9.4 ne vaut pas autorisation de restauration C9.5.
+
+### Validation
+
+- preuve post-activation collectée par le worker AD Lookup en lecture seule ;
+- 225 tests C9 passés, 2 warnings connus ;
+- 995 tests backend passés, 45 warnings connus ;
+- 339 sous-tests passés ;
+- aucune régression détectée.
+
+### État
+
+- C9.4 : 100 % ;
+- C9 global : 47 % ;
+- Explorateur Active Directory : 100 % ;
+- EITAS global : 95 % ;
+- Corbeille Active Directory : **activée** ;
+- restauration réelle : **non exécutée et non autorisée dans C9.4**.
+
 <!-- v0.9.0-alpha.06 -->
 ## 0.9.0-alpha.06 — C9.4 checkpoint pré-activation Corbeille
 

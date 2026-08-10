@@ -22,7 +22,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |      100 % |
 | Projet EITAS global | 95 % |
 
-`v0.9.0-alpha.06` constitue le checkpoint pré-activation de C9.4. C9.1, C9.2 et C9.3 restent terminés ; C9.4 dispose désormais de la chaîne de sécurité préparatoire complète : ticket court et dormant, persistance durcie, anti-replay, autorisation humaine OIDC dédiée, persistance dormante, revalidation AD fraîche et consommation one-shot finale de l’autorisation. La Corbeille Active Directory reste désactivée, aucun runtime Windows d’activation n’est ouvert, aucune primitive `Restore-ADObject` n’est autorisée et `Enable-ADOptionalFeature` n’a pas été exécuté. Tests : 225 C9, 995 backend et 339 sous-tests. C9.4 : environ 97 %, C9 : 47 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
+`v0.9.0-alpha.07` clôt C9.4. Après autorisation humaine explicite et revalidation finale read-only, la Corbeille Active Directory a été activée avec succès sur la forêt `API.LOCAL`. La preuve post-activation confirme deux scopes actifs, zéro échec de réplication et `replication_ready=true`. Aucun runtime générique d’activation n’a été ouvert et aucune restauration n’a été exécutée. Tests : 225 C9, 995 backend et 339 sous-tests. C9.4 : 100 %, C9 : 47 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -101,7 +101,7 @@ Périmètre :
 
 ### C9.4 — activation contrôlée de la Corbeille Active Directory
 
-**État du checkpoint `v0.9.0-alpha.06` : pré-activation prête, activation non exécutée.**
+**État du checkpoint `v0.9.0-alpha.07` : C9.4 terminé, activation exécutée et vérifiée.**
 
 - ticket d’activation court, dormant et lié aux preuves C9.3 ;
 - persistance dédiée durcie et non claimable par les queues génériques ;
@@ -111,12 +111,12 @@ Périmètre :
 - nouvelle revalidation AD read-only immédiatement avant exécution ;
 - consommation atomique one-shot de l’autorisation après revalidation ;
 - aucun runtime d’activation générique ou Windows ouvert ;
-- `Enable-ADOptionalFeature` non exécuté ;
+- `Enable-ADOptionalFeature` exécuté une seule fois après autorisation humaine explicite, hors dispatcher générique EITAS ;
 - `Restore-ADObject` toujours hors de C9.4 ;
 - mode `Simulation` et Production fermée.
 
 
-Objectif : réaliser uniquement l’activation de la fonctionnalité après autorisation explicite et gates complets.
+Objectif atteint : activation forest-wide réalisée après autorisation explicite et gates complets, puis vérifiée en lecture seule.
 
 Périmètre :
 
@@ -1056,4 +1056,4 @@ Barrières maintenues :
 - C9.4 devra revalider l'état réel de la forêt et obtenir une autorisation humaine dédiée ;
 - C9.5 conservera une autorisation de restauration séparée.
 
-C9.4 est maintenant au checkpoint pré-activation `v0.9.0-alpha.06`. L’activation réelle reste derrière une dernière autorisation explicite et opération-spécifique.
+C9.4 est terminé à 100 % dans `v0.9.0-alpha.07`. L’activation forest-wide de la Corbeille Active Directory sur `API.LOCAL` a été explicitement autorisée, exécutée puis vérifiée. La restauration réelle reste une opération indépendante et séparément autorisée dans C9.5.
