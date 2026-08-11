@@ -1,6 +1,6 @@
 # Enterprise IT Automation Suite
 
-![Version](https://img.shields.io/badge/version-v0.9.0--alpha.09-2563eb)
+![Version](https://img.shields.io/badge/version-v0.9.0-16a34a)
 ![Statut](https://img.shields.io/badge/statut-développement_actif-f59e0b)
 ![C1](https://img.shields.io/badge/C1-terminé_100_%25-16a34a)
 ![C2](https://img.shields.io/badge/C2-terminé_100_%25-16a34a)
@@ -10,7 +10,7 @@
 ![C6](https://img.shields.io/badge/C6-terminé_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-terminé_100_%25-16a34a)
 ![C8](https://img.shields.io/badge/C8-terminé_100_%25-16a34a)
-![C9](https://img.shields.io/badge/C9-en_cours_52_%25-3b82f6)
+![C10](https://img.shields.io/badge/C10-en_cours_0_%25-3b82f6)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d’administration et d’automatisation conçue pour les environnements informatiques d’entreprise.
 
@@ -20,13 +20,13 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l’administra
 
 | Indicateur | État |
 |---|---:|
-| Version de développement | `v0.9.0-alpha.10` |
+| Version actuelle | `v0.9.0` |
 | Dernière version stable | `v0.8.0` |
-| Projet EITAS global | **95 %** |
+| Projet EITAS global | **97 %** |
 | Explorateur Active Directory | **100 %** |
-| Chantier actif | **C9 — 52 %** |
+| Chantier actif | **C10 — 0 %** |
 
-C9 poursuit la gestion de la Corbeille Active Directory et la restauration contrôlée. Les sous-lots C9.1 à C9.5 sont validés ; la phase `C9-FINAL` doit maintenant finaliser l’interface, les régressions, la sécurité et la publication stable `v0.9.0`.
+C9 est terminé et publié en `v0.9.0`. La Corbeille Active Directory, les garde-fous de restauration contrôlée et l’interface de préparation sont validés. Le chantier actif devient C10, consacré aux performances, à l’audit, aux tests et à la finition générale.
 
 [Consulter la feuille de route complète](docs/ROADMAP.md)
 
@@ -136,8 +136,8 @@ Un index documentaire centralisé sera maintenu dans `docs/README.md` au cours d
 | C6 — Recherche, colonnes et filtres | 100 % |
 | C7 — Multi-sélection et glisser-déposer | 100 % |
 | C8 — ACL, sécurité et délégation | 100 % |
-| **C9 — Corbeille Active Directory et restauration** | **52 % — en cours** |
-| C10 — Performance, audit, tests et finition | Planifié |
+| **C9 — Corbeille Active Directory et restauration** | **100 % — terminé** |
+| **C10 — Performance, audit, tests et finition** | **0 % — en cours** |
 
 Les détails des sous-lots, leurs objectifs et les versions cibles sont maintenus dans [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

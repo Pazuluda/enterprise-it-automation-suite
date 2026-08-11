@@ -9473,3 +9473,419 @@ body.aduc-pane-resizing * {
     grid-template-columns: 1fr;
   }
 }
+
+/* C9-FINAL - Corbeille AD et restauration contrôlée */
+
+.aduc-deleted-restore {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid rgba(71, 85, 105, 0.2);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.aduc-deleted-restore-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.aduc-deleted-restore-head h3 {
+  margin: 3px 0 4px;
+}
+
+.aduc-deleted-restore-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.aduc-deleted-restore-eyebrow {
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.aduc-deleted-restore-safety,
+.aduc-deleted-restore-real-lock {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid rgba(14, 116, 144, 0.2);
+  border-radius: 10px;
+  background: rgba(236, 254, 255, 0.65);
+  font-size: 12px;
+}
+
+.aduc-deleted-restore-real-lock {
+  border-color: rgba(180, 83, 9, 0.22);
+  background: rgba(255, 247, 237, 0.78);
+}
+
+.aduc-deleted-restore-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.aduc-deleted-restore-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 10px;
+  background: rgba(254, 242, 242, 0.85);
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aduc-deleted-restore-empty {
+  padding: 14px;
+  border: 1px dashed rgba(100, 116, 139, 0.35);
+  border-radius: 10px;
+  color: #64748b;
+  text-align: center;
+}
+
+.aduc-deleted-restore-list {
+  display: grid;
+  gap: 7px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.aduc-deleted-restore-list > button {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto;
+  gap: 3px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(100, 116, 139, 0.18);
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  text-align: left;
+}
+
+.aduc-deleted-restore-list > button strong {
+  color: #0f172a;
+  font-weight: 750;
+}
+
+.aduc-deleted-restore-list > button span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.aduc-deleted-restore-list > button.selected {
+  border-color: rgba(14, 116, 144, 0.45);
+  box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.08);
+}
+
+.aduc-deleted-restore-list code {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.aduc-deleted-restore-workflow {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.aduc-deleted-restore-target {
+  display: grid;
+  gap: 9px;
+}
+
+.aduc-deleted-restore-target > div,
+.aduc-deleted-restore-target label {
+  display: grid;
+  gap: 4px;
+}
+
+.aduc-deleted-restore-target span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.aduc-deleted-restore-target input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.aduc-deleted-restore-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aduc-deleted-restore-decision {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.aduc-deleted-restore-decision.eligible {
+  border: 1px solid rgba(22, 163, 74, 0.24);
+  background: rgba(240, 253, 244, 0.86);
+}
+
+.aduc-deleted-restore-decision.blocked {
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  background: rgba(255, 251, 235, 0.88);
+}
+
+.aduc-deleted-restore-decision > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.aduc-deleted-restore-decision > div span {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.aduc-deleted-restore-live,
+.aduc-deleted-restore-result {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid rgba(100, 116, 139, 0.18);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.aduc-deleted-restore-simulation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  border-radius: 10px;
+  background: rgba(239, 246, 255, 0.8);
+}
+
+.aduc-deleted-restore-simulation > div {
+  display: grid;
+  gap: 3px;
+}
+
+.aduc-deleted-restore-simulation span,
+.aduc-deleted-restore-simulation small {
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .aduc-deleted-restore-head,
+  .aduc-deleted-restore-simulation {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .aduc-deleted-restore-list > button {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* C9-FINAL.B2 - autorisation humaine de restauration */
+
+.aduc-deleted-restore-sensitive {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 251, 235, 0.72);
+}
+
+.aduc-deleted-restore-sensitive-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.aduc-deleted-restore-sensitive-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.aduc-deleted-restore-sensitive-head span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.aduc-deleted-restore-challenge,
+.aduc-deleted-restore-authorization,
+.aduc-deleted-restore-final-proof {
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.aduc-deleted-restore-proof-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.aduc-deleted-restore-proof-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.aduc-deleted-restore-proof-grid span,
+.aduc-deleted-restore-confirm span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.aduc-deleted-restore-proof-grid code {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+
+.aduc-deleted-restore-confirm {
+  display: grid;
+  gap: 10px;
+}
+
+.aduc-deleted-restore-confirm label {
+  display: grid;
+  gap: 5px;
+}
+
+.aduc-deleted-restore-confirm input,
+.aduc-deleted-restore-confirm textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.aduc-deleted-restore-confirm textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+
+.aduc-deleted-restore-confirm small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.aduc-deleted-restore-check {
+  grid-template-columns: auto 1fr !important;
+  align-items: flex-start;
+}
+
+.aduc-deleted-restore-check input {
+  width: auto;
+  margin-top: 2px;
+}
+
+.aduc-deleted-restore-invariants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aduc-deleted-restore-invariants span {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: rgba(241, 245, 249, 0.9);
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.aduc-deleted-restore-confirmation-text {
+  display: block;
+  padding: 9px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: rgba(239, 246, 255, 0.8);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.aduc-deleted-restore-no-queue {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: 8px;
+  background: rgba(254, 242, 242, 0.72);
+  font-size: 11px;
+}
+
+@media (max-width: 860px) {
+  .aduc-deleted-restore-sensitive-head {
+    flex-direction: column;
+  }
+
+  .aduc-deleted-restore-proof-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* C9-FINAL.C2 - full width recycle bin */
+
+.aduc-deleted-restore-wide {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  align-self: stretch;
+}
+
+.aduc-deleted-restore-wide .aduc-deleted-restore {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-top: 16px;
+}
+
+
+/* C9-FINAL.C4-F2 - challenge TTL */
+
+.aduc-deleted-restore-expiry {
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 251, 235, 0.9);
+  font-size: 11px;
+}
+
+.aduc-deleted-restore-expiry code {
+  overflow-wrap: anywhere;
+}
+
+.aduc-deleted-restore-expiry b {
+  color: #b45309;
+}
+
+.aduc-deleted-restore-expiry small {
+  color: #64748b;
+}

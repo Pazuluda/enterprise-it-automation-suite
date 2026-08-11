@@ -1,5 +1,44 @@
 # Journal des modifications
 
+<!-- v0.9.0 -->
+## 0.9.0 — C9 Corbeille Active Directory et restauration contrôlée
+
+### Ajouté
+
+- interface Corbeille intégrée dans l’Explorateur Active Directory ;
+- inventaire des objets supprimés, préflight, revalidation Windows et préparation Simulation dans un parcours unique ;
+- challenge humain et autorisation exacte de l’objet, du nom et de la cible ;
+- revalidation post-Simulation puis post-autorisation avant préparation de la confirmation finale ;
+- affichage de la durée de validité de deux minutes du challenge et blocage local des challenges expirés.
+
+### Sécurité
+
+- mode global EITAS maintenu en `Simulation` pendant la validation C9-FINAL ;
+- aucune ouverture automatique de Production ;
+- aucune route `/execution/queue` exposée dans le frontend ;
+- aucune commande `Restore-ADObject` ajoutée au frontend ;
+- preuves live trop anciennes, challenges expirés et autorisations périmées rejetés fail-closed ;
+- restauration réelle C9.5 conservée derrière son transport backend dédié et ses autorisations indépendantes.
+
+### Validation
+
+- parcours navigateur validé jusqu’à la confirmation finale, sans exécution réelle ;
+- backend C9 : 550 tests passés avec 3 warnings connus ;
+- backend complet : 1307 tests passés, 339 subtests passés et 45 warnings connus ;
+- frontend : 375 tests passés ;
+- lint frontend : 0 erreur et 34 warnings connus ;
+- build Vite réussi et identique au build servi ;
+- contrôle de sécurité pré-commit et `git diff --check` validés.
+
+### Progression
+
+- C9 global : 100 % ;
+- C9-FINAL : 100 % ;
+- Explorateur Active Directory : 100 % ;
+- C10 : 0 % — chantier actif ;
+- EITAS global : 97 %.
+
+
 <!-- v0.9.0-alpha.10 -->
 ## 0.9.0-alpha.10 — Refonte documentaire et correction packaging AD Check
 

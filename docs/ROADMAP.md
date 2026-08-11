@@ -6,13 +6,13 @@ Cette feuille de route décrit uniquement l’état actuel du projet, les chanti
 
 | Indicateur | État |
 |---|---:|
-| Version de développement | `v0.9.0-alpha.10` |
+| Version actuelle | `v0.9.0` |
 | Dernière version stable | `v0.8.0` |
-| Projet EITAS global | **95 %** |
+| Projet EITAS global | **97 %** |
 | Explorateur Active Directory | **100 %** |
-| Chantier actif | **C9 — 52 %** |
+| Chantier actif | **C10 — 0 %** |
 
-EITAS reste en développement actif. Les chantiers C1 à C8 de l’Explorateur Active Directory sont terminés. C9 poursuit la Corbeille Active Directory et la restauration contrôlée avant la phase finale de stabilisation C10.
+EITAS reste en développement actif. Les chantiers C1 à C9 de l’Explorateur Active Directory sont terminés. C10 devient le chantier actif et constitue la phase finale de performance, audit, tests et finition avant la première version générale stable.
 
 ## Vue d’ensemble
 
@@ -26,8 +26,8 @@ EITAS reste en développement actif. Les chantiers C1 à C8 de l’Explorateur A
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Terminé — 100 % |
-| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 52 % |
-| C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
+| C9 | Corbeille Active Directory et restauration | `v0.9.0` | Terminé — 100 % |
+| C10 | Performance, audit, tests et finition | `v0.10.0` | En cours — 0 % |
 
 La progression globale d’un chantier est pondérée selon le travail restant ; elle ne correspond pas nécessairement à la moyenne arithmétique de ses sous-lots.
 
@@ -42,7 +42,7 @@ C9 apporte une gestion sûre des objets supprimés Active Directory, depuis leur
 | C9.3 | Préparation Corbeille et garde-fous du changement irréversible | Terminé — 100 % |
 | C9.4 | Activation contrôlée de la Corbeille Active Directory | Terminé — 100 % |
 | C9.5 | Restauration réelle contrôlée | Terminé — 100 % |
-| C9-FINAL | Interface, régressions et publication stable | À réaliser |
+| C9-FINAL | Interface, régressions et publication stable | Terminé — 100 % |
 
 ### C9.1 — inventaire read-only
 
@@ -76,18 +76,20 @@ Valider une restauration réelle sur un objet de test jetable créé après acti
 
 ### C9-FINAL — interface, régressions et publication stable
 
-Dernière phase de C9 avant `v0.9.0`.
+Phase de clôture de C9, finalisée avec la publication de `v0.9.0`.
 
-Objectifs :
+**Résultat :**
 
-- finaliser l’UX des objets supprimés et de leur restauration ;
-- présenter clairement l’éligibilité et les motifs de blocage ;
-- conserver des confirmations humaines explicites pour les opérations sensibles ;
-- exécuter les régressions backend, frontend et Windows ;
-- valider le parcours navigateur ;
-- effectuer la revue de sécurité finale ;
-- finaliser la documentation C9 ;
-- publier la version stable `v0.9.0`.
+- interface Corbeille intégrée directement dans l’Explorateur Active Directory ;
+- inventaire, préflight, revalidations Windows et Simulation accessibles dans un parcours cohérent ;
+- challenge humain, autorisation exacte et post-autorisation validés de bout en bout dans le navigateur ;
+- expiration du challenge de deux minutes rendue visible et bloquée localement lorsqu’elle est dépassée ;
+- aucune route d’exécution réelle `/execution/queue` exposée dans le frontend ;
+- mécanisme réel de restauration C9.5 conservé derrière sa chaîne backend dédiée et ses garde-fous indépendants ;
+- régression C9 : 550 tests backend passés ;
+- régression backend complète : 1307 tests passés, 339 subtests passés et 45 warnings connus ;
+- régression frontend : 375 tests passés, lint sans erreur avec 34 warnings connus et build Vite réussi ;
+- documentation, progression et version synchronisées pour la publication stable `v0.9.0`.
 
 ### Séparation de sécurité C9
 

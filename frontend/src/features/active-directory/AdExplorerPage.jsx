@@ -76,6 +76,7 @@ import {
 } from "./utils/adUserCopy"
 
 import ObjectDetailsPanel from './components/ObjectDetailsPanel'
+import DeletedObjectRestorePanel from './components/DeletedObjectRestorePanel'
 import AdObjectPropertiesModal from './components/AdObjectPropertiesModal'
 import AdActivityModal from './components/AdActivityModal'
 import AdHistoryDetailModal from './components/AdHistoryDetailModal'
@@ -6493,7 +6494,17 @@ export default function AdExplorerPage({ apiFetch, setMessage, canManageActiveDi
                 }
                 adAgentMode={adAgentMode}
               />
+
             </section>
+
+            <div className="aduc-deleted-restore-wide">
+              <DeletedObjectRestorePanel
+                apiFetch={apiFetch}
+                canManageActiveDirectory={
+                  canManageActiveDirectory
+                }
+              />
+            </div>
           </main>
         </div>
 
