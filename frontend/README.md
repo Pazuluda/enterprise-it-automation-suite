@@ -1,16 +1,49 @@
-# React + Vite
+# Frontend EITAS
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Ce répertoire contient le frontend React/Vite de Enterprise IT Automation Suite.
 
-Currently, two official plugins are available:
+## Rôle
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Le frontend fournit notamment le portail EITAS, l’Explorateur Active Directory et les interfaces intégrées aux fonctions d’administration.
 
-## React Compiler
+L’authentification humaine utilise EITAS Identity via OIDC/PKCE. Les appels API du portail utilisent un Bearer token ; `X-API-Key` reste réservé aux workers techniques concernés.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Structure
 
-## Expanding the Oxlint configuration
+- `src/` : sources React ;
+- `public/` : ressources publiques ;
+- `dist/` : artefact local produit par le build Vite ;
+- `package.json` : scripts et dépendances frontend.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Développement
+
+Utiliser les scripts déclarés dans `package.json` depuis ce répertoire.
+
+Le serveur Vite de développement ne fait pas partie du runtime Production EITAS et le port 5173 ne doit pas être ouvert comme solution de dépannage en production.
+
+## Build et runtime Production
+
+Le build Vite produit `frontend/dist`.
+
+Dans le runtime actuellement validé, le navigateur accède à Nginx en HTTPS, Nginx relaie vers FastAPI et FastAPI sert l’application depuis `api/static/app` ainsi que les ressources sous `/static/`.
+
+`frontend/dist` n’est donc pas directement la racine web Nginx de production.
+
+Aucun mécanisme générique versionné de synchronisation automatique `frontend/dist` vers `api/static/app` ne doit être supposé. Suivre la procédure de déploiement validée.
+
+## Validation
+
+Avant intégration d’un changement frontend, utiliser les contrôles adaptés au lot concerné, notamment lint/tests/build lorsqu’ils sont applicables, puis vérifier le résultat dans le portail déployé.
+
+Une modification frontend ne doit jamais modifier implicitement le mode global de l’agent ni ouvrir un chemin Production.
+
+## Documentation
+
+- [Architecture frontend](../docs/architecture/frontend.md)
+- [Architecture générale](../docs/architecture/overview.md)
+- [EITAS Identity](../docs/architecture/identity.md)
+- [Configuration](../docs/operations/configuration.md)
+- [Déploiement](../docs/operations/deployment.md)
+- [Dépannage](../docs/operations/troubleshooting.md)
+
+Le README racine du projet reste le point d’entrée principal pour la présentation générale de EITAS.

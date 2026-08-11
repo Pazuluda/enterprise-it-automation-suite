@@ -1,36 +1,25 @@
 # Feuille de route EITAS
 
-## État à la sortie de v0.1.0
+Cette feuille de route décrit uniquement l’état actuel du projet, les chantiers fonctionnels et les prochaines étapes. L’historique détaillé des versions et checkpoints est conservé dans [`CHANGELOG.md`](../CHANGELOG.md).
 
-| Indicateur | Avancement |
+## État actuel
+
+| Indicateur | État |
 |---|---:|
-| C1 — Fenêtres Propriétés complètes | 100 % |
-| Explorateur Active Directory complet | 86 % |
-| Projet EITAS global | 88 % |
+| Version de développement | `v0.9.0-alpha.10` |
+| Dernière version stable | `v0.8.0` |
+| Projet EITAS global | **95 %** |
+| Explorateur Active Directory | **100 %** |
+| Chantier actif | **C9 — 52 %** |
 
-Les pourcentages sont recalculés uniquement après une validation formelle.
+EITAS reste en développement actif. Les chantiers C1 à C8 de l’Explorateur Active Directory sont terminés. C9 poursuit la Corbeille Active Directory et la restauration contrôlée avant la phase finale de stabilisation C10.
 
-## État courant — v0.9.0-alpha.04
-
-| Indicateur | Avancement |
-|---|---:|
-| C4 — Groupes, imbrication et appartenances |      100 % |
-| C5 — Ordinateurs, OU, conteneurs et contacts |      100 % |
-| C6 — Recherche, colonnes, filtres et requêtes |      100 % |
-| C7 — Sélection multiple, copie et glisser-déposer |      100 % |
-| C8 — ACL, sécurité et délégation                 |      100 % |
-| Explorateur Active Directory complet       |      100 % |
-| Projet EITAS global | 95 % |
-
-`v0.9.0-alpha.09` clôt C9.5 à 100 %. Après activation préalable de la Corbeille Active Directory, une restauration réelle contrôlée a été validée sur un groupe jetable créé après activation. La chaîne impose autorisation humaine OIDC, revalidations live, consommation one-shot, transport signé à TTL court, opt-in Windows temporaire et handler `Restore-ADObject` isolé. Le GUID de l’objet a été conservé, le DN final vérifié et l’entrée supprimée a disparu de la Corbeille. Le mode global est resté `Simulation`, Production n’a jamais été ouverte et le worker normal a été restauré après l’exécution. Tests : 350 C9.5, 1303 backend, 339 sous-tests et 63 tests de sécurité ciblés. C9.5 : 100 %, C9 : 52 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
-
-C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
-## Roadmap de l'Explorateur Active Directory
+## Vue d’ensemble
 
 | Chantier | Objectif | Version cible | État |
 |---|---|---:|---|
-| C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé |
-| C2 | Éditeur d'attributs LDAP | `v0.2.0` | Terminé — 100 % |
+| C1 | Fenêtres Propriétés complètes | `v0.1.0` | Terminé — 100 % |
+| C2 | Éditeur d’attributs LDAP | `v0.2.0` | Terminé — 100 % |
 | C3 | Gestion avancée des utilisateurs | `v0.3.0` | Terminé — 100 % |
 | C4 | Groupes, imbrication et appartenances | `v0.4.0` | Terminé — 100 % |
 | C5 | Ordinateurs, OU, conteneurs et contacts | `v0.5.0` | Terminé — 100 % |
@@ -40,1022 +29,121 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 52 % |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
-## Version actuelle
+La progression globale d’un chantier est pondérée selon le travail restant ; elle ne correspond pas nécessairement à la moyenne arithmétique de ses sous-lots.
 
-### v0.9.0-alpha.04 — clôture formelle de C9.2
+## C9 — Corbeille Active Directory et restauration
 
-Ce checkpoint clôt C9.2 à 100 % sans ouvrir la restauration réelle.
+C9 apporte une gestion sûre des objets supprimés Active Directory, depuis leur inventaire jusqu’à une restauration réelle strictement contrôlée.
 
-Décision d’architecture :
+| Sous-lot | Objectif | État |
+|---|---|---|
+| C9.1 | Inventaire read-only des objets supprimés | Terminé — 100 % |
+| C9.2 | Préflight, revalidation live et Simulation contrôlée | Terminé — 100 % |
+| C9.3 | Préparation Corbeille et garde-fous du changement irréversible | Terminé — 100 % |
+| C9.4 | Activation contrôlée de la Corbeille Active Directory | Terminé — 100 % |
+| C9.5 | Restauration réelle contrôlée | Terminé — 100 % |
+| C9-FINAL | Interface, régressions et publication stable | À réaliser |
 
-- C9.2 est défini comme la phase complète de conception, préflight, revalidation live et Simulation contrôlée ;
-- C9.1 reste validé à 100 % pour l’inventaire read-only des objets supprimés ;
-- C9.2A reste validé à 100 % pour le préflight sécurisé et la revalidation live ;
-- C9.2B reste validé à 100 % pour la préparation Simulation contrôlée et le preview Windows dormant ;
-- aucun sous-lot C9.2C fonctionnel supplémentaire n’est requis ;
-- l’activation de la Corbeille Active Directory est explicitement séparée de C9.2 ;
-- toute restauration réelle est explicitement séparée de C9.2 ;
-- les records de restauration Simulation restent au statut `prepared` ;
-- les records `prepared` restent exclus de la file `pending` ;
-- le worker Windows ne peut toujours pas claim ces records ;
-- `simulate_deleted_object_restore` reste absent du runtime AD Admin générique ;
-- le preview Windows reste absent du dispatcher générique ;
-- `Restore-ADObject` reste absent ;
-- `Enable-ADOptionalFeature` reste absent ;
-- aucun `Restore-ADObject -WhatIf` n’est exécuté ;
-- aucune ouverture Production ;
-- mode final : `Simulation`.
+### C9.1 — inventaire read-only
 
-Progression après clôture :
+Inventorier les objets supprimés sans introduire de chemin d’écriture Active Directory.
 
-- C9.1 : 100 % ;
-- C9.2A : 100 % ;
-- C9.2B : 100 % ;
-- C9.2 : 100 % ;
-- C9 global : 47 % provisoire, jusqu’au découpage explicite des phases restantes ;
-- Explorateur Active Directory : 100 % ;
-- EITAS global : 95 %.
+**Résultat :** inventaire et lecture des objets supprimés validés avec séparation stricte des opérations d’écriture.
 
-La prochaine étape est C9.3 — préparation de la Corbeille Active Directory et garde-fous du changement irréversible, sans activation de la fonctionnalité à ce stade.
+### C9.2 — préflight et Simulation
 
-## Découpage restant de C9
+Préparer une restauration, vérifier son éligibilité et produire une Simulation sans autoriser de restauration réelle.
 
-Le découpage suivant est figé après l’audit C9.3-A1.
+**Résultat :** préflight sécurisé, revalidation live, Simulation et preview Windows validés sans ouverture d’un runtime de restauration.
 
-### C9.3 — préparation Corbeille et garde-fou irréversible
+### C9.3 — préparation de la Corbeille
 
-Objectif : établir toutes les conditions nécessaires avant l’activation de la Corbeille Active Directory.
+Établir les préconditions techniques et les garde-fous nécessaires avant toute activation forest-wide de la Corbeille Active Directory.
 
-Périmètre :
+**Résultat :** état forêt/domaine, réplication, identité opérateur et séparation des autorisations validés avant activation.
 
-- audit read-only des capacités forêt/domaine ;
-- état actuel de la fonctionnalité Recycle Bin ;
-- niveaux fonctionnels forêt/domaine ;
-- impacts opérateur et conséquences du changement ;
-- confirmation explicite du caractère forest-wide ;
-- confirmation explicite du caractère non réversible attendu ;
-- préparation d’un gate d’autorisation séparé ;
-- aucune exécution de `Enable-ADOptionalFeature` ;
-- aucune restauration d’objet ;
-- aucun passage Production.
+### C9.4 — activation contrôlée
 
-### C9.4 — activation contrôlée de la Corbeille Active Directory
+Activer la Corbeille Active Directory comme une opération distincte de toute restauration d’objet.
 
-**État du checkpoint `v0.9.0-alpha.07` : C9.4 terminé, activation exécutée et vérifiée.**
+**Résultat :** activation forest-wide autorisée explicitement, exécutée une seule fois puis vérifiée. La restauration est restée hors du périmètre de C9.4.
 
-- ticket d’activation court, dormant et lié aux preuves C9.3 ;
-- persistance dédiée durcie et non claimable par les queues génériques ;
-- consommation one-shot et anti-replay du ticket ;
-- autorisation humaine OIDC dédiée et liée au même acteur ;
-- persistance dormante de l’autorisation ;
-- nouvelle revalidation AD read-only immédiatement avant exécution ;
-- consommation atomique one-shot de l’autorisation après revalidation ;
-- aucun runtime d’activation générique ou Windows ouvert ;
-- `Enable-ADOptionalFeature` exécuté une seule fois après autorisation humaine explicite, hors dispatcher générique EITAS ;
-- `Restore-ADObject` toujours hors de C9.4 ;
-- mode `Simulation` et Production fermée.
+### C9.5 — restauration contrôlée
 
+Valider une restauration réelle sur un objet de test jetable créé après activation de la Corbeille.
 
-Objectif atteint : activation forest-wide réalisée après autorisation explicite et gates complets, puis vérifiée en lecture seule.
-
-Périmètre :
-
-- autorisation dédiée distincte de la restauration ;
-- revalidation immédiate des préconditions ;
-- activation forest-wide contrôlée ;
-- vérification post-activation ;
-- audit complet de l’opération ;
-- aucune restauration d’objet incluse dans ce lot.
-
-### C9.5 — runtime de restauration contrôlée
-
-**État : terminé à 100 % dans `v0.9.0-alpha.09`.** La restauration réelle contrôlée a été exécutée et vérifiée de bout en bout sur `GG_C95_RECYCLE_TEST`, avec conservation du GUID, cible exacte, disparition de l’objet supprimé, transport signé terminé par `SRV-DC01`, rollback du worker vers son état normal et maintien du mode global `Simulation`.
-
-Objectif : valider la restauration réelle sur un objet de test jetable créé après activation de la Corbeille.
-
-Périmètre :
-
-- objet de test explicitement jetable ;
-- création puis suppression contrôlée ;
-- inventaire read-only ;
-- préflight sécurisé ;
-- Simulation ;
-- autorisation Production séparée ;
-- runtime `Restore-ADObject` isolé du dispatcher AD Admin générique ;
-- anti-replay et binding strict ;
-- vérification post-restauration par GUID, DN et classe ;
-- audit complet.
+**Résultat :** restauration réelle contrôlée validée de bout en bout avec conservation du GUID, cible vérifiée, audit complet, transport dédié et retour automatique du worker à son état normal. Le mode global EITAS est resté `Simulation`.
 
 ### C9-FINAL — interface, régressions et publication stable
 
-Objectif : fermer C9 sans affaiblir les barrières de sécurité.
+Dernière phase de C9 avant `v0.9.0`.
 
-Périmètre :
+Objectifs :
 
-- UX des objets supprimés ;
-- éligibilité et motifs de blocage ;
-- confirmations explicites ;
-- régressions backend, frontend et Windows ;
-- validation navigateur ;
-- revue de sécurité finale ;
-- documentation ;
-- publication stable `v0.9.0`.
+- finaliser l’UX des objets supprimés et de leur restauration ;
+- présenter clairement l’éligibilité et les motifs de blocage ;
+- conserver des confirmations humaines explicites pour les opérations sensibles ;
+- exécuter les régressions backend, frontend et Windows ;
+- valider le parcours navigateur ;
+- effectuer la revue de sécurité finale ;
+- finaliser la documentation C9 ;
+- publier la version stable `v0.9.0`.
 
-Séparation obligatoire :
+### Séparation de sécurité C9
 
-- C9.3 ne doit pas activer la Corbeille ;
-- C9.4 ne doit pas restaurer d’objet ;
-- C9.5 ne doit jamais réutiliser implicitement une autorisation d’activation ;
-- l’activation de la Corbeille et la restauration réelle restent deux opérations indépendantes ;
-- `Production` nécessite toujours un gate explicite propre à l’opération concernée.
+Les frontières suivantes restent obligatoires :
 
-### v0.9.0-alpha.03 — C9.2B Simulation contrôlée et preview Windows dormant
+- C9.3 prépare l’activation mais ne constitue pas une autorisation de restauration ;
+- C9.4 active la Corbeille mais ne restaure aucun objet ;
+- C9.5 utilise une autorisation de restauration indépendante ;
+- une autorisation n’est jamais réutilisée implicitement pour une autre opération sensible ;
+- les écritures Active Directory sensibles restent isolées des dispatchers génériques ;
+- le mode global `Simulation` ne doit pas être transformé implicitement en mode Production.
 
-Ce checkpoint valide C9.2B à 100 % sans rendre la restauration exécutable.
+## C10 — performance, audit, tests et finition
 
-Principaux éléments validés :
+C10 constitue la dernière phase de stabilisation avant la première version générale d’EITAS.
 
-- enveloppe backend dédiée `c9.2b-v1` en mode Simulation uniquement ;
-- route humaine protégée `ADAdmin` / `UltraAdmin` pour préparer la Simulation ;
-- acteur `created_by` dérivé de l’identité authentifiée et non du payload client ;
-- persistance volontairement dormante en statut `prepared` ;
-- records exclus de la file générique `pending` et impossibles à claim par le worker ;
-- action `simulate_deleted_object_restore` absente du backend AD Admin générique ;
-- preview PowerShell Windows présent mais absent de `Invoke-EitasAdAdminJob` ;
-- revalidation read-only du GUID, de `isDeleted`, `isRecycled`, de la Corbeille AD, du parent, de la classe, du RDN de schéma et des collisions OneLevel ;
-- aucune primitive `Restore-ADObject`, `Enable-ADOptionalFeature` ou autre écriture AD dans le preview ;
-- candidat Windows SHA-256 `03936FC503E0446B06A0A6749D7A79D453233563B9AE92D0A0A378DC00E03139` validé par PowerShell 5.1 avec `PARSE_ERRORS=0` ;
-- module Windows actif conservé inchangé au SHA-256 `36845A03CB53203EF4B35C647039996BC313E09F31152F508B8DF4237DC0F758` pendant les gates ;
-- harness PowerShell isolé validant le refus Production, le refus d’un flag dangereux et le fail-closed lorsque la Corbeille AD est désactivée ;
-- aucun GUID d’objet supprimé réel utilisé par le harness ;
-- 69 tests C9 réussis ;
-- 39 tests Windows preview/régression réussis avec 16 sous-tests ;
-- suite backend complète : 839 tests réussis, 339 sous-tests réussis ;
-- Corbeille Active Directory toujours désactivée ;
-- aucune restauration effectuée ;
-- aucun worker redémarré pour activer cette capacité ;
-- mode final conservé en `Simulation`.
+Objectifs prévus :
 
-Progression après ce checkpoint :
+- mesurer et améliorer les performances du portail, de l’API et des workers ;
+- consolider l’audit fonctionnel et de sécurité ;
+- renforcer les tests de non-régression ;
+- traiter les derniers défauts fonctionnels et techniques ;
+- finaliser l’exploitation, la sauvegarde, la restauration et le dépannage ;
+- effectuer la revue finale de sécurité ;
+- terminer la finition générale du produit ;
+- préparer la publication `v0.10.0`.
 
-- C9.1 : 100 % ;
-- C9.2A : 100 % ;
-- C9.2B : 100 % ;
-- C9.2 : 92 % ;
-- C9 : 47 % ;
-- Explorateur Active Directory : 100 % ;
-- EITAS global : 95 %.
+Le découpage détaillé de C10 sera figé à son ouverture afin d’éviter de transformer cette feuille de route en journal de développement.
 
-La suite de C9.2 reste soumise à des barrières séparées ; l’activation de la Corbeille Active Directory et toute restauration réelle restent explicitement hors de ce checkpoint.
+## Objectif v1.0.0
 
-### v0.9.0-alpha.02 — C9.2A préflight sécurisé et revalidation live read-only
+La première version générale stable devra réunir :
 
-Ce checkpoint valide C9.2A à 100 % et porte C9.2 à 70 %, sans autoriser aucune restauration.
+- les chantiers C1 à C10 terminés ;
+- une documentation utilisateur, technique et d’exploitation complète ;
+- une stratégie documentée de migration, sauvegarde et restauration ;
+- des tests de non-régression représentatifs des parcours critiques ;
+- une revue de sécurité globale ;
+- une installation et une exploitation reproductibles ;
+- une stabilisation du portail, de l’API, d’EITAS Identity et des agents Windows ;
+- une cohérence complète entre README, documentation, roadmap, changelog et versionnement.
 
-Principaux garde-fous validés :
+## Règles de maintenance de cette feuille de route
 
-- moteur backend pur de décision de restauration avec politique fail-closed ;
-- états explicites `blocked_recycled`, `blocked_recycle_bin_disabled`, `needs_new_name`, `needs_target_path`, `blocked_name_collision` et `needs_live_revalidation` ;
-- aucun objet actuel classé comme candidat à la restauration ;
-- route de préflight read-only protégée par les rôles ADAdmin / UltraAdmin ;
-- revalidation Windows live par `objectGUID` avec `Get-ADObject -IncludeDeletedObjects` ;
-- validation fraîche de `isDeleted` et `isRecycled` ;
-- validation de l’existence et de l’état supprimé/recyclé du parent ;
-- lecture de `rDNAttID` dans le schéma Active Directory ;
-- mapping validé : `cn` pour user/group/computer/contact/container, `ou` pour organizationalUnit et `dc` pour dnsNode/dnsZone ;
-- détection de collision read-only en portée OneLevel avec échappement du filtre LDAP ;
-- binding du job live au GUID, au `new_name` et au `target_path` demandés ;
-- TTL de revalidation live avec refus des résultats expirés ;
-- refus de tout résultat live qui annoncerait une autorisation d’écriture ;
-- preuve de collision obligatoire lorsqu’un objet pourrait atteindre `candidate_preflight` ;
-- runtime réel validé avec la décision finale `blocked_recycled` ;
-- `preflight_passed=false` ;
-- `simulation_candidate=false` ;
-- barrière HTTP anonyme validée en 401 ;
-- module Windows `EitasAdLookup.ps1` déployé SHA-256 `27CF9A245253A03C3DF19872959FAEE0303EC13D843339664A0296EE56EB969E` ;
-- PowerShell 5.1 : 0 erreur de parsing ;
-- 38 tests C9.2 ciblés réussis ;
-- 45 tests AD Explorer réussis ;
-- 808 tests backend et 339 sous-tests réussis ;
-- aucune primitive `Restore-ADObject` ;
-- aucune primitive `Enable-ADOptionalFeature` ;
-- aucun job de restauration créé ;
-- aucune restauration effectuée ;
-- aucune activation de la Corbeille AD ;
-- aucun passage en Production ;
-- mode final `Simulation`.
+Pour éviter les dérives documentaires :
 
-Progression :
+- `ROADMAP.md` décrit le présent et le futur, pas l’historique détaillé des releases ;
+- `CHANGELOG.md` conserve l’historique des versions et checkpoints publiés ;
+- les détails d’architecture, de sécurité et d’exploitation appartiennent aux documents dédiés ;
+- les preuves techniques détaillées et anciens documents de clôture ne sont pas dupliqués ici ;
+- les versions et pourcentages doivent rester synchronisés avec `VERSION` et le README.
 
-- C9.1 : 100 % ;
-- C9.2A : 100 % ;
-- C9.2 : 70 % ;
-- C9 : 34 % ;
-- Explorateur Active Directory : 100 % ;
-- EITAS global : 95 %.
+## Références
 
-La prochaine étape est C9.2B : poursuivre la conception de la Simulation de restauration sous garde-fous stricts, sans activation automatique de la Corbeille Active Directory.
-
-
-### v0.9.0-alpha.01 — C9.1 inventaire read-only des objets supprimés
-
-Ce checkpoint valide C9.1 à 100 % et ouvre C9 sans autoriser aucune restauration.
-
-- ajout de l’action AD Explorer `get_deleted_objects` ;
-- action read-only disponible sans requête de recherche obligatoire ;
-- intégration dans le pipeline AD Explorer existant ;
-- traitement Windows par `EitasAdLookup.ps1` ;
-- lecture native avec `Get-ADObject`, `-IncludeDeletedObjects` et filtre `(isDeleted=TRUE)` ;
-- lecture du statut de la fonctionnalité Active Directory Recycle Bin ;
-- lecture de `tombstoneLifetime` et `msDS-DeletedObjectLifetime` ;
-- exclusion du conteneur système `CN=Deleted Objects` de l’inventaire utilisateur ;
-- métadonnées retournées : GUID, classe, DN supprimé, `isDeleted`, `isRecycled`, `lastKnownParent`, `msDS-LastKnownRDN`, dates et capacité de restauration ;
-- capacité de restauration volontairement conservatrice ;
-- aucune primitive `Restore-ADObject` introduite ;
-- aucune primitive `Enable-ADOptionalFeature` introduite ;
-- aucune action `restore_object` ou `restore_deleted_object` exposée ;
-- Corbeille Active Directory toujours désactivée ;
-- aucune restauration effectuée ;
-- aucun passage du projet en mode Production ;
-- module Windows actif SHA-256 `4AD6A5F3E2F6CB5FC6DB35ACE3E935B0B93E37BFE74155DC2D8794BA6D914D74` ;
-- PowerShell 5.1 : 0 erreur de parsing ;
-- worker AD Lookup actif avec un seul processus ;
-- validation runtime finale : 100 objets supprimés retournés ;
-- classes runtime : 6 computers, 6 contacts, 18 containers, 29 dnsNodes, 2 dnsZones, 16 groups, 17 organizationalUnits et 6 users ;
-- 100/100 objets avec GUID ;
-- 100/100 avec `lastKnownParent` ;
-- 0/100 avec `msDS-LastKnownRDN` ;
-- 100/100 avec `isRecycled=true` ;
-- 100/100 classés `recycle_bin_disabled` ;
-- `tombstoneLifetime=180` jours ;
-- `msDS-DeletedObjectLifetime` non défini ;
-- 17 tests C9 ciblés réussis ;
-- 45 tests AD Explorer réussis ;
-- 770 tests backend et 339 sous-tests réussis ;
-- 43 avertissements backend connus ;
-- rotation réussie de la clé API worker après exposition diagnostique ;
-- ancienne clé refusée en HTTP 401 et nouvelle clé acceptée en HTTP 200 ;
-- suppression des 8 occurrences Debian et des 11 occurrences Windows de l’ancienne clé ;
-- conservation d’un manifeste d’incident sans secret ;
-- contrôle sécurité pré-commit validé ;
-- `git diff --check` validé ;
-- progression : C9.1 100 %, C9 20 %, Explorateur AD 100 %, EITAS 95 %.
-
-La prochaine étape est C9.2 : conception et garde-fous de la capacité de restauration, sans activation automatique de la Corbeille Active Directory.
-
-### v0.8.0 — C8 ACL, sécurité et délégation
-
-C8 est terminé et validé à 100 %.
-
-- C8.1 : Security Descriptor Active Directory en lecture seule ;
-- C8.2 : filtres, droits lisibles et résolution sémantique des GUID ACL ;
-- C8.3 : Simulation de délégation ACL strictement sans écriture ;
-- C8.4A : intention d’écriture dormante et binding de preuves ;
-- C8.4B : frontière de confiance, identité OIDC et anti-replay ;
-- C8.4C : moteur Windows contrôlé de revalidation pré-écriture ;
-- C8.4D : préparation Production, statut humain et confirmation finale dormante ;
-- C8-FINAL : régressions complètes, contrôle Windows et gate de release stable ;
-- 290 tests backend C8 ciblés réussis lors de la régression finale ;
-- 753 tests backend et 339 sous-tests réussis ;
-- 364 tests frontend réussis ;
-- build Vite 8.1.3 validé ;
-- 9 routes C8 finales présentes dans OpenAPI ;
-- PowerShell 5.1 : 0 erreur de parsing sur les quatre fichiers Windows finaux ;
-- parité SHA-256 Debian / Windows validée sur les modules et lanceurs AD Admin / AD Lookup ;
-- un seul worker AD Admin et un seul worker AD Lookup actifs ;
-- DACL finale read-only : 36 ACE ;
-- SHA-256 DACL final : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
-- `FINAL_AGENT_MODE=Simulation` ;
-- `production_authorized=false` ;
-- `ad_write_authorized=false` ;
-- `write_performed=false` ;
-- aucune primitive d’écriture ACL présente ;
-- `apply_acl_delegation` absent du runtime générique ;
-- C8 : 100 % ;
-- Explorateur Active Directory : 100 % ;
-- EITAS : 95 %.
-
-La prochaine étape est C9 : Corbeille Active Directory et restauration.
-
-### v0.8.0-alpha.09 — C8.4D couche Production contrôlée et confirmation humaine ACL
-
-Ce checkpoint valide C8.4D à 100 % sans ouvrir l’écriture ACL.
-
-- préparation Production construite exclusivement depuis les preuves serveur Simulation et Security Descriptor ;
-- aucun fingerprint client utilisé comme source de confiance ;
-- intention `apply_acl_delegation` présente uniquement comme structure dormante côté React ;
-- `apply_acl_delegation` absent du dispatch AD Admin générique et du worker générique ;
-- claim anti-replay et ticket pré-write à durée de vie courte ;
-- statut humain read-only du ticket de pré-écriture ;
-- relecture du mode agent avant consommation des preuves ;
-- micro-fenêtre `Production` limitée à la revalidation pré-write ;
-- retour obligatoire en `Simulation` avant la confirmation finale ;
-- confirmation humaine exigeant le DN exact et la phrase `APPLY ACL DELEGATION` ;
-- persistance atomique de la confirmation sans changer l’état `prewrite_validated` ;
-- aucune phrase brute de confirmation persistée ;
-- confirmation liée à l’`AuthenticatedIdentity` OIDC réelle et aux claims `sub`, `iss` et `azp` ;
-- correction de l’intégration OIDC afin d’utiliser `identity.claims` ;
-- `job_creation_authorized=false` ;
-- `runtime_authorized=false` ;
-- `production_authorized=false` ;
-- `ad_write_authorized=false` ;
-- `write_performed=false` ;
-- aucune primitive `Set-Acl`, `ActiveDirectoryAccessRule`, `AddAccessRule`, `SetAccessRule` ou `RemoveAccessRule` introduite ;
-- 753 tests backend réussis ;
-- 339 sous-tests backend réussis ;
-- 364 tests frontend réussis ;
-- 42 avertissements backend connus ;
-- build Vite 8.1.3 validé ;
-- contrôle sécurité pré-commit validé ;
-- `git diff --check` validé.
-
-### Validation réelle C8.4D
-
-- cible : `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
-- `objectGUID` : `8838f739-c817-4b45-90b2-b597ce79312a` ;
-- claim : `d835320c-0564-4b50-a628-c0af7ffed87f` ;
-- ticket : `ac5aea75-85b1-48a1-9157-27fc9de5f6b6` ;
-- exécution : `d0e93be5-1181-4749-8383-2a4d3c99a542` ;
-- confirmation : `dfce52e6-69ab-4ec5-bdd8-4c2af87a8d0f` ;
-- confirmation validée et consommée ;
-- état final persistant : `prewrite_validated` ;
-- mode final : `Simulation` ;
-- lecture Security Descriptor post-confirmation : `e9f5b851-7dbf-4522-97d3-3a5c47e13f3c` ;
-- lecture post-confirmation read-only ;
-- 36 ACE inchangées ;
-- SHA-256 DACL avant/après : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
-- `DACL_UNCHANGED=True` ;
-- aucune nouvelle ouverture Production pour le contrôle final ;
-- aucune écriture ACL effectuée ;
-- progression : C8.4D 100 %, C8 95 %, Explorateur AD 99 %, EITAS 94 %.
-
-La prochaine étape est C8-FINAL : clôture de C8, revue finale de sécurité, régressions et publication `v0.8.0`.
-
-### v0.8.0-alpha.08 — C8.4C moteur Windows contrôlé de pré-écriture ACL
-
-Ce checkpoint valide C8.4C à 100 % sans introduire d’écriture ACL.
-
-- ajout d’un ticket de pré-écriture éphémère dérivé exclusivement d’un claim B4 `claimed_dormant` ;
-- durée de vie courte et fraîcheur stricte des claims et tickets ;
-- ajout d’un runtime serveur dédié avec états `prewrite_ticketed`, `prewrite_processing`, `prewrite_validated` et `prewrite_failed` ;
-- routes agent dédiées pour récupérer, réclamer et terminer les validations pré-écriture ;
-- liaison stricte entre ticket, claim, `execution_id` et `agent_name` ;
-- autorisation runtime temporaire limitée à la validation pré-écriture ;
-- intégration Windows dans un processeur dédié `Process-EitasPendingAclPrewriteTickets` ;
-- barrière stricte exigeant le mode global `Production` avant traitement d’un ticket ;
-- aucune exposition de `apply_acl_delegation` au dispatch AD Admin générique ;
-- relecture Windows immédiate de l’objet Active Directory avant toute future mutation ;
-- revalidation de l’`objectGUID` ;
-- revalidation du SHA-256 du SDDL DACL natif ;
-- nouvelle résolution et revalidation du SID du principal ;
-- validation réelle avec l’utilisateur OIDC `eitas-admin` disposant du rôle `UltraAdmin` ;
-- claim réel `fe133c7f-1ad1-4cac-8729-47f2910951c3` ;
-- ticket réel `ce41f3d3-9da8-442b-a66b-0fef6961729c` ;
-- exécution Windows réelle `1b60cd73-2968-4f23-b7c1-441f4e4726c3` sur `SRV-DC01` ;
-- état final `prewrite_validated` ;
-- `object_guid_revalidated=true` ;
-- `dacl_revalidated=true` ;
-- `principal_sid_revalidated=true` ;
-- `write_performed=false` ;
-- DACL avant et après strictement identique : `33f513be33e27d30c30b787c1a5aa1256a7e2058d7d2dbbaef6dfe325cc622fb` ;
-- 36 ACE avant et après ;
-- retour final du mode agent en `Simulation` ;
-- aucune primitive `Set-Acl`, `ActiveDirectoryAccessRule`, `AddAccessRule`, `SetAccessRule` ou `RemoveAccessRule` introduite ;
-- 225 tests C8 ACL / pre-write ciblés réussis ;
-- 688 tests backend et 339 sous-tests réussis ;
-- 42 avertissements backend connus ;
-- contrôle sécurité pré-commit validé ;
-- `git diff --check` validé ;
-- progression : C8.4C 100 %, C8 85 %, Explorateur AD 98 %, EITAS 93 %.
-
-La prochaine étape est C8.4D : couche Production contrôlée, confirmation finale et intégration UI, sans affaiblir les barrières C8.4A/B/C.
-
-### v0.8.0-alpha.07 — C8.4B frontière backend pré-écriture ACL
-
-Ce checkpoint valide C8.4B à 100 % sans ouvrir l’écriture ACL.
-
-- B1 : chargement strict des preuves serveur de confiance ;
-- liaison à une simulation ACL réussie et fraîche ;
-- liaison à un Security Descriptor frais ;
-- binding obligatoire sur le même `objectGUID` ;
-- fingerprint sémantique ACL v2 déterministe ;
-- fingerprint sémantique indépendant de l’ordre d’affichage des ACE ;
-- SHA-256 du SDDL DACL natif conservé séparément afin de capturer la représentation DACL réellement lue ;
-- B2 : registre anti-replay privé et durable ;
-- verrou interprocess `flock` ;
-- écriture atomique avec fichier temporaire exclusif, `fsync`, `replace` et `fsync` du répertoire ;
-- protection contre les liens symboliques ;
-- consommation unique par digest de preuve, Simulation et Security Descriptor ;
-- B3 : enveloppe d’identité liée à l’acteur OIDC réellement authentifié ;
-- rejet des champs d’identité contrôlés par le client, dont `created_by` ;
-- enveloppe strictement non autorisante ;
-- B4 : claim `claimed_dormant` atomique couplé à la consommation anti-replay sous le même verrou ;
-- revalidation des preuves fraîches après acquisition du verrou ;
-- persistance de la cible, du principal, de l’ACE exacte, du fingerprint ACL, du SHA DACL natif et de l’acteur OIDC ;
-- course interprocess validée avec un seul gagnant ;
-- premier claim réel HTTP 200 ;
-- replay immédiat avec les mêmes preuves rejeté en HTTP 409 ;
-- registre runtime `/var/lib/eitas/acl-delegation-write-replay.json` validé en mode `0600` sous `eitas:eitas` ;
-- audit runtime unique `acl_delegation_write_claim_created` validé ;
-- aucun job `apply_acl_delegation` créé ;
-- aucune exposition de `apply_acl_delegation` au worker Windows ou au frontend ;
-- aucune primitive `Set-Acl`, `SetAccessRule`, `AddAccessRule`, `RemoveAccessRule`, `ResetAccessRule`, `SetOwner` ou `ActiveDirectoryAccessRule` introduite ;
-- `job_creation_authorized=false` ;
-- `runtime_authorized=false` ;
-- `production_authorized=false` ;
-- `ad_write_authorized=false` ;
-- 13 tests B4 ciblés réussis ;
-- 12 tests B2 de régression réussis ;
-- 79 tests B1+B2+B3+B4 réussis ;
-- 636 tests backend et 339 sous-tests réussis ;
-- contrôle sécurité pré-commit validé ;
-- progression : C8.4B 100 %, C8 75 %, Explorateur AD 98 %, EITAS 93 %.
-
-La prochaine étape est C8.4C : moteur Windows contrôlé avec relecture et validation de la DACL immédiatement avant toute future mutation.
-
-### v0.8.0-alpha.06 — C8.4A garde-fous préparatoires aux écritures ACL
-
-Ce checkpoint valide C8.4A à 100 %.
-
-- ajout du contrat dormant `apply_acl_delegation` sans exposition runtime ;
-- validation stricte d’une intention explicite `Production` sans autoriser son exécution ;
-- ACE `Allow` uniquement et droits limités à la liste déjà validée en C8.3 ;
-- refus explicite de `GenericAll`, `WriteDacl`, `WriteOwner` et `AccessSystemSecurity` ;
-- confirmation obligatoire du DN cible et phrase de confirmation dédiée ;
-- liaison obligatoire à un job `simulate_acl_delegation` terminé avec succès ;
-- vérification des invariants C8.3 : simulation vraie, aucune écriture, Production interdite ;
-- liaison obligatoire à un job `get_security_descriptor` read-only postérieur à la simulation ;
-- fingerprint SHA-256 canonique de la DACL à partir des SID, droits, types ACE, héritage, flags et GUID ;
-- fingerprint indépendant de l’ordre des ACE et des métadonnées d’affichage ;
-- détection d’une modification structurelle réelle de la DACL ;
-- validation réelle sur `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
-- 36 ACE réelles utilisées pour le gate ;
-- fingerprint réel `5ed37bc4d045346535f0e81668bb281e41568029d97a40ca90472e3e117e27b3` ;
-- job Simulation réel `7bf650bd-7799-499f-8e42-9973af0b6b0c` ;
-- lecture DACL fraîche `d519800a-0ccb-4a61-aab9-6c45c57fd190` ;
-- `C8_4A_REAL_GATE=PASS` ;
-- `job_creation_authorized = false` ;
-- `runtime_authorized = false` ;
-- `production_authorized = false` ;
-- `ad_write_authorized = false` ;
-- aucune primitive `Set-Acl`, `SetAccessRule`, `AddAccessRule`, `RemoveAccessRule`, `ResetAccessRule`, `SetOwner` ou `ActiveDirectoryAccessRule` introduite dans les sources d’exécution ;
-- 14 tests C8.4A1 réussis ;
-- 25 tests C8.4A2 réussis ;
-- 39 tests C8.4A combinés réussis ;
-- 33 tests de régression C8.3 réussis ;
-- 548 tests backend et 339 sous-tests réussis ;
-- contrôle sécurité pré-commit validé ;
-- progression : C8.4A 100 %, C8 65 %, Explorateur AD 97 %, EITAS 92 %.
-
-Progression C8 retenue pour les prochains checkpoints contrôlés : C8.4B 75 %, C8.4C 85 %, C8.4D 95 %, puis C8-FINAL 100 %.
-
-### v0.8.0-alpha.05 — C8.3 simulation de délégation ACL
-
-Ce checkpoint valide C8.3 à 100 %.
-
-- ajout du contrat backend `simulate_acl_delegation`, exclusivement en mode Simulation ;
-- persistance et exécution via le pipeline générique AD Admin existant ;
-- aucune nouvelle route HTTP dédiée ;
-- accès conservé aux rôles AD Admin / UltraAdmin déjà autorisés sur AD Admin ;
-- résolution de la cible strictement limitée au périmètre EITAS ;
-- résolution du principal de sécurité dans le domaine Active Directory ;
-- prise en charge contrôlée de `ReadProperty`, `WriteProperty`, `CreateChild`, `DeleteChild`, `ListChildren`, `ReadControl`, `ExtendedRight` et `GenericRead` ;
-- prise en charge des portées `None`, `All`, `Descendents`, `SelfAndChildren` et `Children` ;
-- ACE `Allow` uniquement dans C8.3 ;
-- `Deny`, Production et toute autorisation d’écriture ACL exclus ;
-- aperçu Windows PowerShell 5.1 sans création d’ACE ni modification du descripteur ;
-- intégration dans l’onglet Sécurité de l’Explorateur AD ;
-- formulaire de simulation, affichage du principal résolu, du SID, des droits et de la portée ;
-- affichage explicite des invariants `simulated`, `write_performed`, `production_authorized` et `ad_write_authorized` ;
-- polish visuel local du formulaire, la refonte graphique globale restant réservée à C10 ;
-- job réel E2E validé sur `OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` avec `GG_IT_Admin` ;
-- empreinte DACL identique avant et après la simulation ;
-- aucune primitive `Set-Acl`, `SetAccessRule`, `AddAccessRule`, `RemoveAccessRule` ou `SetOwner` introduite ;
-- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
-- module Windows C8.3 actif SHA-256 `B7EB943682956DCDB4FB7F2C2B6B0BDEBDF24238D395503B26AEB82623DF56FD` ;
-- 33 tests backend C8.3 ciblés réussis ;
-- 509 tests backend et 339 sous-tests réussis ;
-- 343 tests frontend complets réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build Vite 8.1.3 validé ;
-- intégrité SHA-256 du chunk Active Directory déployé validée ;
-- recette Microsoft Edge validée ;
-- contrôle sécurité pré-commit validé ;
-- progression : C8.3 100 %, C8 55 %, Explorateur AD 96 %, EITAS 91 %.
-
-### v0.8.0-alpha.04 — C8.2C résolution et affichage des GUID ACL
-
-Ce checkpoint valide C8.2C à 100 %.
-
-- catalogue GUID read-only construit depuis le schéma AD et les droits étendus ;
-- résolution de `schemaIDGUID` pour classes et attributs ;
-- résolution de `rightsGuid` pour les droits étendus ;
-- conservation systématique des GUID techniques ;
-- exposition de `object_type_name` et `inherited_object_type_name` ;
-- résolution réelle de 25 GUID objet et 19 GUID hérités sur la DACL de validation ;
-- affichage des noms sémantiques et des GUID bruts dans la colonne `GUID cible` ;
-- recherche locale par nom sémantique ;
-- affichage des cibles héritées avec `Héritée pour` ;
-- panneaux Explorateur AD redimensionnables et dimensions mémorisées ;
-- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
-- 334 tests frontend réussis ;
-- 476 tests backend et 339 sous-tests réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build et intégrité SHA-256 du portail validés ;
-- recette Microsoft Edge validée ;
-- aucune lecture SACL ni écriture ACL ajoutée ;
-- progression : C8.2C 100 %, C8 36 %, Explorateur AD 95 %, EITAS 90 %.
-
-### v0.8.0-alpha.03 — C8.2B lisibilité sémantique des ACL
-
-Ce checkpoint valide C8.2B à 100 %.
-
-- traduction lisible des principaux droits Active Directory ;
-- gestion des droits AD composés ;
-- conservation des valeurs techniques originales ;
-- traduction lisible des portées d'héritage ;
-- conservation des valeurs natives `None`, `All`, `Descendents`, `SelfAndChildren` et `Children` ;
-- fallback non destructif pour les valeurs inconnues ;
-- aucune modification backend ou worker Windows ;
-- aucune commande ou API d'écriture ACL ;
-- 22 tests C8 frontend ciblés ;
-- 326 tests frontend complets ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build et intégrité SHA-256 du portail validés ;
-- recette navigateur Microsoft Edge validée ;
-- progression : C8.2B 100 %, C8 30 %, Explorateur AD 95 %, EITAS 90 %.
-
-### v0.8.0-alpha.02 — C8.2A exploration read-only des ACL
-
-Ce checkpoint valide C8.2A à 100 %.
-
-- recherche locale dans les ACE de la DACL ;
-- recherche par principal, SID, droits AD, portée et GUID ;
-- filtres combinables Autoriser / Refuser ;
-- filtres combinables Explicites / Héritées ;
-- compteurs et nombre d'ACE affichées ;
-- remise à zéro des filtres au changement d'objet ;
-- message explicite lorsqu'aucune ACE ne correspond ;
-- aucune modification backend ou worker Windows ;
-- aucune commande ou API d'écriture ACL ;
-- 16 tests C8 frontend ciblés ;
-- 320 tests frontend complets ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build et intégrité SHA-256 du portail validés ;
-- recette navigateur Microsoft Edge validée ;
-- progression : C8.2A 100 %, C8 25 %, Explorateur AD 95 %, EITAS 90 %.
-
-### v0.8.0-alpha.01 — C8.1 ACL / DACL en lecture seule
-
-Ce checkpoint valide C8.1 à 100 %.
-
-- lecture read-only du propriétaire et de la DACL Active Directory ;
-- récupération des principaux, SID, Allow / Deny et droits AD ;
-- exposition de héritage et des GUID objet ;
-- 36 ACE validées sur OU de test : 10 explicites et 26 héritées ;
-- SACL volontairement exclue ;
-- aucune API ou commande de modification ACL ;
-- onglet Sécurité intégré à Explorateur AD ;
-- affichage du propriétaire, de héritage et des ACE ;
-- module Windows PowerShell 5.1 validé avec 0 erreur de parsing ;
-- job réel read-only et recette navigateur validés ;
-- 10 tests backend C8.1 ciblés ;
-- 10 tests frontend C8.1C ciblés ;
-- 314 tests frontend ;
-- 469 tests backend et 339 sous-tests ;
-- lint : 34 avertissements connus, 0 erreur ;
-- contrôles de sécurité validés ;
-- progression : C8.1 100 %, C8 20 %, Explorateur AD 94 %, EITAS 90 %.
-
-### v0.7.0 — C7-FINAL
-
-La version stable v0.7.0 clôt C7 à 100 %.
-
-- C7.1 multi-sélection validée ;
-- C7.2 actions groupées de copie validées ;
-- C7.3 glisser-déposer validé ;
-- cycle de vie de la sélection consolidé ;
-- absence de sélection multiple fantôme validée ;
-- fin de drag nettoyant les états transitoires ;
-- un seul job canonique `move_object` conservé ;
-- aucun bulk destructif ajouté ;
-- 39 tests C7 consolidés ;
-- 304 tests frontend réussis ;
-- 459 tests backend et 339 sous-tests réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- contrôles de sécurité validés ;
-- progression : C7 100 %, Explorateur AD 94 %, EITAS 90 %.
-
-### v0.7.0-alpha.03 — C7.3 Glisser-déposer et déplacement
-
-Ce checkpoint valide C7.3 à 100 %.
-
-- lignes AD gérées utilisables comme sources de drag ;
-- OU et conteneurs EITAS utilisables comme destinations ;
-- signal visuel vert pour une destination valide ;
-- signal visuel rouge pour une destination refusée ;
-- refus du parent courant ;
-- refus d un objet vers lui-même ou un descendant ;
-- refus du glisser-déposer avec multi-sélection ;
-- le drop prépare uniquement la fenêtre de déplacement existante ;
-- aucun nouveau job backend de déplacement ;
-- réutilisation exclusive du job canonique `move_object` ;
-- workflow Simulation validé sans modification réelle AD ;
-- 10 tests C7.3 ciblés réussis ;
-- 297 tests frontend réussis ;
-- 459 tests backend et 339 sous-tests réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build/runtime public et SHA-256 validés ;
-- progression : C7.3 100 %, C7 75 %, Explorateur AD 94 %, EITAS 90 %.
-
-### v0.7.0-alpha.02 — C7.2 Actions de sélection et copie
-
-Ce checkpoint valide C7.2 à 100 %.
-
-- barre compacte d actions sur la sélection multiple ;
-- copie des DN de tous les objets sélectionnés ;
-- copie des noms de tous les objets sélectionnés ;
-- export presse-papiers CSV `Nom;Type;Compte SAM;E-mail;DN` ;
-- réutilisation du workflow historique Copier utilisateur pour une source utilisateur unique ;
-- désélection explicite depuis la barre ;
-- aucun nouveau job destructif bulk ;
-- aucun changement backend ;
-- correction du crash runtime lié au helper utilisateur ;
-- reconstruction propre de la barre après validation du layout navigateur ;
-- navigation des OU revalidée sans régression ;
-- 10 tests C7.2 ciblés réussis ;
-- 287 tests frontend réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build/runtime statique et SHA-256 public validés ;
-- recette navigateur DN, noms, CSV et navigation validée ;
-- progression : C7.2 100 %, C7 50 %, Explorateur AD 94 %, EITAS 90 %.
-
-### v0.7.0-alpha.01 — C7.1 Multi-sélection
-
-Ce checkpoint valide C7.1 à 100 %.
-
-- clic simple conservé comme sélection primaire ;
-- Ctrl/Cmd + clic pour ajouter ou retirer un objet ;
-- Maj + clic pour sélectionner une plage visible ;
-- Ctrl/Cmd + Maj + clic pour étendre une sélection ;
-- Ctrl/Cmd + A pour sélectionner tous les objets visibles ;
-- Échap pour vider la sélection ;
-- compteur de sélection dans le pied de liste ;
-- objet primaire conservé dans le panneau de propriétés ;
-- compatibilité avec le préchargement utilisateur et les membres de groupe historiques ;
-- 12 tests C7.1 ciblés réussis ;
-- 277 tests frontend réussis ;
-- 459 tests backend et 339 sous-tests réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build, runtime statique et SHA-256 public validés ;
-- recette navigateur validée : 1, 3, 5 puis 0 sélection ;
-- progression : C7.1 100 %, C7 25 %, Explorateur AD 94 %, EITAS 90 %.
-
-### v0.6.0 — C6
-
-**Version stable :** **`v0.6.0`**
-
-Le chantier C6 « Recherche, colonnes, filtres et requêtes » est terminé et validé à 100 %.
-
-- C6.1 : recherche Active Directory unifiée ;
-- C6.2 : colonnes configurables et tri persistant ;
-- C6.3 : filtres avancés combinables ;
-- C6.4 : recherches enregistrées persistantes ;
-- moteur `search_objects` unique et normalisé ;
-- restauration des requêtes, filtres, colonnes et tri ;
-- validation navigateur des parcours C6 ;
-- 34 tests C6 ciblés réussis ;
-- 265 tests frontend réussis ;
-- 459 tests backend et 339 sous-tests réussis ;
-- lint : 34 avertissements connus, 0 erreur ;
-- build de production : 12 fichiers, 913870 octets ;
-- intégrité SHA-256 publique validée ;
-- API et portail publics validés en HTTP 200 ;
-- contrôles de sécurité validés ;
-- progression après C6 : C6 100 %, Explorateur AD 94 %, EITAS 90 %.
-
-### v0.6.0-alpha.04 — C6.4 Recherches enregistrées
-
-Ce checkpoint clôt C6.4 « recherches enregistrées ».
-
-- enregistrement nommé de la recherche globale, des filtres, des colonnes et du tri ;
-- persistance navigateur via `localStorage` ;
-- limite de 20 recherches enregistrées ;
-- protection contre les doublons de nom ;
-- actions Charger, Remplacer et Supprimer ;
-- restauration de la requête et relance réelle du moteur C6.1 `search_objects` ;
-- restauration des filtres C6.3, des colonnes et du tri C6.2 ;
-- recette navigateur validée : création, chargement, F5, remplacement et suppression ;
-- 34 tests C6 ciblés validés ;
-- 265 tests frontend validés ;
-- 459 tests backend et 339 sous-tests validés ;
-- lint frontend : 34 avertissements connus, 0 erreur ;
-- build Vite, runtime statique et sécurité validés ;
-- progression : C6.4 100 %, C6 80 %, Explorateur AD 90 %, EITAS 89 %.
-
-### v0.6.0-alpha.03 — C6.3 Filtres avancés
-
-Ce checkpoint clôt C6.3 « filtres avancés ».
-
-- filtres avancés intégrés directement au pipeline de vue C6.2, sans nouveau moteur backend ;
-- filtrage par type d’objet Active Directory ;
-- filtrage par état de compte Activé, Désactivé ou Inconnu ;
-- critères par colonne avec opérateurs contient, égal, différent, commence par, se termine par, est renseigné et est vide ;
-- combinaison de plusieurs critères avec logique ET ;
-- compteur de filtres actifs, suppression individuelle et action `Effacer tout` ;
-- préférences de filtres persistées de manière sûre dans `localStorage` ;
-- compatibilité conservée avec la recherche globale C6.1, les colonnes configurables et le tri C6.2 ;
-- recette navigateur validée sur la recherche globale `e` : Utilisateurs + Activé + E-mail renseigné + Compte SAM contenant `l.` ;
-- persistance des quatre filtres validée après F5 ;
-- réinitialisation validée avec retour à zéro filtre actif.
-
-### Validation
-
-- 10 tests C6.3 dédiés validés ;
-- 22 tests ciblés C6.1/C6.2/C6.3 validés ;
-- suite frontend complète : 253 tests, 0 échec ;
-- lint frontend : 34 warnings connus, 0 erreur ;
-- suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés ;
-- build Vite de production validé ;
-- build/runtime exact et 12 fichiers statiques publics vérifiés par SHA-256 via HTTPS ;
-- contrôles de sécurité pré-commit validés ;
-- progression : C6.3 100 %, C6 60 %, Explorateur AD 86 %, EITAS 88 %.
-
-### v0.6.0-alpha.02 — C6.2 Colonnes configurables et tri
-
-Ce checkpoint clôt C6.2 « colonnes configurables + tri ».
-
-- tableau AD Explorer passé de trois colonnes figées à un modèle configurable ;
-- 14 colonnes disponibles avec `Nom` conservé comme colonne obligatoire ;
-- valeurs normalisées pour les objets Active Directory et leurs alias frontend ;
-- tri ascendant / descendant par en-tête avec valeurs vides placées en dernier ;
-- menu explicite `☷ Colonnes` avec sélection des colonnes et action `Réinitialiser` ;
-- préférences de colonnes et de tri persistées dans `localStorage` ;
-- correction du contexte d’empilement CSS afin de rendre le menu visible au-dessus du tableau ;
-- compatibilité C6.1 préservée avec la recherche globale unifiée ;
-- recette navigateur validée : sélection Compte SAM / UPN / E-mail / DN, tri `Nom ▲` / `Nom ▼`, persistance après F5 et réinitialisation fonctionnelle ;
-- build frontend publié avec égalité exacte build/runtime et contrôle SHA-256 des 12 fichiers statiques publics.
-
-**Validation :**
-- 9 tests C6.2 dédiés validés ;
-- suite frontend complète : 243 tests, 0 échec ;
-- lint frontend : 34 warnings connus, 0 erreur ;
-- suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés ;
-- build Vite de production validé ;
-- contrôles de sécurité pré-commit validés ;
-- progression : C6.2 100 %, C6 40 %, Explorateur AD 82 %, EITAS 87 %.
-
-### v0.6.0-alpha.01 — C6.1 Recherche Active Directory unifiée
-
-Ce checkpoint clôt C6.1 « moteur de recherche AD unifié + résultats fiables ».
-
-- nouvelle action AD Explorer `search_objects` couvrant utilisateur, groupe, ordinateur, OU, conteneur natif et contact ;
-- recherche LDAP native Windows sous une base AD explicite, récursive ou OneLevel, avec échappement des valeurs et limite bornée à 1000 ;
-- racine de domaine autorisée en lecture seule tout en conservant les contrôles de DN ;
-- normalisation stricte des six types C6 et exclusion des sous-classes de conteneur non supportées ;
-- déduplication frontend insensible à la casse par DN ;
-- remplacement du fan-out historique users/groupes/ordinateurs/contacts par un seul job `search_objects` ;
-- validation PowerShell 5.1 avant et après déploiement Windows ;
-- runtime Active Directory réel validé avec 175 résultats et exactement les six types supportés ;
-- recette navigateur validée avec recherches `e`, `Liam` et `Liam Ve`, puis ouverture des propriétés utilisateur ;
-- publication frontend validée avec égalité exacte build/runtime et SHA-256 des 12 fichiers publics.
-
-### Validation
-
-- tests C6.1 backend/worker dédiés : 7 réussis ;
-- suite backend complète : 459 tests, 37 warnings connus et 339 sous-tests validés ;
-- suite frontend complète : 234 tests, 0 échec ;
-- lint frontend : 34 warnings connus, 0 erreur ;
-- build Vite de production validé ;
-- contrôles de sécurité pré-commit validés ;
-- progression : C6.1 100 %, C6 20 %, Explorateur AD 78 %, EITAS 86 %.
-
-### v0.5.0 — C5 stable
-
-Cette version stable clôt C5 « Ordinateurs, OU, conteneurs et contacts ».
-
-- C5.1 Ordinateurs consolidé et couvert par un test frontend dédié.
-- C5.2 OU validé de bout en bout.
-- C5.3 Contacts validé de bout en bout.
-- C5.4 Conteneurs Active Directory natifs validé de bout en bout.
-- Protection hors périmètre confirmée sur le contrôleur de domaine `SRV-DC01`.
-- Aucun ordinateur géré n’étant présent sous `OU=EITAS`, aucun objet artificiel n’a été recré pour la recette finale.
-- Historique objet, navigation structurelle, propriétés et actions de gestion validés en recette navigateur.
-- Suite backend complète : 452 tests et 339 sous-tests validés.
-- Suite frontend complète : 231 tests validés.
-- Lint frontend : 34 warnings connus, 0 erreur.
-- Contrôles de sécurité pré-commit validés.
-- **Progression après C5 : C5 100 %, Explorateur AD 74 %, EITAS 85 %.**
-
-### v0.5.0-alpha.04 — C5.4 Conteneurs Active Directory natifs
-- Objet `container` pris en charge de bout en bout comme classe Active Directory native.
-- Création Windows via `New-ADObject -Type container` avec parent OU ou conteneur.
-- Snapshot, lookup live, arborescence et breadcrumbs enrichis pour les conteneurs.
-- Création, modification, renommage, déplacement et suppression validés en Simulation.
-- Protection contre la suppression accidentelle exposée et prévalidée.
-- Collisions, doublons et vacuité vérifiés avant toute frontière d’écriture.
-- Recette navigateur validée sur une fixture native composée de trois conteneurs.
-- Preuve zero-write finale validée puis cleanup complet avec zéro objet résiduel.
-- Historique des propriétés désormais filtré par DN d’objet avec fenêtre AD Admin à 1000 jobs.
-- Toasts de succès validés pour modification et renommage.
-- Suite backend complète : 452 tests, 36 warnings connus et 339 sous-tests validés.
-- Suite frontend complète : 229 tests, 0 échec ; lint : 34 warnings connus, 0 erreur.
-- Build de production, déploiement `/static/app/` et hashes publics SHA-256 validés.
-- C5.4 terminé à 100 %.
-- **Progression après C5.4 : C5 80 %, Explorateur AD 70 %, EITAS 84 %.**
-### v0.5.0-alpha.03 — C5.3 Contacts
-
-- Cycle de vie des contacts Active Directory valide de bout en bout.
-- Nouvelle action `create_contact` dans le backend AD Admin.
-- Creation native Windows via `New-ADObject -Type contact`.
-- Prevalidation Simulation du parent, du perimetre EITAS et des doublons.
-- Collisions de renommage et deplacement validees avant toute ecriture.
-- Suppression des contacts proteges validee avec lecture de `ProtectedFromAccidentalDeletion` avant la frontiere Simulation.
-- Formulaire React complet : identite, communication, organisation, description et protection contre la suppression accidentelle.
-- Action disponible dans la barre Explorateur et le menu contextuel.
-- Historique traduit avec `Creer un contact`.
-- Runtime Windows valide en Simulation avec preuve d absence d ecriture AD.
-- Recette navigateur validee avec `C53-UI-SIM-0808`.
-- Polish cible de la modale contacts et footer sticky valide.
-- Publication frontend validee sous `/static/app/` avec controle SHA-256 des fichiers servis.
-- Regression de chemin statique couverte par un test frontend dedie.
-- Validation finale : 206 tests frontend, 434 tests backend, 337 sous-tests backend, lint sans erreur et controles de securite verts.
-
-**Progression apres C5.3 : C5 60 %, Explorateur AD 66 %, EITAS 83 %.**
-
-### v0.5.0-alpha.02 — Checkpoint C5.2
-
-Ce checkpoint clôt C5.2 « OU : consolidation et validation formelle ».
-
-- création d’OU prévalidée sur le parent Active Directory réel avant Simulation ;
-- parent limité aux classes `organizationalUnit` et `container` dans le périmètre EITAS ;
-- doublon d’OU détecté avant le retour Simulation ;
-- suppression d’OU prévalidée sur la vacuité et l’état de protection avant Simulation ;
-- désactivation réelle de la protection et suppression conservées strictement en Production ;
-- collision d’OU sœur détectée avant renommage simulé ;
-- collision de nom dans la destination détectée avant déplacement simulé ;
-- `managedBy` et `protectedFromAccidentalDeletion` couverts pour les propriétés OU ;
-- huit scénarios runtime validés, avec quatre succès Simulation et quatre refus attendus ;
-- Active Directory confirmé inchangé après les scénarios Simulation ;
-- fixtures C5.2 supprimées avec `FIXTURE_REMAINING=0` ;
-- module Windows actif SHA-256 `3673C85799DFB5ED8ADF90AA2E253D0CEF1FA67236C164A4B1D0ECB0C7C74196` ;
-- 13 tests backend dédiés C5.2 validés ;
-- 5 tests frontend dédiés OU validés ;
-- suite frontend complète : 198 tests validés ;
-- lint frontend : 34 warnings connus, 0 erreur ;
-- build Vite de production validé ;
-- suite backend complète : 420 tests, 32 warnings connus et 326 sous-tests validés ;
-- C5.2 terminé à 100 % ;
-- C5 global : 40 % ; Explorateur AD : 62 % ; EITAS : 82 %.
-
-### v0.5.0-alpha.01 — Checkpoint C5.1
-
-Ce checkpoint clôt C5.1 « Ordinateurs : consolidation et validation formelle ».
-
-- création ordinateur consolidée avec validation réelle de l’OU cible avant le retour Simulation ;
-- détection des comptes ordinateur déjà existants dans le domaine avant Simulation ;
-- règles de nom ordinateur alignées : 1 à 15 caractères, A-Z, chiffres et tirets, sans tiret initial/final et sans valeur uniquement numérique ;
-- renommage ordinateur prévalidé avant Simulation avec synchronisation prévue du `sAMAccountName` et détection des conflits ;
-- mise à jour ordinateur prévalidée avant Simulation pour `sAMAccountName`, propriétés système, `managedBy` et protection contre la suppression accidentelle ;
-- toutes les écritures Active Directory restent après la frontière Simulation ;
-- resolver AD corrigé pour utiliser `Get-EitasAdDomainDn` et retourner proprement « Objet AD introuvable » au lieu d’un `SearchBase` nul ;
-- validations runtime Windows PowerShell 5.1 confirmées sans écriture Active Directory ;
-- fixture ordinateur temporaire supprimé après validation ;
-- module Windows actif SHA-256 `2BDF63F9F8FEFB841D22E2E83936E7CAC1CBC949E0C2E4E0FECBCE0580578BE5` ;
-- 21 tests dédiés C5.1 validés ;
-- suite backend complète : 407 tests, 32 warnings connus et 326 sous-tests validés ;
-- `git diff --check` validé ;
-- C5.1 terminé à 100 % ;
-- C5 global : 20 % ; Explorateur AD : 58 % ; EITAS : 82 %.
-
-### v0.4.0-alpha.07 — Checkpoint C4.6
-
-Ce checkpoint clôt C4.6 « Propriétés avancées et gestionnaire des groupes ». La Simulation d’une modification de propriétés résout désormais l’objet Active Directory réel avant son retour, et `managedBy` est prévalidé comme utilisateur actif du domaine autorisé sans imposer à tort le sous-périmètre `OU=EITAS`.
-
-- objet cible résolu dans Active Directory avant le retour Simulation ;
-- `managedBy` résolu avec `Get-ADUser` avant le retour Simulation lorsqu’une valeur non vide est fournie ;
-- gestionnaire limité au domaine Active Directory autorisé et vérifié actif ;
-- gestionnaire actif situé hors `OU=EITAS` mais dans `API.LOCAL` accepté au runtime ;
-- DN de gestionnaire inexistant refusé avant le retour Simulation ;
-- utilisateur désactivé refusé comme gestionnaire ;
-- suppression de `managedBy` par valeur vide conservée et validée en Simulation ;
-- aucune commande d’écriture Active Directory déplacée avant le retour Simulation ;
-- module Windows validé sous PowerShell 5.1 avec zéro erreur de parsing ;
-- SHA-256 actif `B6B7E9C11228F3789D92B271F5039715A3D04D000B9F0F530DC7F1BA8511D7E4` ;
-- worker `EITAS AD Admin Worker` redémarré et confirmé actif ;
-- 4 tests dédiés C4.6 validés ;
-- régression groupes C4.2 à C4.6 : 60 tests, 17 warnings connus et 16 sous-tests validés ;
-- suite backend complète : 386 tests, 31 warnings connus et 317 sous-tests validés ;
-- `git diff --check` propre.
-
-### v0.4.0-alpha.06 — Checkpoint C4.5
-
-Ce checkpoint clôt C4.5 « Cycle de vie structurel des groupes ». Les opérations de création, suppression, renommage et déplacement sont prévalidées sur l’état Active Directory réel avant le retour Simulation, sans écriture AD.
-
-## Versions de chantier terminées
-
-### v0.2.0 — C2
-
-Objectif : fournir un éditeur d'attributs LDAP contrôlé, auditable et sécurisé.
-
-Le chantier C2 est terminé et validé à 100 %. La consultation HAB et sa simulation dédiée sont disponibles sans autoriser d’écriture Active Directory. Toute activation HAB en Production reste fermée par conception.
-
-### v0.3.0 — C3
-
-Le chantier C3 est terminé et validé à 100 %. La gestion avancée des utilisateurs est disponible avec des contrôles de sécurité, des validations réelles et un lookup live complet.
-
-### v0.4.0 — C4
-
-Objectif : développer la gestion avancée des groupes, de l’imbrication et des appartenances.
-
-**Version stable :** **`v0.4.0`**
-
-- C4.1 : audit fonctionnel et technique terminé ;
-- C4.2A : ajout groupe vers groupe sécurisé et validé ;
-- auto-imbrication et cycles transitifs bloqués ;
-- Simulation validée de bout en bout sans modification AD ;
-- C4.2B : compatibilité des portées d’imbrication validée ;
-- matrice Global / Universal / DomainLocal prévalidée avant toute écriture ;
-- validation E2E Simulation des chemins autorisé et refusé ;
-- Active Directory confirmé inchangé après validation ;
-- C4.2C : retrait de membre prévalidé sur l’état AD réel et validé ;
-- Simulation du retrait enrichie avec `was_member` sans écriture Active Directory ;
-- retrait d’un membre déjà absent validé comme opération idempotente ;
-- validation runtime et E2E des cas présent et absent terminée ;
-- C4.2 : gestion des membres et de l’imbrication clôturée ;
-- C4.3 : onglet `Membre de` enrichi avec le groupe principal ;
-- action `set_primary_group` disponible uniquement en Simulation ;
-- prévalidation du groupe cible : Security, même domaine SID et appartenance directe ;
-- garde-fou hors périmètre EITAS validé ;
-- validation runtime et E2E depuis le portail vers `GG_IT_Admin` et `GG_Server_Admin` ;
-- Active Directory confirmé inchangé après les Simulations ;
-- 365 tests backend et 317 sous-tests validés ;
-- C4.3 est validé fonctionnellement.
-- C4.4 : conversion contrôlée de `GroupScope` et `GroupCategory` ;
-- état réel du groupe lu avant le retour Simulation ;
-- conversion directe `Global ↔ DomainLocal` refusée avec passage intermédiaire par `Universal` ;
-- transitions `Global → Universal`, `DomainLocal → Universal`, `Universal → Global` et `Universal → DomainLocal` validées au runtime ;
-- changement `Security → Distribution` accompagné d’un avertissement explicite sur l’impact sécurité ;
-- helper de prévalidation confirmé strictement read-only ;
-- groupe Universal temporaire de validation supprimé après les tests ;
-- suite backend complète : 376 tests et 317 sous-tests validés ;
-- C4.4 est validé fonctionnellement.
-- C4.5 : cycle de vie structurel des groupes validé ;
-- `create_group` prévalide l’existence réelle du groupe avant le retour Simulation ;
-- `delete_object` résout l’objet réel et vérifie le `confirm_dn` avant le retour Simulation ;
-- `rename_object` résout l’objet réel avant le retour Simulation ;
-- `move_object` résout la source et la destination réelles avant le retour Simulation ;
-- les destinations de déplacement sont limitées aux `organizationalUnit` et `container` ;
-- validation runtime Windows PowerShell 5.1 avec le module final ;
-- worker `EITAS AD Admin Worker` redémarré pour recharger le module final ;
-- validations Simulation confirmées sans écriture Active Directory ;
-- suite backend complète : 382 tests, 31 warnings connus et 317 sous-tests validés ;
-- C4.5 est validé fonctionnellement.
-- C4.6 : propriétés avancées et gestionnaire des groupes validés ;
-  - résolution de l’objet cible avant tout retour Simulation ;
-  - résolution réelle de `managedBy` comme utilisateur Active Directory ;
-  - validation du domaine autorisé sans restriction indue à `OU=EITAS` ;
-  - refus des gestionnaires inexistants ou désactivés ;
-  - clear `managedBy` validé ;
-  - Simulation confirmée sans écriture Active Directory ;
-- C4.6 est validé fonctionnellement.
-- test frontend de clôture `adGroupAdvancedManagementUi.test.mjs` validé ;
-- suite frontend complète validée depuis la racine du dépôt avec `TEST_FAILED=0` ;
-- lint frontend validé avec 34 warnings connus et 0 erreur ;
-- build Vite de production validé ;
-- suite backend complète finale : 386 tests, 31 warnings connus et 317 sous-tests validés ;
-- `git diff --check` final propre ;
-- C4 est terminé et validé à 100 %.
-
-## Version v1.0.0
-
-Elle nécessitera notamment une documentation d'exploitation complète, une stratégie de migration et de sauvegarde, des tests de non-régression, une revue de sécurité et une stabilisation globale.
-
-<!-- C9.3-ALPHA05-CLOSURE -->
-#### C9.3 — préparation Corbeille et garde-fou irréversible — 100 %
-
-Statut : **terminé**.
-
-Le lot C9.3 ferme la préparation de sécurité avant toute activation de la Corbeille AD :
-
-- forêt `API.LOCAL` et niveau `Windows2025Forest` audités ;
-- Corbeille actuellement désactivée ;
-- contrôle de réplication réussi ;
-- collecte de preuve serveur dédiée et strictement read-only ;
-- résultat runtime validé avec `replication_ready=true` et zéro erreur de réplication ;
-- contrat backend d'intention d'activation dormant ;
-- persistance dédiée avec `status=dormant`, jamais `pending` ;
-- identité humaine liée à l'identité OIDC authoritative côté API ;
-- preuve AD relue depuis le stockage serveur, jamais fournie comme preuve authoritative par le client ;
-- route de préparation humaine active et protégée par `AD_ACCESS` ;
-- aucune activation, aucune restauration et aucune ouverture Production.
-
-Barrières maintenues :
-
-- C9.3 ne peut pas exécuter `Enable-ADOptionalFeature` ;
-- C9.3 ne peut pas exécuter `Restore-ADObject` ;
-- l'autorisation d'activation ne vaut jamais autorisation de restauration ;
-- C9.4 devra revalider l'état réel de la forêt et obtenir une autorisation humaine dédiée ;
-- C9.5 conservera une autorisation de restauration séparée.
-
-C9.4 est terminé à 100 % dans `v0.9.0-alpha.07`. L’activation forest-wide de la Corbeille Active Directory sur `API.LOCAL` a été explicitement autorisée, exécutée puis vérifiée. La restauration réelle reste une opération indépendante et séparément autorisée dans C9.5.
+- [README principal](../README.md)
+- [Journal des modifications](../CHANGELOG.md)
+- [Politique de versionnement](policies/versioning.md)
+- [Architecture de sécurité](architecture/security.md)
+- [Politique d’activation de la Corbeille Active Directory](policies/ad-recycle-bin.md)

@@ -1,5 +1,40 @@
 # Journal des modifications
 
+<!-- v0.9.0-alpha.10 -->
+## 0.9.0-alpha.10 — Refonte documentaire et correction packaging AD Check
+
+### Documentation
+
+- refonte et réorganisation de la documentation EITAS autour des sections architecture, fonctionnalités, opérations, politiques et archives ;
+- ajout du point d’entrée `docs/README.md` ;
+- ajout des guides installation, configuration, déploiement, workers Windows, sauvegarde/reprise et dépannage ;
+- ROADMAP recentrée sur l’état courant et les travaux futurs ;
+- remplacement du README frontend générique React/Vite par une documentation propre à EITAS ;
+- audit final de 49 fichiers Markdown EITAS et 132 liens locaux, sans lien cassé ni référence obsolète.
+
+### Corrigé
+
+- restauration dans Git de `agent-windows/modules/EitasAdCheck.ps1`, module utilisé en production mais historiquement absent du dépôt ;
+- ajout de `api/tests/test_ad_check_worker_packaging.py` afin de protéger durablement le contrat de packaging AD Check.
+
+### Validation
+
+- backend complet : 1307 tests passés, 339 subtests passés, 45 warnings connus ;
+- régression Windows workers : 302 tests passés, 16 subtests passés ;
+- packaging AD Check : 4 tests passés et checkout propre simulé validé ;
+- module AD Check récupéré identique au runtime Windows, SHA-256 `41cb6bef4b244c2e173eca1cda00949fd108d71d78cd1daa8bf2e954ed976808` ;
+- frontend : lint sans erreur avec 34 warnings connus, puis build Vite réussi ;
+- aucun déploiement Windows et aucune ouverture Production effectués pour ce checkpoint.
+
+### Progression
+
+- refonte documentaire : 100 % ;
+- documentation Operations : 100 % ;
+- C9 global : 52 % ;
+- Explorateur AD : 100 % ;
+- EITAS global : 95 %.
+
+
 <!-- v0.9.0-alpha.09 -->
 ## 0.9.0-alpha.09 — C9.5 restauration réelle contrôlée validée
 

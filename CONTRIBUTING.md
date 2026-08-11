@@ -41,4 +41,4 @@ Selon le changement : tests Python, tests Node, build frontend, vérification Po
 
 ## Versionnement
 
-Voir [`docs/VERSIONING.md`](docs/VERSIONING.md).
+Voir [`docs/policies/versioning.md`](docs/policies/versioning.md).
