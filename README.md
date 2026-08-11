@@ -9,7 +9,7 @@
 ![C5](https://img.shields.io/badge/C5-terminé_à_100_%25-16a34a)
 ![C6](https://img.shields.io/badge/C6-terminé_à_100_%25-16a34a)
 ![C7](https://img.shields.io/badge/C7-termine_100_%25-2ea44f)
-![C9](https://img.shields.io/badge/C9-en_cours_47_%25-3b82f6)
+![C9](https://img.shields.io/badge/C9-en_cours_52_%25-3b82f6)
 
 **Enterprise IT Automation Suite (EITAS)** est une plateforme d'administration et d'automatisation pour les environnements informatiques d'entreprise.
 
@@ -19,7 +19,7 @@ Elle centralise les workflows du cycle de vie des collaborateurs, l'administrati
 
 La version officielle actuelle est **v0.8.0**.
 
-La version **v0.9.0-alpha.08** clôt le checkpoint de sécurité **C9.5-A4 — barrière de restauration contrôlée**. La chaîne de restauration est maintenant protégée par des tickets courts, une persistance atomique, une consommation anti-replay, une autorisation humaine liée à l’identité OIDC, une préexécution avec revalidation live, une consommation one-shot et un runtime gate entièrement dormant. La Corbeille Active Directory reste activée sur `API.LOCAL`, l’agent reste en `Simulation`, aucun `Restore-ADObject` n’est exposé ou exécuté, aucune restauration réelle n’est autorisée et C9.5 atteint 95 %. C9 global reste provisoirement à 47 %, l’Explorateur Active Directory à 100 % et EITAS global à 95 %.
+La version **v0.9.0-alpha.09** clôt **C9.5 — restauration contrôlée**. Une restauration réelle strictement isolée a été validée sur l’objet de test jetable `GG_C95_RECYCLE_TEST` après autorisation humaine, revalidations live, consommation one-shot, transport signé et opt-in Windows temporaire. Le même GUID a été restauré au DN attendu puis vérifié directement dans Active Directory. Le mode global EITAS est resté en `Simulation`, Production n’a jamais été ouverte et le dispatcher AD Admin générique reste déconnecté de `Restore-ADObject`. C9.5 atteint 100 %, C9 global 52 %, l’Explorateur Active Directory 100 % et EITAS global 95 %.
 
 État des chantiers de l’Explorateur Active Directory :
 
@@ -37,11 +37,11 @@ La version **v0.9.0-alpha.08** clôt le checkpoint de sécurité **C9.5-A4 — b
 
 > **C7 — Sélection multiple, copie et glisser-déposer — terminé à 100 %**
 
-> **C9 — Corbeille Active Directory et restauration — en cours à 47 %**
+> **C9 — Corbeille Active Directory et restauration — en cours à 52 %**
 
 C3 valide la gestion avancée des utilisateurs : actions de compte, sécurité, copie contrôlée, profils avancés, RDS, Unix / POSIX, HAB dédié et lookup live complet. Les propriétés s’ouvrent immédiatement et les informations détaillées sont chargées en arrière-plan.
 
-EITAS reste en développement actif. `v0.9.0-alpha.08` valide la barrière complète C9.5-A4 avant toute restauration réelle. Les contrats A4B à A4E restent fail-closed : aucune route de restauration, aucun endpoint agent, aucun claim d’exécution, aucune ouverture Production et aucun droit `Restore-ADObject`. Le runtime gate final est non persistant et dormant. La validation finale atteint 140 tests C9.5 réussis, puis 1084 tests backend réussis avec 339 sous-tests ; seuls 45 warnings de dépréciation `datetime.utcnow()` déjà connus subsistent. Progression : C9.1 100 %, C9.2 100 %, C9.3 100 %, C9.4 100 %, C9.5 95 %, C9 global 47 %, Explorateur Active Directory 100 %, EITAS global 95 %.
+EITAS reste en développement actif. `v0.9.0-alpha.09` valide la restauration réelle contrôlée C9.5 de bout en bout. Le chemin reste fail-closed : autorisation humaine OIDC, revalidation live après autorisation, tickets courts one-shot, transport dédié signé, routes worker protégées par clé API et opt-in Windows explicite. Une restauration réelle du groupe jetable `GG_C95_RECYCLE_TEST` a réussi avec conservation du GUID et restauration au DN exact attendu. Le mode global est resté en `Simulation`, Production n’a pas été ouverte et le worker normal a été restauré automatiquement après exécution. Validation : 350 tests C9.5 réussis, 1303 tests backend réussis, 339 sous-tests réussis et 63 tests de sécurité ciblés réussis ; 45 warnings de dépréciation `datetime.utcnow()` connus subsistent. Progression : C9.1 100 %, C9.2 100 %, C9.3 100 %, C9.4 100 %, C9.5 100 %, C9 global 52 %, Explorateur Active Directory 100 %, EITAS global 95 %.
 
 ## Fonctionnalités disponibles
 
@@ -184,6 +184,7 @@ Composants principaux :
 | Pré-activation C9.4                  | `v0.9.0-alpha.06` |
 | Clôture C9.4                         | `v0.9.0-alpha.07` |
 | Checkpoint C9.5-A4 — barrière sécurité | `v0.9.0-alpha.08` |
+| Clôture C9.5 — restauration contrôlée réelle | `v0.9.0-alpha.09` |
 | C1 terminé | `v0.1.0` |
 | Correctif de C1 | `v0.1.1` |
 | C2 terminé | `v0.2.0` |
@@ -236,4 +237,4 @@ C9.4 est **terminé à 100 %** dans `v0.9.0-alpha.07`. Après autorisation humai
 
 ### C9.5 — restauration contrôlée
 
-C9.5 atteint **95 %** avec la clôture de la barrière **A4 à 100 %**. Les tickets de restauration, leur persistance atomique, leur consommation anti-replay, l’autorisation humaine OIDC, la préexécution avec revalidation live, la consommation one-shot et le runtime gate dormant sont validés. Le runtime gate n’est ni persistant ni routable, n’expose aucun endpoint agent et ne crée aucun job ou claim. `runtime_authorized`, `production_authorized`, `restore_authorized`, `restore_whatif_authorized`, `execution_authorized` et `write_performed` restent tous à `false`. La restauration réelle A5 reste séparée, non autorisée et non exécutée.
+C9.5 est **terminé à 100 %** dans `v0.9.0-alpha.09`. La chaîne A5 conserve les barrières A4 puis ajoute un transport d’exécution dédié, signé et court, des endpoints worker strictement séparés, un opt-in Windows temporaire et un handler `Restore-ADObject` isolé du dispatcher AD Admin générique. La restauration réelle du groupe jetable `GG_C95_RECYCLE_TEST` a réussi : GUID `b1018519-8b6e-4788-81c8-3108a188e7b4` conservé, DN final `CN=GG_C95_RECYCLE_TEST,OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL`, objet supprimé absent après restauration. Le transport a été claimé et terminé par `SRV-DC01`, puis le worker a été automatiquement remis dans son état normal sans opt-in. Le mode global est resté `Simulation` et `production_authorized=false`.

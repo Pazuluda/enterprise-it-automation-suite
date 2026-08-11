@@ -215,6 +215,58 @@ def require_api_key(
     )
 
 
+def require_worker_api_key(
+    x_api_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+) -> AuthenticatedIdentity:
+    """
+    Authentification stricte des transports worker sensibles.
+
+    Contrairement à require_api_key(), cette dépendance :
+    - refuse explicitement tout Bearer OIDC ;
+    - exige X-API-Key ;
+    - n'accorde aucun rôle portail.
+    """
+
+    if authorization is not None:
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Authentification worker X-API-Key "
+                "requise"
+            ),
+        )
+
+    configured_api_key = str(
+        API_KEY or ""
+    )
+
+    supplied_api_key = str(
+        x_api_key or ""
+    )
+
+    if (
+        not configured_api_key
+        or not supplied_api_key
+        or not secrets.compare_digest(
+            supplied_api_key,
+            configured_api_key,
+        )
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="API key worker invalide",
+        )
+
+    return AuthenticatedIdentity(
+        auth_type="api_key",
+        subject="worker-api-key",
+        username="worker-api-key",
+        roles=frozenset(),
+        claims={},
+    )
+
+
 require_authentication = require_api_key
 
 

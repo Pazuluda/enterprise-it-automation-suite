@@ -22,7 +22,7 @@ Les pourcentages sont recalculés uniquement après une validation formelle.
 | Explorateur Active Directory complet       |      100 % |
 | Projet EITAS global | 95 % |
 
-`v0.9.0-alpha.07` clôt C9.4. Après autorisation humaine explicite et revalidation finale read-only, la Corbeille Active Directory a été activée avec succès sur la forêt `API.LOCAL`. La preuve post-activation confirme deux scopes actifs, zéro échec de réplication et `replication_ready=true`. Aucun runtime générique d’activation n’a été ouvert et aucune restauration n’a été exécutée. Tests : 225 C9, 995 backend et 339 sous-tests. C9.4 : 100 %, C9 : 47 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
+`v0.9.0-alpha.09` clôt C9.5 à 100 %. Après activation préalable de la Corbeille Active Directory, une restauration réelle contrôlée a été validée sur un groupe jetable créé après activation. La chaîne impose autorisation humaine OIDC, revalidations live, consommation one-shot, transport signé à TTL court, opt-in Windows temporaire et handler `Restore-ADObject` isolé. Le GUID de l’objet a été conservé, le DN final vérifié et l’entrée supprimée a disparu de la Corbeille. Le mode global est resté `Simulation`, Production n’a jamais été ouverte et le worker normal a été restauré après l’exécution. Tests : 350 C9.5, 1303 backend, 339 sous-tests et 63 tests de sécurité ciblés. C9.5 : 100 %, C9 : 52 %, Explorateur Active Directory : 100 %, EITAS : 95 %.
 
 C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs couvre les actions de compte, les options de sécurité, la copie contrôlée, les profils avancés, RDS, Unix / POSIX, HAB et le lookup live complet. L’ouverture des propriétés est immédiate et le chargement détaillé reste non bloquant.
 ## Roadmap de l'Explorateur Active Directory
@@ -37,7 +37,7 @@ C3 est validé fonctionnellement à 100 %. La gestion avancée des utilisateurs 
 | C6 | Recherche, colonnes, filtres et requêtes | `v0.6.0` | Terminé — 100 % |
 | C7 | Sélection multiple, copie et glisser-déposer | `v0.7.0` | Terminé — 100 % |
 | C8 | ACL, sécurité et délégation | `v0.8.0` | Terminé — 100 % |
-| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 47 % |
+| C9 | Corbeille Active Directory et restauration | `v0.9.0` | En cours — 52 % |
 | C10 | Performance, audit, tests et finition | `v0.10.0` | Planifié |
 
 ## Version actuelle
@@ -128,6 +128,8 @@ Périmètre :
 - aucune restauration d’objet incluse dans ce lot.
 
 ### C9.5 — runtime de restauration contrôlée
+
+**État : terminé à 100 % dans `v0.9.0-alpha.09`.** La restauration réelle contrôlée a été exécutée et vérifiée de bout en bout sur `GG_C95_RECYCLE_TEST`, avec conservation du GUID, cible exacte, disparition de l’objet supprimé, transport signé terminé par `SRV-DC01`, rollback du worker vers son état normal et maintien du mode global `Simulation`.
 
 Objectif : valider la restauration réelle sur un objet de test jetable créé après activation de la Corbeille.
 

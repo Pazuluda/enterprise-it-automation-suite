@@ -157,19 +157,114 @@ def test_restore_action_stays_out_of_generic_and_windows_runtime():
     assert action not in dispatcher
 
 
-def test_route_does_not_add_restore_cmdlet():
-    runtime = "\n".join([
-        read_main(),
-        read_ad_admin(),
-        read_windows(),
-    ])
+def test_route_keeps_restore_write_out_of_api_and_dispatcher():
+    main = read_main()
+    ad_admin = read_ad_admin()
+    windows = read_windows()
 
+    # C9.5 A5C authorizes exactly one isolated Windows
+    # Restore-ADObject primitive, and only with -WhatIf.
+    # The API/backend generic AD Admin path must still
+    # contain no restore primitive.
     assert (
         "Restore-ADObject"
-        not in runtime
+        not in main
     )
 
     assert (
-        "Enable-ADOptionalFeature"
-        not in runtime
+        "Restore-ADObject"
+        not in ad_admin
+    )
+
+    handler_name = (
+        "Invoke-EitasAdAdmin"
+        "DeletedObjectRestoreWhatIf"
+    )
+
+    handler_marker = (
+        f"function {handler_name} {{"
+    )
+
+    assert handler_marker in windows
+
+    handler_start = windows.index(
+        handler_marker
+    )
+
+    handler_end = windows.find(
+        "\nfunction ",
+        handler_start + len(
+            handler_marker
+        ),
+    )
+
+    handler = windows[
+        handler_start:
+        handler_end
+        if handler_end != -1
+        else None
+    ]
+
+    assert (
+        handler.count(
+            "Restore-ADObject `"
+        )
+        == 1
+    )
+
+    assert (
+        "-WhatIf `"
+        in handler
+    )
+
+    assert (
+        "-Confirm:$false `"
+        in handler
+    )
+
+    assert (
+        "restore_performed = $false"
+        in handler
+    )
+
+    assert (
+        "write_performed = $false"
+        in handler
+    )
+
+    dispatcher_marker = (
+        "function Invoke-EitasAdAdminJob {"
+    )
+
+    dispatcher_start = windows.index(
+        dispatcher_marker
+    )
+
+    dispatcher_end = windows.find(
+        "\nfunction ",
+        dispatcher_start + len(
+            dispatcher_marker
+        ),
+    )
+
+    dispatcher = windows[
+        dispatcher_start:
+        dispatcher_end
+        if dispatcher_end != -1
+        else None
+    ]
+
+    assert (
+        "Restore-ADObject"
+        not in dispatcher
+    )
+
+    assert (
+        handler_name
+        not in dispatcher
+    )
+
+    assert (
+        "restore_deleted_object_whatif"
+        not in dispatcher
     )

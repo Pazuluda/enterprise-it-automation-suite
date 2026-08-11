@@ -7,9 +7,17 @@ from datetime import datetime
 import json
 import os
 
-from app.core.config import BASE_DIR, DATA_DIR, TEMPLATES_FILE, REQUESTS_FILE, AUDIT_FILE
+from app.core.config import (
+    BASE_DIR,
+    DATA_DIR,
+    TEMPLATES_FILE,
+    REQUESTS_FILE,
+    AUDIT_FILE,
+    API_KEY,
+)
 from app.core.security import (
     require_api_key,
+    require_worker_api_key,
     require_roles,
     require_roles_or_api_key,
 )
@@ -70,6 +78,56 @@ from app.services.ad_deleted_object_restore_simulation_persistence import (
     create_deleted_object_restore_simulation_record as
     service_create_deleted_object_restore_simulation_record,
 )
+from app.services.ad_deleted_object_restore_ticket_challenge import (
+    AdDeletedObjectRestoreTicketChallengeConflict,
+    AdDeletedObjectRestoreTicketChallengeError,
+    AdDeletedObjectRestoreTicketChallengeNotFound,
+    build_ad_deleted_object_restore_ticket_challenge as
+    service_build_ad_deleted_object_restore_ticket_challenge,
+)
+
+from app.services.ad_deleted_object_restore_human_authorization import (
+    AdDeletedObjectRestoreHumanAuthorizationConflict,
+    AdDeletedObjectRestoreHumanAuthorizationError,
+    AdDeletedObjectRestoreHumanAuthorizationNotFound,
+    build_and_persist_ad_deleted_object_restore_human_authorization as
+    service_build_and_persist_ad_deleted_object_restore_human_authorization,
+)
+
+from app.services.ad_deleted_object_restore_post_authorization import (
+    AdDeletedObjectRestorePostAuthorizationConflict,
+    AdDeletedObjectRestorePostAuthorizationError,
+    AdDeletedObjectRestorePostAuthorizationNotFound,
+    build_ad_deleted_object_restore_post_authorization_chain as
+    service_build_ad_deleted_object_restore_post_authorization_chain,
+)
+
+from app.services.ad_deleted_object_restore_execution_consumption import (
+    AdDeletedObjectRestoreExecutionConsumptionError,
+    get_ad_deleted_object_restore_execution_consumption as
+    service_get_ad_deleted_object_restore_execution_consumption,
+)
+
+from app.services.ad_deleted_object_restore_windows_execution_envelope import (
+    AdDeletedObjectRestoreWindowsExecutionEnvelopeConflict,
+    AdDeletedObjectRestoreWindowsExecutionEnvelopeError,
+    build_ad_deleted_object_restore_windows_execution_envelope as
+    service_build_ad_deleted_object_restore_windows_execution_envelope,
+)
+
+from app.services.ad_deleted_object_restore_execution_transport import (
+    AdDeletedObjectRestoreExecutionTransportConflict,
+    AdDeletedObjectRestoreExecutionTransportError,
+    claim_ad_deleted_object_restore_execution_for_agent as
+    service_claim_ad_deleted_object_restore_execution_for_agent,
+    complete_ad_deleted_object_restore_execution as
+    service_complete_ad_deleted_object_restore_execution,
+    list_pending_ad_deleted_object_restore_executions as
+    service_list_pending_ad_deleted_object_restore_executions,
+    queue_ad_deleted_object_restore_execution as
+    service_queue_ad_deleted_object_restore_execution,
+)
+
 from app.services.ad_explorer import (
     ADExplorerBadRequest,
     ADExplorerConflict,
@@ -323,6 +381,39 @@ AD_DOMAIN_CATALOG_STALE_AFTER_SECONDS = max(
 AD_ADMIN_JOBS_FILE = DATA_DIR / "ad-admin-jobs.json"
 ACL_DELEGATION_WRITE_REPLAY_FILE = (
     DATA_DIR / "acl-delegation-write-replay.json"
+)
+
+
+AD_DELETED_OBJECT_RESTORE_TICKET_FILE = (
+    DATA_DIR
+    / "ad-deleted-object-restore-ticket.json"
+)
+
+AD_DELETED_OBJECT_RESTORE_TICKET_CONSUMPTION_FILE = (
+    DATA_DIR
+    / "ad-deleted-object-restore-ticket-consumption.json"
+)
+
+AD_DELETED_OBJECT_RESTORE_AUTHORIZATION_FILE = (
+    DATA_DIR
+    / "ad-deleted-object-restore-authorization.json"
+)
+
+
+AD_DELETED_OBJECT_RESTORE_AUTHORIZATION_CONSUMPTION_FILE = (
+    DATA_DIR
+    / "ad-deleted-object-restore-authorization-consumption.json"
+)
+
+
+AD_DELETED_OBJECT_RESTORE_EXECUTION_CONSUMPTION_FILE = (
+    DATA_DIR
+    / "ad-deleted-object-restore-execution-consumption.json"
+)
+
+AD_DELETED_OBJECT_RESTORE_EXECUTION_TRANSPORT_FILE = (
+    DATA_DIR
+    / "ad-deleted-object-restore-execution-transport.json"
 )
 
 IDENTITY_UPDATE_STATUS_FILE = Path(
@@ -2577,6 +2668,1416 @@ def get_ad_admin_job(job_id: str, api_key: None = Depends(AD_ACCESS)):
         return service_get_ad_admin_job(AD_ADMIN_JOBS_FILE, job_id)
     except ADAdminNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+
+
+def _eitas_controlled_restore_server_mode():
+    config = _eitas_agent_mode_load_config()
+
+    return _eitas_agent_mode_normalize(
+        config.get(
+            "mode"
+        )
+        or config.get(
+            "Mode"
+        )
+        or "Simulation"
+    )
+
+
+def _eitas_controlled_restore_oidc_actor(
+    identity,
+):
+    claims = (
+        identity.claims
+        if isinstance(
+            identity.claims,
+            dict,
+        )
+        else {}
+    )
+
+    actor = {
+        "subject":
+            str(
+                identity.subject
+                or ""
+            ).strip(),
+
+        "username":
+            str(
+                identity.username
+                or identity.subject
+                or ""
+            ).strip(),
+
+        "issuer":
+            str(
+                claims.get(
+                    "iss"
+                )
+                or ""
+            ).strip(),
+
+        "azp":
+            str(
+                claims.get(
+                    "azp"
+                )
+                or ""
+            ).strip(),
+    }
+
+    if not all(
+        actor.values()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Identite OIDC incomplete pour "
+                "restauration controlee"
+            ),
+        )
+
+    return actor
+
+
+def _eitas_controlled_restore_signing_secret():
+    signing_secret = str(
+        API_KEY or ""
+    )
+
+    if len(
+        signing_secret
+    ) < 16:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Cle de signature worker "
+                "indisponible"
+            ),
+        )
+
+    return signing_secret
+
+
+@app.post(
+    "/api/ad-admin/deleted-object-restore/ticket-challenge"
+)
+def create_deleted_object_restore_ticket_challenge_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    allowed_fields = {
+        "simulation_job_id",
+        "fresh_live_job_id",
+    }
+
+    unexpected_fields = sorted(
+        set(
+            payload
+        )
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs challenge restauration "
+                "interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    simulation_job_id = str(
+        payload.get(
+            "simulation_job_id"
+        )
+        or ""
+    ).strip()
+
+    fresh_live_job_id = str(
+        payload.get(
+            "fresh_live_job_id"
+        )
+        or ""
+    ).strip()
+
+    if not simulation_job_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "simulation_job_id obligatoire"
+            ),
+        )
+
+    if not fresh_live_job_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "fresh_live_job_id obligatoire"
+            ),
+        )
+
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Challenge restauration controlee "
+                "autorise uniquement avec "
+                "le mode global Simulation"
+            ),
+        )
+
+    actor = (
+        _eitas_controlled_restore_oidc_actor(
+            identity
+        )
+    )
+
+    try:
+        challenge = (
+            service_build_ad_deleted_object_restore_ticket_challenge(
+                ad_admin_jobs_file=(
+                    AD_ADMIN_JOBS_FILE
+                ),
+                deleted_object_jobs_file=(
+                    AD_EXPLORER_JOBS_FILE
+                ),
+                ticket_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_TICKET_FILE
+                ),
+                ticket_consumption_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_TICKET_CONSUMPTION_FILE
+                ),
+                simulation_job_id=(
+                    simulation_job_id
+                ),
+                fresh_live_job_id=(
+                    fresh_live_job_id
+                ),
+                current_mode=(
+                    current_mode
+                ),
+            )
+        )
+
+    except AdDeletedObjectRestoreTicketChallengeNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestoreTicketChallengeConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestoreTicketChallengeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "ad_deleted_object_restore_ticket_challenge_created"
+        ),
+        request_id=(
+            challenge.challenge_id
+        ),
+        actor=(
+            actor["username"]
+        ),
+        message=(
+            "Challenge humain de restauration "
+            "controlee cree"
+        ),
+        details={
+            "challenge_id":
+                challenge.challenge_id,
+
+            "ticket_id":
+                challenge.ticket_id,
+
+            "consumption_id":
+                challenge.consumption_id,
+
+            "source_simulation_job_id":
+                challenge.source_simulation_job_id,
+
+            "fresh_live_job_id":
+                challenge.fresh_live_job_id,
+
+            "object_guid":
+                challenge.object_guid,
+
+            "object_class":
+                challenge.object_class,
+
+            "actor_subject":
+                actor["subject"],
+
+            "actor_username":
+                actor["username"],
+
+            "runtime_authorized":
+                challenge.runtime_authorized,
+
+            "production_authorized":
+                challenge.production_authorized,
+
+            "restore_authorized":
+                challenge.restore_authorized,
+
+            "execution_authorized":
+                challenge.execution_authorized,
+
+            "write_performed":
+                challenge.write_performed,
+        },
+    )
+
+    return challenge.__dict__.copy()
+
+
+@app.post(
+    "/api/ad-admin/deleted-object-restore/authorization"
+)
+def create_deleted_object_restore_human_authorization_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    allowed_fields = {
+        "ticket_id",
+        "ticket_digest",
+        "consumption_id",
+        "object_guid",
+        "effective_new_name",
+        "effective_target_path",
+        "acknowledge_exact_object",
+        "acknowledge_exact_target",
+        "acknowledge_restore_write",
+        "authorization_reason",
+    }
+
+    unexpected_fields = sorted(
+        set(
+            payload
+        )
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs autorisation restauration "
+                "interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Autorisation restauration controlee "
+                "autorisee uniquement avec "
+                "le mode global Simulation"
+            ),
+        )
+
+    actor = (
+        _eitas_controlled_restore_oidc_actor(
+            identity
+        )
+    )
+
+    try:
+        authorization = (
+            service_build_and_persist_ad_deleted_object_restore_human_authorization(
+                ticket_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_TICKET_FILE
+                ),
+                ticket_consumption_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_TICKET_CONSUMPTION_FILE
+                ),
+                authorization_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_AUTHORIZATION_FILE
+                ),
+                server_actor=(
+                    actor
+                ),
+                payload=(
+                    payload
+                ),
+                current_mode=(
+                    current_mode
+                ),
+            )
+        )
+
+    except AdDeletedObjectRestoreHumanAuthorizationNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestoreHumanAuthorizationConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestoreHumanAuthorizationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "ad_deleted_object_restore_human_authorization_created"
+        ),
+        request_id=(
+            authorization.authorization_id
+        ),
+        actor=(
+            actor["username"]
+        ),
+        message=(
+            "Autorisation humaine de restauration "
+            "controlee creee"
+        ),
+        details={
+            "authorization_id":
+                authorization.authorization_id,
+
+            "ticket_id":
+                authorization.ticket_id,
+
+            "consumption_id":
+                authorization.consumption_id,
+
+            "source_simulation_job_id":
+                authorization.source_simulation_job_id,
+
+            "fresh_live_job_id":
+                authorization.fresh_live_job_id,
+
+            "object_guid":
+                authorization.object_guid,
+
+            "object_class":
+                authorization.object_class,
+
+            "effective_new_name":
+                authorization.effective_new_name,
+
+            "effective_target_path":
+                authorization.effective_target_path,
+
+            "actor_subject":
+                actor["subject"],
+
+            "actor_username":
+                actor["username"],
+
+            "human_authorized":
+                authorization.human_authorized,
+
+            "authorization_consumed":
+                authorization.authorization_consumed,
+
+            "runtime_authorized":
+                authorization.runtime_authorized,
+
+            "production_authorized":
+                authorization.production_authorized,
+
+            "restore_authorized":
+                authorization.restore_authorized,
+
+            "execution_authorized":
+                authorization.execution_authorized,
+
+            "write_performed":
+                authorization.write_performed,
+
+            "expires_at":
+                authorization.expires_at,
+        },
+    )
+
+    return authorization.__dict__.copy()
+
+
+@app.post(
+    "/api/ad-admin/deleted-object-restore/post-authorization"
+)
+def create_deleted_object_restore_post_authorization_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    allowed_fields = {
+        "authorization_id",
+        "authorization_digest",
+        "fresh_live_job_id",
+    }
+
+    unexpected_fields = sorted(
+        set(
+            payload
+        )
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs post-autorisation restauration "
+                "interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Post-autorisation restauration controlee "
+                "autorisee uniquement avec "
+                "le mode global Simulation"
+            ),
+        )
+
+    actor = (
+        _eitas_controlled_restore_oidc_actor(
+            identity
+        )
+    )
+
+    try:
+        result = (
+            service_build_ad_deleted_object_restore_post_authorization_chain(
+                authorization_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_AUTHORIZATION_FILE
+                ),
+                authorization_consumption_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_AUTHORIZATION_CONSUMPTION_FILE
+                ),
+                execution_consumption_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_EXECUTION_CONSUMPTION_FILE
+                ),
+                jobs_path=(
+                    AD_EXPLORER_JOBS_FILE
+                ),
+                authorization_id=(
+                    str(
+                        payload.get(
+                            "authorization_id"
+                        )
+                        or ""
+                    ).strip()
+                ),
+                authorization_digest=(
+                    str(
+                        payload.get(
+                            "authorization_digest"
+                        )
+                        or ""
+                    ).strip()
+                ),
+                fresh_live_job_id=(
+                    str(
+                        payload.get(
+                            "fresh_live_job_id"
+                        )
+                        or ""
+                    ).strip()
+                ),
+                server_actor=(
+                    actor
+                ),
+                current_mode=(
+                    current_mode
+                ),
+            )
+        )
+
+    except AdDeletedObjectRestorePostAuthorizationNotFound as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestorePostAuthorizationConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestorePostAuthorizationError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "ad_deleted_object_restore_post_authorization_ready"
+        ),
+        request_id=(
+            result.execution_consumption_id
+        ),
+        actor=(
+            actor["username"]
+        ),
+        message=(
+            "Chaine post-autorisation de restauration "
+            "controlee preparee"
+        ),
+        details={
+            "authorization_id":
+                result.authorization_id,
+
+            "preexecution_id":
+                result.preexecution_id,
+
+            "authorization_consumption_id":
+                result.authorization_consumption_id,
+
+            "runtime_gate_id":
+                result.runtime_gate_id,
+
+            "execution_ticket_id":
+                result.execution_ticket_id,
+
+            "execution_consumption_id":
+                result.execution_consumption_id,
+
+            "object_guid":
+                result.object_guid,
+
+            "object_class":
+                result.object_class,
+
+            "effective_new_name":
+                result.effective_new_name,
+
+            "effective_target_path":
+                result.effective_target_path,
+
+            "actor_subject":
+                actor["subject"],
+
+            "actor_username":
+                actor["username"],
+
+            "human_authorized":
+                result.human_authorized,
+
+            "revalidation_passed":
+                result.revalidation_passed,
+
+            "authorization_consumed":
+                result.authorization_consumed,
+
+            "execution_ticket_consumed":
+                result.execution_ticket_consumed,
+
+            "runtime_authorized":
+                result.runtime_authorized,
+
+            "production_authorized":
+                result.production_authorized,
+
+            "restore_authorized":
+                result.restore_authorized,
+
+            "execution_authorized":
+                result.execution_authorized,
+
+            "write_performed":
+                result.write_performed,
+        },
+    )
+
+    return result.__dict__.copy()
+
+
+@app.post(
+    "/api/ad-admin/deleted-object-restore/execution/queue"
+)
+def queue_deleted_object_restore_execution_api(
+    payload: dict = Body(...),
+    identity=Depends(AD_ACCESS),
+):
+    allowed_fields = {
+        "execution_consumption_id",
+        "confirmation_text",
+    }
+
+    unexpected_fields = sorted(
+        set(
+            payload
+        )
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs restauration execution "
+                "interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    execution_consumption_id = str(
+        payload.get(
+            "execution_consumption_id"
+        )
+        or ""
+    ).strip()
+
+    confirmation_text = str(
+        payload.get(
+            "confirmation_text"
+        )
+        or ""
+    )
+
+    if not execution_consumption_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "execution_consumption_id "
+                "obligatoire"
+            ),
+        )
+
+    if not confirmation_text:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "confirmation_text obligatoire"
+            ),
+        )
+
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Restauration controlee "
+                "autorisee uniquement avec "
+                "le mode global Simulation"
+            ),
+        )
+
+    actor = (
+        _eitas_controlled_restore_oidc_actor(
+            identity
+        )
+    )
+
+    signing_secret = (
+        _eitas_controlled_restore_signing_secret()
+    )
+
+    try:
+        source = (
+            service_get_ad_deleted_object_restore_execution_consumption(
+                consumption_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_EXECUTION_CONSUMPTION_FILE
+                ),
+                execution_consumption_id=(
+                    execution_consumption_id
+                ),
+            )
+        )
+
+        envelope = (
+            service_build_ad_deleted_object_restore_windows_execution_envelope(
+                source,
+                server_actor=actor,
+                signing_secret=signing_secret,
+                current_mode=current_mode,
+                confirmation_text=confirmation_text,
+            )
+        )
+
+        ticket = (
+            service_queue_ad_deleted_object_restore_execution(
+                envelope,
+                transport_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_EXECUTION_TRANSPORT_FILE
+                ),
+                signing_secret=signing_secret,
+                current_mode=current_mode,
+            )
+        )
+
+    except (
+        AdDeletedObjectRestoreWindowsExecutionEnvelopeConflict,
+        AdDeletedObjectRestoreExecutionTransportConflict,
+    ) as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except (
+        AdDeletedObjectRestoreExecutionConsumptionError,
+        AdDeletedObjectRestoreWindowsExecutionEnvelopeError,
+        AdDeletedObjectRestoreExecutionTransportError,
+    ) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "ad_deleted_object_restore_execution_queued"
+        ),
+        request_id=(
+            ticket.transport_ticket_id
+        ),
+        actor=identity.username,
+        message=(
+            "Execution de restauration controlee "
+            "mise en attente"
+        ),
+        details={
+            "transport_ticket_id":
+                ticket.transport_ticket_id,
+
+            "envelope_id":
+                ticket.envelope_id,
+
+            "execution_consumption_id":
+                ticket.execution_consumption_id,
+
+            "execution_ticket_id":
+                ticket.execution_ticket_id,
+
+            "object_guid":
+                ticket.object_guid,
+
+            "effective_new_name":
+                ticket.effective_new_name,
+
+            "effective_target_path":
+                ticket.effective_target_path,
+
+            "actor_subject":
+                identity.subject,
+
+            "actor_username":
+                identity.username,
+
+            "global_mode":
+                current_mode,
+
+            "controlled_restore_runtime_authorized":
+                False,
+
+            "production_authorized":
+                False,
+
+            "write_performed":
+                False,
+        },
+    )
+
+    return {
+        "contract_version":
+            ticket.contract_version,
+
+        "state":
+            ticket.state,
+
+        "transport_ticket_id":
+            ticket.transport_ticket_id,
+
+        "envelope_id":
+            ticket.envelope_id,
+
+        "execution_consumption_id":
+            ticket.execution_consumption_id,
+
+        "execution_ticket_id":
+            ticket.execution_ticket_id,
+
+        "object_guid":
+            ticket.object_guid,
+
+        "effective_new_name":
+            ticket.effective_new_name,
+
+        "effective_target_path":
+            ticket.effective_target_path,
+
+        "created_at":
+            ticket.created_at,
+
+        "expires_at":
+            ticket.expires_at,
+
+        "payload_digest":
+            ticket.payload_digest,
+
+        "authorization": {
+            "controlled_restore_runtime_authorized":
+                False,
+
+            "production_authorized":
+                False,
+
+            "write_performed":
+                False,
+        },
+    }
+
+
+@app.get(
+    "/api/agent/deleted-object-restore/execution/pending"
+)
+def get_pending_deleted_object_restore_executions_api(
+    worker=Depends(
+        require_worker_api_key
+    ),
+):
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Transport restauration "
+                "inactif hors Simulation"
+            ),
+        )
+
+    try:
+        return (
+            service_list_pending_ad_deleted_object_restore_executions(
+                transport_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_EXECUTION_TRANSPORT_FILE
+                ),
+            )
+        )
+
+    except AdDeletedObjectRestoreExecutionTransportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Transport restauration "
+                "indisponible"
+            ),
+        ) from exc
+
+
+@app.post(
+    "/api/agent/deleted-object-restore/execution/claim/"
+    "{transport_ticket_id}"
+)
+def claim_deleted_object_restore_execution_api(
+    transport_ticket_id: str,
+    payload: dict = Body(...),
+    worker=Depends(
+        require_worker_api_key
+    ),
+):
+    allowed_fields = {
+        "agent_name",
+    }
+
+    unexpected_fields = sorted(
+        set(
+            payload
+        )
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs claim restauration "
+                "interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    agent_name = str(
+        payload.get(
+            "agent_name"
+        )
+        or ""
+    ).strip()
+
+    if not agent_name:
+        raise HTTPException(
+            status_code=400,
+            detail="agent_name obligatoire",
+        )
+
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Claim restauration "
+                "inactif hors Simulation"
+            ),
+        )
+
+    signing_secret = (
+        _eitas_controlled_restore_signing_secret()
+    )
+
+    try:
+        claim = (
+            service_claim_ad_deleted_object_restore_execution_for_agent(
+                transport_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_EXECUTION_TRANSPORT_FILE
+                ),
+                transport_ticket_id=(
+                    transport_ticket_id
+                ),
+                agent_name=agent_name,
+                signing_secret=signing_secret,
+                current_mode=current_mode,
+            )
+        )
+
+    except AdDeletedObjectRestoreExecutionTransportConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestoreExecutionTransportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Transport restauration "
+                "indisponible"
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "ad_deleted_object_restore_execution_claimed"
+        ),
+        request_id=(
+            claim.transport_execution_id
+        ),
+        actor=agent_name,
+        message=(
+            "Execution de restauration controlee "
+            "prise par le worker dedie"
+        ),
+        details={
+            "transport_ticket_id":
+                claim.transport_ticket_id,
+
+            "transport_execution_id":
+                claim.transport_execution_id,
+
+            "envelope_id":
+                claim.envelope_id,
+
+            "execution_consumption_id":
+                claim.execution_consumption_id,
+
+            "execution_ticket_id":
+                claim.execution_ticket_id,
+
+            "claimed_by":
+                claim.claimed_by,
+
+            "global_mode":
+                current_mode,
+
+            "controlled_restore_runtime_authorized":
+                True,
+
+            "production_authorized":
+                False,
+
+            "write_performed":
+                False,
+        },
+    )
+
+    return {
+        "contract_version":
+            claim.contract_version,
+
+        "state":
+            claim.state,
+
+        "transport_ticket_id":
+            claim.transport_ticket_id,
+
+        "transport_execution_id":
+            claim.transport_execution_id,
+
+        "envelope_id":
+            claim.envelope_id,
+
+        "execution_consumption_id":
+            claim.execution_consumption_id,
+
+        "execution_ticket_id":
+            claim.execution_ticket_id,
+
+        "claimed_at":
+            claim.claimed_at,
+
+        "claimed_by":
+            claim.claimed_by,
+
+        "expires_at":
+            claim.expires_at,
+
+        "payload_digest":
+            claim.payload_digest,
+
+        "payload":
+            claim.payload,
+
+        "authorization": {
+            "controlled_restore_runtime_authorized":
+                True,
+
+            "production_authorized":
+                False,
+
+            "write_performed":
+                False,
+        },
+    }
+
+
+@app.post(
+    "/api/agent/deleted-object-restore/execution/result/"
+    "{transport_ticket_id}"
+)
+def complete_deleted_object_restore_execution_api(
+    transport_ticket_id: str,
+    payload: dict = Body(...),
+    worker=Depends(
+        require_worker_api_key
+    ),
+):
+    allowed_fields = {
+        "transport_execution_id",
+        "agent_name",
+        "success",
+        "result",
+        "message",
+    }
+
+    unexpected_fields = sorted(
+        set(
+            payload
+        )
+        - allowed_fields
+    )
+
+    if unexpected_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Champs resultat restauration "
+                "interdits : "
+                + ", ".join(
+                    unexpected_fields
+                )
+            ),
+        )
+
+    transport_execution_id = str(
+        payload.get(
+            "transport_execution_id"
+        )
+        or ""
+    ).strip()
+
+    agent_name = str(
+        payload.get(
+            "agent_name"
+        )
+        or ""
+    ).strip()
+
+    success = payload.get(
+        "success"
+    )
+
+    result = payload.get(
+        "result"
+    )
+
+    message = str(
+        payload.get(
+            "message"
+        )
+        or ""
+    )
+
+    if not transport_execution_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "transport_execution_id obligatoire"
+            ),
+        )
+
+    if not agent_name:
+        raise HTTPException(
+            status_code=400,
+            detail="agent_name obligatoire",
+        )
+
+    if success is not True and success is not False:
+        raise HTTPException(
+            status_code=400,
+            detail="success doit etre booleen",
+        )
+
+    if not isinstance(
+        result,
+        dict,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="result doit etre un objet",
+        )
+
+    current_mode = (
+        _eitas_controlled_restore_server_mode()
+    )
+
+    if current_mode != "Simulation":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Resultat restauration "
+                "inactif hors Simulation"
+            ),
+        )
+
+    signing_secret = (
+        _eitas_controlled_restore_signing_secret()
+    )
+
+    try:
+        completion = (
+            service_complete_ad_deleted_object_restore_execution(
+                transport_registry_file=(
+                    AD_DELETED_OBJECT_RESTORE_EXECUTION_TRANSPORT_FILE
+                ),
+
+                transport_ticket_id=(
+                    transport_ticket_id
+                ),
+
+                transport_execution_id=(
+                    transport_execution_id
+                ),
+
+                agent_name=agent_name,
+
+                signing_secret=signing_secret,
+                current_mode=current_mode,
+
+                success=success,
+                result=result,
+                message=message,
+            )
+        )
+
+    except AdDeletedObjectRestoreExecutionTransportConflict as exc:
+        raise HTTPException(
+            status_code=409,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    except AdDeletedObjectRestoreExecutionTransportError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(
+                exc
+            ),
+        ) from exc
+
+    write_audit_log(
+        action=(
+            "ad_deleted_object_restore_execution_completed"
+            if completion.success
+            else
+            "ad_deleted_object_restore_execution_failed"
+        ),
+
+        request_id=(
+            completion.transport_execution_id
+        ),
+
+        actor=agent_name,
+
+        message=(
+            "Restauration controlee terminee"
+            if completion.success
+            else
+            "Restauration controlee echouee"
+        ),
+
+        details={
+            "transport_ticket_id":
+                completion.transport_ticket_id,
+
+            "transport_execution_id":
+                completion.transport_execution_id,
+
+            "envelope_id":
+                completion.envelope_id,
+
+            "execution_consumption_id":
+                completion.execution_consumption_id,
+
+            "execution_ticket_id":
+                completion.execution_ticket_id,
+
+            "success":
+                completion.success,
+
+            "write_performed":
+                completion.write_performed,
+
+            "controlled_restore_runtime_authorized":
+                False,
+
+            "production_authorized":
+                False,
+
+            "global_mode":
+                current_mode,
+        },
+    )
+
+    return {
+        "contract_version":
+            completion.contract_version,
+
+        "state":
+            completion.state,
+
+        "transport_ticket_id":
+            completion.transport_ticket_id,
+
+        "transport_execution_id":
+            completion.transport_execution_id,
+
+        "envelope_id":
+            completion.envelope_id,
+
+        "execution_consumption_id":
+            completion.execution_consumption_id,
+
+        "execution_ticket_id":
+            completion.execution_ticket_id,
+
+        "completed_at":
+            completion.completed_at,
+
+        "completed_by":
+            completion.completed_by,
+
+        "success":
+            completion.success,
+
+        "write_performed":
+            completion.write_performed,
+
+        "completion_digest":
+            completion.completion_digest,
+
+        "authorization": {
+            "controlled_restore_runtime_authorized":
+                False,
+
+            "production_authorized":
+                False,
+        },
+    }
 
 
 @app.get("/api/agent/ad-admin/pending")

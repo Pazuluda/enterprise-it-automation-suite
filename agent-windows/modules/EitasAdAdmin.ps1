@@ -237,6 +237,192 @@ function Send-EitasAclPrewriteResult {
 }
 
 
+
+# C9.5-A5E3-R2D - Dedicated deleted-object restore transport.
+#
+# IMPORTANT:
+# These helpers are intentionally separate from the generic AD Admin
+# dispatcher. The processor is not connected to Run-AdAdminWorker.ps1
+# at R2D-3A.
+
+function Get-EitasPendingDeletedObjectRestoreExecutions {
+    param(
+        [object]$Config
+    )
+
+    $Response = Invoke-EitasApiRequest `
+        -Method "GET" `
+        -Path (
+            "/api/agent/deleted-object-restore/" +
+            "execution/pending"
+        ) `
+        -Config $Config
+
+    if ($null -eq $Response) {
+        return @()
+    }
+
+    if (
+        $Response.PSObject.Properties.Name `
+            -contains "tickets" -and
+        $null -ne $Response.tickets
+    ) {
+        return @(
+            $Response.tickets
+        )
+    }
+
+    return @()
+}
+
+
+function Claim-EitasDeletedObjectRestoreExecution {
+    param(
+        [object]$Config,
+        [string]$TransportTicketId,
+        [string]$AgentName
+    )
+
+    try {
+        return Invoke-EitasApiRequest `
+            -Method "POST" `
+            -Path (
+                "/api/agent/deleted-object-restore/" +
+                "execution/claim/" +
+                $TransportTicketId
+            ) `
+            -Body @{
+                agent_name = $AgentName
+            } `
+            -Config $Config
+    }
+    catch {
+        $Message = (
+            [string]$_.Exception.Message
+        )
+
+        if (
+            $Message -match (
+                "409|Conflict|" +
+                "unavailable|" +
+                "non disponible|" +
+                "expire"
+            )
+        ) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "WARN" `
+                -Message (
+                    "Restore execution ticket unavailable: " +
+                    $TransportTicketId
+                )
+
+            return $null
+        }
+
+        throw
+    }
+}
+
+
+function Send-EitasDeletedObjectRestoreExecutionResult {
+    param(
+        [object]$Config,
+        [string]$TransportTicketId,
+        [string]$TransportExecutionId,
+        [string]$AgentName,
+        [bool]$Success,
+        [object]$Result,
+        [string]$Message
+    )
+
+    return Invoke-EitasApiRequest `
+        -Method "POST" `
+        -Path (
+            "/api/agent/deleted-object-restore/" +
+            "execution/result/" +
+            $TransportTicketId
+        ) `
+        -Body @{
+            transport_execution_id = $TransportExecutionId
+            agent_name = $AgentName
+            success = $Success
+            result = $Result
+            message = $Message
+        } `
+        -Config $Config
+}
+
+
+function Assert-EitasDeletedObjectRestoreExecutionTransportAuthorization {
+    param(
+        [object]$Authorization,
+        [bool]$ExpectedRuntimeAuthorization
+    )
+
+    if ($null -eq $Authorization) {
+        throw (
+            "Restore execution authorization missing"
+        )
+    }
+
+    $RuntimeAuthorized = Get-EitasObjectValue `
+        -Object $Authorization `
+        -Names @(
+            "controlled_restore_runtime_authorized"
+        )
+
+    $ProductionAuthorized = Get-EitasObjectValue `
+        -Object $Authorization `
+        -Names @(
+            "production_authorized"
+        )
+
+    $WritePerformed = Get-EitasObjectValue `
+        -Object $Authorization `
+        -Names @(
+            "write_performed"
+        )
+
+    foreach (
+        $Value in @(
+            $RuntimeAuthorized,
+            $ProductionAuthorized,
+            $WritePerformed
+        )
+    ) {
+        if ($Value -isnot [bool]) {
+            throw (
+                "Restore execution authorization boolean invalid"
+            )
+        }
+    }
+
+    if (
+        $RuntimeAuthorized -ne
+        $ExpectedRuntimeAuthorization
+    ) {
+        throw (
+            "Restore execution runtime authorization invalid"
+        )
+    }
+
+    if ($ProductionAuthorized -ne $false) {
+        throw (
+            "Restore execution production authorization forbidden"
+        )
+    }
+
+    if ($WritePerformed -ne $false) {
+        throw (
+            "Restore execution pre-write marker invalid"
+        )
+    }
+
+    return $true
+}
+
+
 function Assert-EitasAclPrewriteTransportAuthorization {
     param(
         [object]$Authorization,
@@ -6948,6 +7134,1263 @@ function ConvertTo-EitasAdAdminLdapFilterValue {
 }
 
 
+
+function Get-EitasC95RestoreWhatIfRequiredString {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Payload,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    $Value = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            $Name
+        )
+
+    $Text = [string]$Value
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $Text
+        )
+    ) {
+        throw (
+            "C9.5 WhatIf field missing: " +
+            $Name
+        )
+    }
+
+    if (
+        $Text.Contains("`r") -or
+        $Text.Contains("`n")
+    ) {
+        throw (
+            "C9.5 WhatIf multiline field rejected: " +
+            $Name
+        )
+    }
+
+    return $Text
+}
+
+
+function Get-EitasC95RestoreWhatIfBoolean {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Payload,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    $Value = Get-EitasObjectValue `
+        -Object $Payload `
+        -Names @(
+            $Name
+        )
+
+    if ($Value -isnot [bool]) {
+        throw (
+            "C9.5 WhatIf boolean field invalid: " +
+            $Name
+        )
+    }
+
+    return [bool]$Value
+}
+
+
+function ConvertTo-EitasC95RestoreWhatIfBooleanText {
+    param(
+        [Parameter(Mandatory = $true)]
+        [bool]$Value
+    )
+
+    if ($Value) {
+        return "true"
+    }
+
+    return "false"
+}
+
+
+function Get-EitasC95RestoreWhatIfMessage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Payload
+    )
+
+    $Lines = @(
+        "contract_version=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "contract_version"
+        )
+
+        "envelope_id=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "envelope_id"
+        )
+
+        "operation=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "operation"
+        )
+
+        "execution_ticket_contract_version=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_ticket_contract_version"
+        )
+
+        "execution_ticket_id=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_ticket_id"
+        )
+
+        "execution_ticket_digest=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_ticket_digest"
+        )
+
+        "runtime_gate_id=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "runtime_gate_id"
+        )
+
+        "runtime_gate_digest=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "runtime_gate_digest"
+        )
+
+        "authorization_consumption_id=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "authorization_consumption_id"
+        )
+
+        "authorization_id=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "authorization_id"
+        )
+
+        "preexecution_id=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "preexecution_id"
+        )
+
+        "object_guid=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "object_guid"
+        )
+
+        "object_class=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "object_class"
+        )
+
+        "class_policy=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "class_policy"
+        )
+
+        "effective_new_name=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "effective_new_name"
+        )
+
+        "effective_target_path=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "effective_target_path"
+        )
+
+        "confirmation_sha256=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "confirmation_sha256"
+        )
+
+        "issued_at=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "issued_at"
+        )
+
+        "expires_at=" + (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "expires_at"
+        )
+
+        "one_shot_required=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "one_shot_required"
+                )
+        )
+
+        "source_ticket_consumed=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "source_ticket_consumed"
+                )
+        )
+
+        "runtime_authorized=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "runtime_authorized"
+                )
+        )
+
+        "production_authorized=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "production_authorized"
+                )
+        )
+
+        "restore_cmdlet_authorized=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "restore_cmdlet_authorized"
+                )
+        )
+
+        "restore_whatif_authorized=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "restore_whatif_authorized"
+                )
+        )
+
+        "execution_authorized=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "execution_authorized"
+                )
+        )
+
+        "write_performed=" + (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name "write_performed"
+                )
+        )
+    )
+
+    return [string]::Join(
+        "`n",
+        $Lines
+    )
+}
+
+
+function Get-EitasC95RestoreWhatIfHmacSha256 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApiKey,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    if ($ApiKey.Length -lt 16) {
+        throw (
+            "C9.5 WhatIf signing key is unavailable"
+        )
+    }
+
+    $Encoding = (
+        [System.Text.Encoding]::UTF8
+    )
+
+    $SecretBytes = $Encoding.GetBytes(
+        $ApiKey
+    )
+
+    $ContextBytes = $Encoding.GetBytes(
+        "EITAS-C9.5-A5-WINDOWS-WHATIF-V1"
+    )
+
+    $Deriver = New-Object `
+        System.Security.Cryptography.HMACSHA256
+
+    try {
+        $Deriver.Key = $SecretBytes
+
+        $DerivedKey = $Deriver.ComputeHash(
+            $ContextBytes
+        )
+    }
+    finally {
+        $Deriver.Dispose()
+    }
+
+    $Signer = New-Object `
+        System.Security.Cryptography.HMACSHA256
+
+    try {
+        $Signer.Key = $DerivedKey
+
+        $SignatureBytes = $Signer.ComputeHash(
+            $Encoding.GetBytes(
+                $Message
+            )
+        )
+    }
+    finally {
+        $Signer.Dispose()
+    }
+
+    return (
+        [System.BitConverter]::ToString(
+            $SignatureBytes
+        ).
+            Replace("-", "").
+            ToLowerInvariant()
+    )
+}
+
+
+function Test-EitasC95RestoreWhatIfFixedTimeHex {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Expected,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Actual
+    )
+
+    $ExpectedText = (
+        $Expected.Trim().ToLowerInvariant()
+    )
+
+    $ActualText = (
+        $Actual.Trim().ToLowerInvariant()
+    )
+
+    if (
+        $ExpectedText.Length -ne
+        $ActualText.Length
+    ) {
+        return $false
+    }
+
+    $Difference = 0
+
+    for (
+        $Index = 0;
+        $Index -lt $ExpectedText.Length;
+        $Index++
+    ) {
+        $Difference = (
+            $Difference -bor (
+                [int][char]$ExpectedText[$Index] `
+                    -bxor
+                [int][char]$ActualText[$Index]
+            )
+        )
+    }
+
+    return (
+        $Difference -eq 0
+    )
+}
+
+
+function Test-EitasC95RestoreWhatIfSignature {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Payload
+    )
+
+    $Signature = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "signature"
+    )
+
+    if (
+        $Signature -cnotmatch
+        '^[0-9a-f]{64}$'
+    ) {
+        throw (
+            "C9.5 WhatIf signature format invalid"
+        )
+    }
+
+    $ApiKey = Get-EitasApiKey `
+        -Config $Config
+
+    $Message = Get-EitasC95RestoreWhatIfMessage `
+        -Payload $Payload
+
+    $Expected = Get-EitasC95RestoreWhatIfHmacSha256 `
+        -ApiKey $ApiKey `
+        -Message $Message
+
+    if (
+        -not (
+            Test-EitasC95RestoreWhatIfFixedTimeHex `
+                -Expected $Expected `
+                -Actual $Signature
+        )
+    ) {
+        throw (
+            "C9.5 WhatIf signature mismatch"
+        )
+    }
+
+    return $true
+}
+
+
+
+# C9.5-A5E3 - Signed controlled restore execution helpers.
+# These helpers validate only the execution envelope.
+# No AD write is connected at R2A.
+
+function Get-EitasC95RestoreExecuteMessage {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Payload
+    )
+
+    $StringFields = @(
+        "contract_version",
+        "envelope_id",
+        "operation",
+        "execution_consumption_contract_version",
+        "execution_consumption_id",
+        "execution_consumption_record_digest",
+        "execution_ticket_id",
+        "execution_ticket_digest",
+        "runtime_gate_id",
+        "runtime_gate_digest",
+        "authorization_consumption_id",
+        "authorization_consumption_record_digest",
+        "authorization_id",
+        "authorization_digest",
+        "preexecution_id",
+        "preexecution_digest",
+        "object_guid",
+        "object_class",
+        "class_policy",
+        "effective_new_name",
+        "effective_target_path",
+        "actor_subject",
+        "actor_username",
+        "actor_issuer",
+        "actor_azp",
+        "confirmation_sha256",
+        "issued_at",
+        "expires_at"
+    )
+
+    $BooleanFields = @(
+        "source_consumption_verified",
+        "source_one_shot_consumed",
+        "human_authorized",
+        "revalidation_passed",
+        "runtime_authorized",
+        "production_authorized",
+        "controlled_restore_authorized",
+        "restore_cmdlet_authorized",
+        "execution_authorized",
+        "write_performed"
+    )
+
+    $Lines = New-Object `
+        System.Collections.Generic.List[string]
+
+    foreach ($Name in $StringFields) {
+        $Value = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name $Name
+        )
+
+        $Lines.Add(
+            $Name + "=" + $Value
+        )
+    }
+
+    foreach ($Name in $BooleanFields) {
+        $Value = (
+            Get-EitasC95RestoreWhatIfBoolean `
+                -Payload $Payload `
+                -Name $Name
+        )
+
+        $Text = (
+            ConvertTo-EitasC95RestoreWhatIfBooleanText `
+                -Value $Value
+        )
+
+        $Lines.Add(
+            $Name + "=" + $Text
+        )
+    }
+
+    return [string]::Join(
+        "`n",
+        $Lines
+    )
+}
+
+
+function Get-EitasC95RestoreExecuteHmacSha256 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApiKey,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    if ($ApiKey.Length -lt 16) {
+        throw (
+            "C9.5 Execute signing key is unavailable"
+        )
+    }
+
+    $Encoding = (
+        [System.Text.Encoding]::UTF8
+    )
+
+    $SecretBytes = $Encoding.GetBytes(
+        $ApiKey
+    )
+
+    $ContextBytes = $Encoding.GetBytes(
+        "EITAS-C9.5-A5-WINDOWS-EXECUTE-V1"
+    )
+
+    $Deriver = New-Object `
+        System.Security.Cryptography.HMACSHA256
+
+    try {
+        $Deriver.Key = $SecretBytes
+
+        $DerivedKey = $Deriver.ComputeHash(
+            $ContextBytes
+        )
+    }
+    finally {
+        $Deriver.Dispose()
+    }
+
+    $Signer = New-Object `
+        System.Security.Cryptography.HMACSHA256
+
+    try {
+        $Signer.Key = $DerivedKey
+
+        $SignatureBytes = $Signer.ComputeHash(
+            $Encoding.GetBytes(
+                $Message
+            )
+        )
+    }
+    finally {
+        $Signer.Dispose()
+    }
+
+    return (
+        [System.BitConverter]::ToString(
+            $SignatureBytes
+        ).
+            Replace("-", "").
+            ToLowerInvariant()
+    )
+}
+
+
+function Test-EitasC95RestoreExecuteSignature {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Payload
+    )
+
+    $SignatureAlgorithm = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "signature_algorithm"
+    )
+
+    if (
+        $SignatureAlgorithm -cne
+        "hmac-sha256"
+    ) {
+        throw (
+            "C9.5 Execute signature algorithm invalid"
+        )
+    }
+
+    $KeyContext = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "key_context"
+    )
+
+    if (
+        $KeyContext -cne
+        "EITAS-C9.5-A5-WINDOWS-EXECUTE-V1"
+    ) {
+        throw (
+            "C9.5 Execute key context invalid"
+        )
+    }
+
+    $Signature = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "signature"
+    )
+
+    if (
+        $Signature -cnotmatch
+        '^[0-9a-f]{64}$'
+    ) {
+        throw (
+            "C9.5 Execute signature format invalid"
+        )
+    }
+
+    $ApiKey = Get-EitasApiKey `
+        -Config $Config
+
+    $Message = Get-EitasC95RestoreExecuteMessage `
+        -Payload $Payload
+
+    $Expected = Get-EitasC95RestoreExecuteHmacSha256 `
+        -ApiKey $ApiKey `
+        -Message $Message
+
+    if (
+        -not (
+            Test-EitasC95RestoreWhatIfFixedTimeHex `
+                -Expected $Expected `
+                -Actual $Signature
+        )
+    ) {
+        throw (
+            "C9.5 Execute signature mismatch"
+        )
+    }
+
+    return $true
+}
+
+function Invoke-EitasAdAdminDeletedObjectRestoreWhatIf {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Payload,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Mode
+    )
+
+    if ($Mode -ine "Simulation") {
+        throw (
+            "C9.5 controlled WhatIf requires " +
+            "Simulation global mode"
+        )
+    }
+
+    $ContractVersion = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "contract_version"
+    )
+
+    if (
+        $ContractVersion -cne "c9.5a5c-v1"
+    ) {
+        throw (
+            "C9.5 WhatIf contract invalid"
+        )
+    }
+
+    $Operation = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "operation"
+    )
+
+    if (
+        $Operation -cne
+        "restore_deleted_object_whatif"
+    ) {
+        throw (
+            "C9.5 WhatIf operation invalid"
+        )
+    }
+
+    $SignatureAlgorithm = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "signature_algorithm"
+    )
+
+    if (
+        $SignatureAlgorithm -cne
+        "hmac-sha256"
+    ) {
+        throw (
+            "C9.5 WhatIf signature algorithm invalid"
+        )
+    }
+
+    $KeyContext = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "key_context"
+    )
+
+    if (
+        $KeyContext -cne
+        "EITAS-C9.5-A5-WINDOWS-WHATIF-V1"
+    ) {
+        throw (
+            "C9.5 WhatIf key context invalid"
+        )
+    }
+
+    $TicketContract = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "execution_ticket_contract_version"
+    )
+
+    if (
+        $TicketContract -cne
+        "c9.5a5b-v1"
+    ) {
+        throw (
+            "C9.5 execution ticket contract invalid"
+        )
+    }
+
+    foreach (
+        $Name in @(
+            "envelope_id",
+            "execution_ticket_id",
+            "runtime_gate_id",
+            "authorization_consumption_id",
+            "authorization_id",
+            "preexecution_id",
+            "object_guid"
+        )
+    ) {
+        $Value = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name $Name
+        )
+
+        $ParsedGuid = [Guid]::Empty
+
+        if (
+            -not (
+                [Guid]::TryParse(
+                    $Value,
+                    [ref]$ParsedGuid
+                )
+            )
+        ) {
+            throw (
+                "C9.5 invalid GUID field: " +
+                $Name
+            )
+        }
+    }
+
+    foreach (
+        $Name in @(
+            "signature",
+            "execution_ticket_digest",
+            "runtime_gate_digest",
+            "confirmation_sha256"
+        )
+    ) {
+        $Value = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name $Name
+        )
+
+        if (
+            $Value -cnotmatch
+            '^[0-9a-f]{64}$'
+        ) {
+            throw (
+                "C9.5 invalid SHA256 field: " +
+                $Name
+            )
+        }
+    }
+
+    foreach (
+        $Name in @(
+            "route_enabled",
+            "agent_endpoint_enabled",
+            "job_creation_authorized",
+            "claim_authorized",
+            "runtime_authorized",
+            "production_authorized",
+            "execution_authorized",
+            "write_performed"
+        )
+    ) {
+        if (
+            Get-EitasC95RestoreWhatIfBoolean `
+                -Payload $Payload `
+                -Name $Name
+        ) {
+            throw (
+                "C9.5 unsafe WhatIf flag: " +
+                $Name
+            )
+        }
+    }
+
+    foreach (
+        $Name in @(
+            "one_shot_required",
+            "restore_cmdlet_authorized",
+            "restore_whatif_authorized"
+        )
+    ) {
+        if (
+            -not (
+                Get-EitasC95RestoreWhatIfBoolean `
+                    -Payload $Payload `
+                    -Name $Name
+            )
+        ) {
+            throw (
+                "C9.5 required WhatIf flag absent: " +
+                $Name
+            )
+        }
+    }
+
+    if (
+        Get-EitasC95RestoreWhatIfBoolean `
+            -Payload $Payload `
+            -Name "source_ticket_consumed"
+    ) {
+        throw (
+            "C9.5 source execution ticket " +
+            "is already consumed"
+        )
+    }
+
+    $IssuedText = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "issued_at"
+    )
+
+    $ExpiresText = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "expires_at"
+    )
+
+    try {
+        $Issued = [DateTimeOffset]::Parse(
+            $IssuedText,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::RoundtripKind
+        )
+
+        $Expires = [DateTimeOffset]::Parse(
+            $ExpiresText,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::RoundtripKind
+        )
+    }
+    catch {
+        throw (
+            "C9.5 WhatIf timestamp invalid"
+        )
+    }
+
+    if ($Expires -le $Issued) {
+        throw (
+            "C9.5 WhatIf expiration invalid"
+        )
+    }
+
+    if (
+        ($Expires - $Issued).TotalSeconds `
+            -gt 15.001
+    ) {
+        throw (
+            "C9.5 WhatIf TTL exceeds 15 seconds"
+        )
+    }
+
+    $Now = [DateTimeOffset]::UtcNow
+
+    if (
+        $Issued -gt $Now.AddSeconds(5)
+    ) {
+        throw (
+            "C9.5 WhatIf issuance is in the future"
+        )
+    }
+
+    if ($Now -ge $Expires) {
+        throw (
+            "C9.5 WhatIf envelope expired"
+        )
+    }
+
+    Test-EitasC95RestoreWhatIfSignature `
+        -Config $Config `
+        -Payload $Payload |
+        Out-Null
+
+    $ObjectGuidText = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "object_guid"
+    )
+
+    $ObjectGuid = [Guid](
+        $ObjectGuidText
+    )
+
+    $ExpectedObjectClass = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "object_class"
+    ).Trim().ToLowerInvariant()
+
+    $ClassPolicy = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "class_policy"
+    )
+
+    if (
+        $ClassPolicy -cne
+        "standard_controlled"
+    ) {
+        throw (
+            "C9.5 object class policy invalid"
+        )
+    }
+
+    $AllowedClasses = @(
+        "user",
+        "group",
+        "computer",
+        "contact"
+    )
+
+    if (
+        $AllowedClasses -inotcontains
+        $ExpectedObjectClass
+    ) {
+        throw (
+            "C9.5 object class not allowed"
+        )
+    }
+
+    $EffectiveNewName = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "effective_new_name"
+    )
+
+    $EffectiveTargetPath = (
+        Get-EitasC95RestoreWhatIfRequiredString `
+            -Payload $Payload `
+            -Name "effective_target_path"
+    )
+
+    Import-EitasActiveDirectoryModule |
+        Out-Null
+
+    Assert-EitasDnSafe `
+        -DistinguishedName $EffectiveTargetPath `
+        -Config $Config |
+        Out-Null
+
+    $RecycleFeature = Get-ADOptionalFeature `
+        -Filter (
+            'Name -eq "Recycle Bin Feature"'
+        ) `
+        -Properties EnabledScopes `
+        -ErrorAction Stop
+
+    $EnabledScopes = @(
+        $RecycleFeature.EnabledScopes |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace(
+                [string]$_
+            )
+        }
+    )
+
+    if ($EnabledScopes.Count -eq 0) {
+        throw (
+            "C9.5 Active Directory Recycle Bin " +
+            "is not enabled"
+        )
+    }
+
+    $Fresh = Get-ADObject `
+        -Identity $ObjectGuid `
+        -IncludeDeletedObjects `
+        -Properties `
+            objectGUID,
+            objectClass,
+            isDeleted,
+            isRecycled,
+            lastKnownParent,
+            msDS-LastKnownRDN `
+        -ErrorAction Stop
+
+    $FreshGuid = [Guid](
+        $Fresh.ObjectGUID
+    )
+
+    if ($FreshGuid -ne $ObjectGuid) {
+        throw (
+            "C9.5 fresh deleted object GUID mismatch"
+        )
+    }
+
+    if ($Fresh.isDeleted -ne $true) {
+        throw (
+            "C9.5 object is no longer deleted"
+        )
+    }
+
+    if ($Fresh.isRecycled -eq $true) {
+        throw (
+            "C9.5 object is already recycled"
+        )
+    }
+
+    $FreshObjectClass = (
+        [string]$Fresh.ObjectClass
+    ).Trim().ToLowerInvariant()
+
+    if (
+        $FreshObjectClass -cne
+        $ExpectedObjectClass
+    ) {
+        throw (
+            "C9.5 fresh object class mismatch"
+        )
+    }
+
+    $TargetParent = Get-ADObject `
+        -Identity $EffectiveTargetPath `
+        -Properties `
+            objectGUID,
+            isDeleted,
+            isRecycled `
+        -ErrorAction Stop
+
+    if ($TargetParent.isDeleted -eq $true) {
+        throw (
+            "C9.5 target parent is deleted"
+        )
+    }
+
+    if ($TargetParent.isRecycled -eq $true) {
+        throw (
+            "C9.5 target parent is recycled"
+        )
+    }
+
+    $RootDse = Get-ADRootDSE `
+        -ErrorAction Stop
+
+    $SchemaDn = [string](
+        $RootDse.schemaNamingContext
+    )
+
+    $SchemaClasses = @(
+        Get-ADObject `
+            -SearchBase $SchemaDn `
+            -LDAPFilter (
+                "(&(objectClass=classSchema)" +
+                "(lDAPDisplayName=" +
+                $FreshObjectClass +
+                "))"
+            ) `
+            -Properties rDNAttID `
+            -ErrorAction Stop
+    )
+
+    if ($SchemaClasses.Count -ne 1) {
+        throw (
+            "C9.5 schema class lookup failed"
+        )
+    }
+
+    $RdnAttribute = [string](
+        $SchemaClasses[0].rDNAttID
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace(
+            $RdnAttribute
+        )
+    ) {
+        throw (
+            "C9.5 RDN attribute unavailable"
+        )
+    }
+
+    $EscapedName = (
+        ConvertTo-EitasAdAdminLdapFilterValue `
+            -Value $EffectiveNewName
+    )
+
+    $CollisionFilter = (
+        "(" +
+        $RdnAttribute +
+        "=" +
+        $EscapedName +
+        ")"
+    )
+
+    $CollisionMatches = @(
+        Get-ADObject `
+            -SearchBase $EffectiveTargetPath `
+            -SearchScope OneLevel `
+            -LDAPFilter $CollisionFilter `
+            -ErrorAction Stop
+    )
+
+    if ($CollisionMatches.Count -ne 0) {
+        throw (
+            "C9.5 target collision detected"
+        )
+    }
+
+    Restore-ADObject `
+        -Identity $ObjectGuid `
+        -NewName $EffectiveNewName `
+        -TargetPath $EffectiveTargetPath `
+        -WhatIf `
+        -Confirm:$false `
+        -ErrorAction Stop
+
+    return [pscustomobject]@{
+        action = (
+            "restore_deleted_object_whatif"
+        )
+
+        contract_version = (
+            "c9.5a5c-v1"
+        )
+
+        envelope_id = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "envelope_id"
+        )
+
+        execution_ticket_id = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_ticket_id"
+        )
+
+        object_guid = (
+            $ObjectGuidText.ToLowerInvariant()
+        )
+
+        object_class = (
+            $FreshObjectClass
+        )
+
+        effective_new_name = (
+            $EffectiveNewName
+        )
+
+        effective_target_path = (
+            $EffectiveTargetPath
+        )
+
+        signature_verified = $true
+        recycle_bin_enabled = $true
+
+        fresh_deleted_object_verified = $true
+        fresh_target_verified = $true
+        collision_probe_performed = $true
+        target_collision = $false
+
+        restore_cmdlet_authorized = $true
+        restore_whatif_authorized = $true
+        whatif_performed = $true
+
+        execution_authorized = $false
+        production_authorized = $false
+
+        restore_performed = $false
+        write_performed = $false
+
+        message = (
+            "C9.5 Restore-ADObject WhatIf " +
+            "validated without AD write"
+        )
+    }
+}
+
+
 function Invoke-EitasAdAdminDeletedObjectRestoreSimulationPreview {
     param(
         [Parameter(Mandatory = $true)]
@@ -7840,6 +9283,731 @@ function Invoke-EitasAdAdminAclDelegationSimulationPreview {
 }
 
 
+
+# C9.5-A5E3 - Controlled real restore handler.
+#
+# IMPORTANT:
+# This function is intentionally NOT connected to the generic
+# AD Admin dispatcher and is NOT polled by the Windows worker
+# at R2B. It is a candidate-only primitive pending PS 5.1
+# parser/cross-language validation and dedicated transport wiring.
+
+function Invoke-EitasAdAdminDeletedObjectRestoreExecute {
+    param(
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+
+        [Parameter(Mandatory = $true)]
+        [object]$Payload,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Mode
+    )
+
+    $SignatureVerified = $false
+    $FreshDeletedObjectVerified = $false
+    $FreshTargetVerified = $false
+    $TargetCollision = $false
+
+    $RestorePerformed = $false
+    $WritePerformed = $false
+
+    $PostRestoreObjectGuidVerified = $false
+    $PostRestoreTargetPresent = $false
+    $PostRestoreDeletedObjectAbsent = $false
+
+    $EnvelopeId = ""
+    $ExecutionConsumptionId = ""
+    $ExecutionTicketId = ""
+
+    $ObjectGuidText = ""
+    $EffectiveNewName = ""
+    $EffectiveTargetPath = ""
+
+    try {
+        if ($Mode -ine "Simulation") {
+            throw (
+                "C9.5 controlled restore execute requires " +
+                "Simulation global mode"
+            )
+        }
+
+        $ContractVersion = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "contract_version"
+        )
+
+        if (
+            $ContractVersion -cne
+            "c9.5a5e-v1"
+        ) {
+            throw (
+                "C9.5 Execute contract invalid"
+            )
+        }
+
+        $Operation = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "operation"
+        )
+
+        if (
+            $Operation -cne
+            "restore_deleted_object_execute"
+        ) {
+            throw (
+                "C9.5 Execute operation invalid"
+            )
+        }
+
+        $EnvelopeId = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "envelope_id"
+        )
+
+        $ExecutionConsumptionContract = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_consumption_contract_version"
+        )
+
+        if (
+            $ExecutionConsumptionContract -cne
+            "c9.5a5d-v1"
+        ) {
+            throw (
+                "C9.5 execution consumption contract invalid"
+            )
+        }
+
+        $ExecutionConsumptionId = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_consumption_id"
+        )
+
+        $ExecutionTicketId = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "execution_ticket_id"
+        )
+
+        $ObjectGuidText = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "object_guid"
+        )
+
+        foreach (
+            $Name in @(
+                "envelope_id",
+                "execution_consumption_id",
+                "execution_ticket_id",
+                "runtime_gate_id",
+                "authorization_consumption_id",
+                "authorization_id",
+                "preexecution_id",
+                "object_guid"
+            )
+        ) {
+            $Value = (
+                Get-EitasC95RestoreWhatIfRequiredString `
+                    -Payload $Payload `
+                    -Name $Name
+            )
+
+            $ParsedGuid = [Guid]::Empty
+
+            if (
+                -not (
+                    [Guid]::TryParse(
+                        $Value,
+                        [ref]$ParsedGuid
+                    )
+                )
+            ) {
+                throw (
+                    "C9.5 Execute invalid GUID field: " +
+                    $Name
+                )
+            }
+        }
+
+        foreach (
+            $Name in @(
+                "signature",
+                "execution_consumption_record_digest",
+                "execution_ticket_digest",
+                "runtime_gate_digest",
+                "authorization_consumption_record_digest",
+                "authorization_digest",
+                "preexecution_digest",
+                "confirmation_sha256"
+            )
+        ) {
+            $Value = (
+                Get-EitasC95RestoreWhatIfRequiredString `
+                    -Payload $Payload `
+                    -Name $Name
+            )
+
+            if (
+                $Value -cnotmatch
+                '^[0-9a-f]{64}$'
+            ) {
+                throw (
+                    "C9.5 Execute invalid SHA256 field: " +
+                    $Name
+                )
+            }
+        }
+
+        foreach (
+            $Name in @(
+                "runtime_authorized",
+                "production_authorized",
+                "write_performed"
+            )
+        ) {
+            if (
+                Get-EitasC95RestoreWhatIfBoolean `
+                    -Payload $Payload `
+                    -Name $Name
+            ) {
+                throw (
+                    "C9.5 Execute unsafe envelope flag: " +
+                    $Name
+                )
+            }
+        }
+
+        foreach (
+            $Name in @(
+                "source_consumption_verified",
+                "source_one_shot_consumed",
+                "human_authorized",
+                "revalidation_passed",
+                "controlled_restore_authorized",
+                "restore_cmdlet_authorized",
+                "execution_authorized"
+            )
+        ) {
+            if (
+                -not (
+                    Get-EitasC95RestoreWhatIfBoolean `
+                        -Payload $Payload `
+                        -Name $Name
+                )
+            ) {
+                throw (
+                    "C9.5 Execute required flag absent: " +
+                    $Name
+                )
+            }
+        }
+
+        $IssuedText = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "issued_at"
+        )
+
+        $ExpiresText = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "expires_at"
+        )
+
+        try {
+            $Issued = [DateTimeOffset]::Parse(
+                $IssuedText,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::RoundtripKind
+            )
+
+            $Expires = [DateTimeOffset]::Parse(
+                $ExpiresText,
+                [System.Globalization.CultureInfo]::InvariantCulture,
+                [System.Globalization.DateTimeStyles]::RoundtripKind
+            )
+        }
+        catch {
+            throw (
+                "C9.5 Execute timestamp invalid"
+            )
+        }
+
+        if ($Expires -le $Issued) {
+            throw (
+                "C9.5 Execute expiration invalid"
+            )
+        }
+
+        if (
+            ($Expires - $Issued).TotalSeconds `
+                -gt 10.001
+        ) {
+            throw (
+                "C9.5 Execute TTL exceeds 10 seconds"
+            )
+        }
+
+        $Now = [DateTimeOffset]::UtcNow
+
+        if (
+            $Issued -gt $Now.AddSeconds(5)
+        ) {
+            throw (
+                "C9.5 Execute issuance is in the future"
+            )
+        }
+
+        if ($Now -ge $Expires) {
+            throw (
+                "C9.5 Execute envelope expired"
+            )
+        }
+
+        Test-EitasC95RestoreExecuteSignature `
+            -Config $Config `
+            -Payload $Payload |
+            Out-Null
+
+        $SignatureVerified = $true
+
+        $ObjectGuid = [Guid](
+            $ObjectGuidText
+        )
+
+        $ExpectedObjectClass = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "object_class"
+        ).Trim().ToLowerInvariant()
+
+        $ClassPolicy = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "class_policy"
+        )
+
+        if (
+            $ClassPolicy -cne
+            "standard_controlled"
+        ) {
+            throw (
+                "C9.5 Execute object class policy invalid"
+            )
+        }
+
+        $AllowedClasses = @(
+            "user",
+            "group",
+            "computer",
+            "contact"
+        )
+
+        if (
+            $AllowedClasses -inotcontains
+            $ExpectedObjectClass
+        ) {
+            throw (
+                "C9.5 Execute object class not allowed"
+            )
+        }
+
+        $EffectiveNewName = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "effective_new_name"
+        )
+
+        $EffectiveTargetPath = (
+            Get-EitasC95RestoreWhatIfRequiredString `
+                -Payload $Payload `
+                -Name "effective_target_path"
+        )
+
+        Import-EitasActiveDirectoryModule |
+            Out-Null
+
+        Assert-EitasDnSafe `
+            -DistinguishedName $EffectiveTargetPath `
+            -Config $Config |
+            Out-Null
+
+        $RecycleFeature = Get-ADOptionalFeature `
+            -Filter (
+                'Name -eq "Recycle Bin Feature"'
+            ) `
+            -Properties EnabledScopes `
+            -ErrorAction Stop
+
+        $EnabledScopes = @(
+            $RecycleFeature.EnabledScopes |
+            Where-Object {
+                -not [string]::IsNullOrWhiteSpace(
+                    [string]$_
+                )
+            }
+        )
+
+        if ($EnabledScopes.Count -eq 0) {
+            throw (
+                "C9.5 Execute AD Recycle Bin is not enabled"
+            )
+        }
+
+        $Fresh = Get-ADObject `
+            -Identity $ObjectGuid `
+            -IncludeDeletedObjects `
+            -Properties `
+                objectGUID,
+                objectClass,
+                isDeleted,
+                isRecycled,
+                lastKnownParent,
+                msDS-LastKnownRDN `
+            -ErrorAction Stop
+
+        $FreshGuid = [Guid](
+            $Fresh.ObjectGUID
+        )
+
+        if ($FreshGuid -ne $ObjectGuid) {
+            throw (
+                "C9.5 Execute fresh GUID mismatch"
+            )
+        }
+
+        if ($Fresh.isDeleted -ne $true) {
+            throw (
+                "C9.5 Execute object is no longer deleted"
+            )
+        }
+
+        if ($Fresh.isRecycled -eq $true) {
+            throw (
+                "C9.5 Execute object is already recycled"
+            )
+        }
+
+        $FreshObjectClass = (
+            [string]$Fresh.ObjectClass
+        ).Trim().ToLowerInvariant()
+
+        if (
+            $FreshObjectClass -cne
+            $ExpectedObjectClass
+        ) {
+            throw (
+                "C9.5 Execute fresh object class mismatch"
+            )
+        }
+
+        $FreshDeletedObjectVerified = $true
+
+        $TargetParent = Get-ADObject `
+            -Identity $EffectiveTargetPath `
+            -Properties `
+                objectGUID,
+                isDeleted,
+                isRecycled `
+            -ErrorAction Stop
+
+        if ($TargetParent.isDeleted -eq $true) {
+            throw (
+                "C9.5 Execute target parent is deleted"
+            )
+        }
+
+        if ($TargetParent.isRecycled -eq $true) {
+            throw (
+                "C9.5 Execute target parent is recycled"
+            )
+        }
+
+        $FreshTargetVerified = $true
+
+        $RootDse = Get-ADRootDSE `
+            -ErrorAction Stop
+
+        $EscapedClass = (
+            ConvertTo-EitasAdAdminLdapFilterValue `
+                -Value $ExpectedObjectClass
+        )
+
+        $SchemaMatches = @(
+            Get-ADObject `
+                -SearchBase $RootDse.SchemaNamingContext `
+                -SearchScope Subtree `
+                -LDAPFilter (
+                    "(&(objectClass=classSchema)" +
+                    "(lDAPDisplayName=" +
+                    $EscapedClass +
+                    "))"
+                ) `
+                -Properties rDNAttID `
+                -ErrorAction Stop
+        )
+
+        if ($SchemaMatches.Count -ne 1) {
+            throw (
+                "C9.5 Execute class schema resolution failed"
+            )
+        }
+
+        $RdnAttribute = (
+            [string]$SchemaMatches[0].rDNAttID
+        ).Trim()
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $RdnAttribute
+            )
+        ) {
+            throw (
+                "C9.5 Execute RDN attribute unavailable"
+            )
+        }
+
+        $EscapedName = (
+            ConvertTo-EitasAdAdminLdapFilterValue `
+                -Value $EffectiveNewName
+        )
+
+        $CollisionFilter = (
+            "(" +
+            $RdnAttribute +
+            "=" +
+            $EscapedName +
+            ")"
+        )
+
+        $CollisionMatches = @(
+            Get-ADObject `
+                -SearchBase $EffectiveTargetPath `
+                -SearchScope OneLevel `
+                -LDAPFilter $CollisionFilter `
+                -Properties objectGUID `
+                -ErrorAction Stop
+        )
+
+        if ($CollisionMatches.Count -ne 0) {
+            $TargetCollision = $true
+
+            throw (
+                "C9.5 Execute target collision detected"
+            )
+        }
+
+        Restore-ADObject `
+            -Identity $ObjectGuid `
+            -NewName $EffectiveNewName `
+            -TargetPath $EffectiveTargetPath `
+            -Confirm:$false `
+            -ErrorAction Stop
+
+        # Set immediately after the cmdlet returns successfully.
+        # Any later verification error must preserve this fact.
+        $RestorePerformed = $true
+        $WritePerformed = $true
+
+        $PostObject = Get-ADObject `
+            -Identity $ObjectGuid `
+            -Properties `
+                objectGUID,
+                objectClass,
+                isDeleted,
+                isRecycled `
+            -ErrorAction Stop
+
+        $PostGuid = [Guid](
+            $PostObject.ObjectGUID
+        )
+
+        if ($PostGuid -ne $ObjectGuid) {
+            throw (
+                "C9.5 Execute post-restore GUID mismatch"
+            )
+        }
+
+        $PostRestoreObjectGuidVerified = $true
+
+        if ($PostObject.isDeleted -eq $true) {
+            throw (
+                "C9.5 Execute object remains deleted after restore"
+            )
+        }
+
+        if ($PostObject.isRecycled -eq $true) {
+            throw (
+                "C9.5 Execute object is recycled after restore"
+            )
+        }
+
+        $PostRestoreDeletedObjectAbsent = $true
+
+        $PostTargetMatches = @(
+            Get-ADObject `
+                -SearchBase $EffectiveTargetPath `
+                -SearchScope OneLevel `
+                -LDAPFilter $CollisionFilter `
+                -Properties `
+                    objectGUID,
+                    isDeleted,
+                    isRecycled `
+                -ErrorAction Stop
+        )
+
+        if ($PostTargetMatches.Count -ne 1) {
+            throw (
+                "C9.5 Execute restored target count invalid"
+            )
+        }
+
+        $PostTargetGuid = [Guid](
+            $PostTargetMatches[0].ObjectGUID
+        )
+
+        if ($PostTargetGuid -ne $ObjectGuid) {
+            throw (
+                "C9.5 Execute restored target GUID mismatch"
+            )
+        }
+
+        if (
+            $PostTargetMatches[0].isDeleted -eq $true -or
+            $PostTargetMatches[0].isRecycled -eq $true
+        ) {
+            throw (
+                "C9.5 Execute restored target state invalid"
+            )
+        }
+
+        $PostRestoreTargetPresent = $true
+
+        return [pscustomobject]@{
+            success = $true
+            message = (
+                "Controlled deleted object restore completed"
+            )
+
+            contract_version = "c9.5a5e3-v1"
+            action = "restore_deleted_object_execute"
+            global_mode = "Simulation"
+
+            envelope_id = $EnvelopeId
+            execution_consumption_id = (
+                $ExecutionConsumptionId
+            )
+            execution_ticket_id = $ExecutionTicketId
+
+            object_guid = (
+                $ObjectGuidText.ToLowerInvariant()
+            )
+
+            effective_new_name = $EffectiveNewName
+            effective_target_path = $EffectiveTargetPath
+
+            signature_verified = $SignatureVerified
+            fresh_deleted_object_verified = (
+                $FreshDeletedObjectVerified
+            )
+            fresh_target_verified = $FreshTargetVerified
+            target_collision = $TargetCollision
+
+            controlled_restore_runtime_authorized = $true
+
+            restore_performed = $RestorePerformed
+            write_performed = $WritePerformed
+
+            post_restore_object_guid_verified = (
+                $PostRestoreObjectGuidVerified
+            )
+
+            post_restore_target_present = (
+                $PostRestoreTargetPresent
+            )
+
+            post_restore_deleted_object_absent = (
+                $PostRestoreDeletedObjectAbsent
+            )
+
+            production_authorized = $false
+        }
+    }
+    catch {
+        $ErrorMessage = (
+            [string]$_.Exception.Message
+        ).Trim()
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                $ErrorMessage
+            )
+        ) {
+            $ErrorMessage = (
+                "Controlled deleted object restore failed"
+            )
+        }
+
+        return [pscustomobject]@{
+            success = $false
+            message = $ErrorMessage
+
+            contract_version = "c9.5a5e3-v1"
+            action = "restore_deleted_object_execute"
+            global_mode = "Simulation"
+
+            envelope_id = $EnvelopeId
+            execution_consumption_id = (
+                $ExecutionConsumptionId
+            )
+            execution_ticket_id = $ExecutionTicketId
+
+            object_guid = (
+                [string]$ObjectGuidText
+            ).ToLowerInvariant()
+
+            effective_new_name = $EffectiveNewName
+            effective_target_path = $EffectiveTargetPath
+
+            signature_verified = $SignatureVerified
+
+            fresh_deleted_object_verified = (
+                $FreshDeletedObjectVerified
+            )
+
+            fresh_target_verified = $FreshTargetVerified
+            target_collision = $TargetCollision
+
+            controlled_restore_runtime_authorized = $true
+
+            restore_performed = $RestorePerformed
+            write_performed = $WritePerformed
+
+            post_restore_object_guid_verified = (
+                $PostRestoreObjectGuidVerified
+            )
+
+            post_restore_target_present = (
+                $PostRestoreTargetPresent
+            )
+
+            post_restore_deleted_object_absent = (
+                $PostRestoreDeletedObjectAbsent
+            )
+
+            production_authorized = $false
+        }
+    }
+}
+
+
 function Invoke-EitasAdAdminJob {
     param(
         [object]$Config,
@@ -7869,7 +10037,7 @@ function Invoke-EitasAdAdminJob {
             return Invoke-EitasAdAdminCreateGroup -Config $Config -Payload $Payload -Mode $Mode
         }
 
-        
+
         "create_contact" {
             return Invoke-EitasAdAdminCreateContact `
                 -Config $Config `
@@ -7945,6 +10113,464 @@ function Invoke-EitasAdAdminJob {
         }
     }
 }
+
+
+function Process-EitasPendingDeletedObjectRestoreExecutions {
+    param(
+        [object]$Config,
+        [switch]$SilentWhenEmpty
+    )
+
+    $AgentName = Get-EitasAgentName `
+        -Config $Config
+
+    $ModeResponse = Get-EitasAgentMode `
+        -Config $Config
+
+    $Mode = (
+        [string]$ModeResponse.mode
+    ).Trim()
+
+    if ($Mode -ine "Simulation") {
+        if (-not $SilentWhenEmpty) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "INFO" `
+                -Message (
+                    "Restore execution transport inactive " +
+                    "outside Simulation."
+                )
+        }
+
+        return 0
+    }
+
+    $Tickets = @(
+        Get-EitasPendingDeletedObjectRestoreExecutions `
+            -Config $Config
+    )
+
+    if ($Tickets.Count -eq 0) {
+        if (-not $SilentWhenEmpty) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "INFO" `
+                -Message (
+                    "No controlled restore execution " +
+                    "ticket pending."
+                )
+        }
+
+        return 0
+    }
+
+    $Processed = 0
+
+    foreach ($Ticket in $Tickets) {
+        $TransportTicketId = Get-EitasObjectValue `
+            -Object $Ticket `
+            -Names @(
+                "transport_ticket_id"
+            )
+
+        if (
+            [string]::IsNullOrWhiteSpace(
+                [string]$TransportTicketId
+            )
+        ) {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "WARN" `
+                -Message (
+                    "Restore transport ticket without ID ignored."
+                )
+
+            continue
+        }
+
+        $TransportTicketId = (
+            [string]$TransportTicketId
+        ).Trim()
+
+        try {
+            $TicketContract = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "contract_version"
+                )
+
+            $TicketState = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "state"
+                )
+
+            if (
+                [string]$TicketContract -cne
+                "c9.5a5e2-v1"
+            ) {
+                throw (
+                    "Restore transport ticket contract invalid"
+                )
+            }
+
+            if (
+                [string]$TicketState -cne
+                "restore_execution_pending"
+            ) {
+                throw (
+                    "Restore transport ticket state invalid"
+                )
+            }
+
+            $EnvelopeId = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "envelope_id"
+                )
+
+            $ExecutionConsumptionId = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "execution_consumption_id"
+                )
+
+            $ExecutionTicketId = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "execution_ticket_id"
+                )
+
+            $PayloadDigest = Get-EitasObjectValue `
+                -Object $Ticket `
+                -Names @(
+                    "payload_digest"
+                )
+
+            foreach (
+                $RequiredValue in @(
+                    $EnvelopeId,
+                    $ExecutionConsumptionId,
+                    $ExecutionTicketId,
+                    $PayloadDigest
+                )
+            ) {
+                if (
+                    [string]::IsNullOrWhiteSpace(
+                        [string]$RequiredValue
+                    )
+                ) {
+                    throw (
+                        "Restore transport ticket bindings incomplete"
+                    )
+                }
+            }
+
+            $PendingAuthorization = (
+                [pscustomobject]@{
+                    controlled_restore_runtime_authorized = (
+                        Get-EitasObjectValue `
+                            -Object $Ticket `
+                            -Names @(
+                                "controlled_restore_runtime_authorized"
+                            )
+                    )
+
+                    production_authorized = (
+                        Get-EitasObjectValue `
+                            -Object $Ticket `
+                            -Names @(
+                                "production_authorized"
+                            )
+                    )
+
+                    write_performed = (
+                        Get-EitasObjectValue `
+                            -Object $Ticket `
+                            -Names @(
+                                "write_performed"
+                            )
+                    )
+                }
+            )
+
+            Assert-EitasDeletedObjectRestoreExecutionTransportAuthorization `
+                -Authorization $PendingAuthorization `
+                -ExpectedRuntimeAuthorization $false |
+                Out-Null
+
+            $Claim = Claim-EitasDeletedObjectRestoreExecution `
+                -Config $Config `
+                -TransportTicketId $TransportTicketId `
+                -AgentName $AgentName
+
+            if ($null -eq $Claim) {
+                continue
+            }
+
+            $ClaimContract = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "contract_version"
+                )
+
+            $ClaimState = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "state"
+                )
+
+            if (
+                [string]$ClaimContract -cne
+                "c9.5a5e2-claim-v1"
+            ) {
+                throw (
+                    "Restore execution claim contract invalid"
+                )
+            }
+
+            if (
+                [string]$ClaimState -cne
+                "restore_execution_processing"
+            ) {
+                throw (
+                    "Restore execution claim state invalid"
+                )
+            }
+
+            $ClaimTicketId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "transport_ticket_id"
+                )
+
+            $TransportExecutionId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "transport_execution_id"
+                )
+
+            $ClaimEnvelopeId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "envelope_id"
+                )
+
+            $ClaimExecutionConsumptionId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "execution_consumption_id"
+                )
+
+            $ClaimExecutionTicketId = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "execution_ticket_id"
+                )
+
+            $ClaimPayloadDigest = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "payload_digest"
+                )
+
+            if (
+                [string]$ClaimTicketId -cne
+                $TransportTicketId
+            ) {
+                throw (
+                    "Restore transport ticket changed during claim"
+                )
+            }
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    [string]$TransportExecutionId
+                )
+            ) {
+                throw (
+                    "Restore transport execution ID missing"
+                )
+            }
+
+            if (
+                [string]$ClaimEnvelopeId -cne
+                [string]$EnvelopeId -or
+                [string]$ClaimExecutionConsumptionId -cne
+                [string]$ExecutionConsumptionId -or
+                [string]$ClaimExecutionTicketId -cne
+                [string]$ExecutionTicketId -or
+                [string]$ClaimPayloadDigest -cne
+                [string]$PayloadDigest
+            ) {
+                throw (
+                    "Restore execution claim bindings changed"
+                )
+            }
+
+            $ClaimAuthorization = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "authorization"
+                )
+
+            Assert-EitasDeletedObjectRestoreExecutionTransportAuthorization `
+                -Authorization $ClaimAuthorization `
+                -ExpectedRuntimeAuthorization $true |
+                Out-Null
+
+            $Payload = Get-EitasObjectValue `
+                -Object $Claim `
+                -Names @(
+                    "payload"
+                )
+
+            if ($null -eq $Payload) {
+                throw (
+                    "Restore execution signed payload missing"
+                )
+            }
+
+            $Result = (
+                Invoke-EitasAdAdminDeletedObjectRestoreExecute `
+                    -Config $Config `
+                    -Payload $Payload `
+                    -Mode $Mode
+            )
+
+            if ($null -eq $Result) {
+                throw (
+                    "Restore execution result missing"
+                )
+            }
+
+            $ResultContract = Get-EitasObjectValue `
+                -Object $Result `
+                -Names @(
+                    "contract_version"
+                )
+
+            $ResultAction = Get-EitasObjectValue `
+                -Object $Result `
+                -Names @(
+                    "action"
+                )
+
+            $ResultGlobalMode = Get-EitasObjectValue `
+                -Object $Result `
+                -Names @(
+                    "global_mode"
+                )
+
+            $ResultSuccess = Get-EitasObjectValue `
+                -Object $Result `
+                -Names @(
+                    "success"
+                )
+
+            if (
+                [string]$ResultContract -cne
+                "c9.5a5e3-v1"
+            ) {
+                throw (
+                    "Restore execution result contract invalid"
+                )
+            }
+
+            if (
+                [string]$ResultAction -cne
+                "restore_deleted_object_execute"
+            ) {
+                throw (
+                    "Restore execution result action invalid"
+                )
+            }
+
+            if (
+                [string]$ResultGlobalMode -cne
+                "Simulation"
+            ) {
+                throw (
+                    "Restore execution result global mode invalid"
+                )
+            }
+
+            if ($ResultSuccess -isnot [bool]) {
+                throw (
+                    "Restore execution result success invalid"
+                )
+            }
+
+            $ResultMessage = (
+                [string](
+                    Get-EitasObjectValue `
+                        -Object $Result `
+                        -Names @(
+                            "message"
+                        )
+                )
+            ).Trim()
+
+            if (
+                [string]::IsNullOrWhiteSpace(
+                    $ResultMessage
+                )
+            ) {
+                throw (
+                    "Restore execution result message missing"
+                )
+            }
+
+            Send-EitasDeletedObjectRestoreExecutionResult `
+                -Config $Config `
+                -TransportTicketId $TransportTicketId `
+                -TransportExecutionId (
+                    [string]$TransportExecutionId
+                ) `
+                -AgentName $AgentName `
+                -Success ([bool]$ResultSuccess) `
+                -Result $Result `
+                -Message $ResultMessage |
+                Out-Null
+
+            if ($ResultSuccess) {
+                $Level = "OK"
+            }
+            else {
+                $Level = "ERROR"
+            }
+
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level $Level `
+                -Message (
+                    "Controlled restore execution completed: " +
+                    $TransportTicketId
+                )
+
+            $Processed++
+        }
+        catch {
+            Write-EitasLog `
+                -Name "ad-admin-worker-light.log" `
+                -Level "ERROR" `
+                -Message (
+                    "Controlled restore execution rejected: " +
+                    $TransportTicketId +
+                    " / " +
+                    $_.Exception.Message
+                ) `
+                -Console
+
+            # Fail closed:
+            # do not fabricate a completion result if the dedicated
+            # transport bindings failed before a trusted handler result.
+        }
+    }
+
+    return $Processed
+}
+
 
 function Process-EitasPendingAclPrewriteTickets {
     param(

@@ -205,19 +205,68 @@ def test_c95_main_does_not_integrate_security_barrier_services():
         encoding="utf-8"
     )
 
-    forbidden = (
-        "ad_deleted_object_restore_ticket",
-        "ad_deleted_object_restore_authorization",
-        "ad_deleted_object_restore_preexecution",
-        "ad_deleted_object_restore_authorization_consumption",
-        "ad_deleted_object_restore_runtime_gate",
-        "build_ad_deleted_object_restore_runtime_gate",
-        "consume_ad_deleted_object_restore_authorization",
+    # R2E intentionally exposes only the dedicated
+    # high-level ticket-challenge facade.
+    assert (
+        "from app.services."
+        "ad_deleted_object_restore_ticket_challenge import ("
+        in main
     )
 
-    for token in forbidden:
+    assert (
+        "service_build_ad_deleted_object_restore_ticket_challenge"
+        in main
+    )
+
+    # Low-level A4/A5 security primitives must still
+    # never be imported directly by main.py.
+    forbidden_imports = (
+        "from app.services."
+        "ad_deleted_object_restore_ticket import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_ticket_persistence import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_ticket_consumption import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_authorization import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_authorization_persistence import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_preexecution import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_authorization_consumption import ",
+
+        "from app.services."
+        "ad_deleted_object_restore_runtime_gate import ",
+    )
+
+    for token in forbidden_imports:
         assert token not in main
 
+    # Even if an import style changes later, direct primitive
+    # invocation from main.py remains forbidden.
+    forbidden_calls = (
+        "build_ad_deleted_object_restore_ticket(",
+        "persist_ad_deleted_object_restore_ticket(",
+        "consume_ad_deleted_object_restore_ticket(",
+
+        "build_ad_deleted_object_restore_authorization(",
+        "persist_ad_deleted_object_restore_authorization(",
+
+        "build_ad_deleted_object_restore_preexecution(",
+        "consume_ad_deleted_object_restore_authorization(",
+
+        "build_ad_deleted_object_restore_runtime_gate(",
+    )
+
+    for token in forbidden_calls:
+        assert token not in main
 
 def test_c95_only_existing_readonly_and_simulation_surfaces_remain():
     main = Path(
@@ -248,7 +297,7 @@ def test_c95_only_existing_readonly_and_simulation_surfaces_remain():
         assert token not in main
 
 
-def test_c95_windows_worker_remains_preview_only():
+def test_c95_windows_restore_whatif_is_isolated_from_dispatcher():
     windows = Path(
         "agent-windows/modules/EitasAdAdmin.ps1"
     ).read_text(
@@ -260,15 +309,68 @@ def test_c95_windows_worker_remains_preview_only():
         in windows
     )
 
-    assert "Restore-ADObject" not in windows
+    handler_name = (
+        "Invoke-EitasAdAdmin"
+        "DeletedObjectRestoreWhatIf"
+    )
+
+    marker = (
+        f"function {handler_name} {{"
+    )
+
+    assert marker in windows
+
+    start = windows.index(
+        marker
+    )
+
+    end = windows.find(
+        "\nfunction ",
+        start + len(marker),
+    )
+
+    handler = windows[
+        start:
+        end if end != -1 else None
+    ]
+
+    assert handler.count(
+        "Restore-ADObject"
+    ) >= 1
+
+    assert "-WhatIf `" in handler
+
+    dispatcher_marker = (
+        "function Invoke-EitasAdAdminJob {"
+    )
+
+    dispatcher_start = windows.index(
+        dispatcher_marker
+    )
+
+    dispatcher_end = windows.find(
+        "\nfunction ",
+        dispatcher_start + len(
+            dispatcher_marker
+        ),
+    )
+
+    dispatcher = windows[
+        dispatcher_start:
+        dispatcher_end
+        if dispatcher_end != -1
+        else None
+    ]
+
+    assert handler_name not in dispatcher
 
     assert (
-        "ad_deleted_object_restore_runtime_gate"
-        not in windows
+        "restore_deleted_object_whatif"
+        not in dispatcher
     )
 
     assert (
-        "authorization_consumption_id"
+        "ad_deleted_object_restore_runtime_gate"
         not in windows
     )
 

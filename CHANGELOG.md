@@ -1,5 +1,55 @@
 # Journal des modifications
 
+<!-- v0.9.0-alpha.09 -->
+## 0.9.0-alpha.09 — C9.5 restauration réelle contrôlée validée
+
+### Ajouté
+
+- transport d’exécution dédié pour la restauration contrôlée, séparé du dispatcher AD Admin générique ;
+- enveloppe Windows signée à TTL court et consommation one-shot de la chaîne d’exécution ;
+- endpoints worker dédiés `pending`, `claim` et `result`, protégés par authentification worker stricte ;
+- opt-in Windows explicite `EnableDeletedObjectRestoreExecution`, désactivé par défaut ;
+- handler réel `Restore-ADObject` isolé du handler WhatIf et du dispatcher générique ;
+- validation post-restauration du GUID, du DN cible et de l’absence de l’objet dans les objets supprimés.
+
+### Sécurité
+
+- mode global EITAS maintenu en `Simulation` pendant toute l’exécution ;
+- aucune ouverture globale de Production ;
+- autorisation humaine OIDC et confirmation finale exacte avant création du transport ;
+- tickets, autorisations, consommations et enveloppe liés au même GUID, nom et chemin cible ;
+- runtime réel limité au handler dédié après claim du transport ;
+- worker restore activé temporairement puis rollback automatique vers le worker normal ;
+- dispatcher `Invoke-EitasAdAdminJob` sans action `restore_deleted_object_execute` et sans primitive `Restore-ADObject` ;
+- routes humaines et routes worker séparées ;
+- aucune réutilisation des chaînes expirées ou échouées précédentes.
+
+### Validation réelle
+
+- objet jetable : `GG_C95_RECYCLE_TEST` ;
+- GUID restauré : `b1018519-8b6e-4788-81c8-3108a188e7b4` ;
+- DN final : `CN=GG_C95_RECYCLE_TEST,OU=test,OU=Users,OU=EITAS,DC=API,DC=LOCAL` ;
+- même GUID vérifié directement dans Active Directory après restauration ;
+- zéro correspondance du GUID dans les objets supprimés après restauration ;
+- transport `48ce914e-9921-4ff2-a44c-37e2d77e32e2` claimé et terminé par `SRV-DC01` ;
+- `restore_performed=true`, `write_performed=true`, `production_authorized=false` ;
+- rollback Windows validé avec zéro processus restore armé restant ;
+- 350 tests C9.5 réussis ;
+- 1303 tests backend réussis ;
+- 339 sous-tests réussis ;
+- 63 tests de sécurité ciblés réussis ;
+- 45 warnings de dépréciation `datetime.utcnow()` connus ;
+- `git diff --check` propre et contrôle pré-commit sécurité validé.
+
+### Progression
+
+- C9.5 : **100 %** ;
+- C9 global : **52 %** ;
+- Explorateur Active Directory : **100 %** ;
+- EITAS global : **95 %**.
+
+La restauration contrôlée C9.5 est validée de bout en bout. Les futures opérations C9 restent soumises à leurs barrières dédiées et ne réutilisent pas implicitement cette autorisation.
+
 <!-- v0.9.0-alpha.08 -->
 ## 0.9.0-alpha.08 — C9.5 barrière de restauration contrôlée
 

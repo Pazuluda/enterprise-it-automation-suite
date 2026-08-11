@@ -1,7 +1,8 @@
 param(
     [switch]$Once,
     [int]$IntervalSeconds = 1,
-    [int]$HeartbeatSeconds = 60
+    [int]$HeartbeatSeconds = 60,
+    [switch]$EnableDeletedObjectRestoreExecution
 )
 
 $ErrorActionPreference = "Continue"
@@ -42,6 +43,16 @@ while ($true) {
             -Config $Config `
             -SilentWhenEmpty:$SilentWhenEmpty |
             Out-Null
+
+        # C9.5-A5E3-R2D:
+        # Controlled restore polling is explicit opt-in.
+        # Without this switch the worker remains fail-closed.
+        if ($EnableDeletedObjectRestoreExecution) {
+            Process-EitasPendingDeletedObjectRestoreExecutions `
+                -Config $Config `
+                -SilentWhenEmpty:$SilentWhenEmpty |
+                Out-Null
+        }
     }
     catch {
         Write-EitasLog -Name "ad-admin-worker-light.log" -Level "ERROR" -Message "Erreur boucle worker AD Admin : $($_.Exception.Message)" -Console

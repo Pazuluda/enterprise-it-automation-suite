@@ -586,4 +586,83 @@ def test_persistence_service_is_not_runtime_integrated():
     assert "activate_recycle_bin" not in admin
     assert "activate_recycle_bin" not in windows
     assert "Enable-ADOptionalFeature" not in windows
-    assert "Restore-ADObject" not in windows
+    # C9.5-A5C now permits exactly one isolated
+    # Restore-ADObject primitive, and only as WhatIf.
+    handler_name = (
+        "Invoke-EitasAdAdmin"
+        "DeletedObjectRestoreWhatIf"
+    )
+
+    handler_marker = (
+        f"function {handler_name} {{"
+    )
+
+    assert handler_marker in windows
+
+    handler_start = windows.index(
+        handler_marker
+    )
+
+    handler_end = windows.find(
+        "\nfunction ",
+        handler_start + len(
+            handler_marker
+        ),
+    )
+
+    handler = windows[
+        handler_start:
+        handler_end
+        if handler_end != -1
+        else None
+    ]
+
+    assert (
+        handler.count(
+            "Restore-ADObject `"
+        )
+        == 1
+    )
+
+    assert "-WhatIf `" in handler
+    assert "-Confirm:$false `" in handler
+
+    assert (
+        "restore_performed = $false"
+        in handler
+    )
+
+    assert (
+        "write_performed = $false"
+        in handler
+    )
+
+    dispatcher_marker = (
+        "function Invoke-EitasAdAdminJob {"
+    )
+
+    dispatcher_start = windows.index(
+        dispatcher_marker
+    )
+
+    dispatcher_end = windows.find(
+        "\nfunction ",
+        dispatcher_start + len(
+            dispatcher_marker
+        ),
+    )
+
+    dispatcher = windows[
+        dispatcher_start:
+        dispatcher_end
+        if dispatcher_end != -1
+        else None
+    ]
+
+    assert "Restore-ADObject" not in dispatcher
+    assert handler_name not in dispatcher
+
+    assert (
+        "restore_deleted_object_whatif"
+        not in dispatcher
+    )
